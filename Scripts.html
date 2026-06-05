@@ -40,9 +40,10 @@
   }
 
   function _applyFixes(transcript, extra) {
+    // Strip dashes between digits so Whisper's "1-1 0-9" becomes "1 1 0 9"
+    var result = transcript.replace(/(\d)-(\d)/g, '$1 $2');
     var all = _BASE_FIXES.concat(extra || []);
     all.sort(function(a, b) { return b[0].length - a[0].length; });
-    var result = transcript;
     all.forEach(function(pair) {
       var pat = pair[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       result = result.replace(new RegExp('(?:^|\\b)' + pat + '(?:\\b|$)', 'gi'), pair[1]);
