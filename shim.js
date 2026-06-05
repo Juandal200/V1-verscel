@@ -5,7 +5,6 @@
 ───────────────────────────────────────────────────────────────────────────── */
 (function () {
   // Calls go to /api/gas (Vercel serverless proxy) — never directly to GAS.
-  // This avoids browser CORS restrictions and GAS redirect issues.
   var API = '/api/gas';
 
   function _call(action, args, onSuccess, onFailure) {
