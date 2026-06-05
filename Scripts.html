@@ -4,7 +4,63 @@
   var _gMicRec    = null;
   var _gMicActive = false;
 
-  window.startMicInput = function(textareaId, btnId) {
+  // Base phonetic fixes for hard ATC terms the browser consistently mishears.
+  // Pairs are [wrong, correct]. Longer patterns must sort first — handled at apply time.
+  var _BASE_FIXES = [
+    ['queue and h',  'QNH'],  ['cue and h',  'QNH'],  ['q and h',  'QNH'],
+    ['cue nh',       'QNH'],  ['q n h',      'QNH'],  ['key nh',   'QNH'],
+    ['hold shirt',   'HOLD SHORT'],
+    ['go around',    'GO AROUND'],   ['go-around',   'GO AROUND'],
+    ['push back',    'PUSHBACK'],    ['push-back',   'PUSHBACK'],
+    ['take off',     'TAKEOFF'],     ['take-off',    'TAKEOFF'],
+    ['line up',      'LINE UP'],     ['line-up',     'LINE UP'],
+    ['fox trot',     'FOXTROT'],     ['fox-trot',    'FOXTROT'],
+    ['touch down',   'TOUCHDOWN'],   ['touch-down',  'TOUCHDOWN'],
+    ['will go',      'WILCO'],
+    ['squork',       'SQUAWK'],      ['squats',      'SQUAWK'],
+    ["i'll",         'ILS'],         ['aisles',      'ILS'],       ['i l s', 'ILS'],
+    ["eighty's",     'ATIS'],        ['eight is',    'ATIS'],
+    ['alfa',         'ALPHA'],
+    ['niner',        'NINER'],       ['liner',       'NINER'],     ['diner', 'NINER']
+  ];
+
+  // Build scenario-specific fixes from the expectedReadback of the current exercise.
+  // Extracts the callsign and adds phonetic split variants so e.g. "nova air 11"
+  // corrects to "NOVAIR 11" without hardcoding every airline.
+  function _scenarioFixes(expectedReadback) {
+    if (!expectedReadback) return [];
+    var fixes = [];
+    var text = String(expectedReadback).toUpperCase().trim();
+
+    // Callsign: last occurrence of WORD(S) + NUMBER at end of string
+    var csMatch = text.match(/\b([A-Z]{3,}(?:\s[A-Z]+)?)\s+(\d{1,4}[A-Z]?)\s*$/);
+    if (csMatch) {
+      var csWord = csMatch[1];   // e.g. "NOVAIR"
+      var csNum  = csMatch[2];   // e.g. "11"
+      // Split CamelCase-style compound words: NOVAIR → nova air, FASTAIR → fast air
+      var split = csWord.replace(/([A-Z][a-z]*)([A-Z])/g, '$1 $2').toLowerCase();
+      if (split !== csWord.toLowerCase()) {
+        fixes.push([split + ' ' + csNum, csWord + ' ' + csNum]);
+      }
+    }
+    return fixes;
+  }
+
+  function _applyFixes(transcript, extra) {
+    var all = _BASE_FIXES.concat(extra || []);
+    // Sort longest pattern first to avoid partial replacements
+    all.sort(function(a, b) { return b[0].length - a[0].length; });
+    var result = transcript;
+    all.forEach(function(pair) {
+      var pat = pair[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      result = result.replace(new RegExp('(?:^|\\b)' + pat + '(?:\\b|$)', 'gi'), pair[1]);
+    });
+    return result;
+  }
+
+  // expectedReadback is optional — callers that know it pass it; others leave it out
+  // and only base fixes are applied.
+  window.startMicInput = function(textareaId, btnId, expectedReadback) {
     var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     var btn = document.getElementById(btnId);
 
@@ -18,6 +74,13 @@
       return;
     }
 
+    // If caller didn't pass expectedReadback, try to pull it from the live simulator state
+    var expected = expectedReadback || (
+      window.AppState && AppState.training && AppState.training.scenarios
+        ? (AppState.training.scenarios[AppState.training.currentIndex || 0] || {}).expectedReadback
+        : ''
+    );
+
     _gMicRec = new SpeechRec();
     _gMicRec.lang            = 'en-US';
     _gMicRec.interimResults  = false;
@@ -29,9 +92,10 @@
     };
 
     _gMicRec.onresult = function(e) {
-      var transcript = e.results[0][0].transcript;
+      var raw        = e.results[0][0].transcript;
+      var corrected  = _applyFixes(raw, _scenarioFixes(expected));
       var ta = document.getElementById(textareaId);
-      if (ta) { ta.value = transcript; ta.focus(); ta.dispatchEvent(new Event('input')); }
+      if (ta) { ta.value = corrected; ta.focus(); ta.dispatchEvent(new Event('input')); }
     };
 
     _gMicRec.onend = function() {
@@ -15829,7 +15893,7 @@
           '<div class="exam-readback-area">' +
             '<label class="exam-readback-label">Your Readback</label>' +
             '<textarea id="examReadbackInput" class="exam-readback-input" rows="3" placeholder="Type the pilot readback..."></textarea>' +
-            '<button id="examMicBtn" class="demo-mic-btn" style="margin-top:8px;" onclick="startMicInput(\'examReadbackInput\',\'examMicBtn\')">&#127908; Tap to speak</button>' +
+            '<button id="examMicBtn" class="demo-mic-btn" style="margin-top:8px;" onclick="startMicInput(\'examReadbackInput\',\'examMicBtn\',' + JSON.stringify(phase.expectedReadback || '') + ')">&#127908; Tap to speak</button>' +
           '</div>' +
           '<button class="btn primary exam-next-btn" onclick="window._examNext()">' +
             (isLast ? 'Submit Exam' : 'Next Phase &rarr;') +
