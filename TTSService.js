@@ -108,11 +108,6 @@ var TTSService = {
         'en-GB-Neural2-B', 'en-GB-Neural2-A',
         'en-GB-Wavenet-B', 'en-GB-Standard-B'
       ]),
-        'en-GB-Neural2-D',
-        'en-GB-Wavenet-B',
-        'en-GB-Standard-B',
-        'en-GB-Standard-A'
-      ],
       speakingRate: 0.95,
       pitch: 0,
       effectsProfileId: []
@@ -179,7 +174,7 @@ var TTSService = {
       voiceNames: CHIRP3_HD_VOICES['en-CA'].concat([
         'en-US-Neural2-D', 'en-US-Neural2-J', 'en-US-Wavenet-D',
         'en-US-Standard-D'
-      ],
+      ]),
       speakingRate: 0.91,
       pitch: 0,
       effectsProfileId: []
