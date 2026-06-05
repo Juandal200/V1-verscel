@@ -15,17 +15,63 @@ var TELEPHONY_DESIGNATORS = [
   'FINNAIR','NORWEGIAN','TRANSAVIA','VOLOTEA','JETBLUE','SOUTHWEST','FRONTIER'
 ];
 
+// Chirp3-HD voice assignments per locale.
+// Accent = locale prefix (en-US-, en-GB-, etc.), character = voice name suffix.
+// Male/female mixed so each session feels like a different controller.
+var CHIRP3_HD_VOICES = {
+  'en-US': [
+    'en-US-Chirp3-HD-Achird',       // M
+    'en-US-Chirp3-HD-Fenrir',       // M
+    'en-US-Chirp3-HD-Puck',         // M
+    'en-US-Chirp3-HD-Charon',       // M
+    'en-US-Chirp3-HD-Kore',         // F
+    'en-US-Chirp3-HD-Despina',      // F
+    'en-US-Chirp3-HD-Zephyr'        // F
+  ],
+  'en-GB': [
+    'en-GB-Chirp3-HD-Iapetus',      // M
+    'en-GB-Chirp3-HD-Alnilam',      // M
+    'en-GB-Chirp3-HD-Schedar',      // M
+    'en-GB-Chirp3-HD-Umbriel',      // M
+    'en-GB-Chirp3-HD-Sulafat',      // F
+    'en-GB-Chirp3-HD-Aoede',        // F
+    'en-GB-Chirp3-HD-Leda'          // F
+  ],
+  'en-AU': [
+    'en-AU-Chirp3-HD-Algenib',      // M
+    'en-AU-Chirp3-HD-Orus',         // M
+    'en-AU-Chirp3-HD-Rasalgethi',   // M
+    'en-AU-Chirp3-HD-Vindemiatrix', // F
+    'en-AU-Chirp3-HD-Gacrux',       // F
+    'en-AU-Chirp3-HD-Callirrhoe'    // F
+  ],
+  'en-IN': [
+    'en-IN-Chirp3-HD-Enceladus',    // M
+    'en-IN-Chirp3-HD-Sadachbia',    // M
+    'en-IN-Chirp3-HD-Algieba',      // M
+    'en-IN-Chirp3-HD-Erinome',      // F
+    'en-IN-Chirp3-HD-Laomedeia',    // F
+    'en-IN-Chirp3-HD-Achernar'      // F
+  ],
+  'en-CA': [
+    'en-CA-Chirp3-HD-Alnilam',      // M
+    'en-CA-Chirp3-HD-Fenrir',       // M
+    'en-CA-Chirp3-HD-Sadaltager',   // M
+    'en-CA-Chirp3-HD-Autonoe',      // F
+    'en-CA-Chirp3-HD-Pulcherrima',  // F
+    'en-CA-Chirp3-HD-Zephyr'        // F
+  ]
+};
+
 var TTSService = {
   COUNTRY_PROFILES: {
     USA: {
       label: 'American ATC',
       languageCode: 'en-US',
-      voiceNames: [
-        'en-US-Neural2-D',
-        'en-US-Wavenet-D',
-        'en-US-Standard-D',
-        'en-US-Standard-A'
-      ],
+      voiceNames: CHIRP3_HD_VOICES['en-US'].concat([
+        'en-US-Neural2-D', 'en-US-Neural2-A',
+        'en-US-Wavenet-D', 'en-US-Standard-D'
+      ]),
       speakingRate: 0.91,
       pitch: 0,
       effectsProfileId: []
@@ -34,12 +80,10 @@ var TTSService = {
     US: {
       label: 'American ATC',
       languageCode: 'en-US',
-      voiceNames: [
-        'en-US-Neural2-D',
-        'en-US-Wavenet-D',
-        'en-US-Standard-D',
-        'en-US-Standard-A'
-      ],
+      voiceNames: CHIRP3_HD_VOICES['en-US'].concat([
+        'en-US-Neural2-D', 'en-US-Neural2-A',
+        'en-US-Wavenet-D', 'en-US-Standard-D'
+      ]),
       speakingRate: 0.91,
       pitch: 0,
       effectsProfileId: []
@@ -48,13 +92,10 @@ var TTSService = {
     UK: {
       label: 'British ATC',
       languageCode: 'en-GB',
-      voiceNames: [
-        'en-GB-Neural2-B',
-        'en-GB-Neural2-D',
-        'en-GB-Wavenet-B',
-        'en-GB-Standard-B',
-        'en-GB-Standard-A'
-      ],
+      voiceNames: CHIRP3_HD_VOICES['en-GB'].concat([
+        'en-GB-Neural2-B', 'en-GB-Neural2-A',
+        'en-GB-Wavenet-B', 'en-GB-Standard-B'
+      ]),
       speakingRate: 0.95,
       pitch: 0,
       effectsProfileId: []
@@ -63,8 +104,10 @@ var TTSService = {
     GB: {
       label: 'British ATC',
       languageCode: 'en-GB',
-      voiceNames: [
-        'en-GB-Neural2-B',
+      voiceNames: CHIRP3_HD_VOICES['en-GB'].concat([
+        'en-GB-Neural2-B', 'en-GB-Neural2-A',
+        'en-GB-Wavenet-B', 'en-GB-Standard-B'
+      ]),
         'en-GB-Neural2-D',
         'en-GB-Wavenet-B',
         'en-GB-Standard-B',
@@ -78,12 +121,9 @@ var TTSService = {
     AUSTRALIA: {
       label: 'Australian ATC',
       languageCode: 'en-AU',
-      voiceNames: [
-        'en-AU-Neural2-B',
-        'en-AU-Wavenet-B',
-        'en-AU-Standard-B',
-        'en-AU-Standard-A'
-      ],
+      voiceNames: CHIRP3_HD_VOICES['en-AU'].concat([
+        'en-AU-Neural2-B', 'en-AU-Wavenet-B', 'en-AU-Standard-B'
+      ]),
       speakingRate: 0.91,
       pitch: 0,
       effectsProfileId: []
@@ -92,12 +132,9 @@ var TTSService = {
     AU: {
       label: 'Australian ATC',
       languageCode: 'en-AU',
-      voiceNames: [
-        'en-AU-Neural2-B',
-        'en-AU-Wavenet-B',
-        'en-AU-Standard-B',
-        'en-AU-Standard-A'
-      ],
+      voiceNames: CHIRP3_HD_VOICES['en-AU'].concat([
+        'en-AU-Neural2-B', 'en-AU-Wavenet-B', 'en-AU-Standard-B'
+      ]),
       speakingRate: 0.91,
       pitch: 0,
       effectsProfileId: []
@@ -106,12 +143,9 @@ var TTSService = {
     INDIA: {
       label: 'Indian ATC',
       languageCode: 'en-IN',
-      voiceNames: [
-        'en-IN-Neural2-C',
-        'en-IN-Wavenet-C',
-        'en-IN-Standard-C',
-        'en-IN-Standard-A'
-      ],
+      voiceNames: CHIRP3_HD_VOICES['en-IN'].concat([
+        'en-IN-Neural2-C', 'en-IN-Wavenet-C', 'en-IN-Standard-C'
+      ]),
       speakingRate: 0.89,
       pitch: 0,
       effectsProfileId: []
@@ -120,12 +154,9 @@ var TTSService = {
     IN: {
       label: 'Indian ATC',
       languageCode: 'en-IN',
-      voiceNames: [
-        'en-IN-Neural2-C',
-        'en-IN-Wavenet-C',
-        'en-IN-Standard-C',
-        'en-IN-Standard-A'
-      ],
+      voiceNames: CHIRP3_HD_VOICES['en-IN'].concat([
+        'en-IN-Neural2-C', 'en-IN-Wavenet-C', 'en-IN-Standard-C'
+      ]),
       speakingRate: 0.89,
       pitch: 0,
       effectsProfileId: []
@@ -133,13 +164,10 @@ var TTSService = {
 
     CANADA: {
       label: 'Canadian ATC',
-      languageCode: 'en-US',
-      voiceNames: [
-        'en-US-Neural2-D',
-        'en-US-Neural2-J',
-        'en-US-Wavenet-D',
-        'en-US-Standard-D'
-      ],
+      languageCode: 'en-CA',
+      voiceNames: CHIRP3_HD_VOICES['en-CA'].concat([
+        'en-US-Neural2-D', 'en-US-Neural2-J', 'en-US-Wavenet-D'
+      ]),
       speakingRate: 0.91,
       pitch: 0,
       effectsProfileId: []
@@ -147,11 +175,9 @@ var TTSService = {
 
     CA: {
       label: 'Canadian ATC',
-      languageCode: 'en-US',
-      voiceNames: [
-        'en-US-Neural2-D',
-        'en-US-Neural2-J',
-        'en-US-Wavenet-D',
+      languageCode: 'en-CA',
+      voiceNames: CHIRP3_HD_VOICES['en-CA'].concat([
+        'en-US-Neural2-D', 'en-US-Neural2-J', 'en-US-Wavenet-D',
         'en-US-Standard-D'
       ],
       speakingRate: 0.91,
@@ -316,8 +342,10 @@ var TTSService = {
       var parts        = String(voiceName).split('-');
       var effectiveLang = (parts.length >= 2) ? (parts[0] + '-' + parts[1]) : profile.languageCode;
 
-      // Neural2 and Journey may need v1beta1 fallback on some locales
-      var apiVersions = (voiceName.indexOf('Neural2') !== -1 || voiceName.indexOf('Journey') !== -1)
+      // Neural2, Journey, and Chirp3-HD may need v1beta1 fallback on some locales
+      var apiVersions = (voiceName.indexOf('Neural2')   !== -1 ||
+                         voiceName.indexOf('Journey')   !== -1 ||
+                         voiceName.indexOf('Chirp3-HD') !== -1)
         ? ['v1', 'v1beta1'] : ['v1'];
 
       for (var v = 0; v < apiVersions.length; v++) {
@@ -355,20 +383,33 @@ var TTSService = {
     var version = apiVersion || 'v1';
     var url = 'https://texttospeech.googleapis.com/' + version + '/text:synthesize?key=' + encodeURIComponent(apiKey);
 
+    // Chirp3-HD does not support SSML or effectsProfileId/pitch in audioConfig.
+    // Strip tags and unescape HTML entities to produce clean plain text.
+    var isChirp3HD = String(voiceName || '').indexOf('Chirp3-HD') !== -1;
+
+    var inputPayload;
+    if (isChirp3HD) {
+      var plain = String(ssml || '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&amp;/g,  '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"').replace(/&apos;/g, "'")
+        .replace(/\s+/g, ' ').trim();
+      inputPayload = { text: plain };
+    } else {
+      inputPayload = { ssml: ssml };
+    }
+
+    var audioConfig = { audioEncoding: 'MP3', speakingRate: speakingRate };
+    if (!isChirp3HD) {
+      audioConfig.pitch            = Number(pitch || 0);
+      audioConfig.effectsProfileId = effectsProfileId && effectsProfileId.length
+        ? effectsProfileId : ['telephony-class-application'];
+    }
+
     var payload = {
-      input: {
-        ssml: ssml
-      },
-      voice: {
-        languageCode: languageCode,
-        name: voiceName
-      },
-      audioConfig: {
-        audioEncoding: 'MP3',
-        speakingRate: speakingRate,
-        pitch: Number(pitch || 0),
-        effectsProfileId: effectsProfileId || ['telephony-class-application']
-      }
+      input: inputPayload,
+      voice: { languageCode: languageCode, name: voiceName },
+      audioConfig: audioConfig
     };
 
     var options = {
