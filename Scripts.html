@@ -1,4 +1,56 @@
 <script>
+/* ── Global mic utility — used by live simulator, ICAO test, and exam ──────── */
+(function() {
+  var _gMicRec    = null;
+  var _gMicActive = false;
+
+  window.startMicInput = function(textareaId, btnId) {
+    var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var btn = document.getElementById(btnId);
+
+    if (!SpeechRec) {
+      if (btn) { btn.textContent = 'Not supported — use Chrome or Edge'; btn.disabled = true; }
+      return;
+    }
+
+    if (_gMicActive) {
+      if (_gMicRec) _gMicRec.stop();
+      return;
+    }
+
+    _gMicRec = new SpeechRec();
+    _gMicRec.lang            = 'en-US';
+    _gMicRec.interimResults  = false;
+    _gMicRec.maxAlternatives = 1;
+
+    _gMicRec.onstart = function() {
+      _gMicActive = true;
+      if (btn) { btn.classList.add('listening'); btn.innerHTML = '&#9679; Listening&hellip;'; }
+    };
+
+    _gMicRec.onresult = function(e) {
+      var transcript = e.results[0][0].transcript;
+      var ta = document.getElementById(textareaId);
+      if (ta) { ta.value = transcript; ta.focus(); ta.dispatchEvent(new Event('input')); }
+    };
+
+    _gMicRec.onend = function() {
+      _gMicActive = false;
+      if (btn) { btn.classList.remove('listening'); btn.innerHTML = '&#127908; Tap to speak'; }
+    };
+
+    _gMicRec.onerror = function(e) {
+      _gMicActive = false;
+      if (btn) { btn.classList.remove('listening'); btn.innerHTML = '&#127908; Tap to speak'; }
+      if (e.error === 'not-allowed') alert('Microphone access was denied. Please allow microphone access in your browser settings and try again.');
+    };
+
+    _gMicRec.start();
+  };
+}());
+</script>
+
+<script>
 (function() {
   'use strict';
 
@@ -5681,6 +5733,7 @@
             '<article class="sim-readback-priority-card">' +
               '<div class="sim-section-title"><span>PILOT READ-BACK</span><span class="sim-helper-text">Repeat the clearance exactly as a pilot would.</span></div>' +
               '<textarea id="pilotReadback" class="sim-readback-priority-input" placeholder="Type your pilot read-back here..."></textarea>' +
+              '<button id="simMicBtn" class="demo-mic-btn" onclick="startMicInput(\'pilotReadback\',\'simMicBtn\')">&#127908; Tap to speak</button>' +
               '<div id="simFeedbackBox" class="sim-feedback-box"></div>' +
               '<div class="sim-action-row"><button class="btn secondary" onclick="_showBackConfirm()">Back to countries</button><button class="btn primary big-action" onclick="immersiveSendReadback()">Send read-back</button></div>' +
               '<textarea id="studentAnswer" class="legacy-bridge-field"></textarea>' +
@@ -7056,6 +7109,7 @@
         '<div class="icao-test-radio-card icao-readback-card">' +
           '<p class="icao-test-radio-label">Your read-back</p>' +
           '<textarea id="icaoReadback" class="sim-readback-priority-input" placeholder="Type your pilot read-back here..." style="margin-bottom:10px;"></textarea>' +
+          '<button id="icaoMicBtn" class="demo-mic-btn" style="margin-bottom:10px;" onclick="startMicInput(\'icaoReadback\',\'icaoMicBtn\')">&#127908; Tap to speak</button>' +
           '<div id="icaoTestFeedback"></div>' +
           '<div style="display:flex;gap:10px;margin-top:8px;">' +
             '<button class="btn primary big-action" id="icaoSubmitBtn" onclick="icaoTestSubmitAnswer()">Submit read-back</button>' +
@@ -15775,6 +15829,7 @@
           '<div class="exam-readback-area">' +
             '<label class="exam-readback-label">Your Readback</label>' +
             '<textarea id="examReadbackInput" class="exam-readback-input" rows="3" placeholder="Type the pilot readback..."></textarea>' +
+            '<button id="examMicBtn" class="demo-mic-btn" style="margin-top:8px;" onclick="startMicInput(\'examReadbackInput\',\'examMicBtn\')">&#127908; Tap to speak</button>' +
           '</div>' +
           '<button class="btn primary exam-next-btn" onclick="window._examNext()">' +
             (isLast ? 'Submit Exam' : 'Next Phase &rarr;') +
