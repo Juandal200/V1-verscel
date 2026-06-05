@@ -20,25 +20,48 @@ function doGet(e) {
 // (or the special 'getClientConfigJson') are callable — all of them already
 // validate the session token internally, so auth is unchanged.
 function doPost(e) {
-  var corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST',
-    'Access-Control-Allow-Headers': 'Content-Type'
-  };
-
-  var output = ContentService.createTextOutput();
-  output.setMimeType(ContentService.MimeType.JSON);
+  if (!e || !e.postData) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'doPost reached but no postData' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 
   try {
-    var body    = JSON.parse(e.postData.contents);
+    var body = JSON.parse(e.postData.contents);
+
+    // Wompi payment webhook
+    if (body.event === 'transaction.updated' &&
+        body.data && body.data.transaction &&
+        body.data.transaction.status === 'APPROVED') {
+      var txn   = body.data.transaction;
+      var parts = String(txn.reference || '').split('-');
+      var plan, userId;
+      if (parts[0] === 'AEROCOMMS') {
+        if (_PLAN_DAYS[parts[1]]) {
+          plan   = parts[1];
+          userId = parts[2];
+        } else {
+          plan   = '1m';
+          userId = parts[1];
+        }
+        if (userId) {
+          var email = (txn.customer_data && txn.customer_data.email) || '';
+          wompiRecordSubscription_(userId, email, String(txn.id), txn.amount_in_cents || 0, _PLAN_DAYS[plan] || 30);
+        }
+      }
+      return ContentService.createTextOutput('ok').setMimeType(ContentService.MimeType.TEXT);
+    }
+
+    // Standard API call
     var action  = String(body.action || '');
     var args    = Array.isArray(body.args) ? body.args : [];
 
-    // Security: only expose api* functions and getClientConfigJson
     var allowed = action === 'getClientConfigJson' ||
                   /^api[A-Z]/.test(action) ||
                   action === 'getMyCompletedLevels' ||
                   action === 'getTtsConfigStatus';
+
+    var output = ContentService.createTextOutput();
+    output.setMimeType(ContentService.MimeType.JSON);
 
     if (!allowed) {
       output.setContent(JSON.stringify({ ok: false, error: 'Not allowed: ' + action }));
@@ -53,11 +76,12 @@ function doPost(e) {
 
     var result = fn.apply(null, args);
     output.setContent(JSON.stringify(result));
-  } catch (err) {
-    output.setContent(JSON.stringify({ ok: false, error: err && err.message ? err.message : String(err) }));
-  }
+    return output;
 
-  return output;
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: err && err.message ? err.message : String(err) }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 }
 
 function include(filename) {
@@ -8098,37 +8122,6 @@ var _PLAN_PROPS = {
 };
 var _PLAN_DEFAULTS = { '15d': '1490000', '1m': '2990000', '3m': '7990000' };
 
-function doPost(e) {
-  try {
-    var body = JSON.parse(e.postData.contents);
-    if (body.event === 'transaction.updated' &&
-        body.data && body.data.transaction &&
-        body.data.transaction.status === 'APPROVED') {
-      var txn   = body.data.transaction;
-      var parts = String(txn.reference || '').split('-');
-      var plan, userId;
-      // New format: AEROCOMMS-{plan}-{userId}-{timestamp}
-      // Old format: AEROCOMMS-{userId}-{timestamp}
-      if (parts[0] === 'AEROCOMMS') {
-        if (_PLAN_DAYS[parts[1]]) {
-          plan   = parts[1];
-          userId = parts[2];
-        } else {
-          plan   = '1m';
-          userId = parts[1];
-        }
-        if (userId) {
-          var email = (txn.customer_data && txn.customer_data.email) || '';
-          wompiRecordSubscription_(userId, email, String(txn.id), txn.amount_in_cents || 0, _PLAN_DAYS[plan] || 30);
-        }
-      }
-    }
-    return ContentService.createTextOutput('ok').setMimeType(ContentService.MimeType.TEXT);
-  } catch (err) {
-    Logger.log('doPost error: ' + err.message);
-    return ContentService.createTextOutput('error').setMimeType(ContentService.MimeType.TEXT);
-  }
-}
 
 function apiGetWompiCheckoutData(sessionToken, plan) {
   try {
