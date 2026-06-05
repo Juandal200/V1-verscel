@@ -7098,6 +7098,22 @@ body.sim-paused #simMediaPauseBtn {
 .demo-footer .btn { flex:1; }
 .demo-footer .btn-back { flex:0 0 auto; }
 .demo-score { font-size:2.2rem; font-weight:900; color:#686868; line-height:1; }
+.demo-mic-btn {
+  display:flex; align-items:center; justify-content:center; gap:7px;
+  width:100%; box-sizing:border-box; padding:11px 14px; margin:8px 0;
+  background:#1e1e1e; border:1.5px solid #393939; border-radius:10px;
+  color:#8a929c; font-size:0.88rem; font-weight:600; cursor:pointer;
+  transition:background .2s, border-color .2s, color .2s;
+}
+.demo-mic-btn:hover { border-color:#686868; color:#dedede; }
+.demo-mic-btn.listening {
+  background:#450a0a; border-color:#ef4444; color:#fca5a5;
+  animation:demo-mic-pulse 1.2s infinite;
+}
+@keyframes demo-mic-pulse {
+  0%,100% { box-shadow:0 0 0 0 rgba(239,68,68,.4); }
+  60%      { box-shadow:0 0 0 8px rgba(239,68,68,0); }
+}
 
 /* ── ICAO Assessment ─────────────────────────────────── */
 .icao-test-card {
