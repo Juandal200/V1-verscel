@@ -4,12 +4,14 @@
    to the GAS doPost endpoint via fetch. Zero changes required in Scripts.html.
 ───────────────────────────────────────────────────────────────────────────── */
 (function () {
-  var GAS_URL = 'https://script.google.com/a/macros/icaoaerocomms.com/s/AKfycbx4TnUdFYUb6SNJGsuTQW-rd3eQ2RRFeJCpe0ZsK7s67Y2L4bBx3Ez3l5WSM53yINNa/exec';
+  // Calls go to /api/gas (Vercel serverless proxy) — never directly to GAS.
+  // This avoids browser CORS restrictions and GAS redirect issues.
+  var API = '/api/gas';
 
   function _call(action, args, onSuccess, onFailure) {
-    fetch(GAS_URL, {
+    fetch(API, {
       method:  'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ action: action, args: args })
     })
     .then(function (r) { return r.json(); })

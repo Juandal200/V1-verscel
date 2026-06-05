@@ -3,5 +3,6 @@ shim.js
 package.json
 vercel.json
 dist/
+api/
 node_modules/
 *.md
