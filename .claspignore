@@ -1,0 +1,7 @@
+build.js
+shim.js
+package.json
+vercel.json
+dist/
+node_modules/
+*.md

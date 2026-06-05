@@ -14,6 +14,52 @@ function doGet(e) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+// ── Vercel/external HTTP API ───────────────────────────────────────────────
+// Receives POST requests from the Vercel frontend (fetch calls routed via
+// the google.script.run shim). Only functions whose names start with 'api'
+// (or the special 'getClientConfigJson') are callable — all of them already
+// validate the session token internally, so auth is unchanged.
+function doPost(e) {
+  var corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST',
+    'Access-Control-Allow-Headers': 'Content-Type'
+  };
+
+  var output = ContentService.createTextOutput();
+  output.setMimeType(ContentService.MimeType.JSON);
+
+  try {
+    var body    = JSON.parse(e.postData.contents);
+    var action  = String(body.action || '');
+    var args    = Array.isArray(body.args) ? body.args : [];
+
+    // Security: only expose api* functions and getClientConfigJson
+    var allowed = action === 'getClientConfigJson' ||
+                  /^api[A-Z]/.test(action) ||
+                  action === 'getMyCompletedLevels' ||
+                  action === 'getTtsConfigStatus';
+
+    if (!allowed) {
+      output.setContent(JSON.stringify({ ok: false, error: 'Not allowed: ' + action }));
+      return output;
+    }
+
+    var fn = globalThis[action];
+    if (typeof fn !== 'function') {
+      output.setContent(JSON.stringify({ ok: false, error: 'Unknown function: ' + action }));
+      return output;
+    }
+
+    var result = fn.apply(null, args);
+    output.setContent(JSON.stringify(result));
+  } catch (err) {
+    output.setContent(JSON.stringify({ ok: false, error: err && err.message ? err.message : String(err) }));
+  }
+
+  return output;
+}
+
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }

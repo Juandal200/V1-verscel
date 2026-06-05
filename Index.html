@@ -143,5 +143,14 @@
   </div>
   <img id="appLogoHidden" src="<?!= getLogoDataUrl() ?>" alt="" style="display:none">
   <?!= include('Scripts'); ?>
+  <script>
+    // On Vercel: wait for shim to load APP_CONFIG before booting the app.
+    // On GAS: _shimConfigReady is undefined so this block is skipped.
+    if (window._shimConfigReady) {
+      window._shimConfigReady.then(function() {
+        if (typeof window.bootApp === 'function') window.bootApp();
+      });
+    }
+  </script>
 </body>
 </html>
