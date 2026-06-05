@@ -14,7 +14,13 @@
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ action: action, args: args })
     })
-    .then(function (r) { return r.json(); })
+    .then(function (r) {
+      return r.text().then(function (text) {
+        console.log('[SHIM] ' + action + ' — status ' + r.status + ' — raw: ' + text.substring(0, 300));
+        try { return JSON.parse(text); }
+        catch (e) { throw new Error('Non-JSON response: ' + text.substring(0, 200)); }
+      });
+    })
     .then(function (data) { if (onSuccess) onSuccess(data); })
     .catch(function (err) { if (onFailure) onFailure(err); });
   }

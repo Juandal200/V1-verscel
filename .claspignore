@@ -2,7 +2,8 @@ build.js
 shim.js
 package.json
 vercel.json
-dist/
-api/
-node_modules/
+dist/**
+api/**
+node_modules/**
 *.md
+*.mjs
