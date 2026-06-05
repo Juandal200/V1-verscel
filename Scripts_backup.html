@@ -1,0 +1,5096 @@
+<script>
+  console.log('[ICAO] Scripts.html loaded');
+
+  var AppState = {
+    sessionToken: sessionStorage.getItem('icao_session_token') || '',
+    user: null,
+    home: null,
+    admin: {
+      scenarios: []
+    },
+    training: {
+      route: null,
+      scenarios: [],
+      currentIndex: 0,
+      scenarioStartMs: null
+    }
+  };
+
+  window.addEventListener('load', function() {
+    bindLoginEnterKeys();
+
+    if (AppState.sessionToken) {
+      setLoginMessage('Restoring session...');
+
+      google.script.run
+        .withSuccessHandler(handleGetMeResponse)
+        .withFailureHandler(handleServerError)
+        .apiGetMe(AppState.sessionToken);
+    }
+  });
+
+  function bindLoginEnterKeys() {
+    var emailInput = document.getElementById('loginEmail');
+    var nameInput = document.getElementById('loginName');
+    var codeInput = document.getElementById('loginCode');
+
+    if (nameInput) {
+      nameInput.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') requestLoginCode();
+      });
+    }
+
+    if (emailInput) {
+      emailInput.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') requestLoginCode();
+      });
+    }
+
+    if (codeInput) {
+      codeInput.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') verifyLoginCode();
+      });
+    }
+  }
+
+  function requestLoginCode() {
+    var name = document.getElementById('loginName').value.trim();
+    var email = document.getElementById('loginEmail').value.trim().toLowerCase();
+
+    if (!email) {
+      setLoginMessage('Enter your email.');
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      setLoginMessage('Enter a valid email address.');
+      return;
+    }
+
+    setLoginMessage('Sending verification code...');
+    setLoginButtonsDisabled(true);
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        setLoginButtonsDisabled(false);
+
+        if (!res || !res.ok) {
+          setLoginMessage(res && res.message ? res.message : 'Could not send code.');
+          return;
+        }
+
+        document.getElementById('otpBox').classList.remove('hidden');
+        document.getElementById('loginCode').focus();
+        setLoginMessage(res.message || 'Verification code sent.');
+      })
+      .withFailureHandler(function(err) {
+        setLoginButtonsDisabled(false);
+        handleServerError(err);
+      })
+      .apiRequestLoginCode({
+        name: name,
+        email: email
+      });
+  }
+
+  function verifyLoginCode() {
+    var name = document.getElementById('loginName').value.trim();
+    var email = document.getElementById('loginEmail').value.trim().toLowerCase();
+    var code = document.getElementById('loginCode').value.trim();
+
+    if (!email || !code) {
+      setLoginMessage('Enter email and verification code.');
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      setLoginMessage('Enter a valid email address.');
+      return;
+    }
+
+    if (!/^\d{6}$/.test(code)) {
+      setLoginMessage('Enter the 6-digit verification code.');
+      return;
+    }
+
+    setLoginMessage('Verifying code...');
+    setLoginButtonsDisabled(true);
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        setLoginButtonsDisabled(false);
+        handleLoginResponse(res);
+      })
+      .withFailureHandler(function(err) {
+        setLoginButtonsDisabled(false);
+        handleServerError(err);
+      })
+      .apiVerifyLoginCode({
+        name: name,
+        email: email,
+        code: code
+      });
+  }
+
+  function handleLoginResponse(res) {
+    if (!res || !res.ok) {
+      if (res && res.code === 'USER_NOT_ACTIVE') {
+        AppState.user = res.user || null;
+        showScreen('pendingScreen');
+        return;
+      }
+
+      setLoginMessage(res && res.message ? res.message : 'Login failed.');
+      return;
+    }
+
+    AppState.sessionToken = res.sessionToken;
+    AppState.user = res.user;
+    AppState.home = res.home;
+
+    sessionStorage.setItem('icao_session_token', AppState.sessionToken);
+
+    enterApplication();
+  }
+
+  function handleGetMeResponse(res) {
+    if (!res || !res.ok) {
+      sessionStorage.removeItem('icao_session_token');
+      AppState.sessionToken = '';
+      AppState.user = null;
+      AppState.home = null;
+      showScreen('loginScreen');
+      setLoginMessage('');
+      return;
+    }
+
+    AppState.user = res.user;
+    AppState.home = res.home;
+
+    enterApplication();
+  }
+
+  function enterApplication() {
+    showScreen('appScreen');
+
+    document.getElementById('userName').textContent = AppState.user.name || 'User';
+    document.getElementById('userRole').textContent = AppState.user.role || '';
+    document.getElementById('userEmail').textContent = AppState.user.email || '';
+
+    if (AppState.user.role === 'ADMIN') {
+      document.getElementById('adminNavButton').classList.remove('hidden');
+    } else {
+      document.getElementById('adminNavButton').classList.add('hidden');
+    }
+
+    renderHome();
+  }
+
+  function refreshMeAndHome(callback) {
+    if (!AppState.sessionToken) {
+      showScreen('loginScreen');
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) {
+          sessionStorage.removeItem('icao_session_token');
+          AppState.sessionToken = '';
+          showScreen('loginScreen');
+          return;
+        }
+
+        AppState.user = res.user;
+        AppState.home = res.home;
+
+        if (typeof callback === 'function') callback();
+      })
+      .withFailureHandler(handleServerError)
+      .apiGetMe(AppState.sessionToken);
+  }
+
+  function renderHome() {
+    setActiveNav('Dashboard');
+
+    refreshMeAndHome(function() {
+      var home = AppState.home || {};
+      var metrics = home.metrics || {};
+      var view = home.view || 'STUDENT';
+      var cards = '';
+
+      if (view === 'ADMIN') {
+        cards += metricCard('Total users', metrics.totalUsers || 0);
+        cards += metricCard('Active users', metrics.activeUsers || 0);
+        cards += metricCard('Pending users', metrics.pendingUsers || 0);
+        cards += metricCard('Total attempts', metrics.totalAttempts || 0);
+      }
+
+      if (view === 'INSTRUCTOR') {
+        cards += metricCard('Assigned students', metrics.assignedStudents || 0);
+        cards += metricCard('Active groups', metrics.activeGroups || 0);
+        cards += metricCard('Total attempts', metrics.totalAttempts || 0);
+        cards += metricCard('Average score', String(metrics.averageScore || 0) + '%');
+      }
+
+      if (view === 'STUDENT') {
+        cards += metricCard('Current level', metrics.currentLevel || 1);
+        cards += metricCard('Current country', metrics.currentCountry || 'USA');
+        cards += metricCard('Total attempts', metrics.totalAttempts || 0);
+        cards += metricCard('Success rate', String(metrics.successRate || 0) + '%');
+      }
+
+      document.getElementById('contentArea').innerHTML =
+        '<div class="metrics">' + cards + '</div>' +
+        '<div class="panel">' +
+          '<p class="eyebrow">Phase 2 foundation</p>' +
+          '<h3>Secure base ready</h3>' +
+          '<p class="subtitle">' +
+            'The platform now supports login, roles, scenarios, read-back validation, progress tracking, video and ATC audio.' +
+          '</p>' +
+        '</div>';
+    });
+  }
+
+function renderSimulatorPlaceholder() {
+  setActiveNav('Simulator');
+
+  var requestFinished = false;
+
+  document.getElementById('contentArea').innerHTML =
+    '<div class="panel">' +
+      '<p class="eyebrow">Simulator</p>' +
+      '<h3>LEVEL MAP V5 HARD ACTIVE</h3>' +
+      '<p class="subtitle">Loading level map, countries and training routes...</p>' +
+    '</div>';
+
+  var watchdog = setTimeout(function() {
+    if (!requestFinished) {
+      showContentError(
+        'Training catalog request did not return after 20 seconds.\n\n' +
+        'Possible cause: backend timeout, duplicated function, or Apps Script not deployed.\n\n' +
+        'Endpoint: apiGetTrainingCatalogV5_HARD'
+      );
+    }
+  }, 20000);
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      requestFinished = true;
+      clearTimeout(watchdog);
+
+      try {
+        console.log('apiGetTrainingCatalogV5_HARD response:', res);
+
+        if (!res || !res.ok) {
+          showContentError(
+            'Could not load training catalog.\n\n' +
+            'SOURCE:\n' +
+            (res && res.source ? res.source : 'No source returned.') +
+            '\n\nMESSAGE:\n' +
+            (res && res.message ? res.message : 'No server message returned.') +
+            '\n\nSTACK:\n' +
+            (res && res.stack ? res.stack : 'No stack returned.')
+          );
+          return;
+        }
+
+        if (typeof renderLevelMap !== 'function') {
+          showContentError('Frontend error: renderLevelMap is not defined in Scripts.html.');
+          return;
+        }
+
+        AppState.training.catalog = res.catalog || null;
+        renderLevelMap(res.catalog);
+
+      } catch (clientErr) {
+        showContentError(
+          'Frontend error while rendering catalog.\n\n' +
+          (clientErr && clientErr.message ? clientErr.message : String(clientErr)) +
+          '\n\n' +
+          (clientErr && clientErr.stack ? clientErr.stack : '')
+        );
+      }
+    })
+    .withFailureHandler(function(err) {
+      requestFinished = true;
+      clearTimeout(watchdog);
+
+      showContentError(
+        'Could not load training catalog.\n\n' +
+        'CLIENT/SERVER FAILURE:\n' +
+        (err && err.message ? err.message : JSON.stringify(err))
+      );
+    })
+    .apiGetTrainingCatalogV5_HARD(AppState.sessionToken);
+}
+
+  function renderScenarioRoute(data) {
+    var scenarios = data.scenarios || [];
+
+    AppState.training.route = data;
+    AppState.training.scenarios = scenarios;
+    AppState.training.currentIndex = 0;
+
+    var rows = '';
+
+    scenarios.forEach(function(s) {
+      rows +=
+        '<div class="panel scenario-card">' +
+          '<p class="eyebrow">Scenario ' + escapeHtml(s.scenarioOrder) + ' · Level ' + escapeHtml(s.level) + ' · ' + escapeHtml(s.country) + '</p>' +
+          '<h3>' + escapeHtml(s.context) + '</h3>' +
+          '<div class="scenario-meta">' +
+            '<span class="pill">Order ' + escapeHtml(s.scenarioOrder) + '</span>' +
+            '<span class="pill">Level ' + escapeHtml(s.level) + '</span>' +
+            '<span class="pill">' + escapeHtml(s.country) + '</span>' +
+            '<span class="pill">Version ' + escapeHtml(s.version || 1) + '</span>' +
+          '</div>' +
+          '<p class="subtitle"><strong>ATC:</strong> ' + escapeHtml(s.atcText) + '</p>' +
+          '<p class="subtitle"><strong>Expected:</strong> ' + escapeHtml(s.expectedReadback) + '</p>' +
+          '<p class="subtitle"><strong>Keywords:</strong> ' + escapeHtml((s.keywords || []).join(', ')) + '</p>' +
+          '<p class="subtitle"><strong>Media:</strong> ' + ((s.videoUrl || s.imageFileId || s.audioUrl) ? 'Available' : 'Not assigned') + '</p>' +
+        '</div>';
+    });
+
+    if (!rows) {
+      rows =
+        '<div class="panel">' +
+          '<h3>No scenarios available</h3>' +
+          '<p class="subtitle">There are no active scenarios for your current level and country.</p>' +
+        '</div>';
+    }
+
+    document.getElementById('contentArea').innerHTML =
+      '<div class="panel">' +
+        '<p class="eyebrow">Training Route</p>' +
+        '<h3>Level ' + escapeHtml(data.currentLevel) + ' · ' + escapeHtml(data.currentCountry) + '</h3>' +
+        '<p class="subtitle">Total assigned scenarios: ' + escapeHtml(data.totalScenarios) + '</p>' +
+        '<button class="btn primary" onclick="startTraining()" ' + (scenarios.length ? '' : 'disabled') + '>Start training</button>' +
+      '</div>' +
+      '<div class="scenario-grid">' + rows + '</div>';
+  }
+
+  function startTraining() {
+    if (!AppState.training.scenarios.length) {
+      showContentError('No scenarios available for this route.');
+      return;
+    }
+
+    AppState.training.currentIndex = 0;
+    renderTrainingScenario();
+  }
+
+  function renderTrainingScenario() {
+    var index = AppState.training.currentIndex;
+    var scenarios = AppState.training.scenarios;
+    var scenario = scenarios[index];
+
+    if (!scenario) {
+      showContentError('Scenario not found.');
+      return;
+    }
+
+    AppState.training.scenarioStartMs = Date.now();
+
+    var progressPct = Math.round(((index + 1) / scenarios.length) * 100);
+    var ambientHtml = '';
+
+    if (scenario.audioUrl) {
+      ambientHtml = '<audio class="ambient-audio" controls src="' + escapeHtml(scenario.audioUrl) + '"></audio>';
+    }
+
+    document.getElementById('contentArea').innerHTML =
+      '<div class="panel">' +
+        '<p class="eyebrow">Live Training</p>' +
+        '<h3>Scenario ' + escapeHtml(index + 1) + ' of ' + escapeHtml(scenarios.length) + '</h3>' +
+        '<div class="progress-track"><div class="progress-bar" style="width:' + escapeHtml(progressPct) + '%;"></div></div>' +
+        '<p class="subtitle">Level ' + escapeHtml(scenario.level) + ' · ' + escapeHtml(scenario.country) + ' · ' + escapeHtml(scenario.context) + '</p>' +
+      '</div>' +
+      '<div class="panel training-panel">' +
+        renderScenarioMedia(scenario) +
+        '<p class="eyebrow">ATC Transmission</p>' +
+        '<div class="transmission-box">' + escapeHtml(scenario.atcText) + '</div>' +
+        '<div class="action-row">' +
+          '<button id="playVoiceBtn" class="btn primary" onclick="playScenarioVoice()">▶ Play ATC audio</button>' +
+          ambientHtml +
+        '</div>' +
+        '<label class="field-label" for="studentAnswer">Pilot read-back</label>' +
+        '<textarea id="studentAnswer" class="textarea" rows="4" placeholder="Type your read-back here..."></textarea>' +
+        '<div id="attemptFeedback" class="feedback-card hidden"></div>' +
+        '<div class="action-row">' +
+          '<button class="btn secondary" onclick="renderScenarioRoute(AppState.training.route)">Back to route</button>' +
+          '<button id="submitAttemptBtn" class="btn primary" onclick="submitScenarioAnswer()">Send read-back</button>' +
+        '</div>' +
+      '</div>';
+
+    document.getElementById('studentAnswer').focus();
+  }
+
+  function renderScenarioMedia(scenario) {
+    if (scenario.videoUrl) {
+      var normalized = normalizeVideoUrl(scenario.videoUrl);
+
+      if (normalized.type === 'youtube' || normalized.type === 'drive-preview') {
+        return (
+          '<div class="sim-media-shell">' +
+            '<div class="sim-media-stage ' + (normalized.type === 'youtube' ? 'youtube-stage' : 'drive-stage') + '">' +
+              '<div class="sim-media-overlay"><span class="sim-badge">SIM VISUAL</span></div>' +
+              '<iframe class="sim-video-iframe" src="' + escapeHtml(normalized.url) + '" title="Scenario video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>' +
+            '</div>' +
+          '</div>'
+        );
+      }
+
+      return (
+        '<div class="sim-media-shell">' +
+          '<div class="sim-media-stage native-stage">' +
+            '<div class="sim-media-overlay"><span class="sim-badge">SIM VISUAL</span></div>' +
+            '<video class="sim-video-native" controls playsinline preload="metadata">' +
+              '<source src="' + escapeHtml(normalized.url) + '" type="video/mp4">' +
+              'Your browser does not support video playback.' +
+            '</video>' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    if (scenario.imageFileId) {
+      var imageUrl = 'https://drive.google.com/thumbnail?id=' + encodeURIComponent(scenario.imageFileId) + '&sz=w1600';
+
+      return (
+        '<div class="sim-media-shell">' +
+          '<div class="sim-media-stage image-stage">' +
+            '<div class="sim-media-overlay"><span class="sim-badge">SIM VISUAL</span></div>' +
+            '<img class="sim-image" src="' + escapeHtml(imageUrl) + '" alt="Scenario image">' +
+          '</div>' +
+        '</div>'
+      );
+    }
+
+    return (
+      '<div class="sim-media-shell">' +
+        '<div class="sim-media-stage media-placeholder-stage">' +
+          '<div class="media-placeholder-inner">' +
+            '<div class="radar-mini"><div class="radar-mini-line"></div></div>' +
+            '<p>No media file assigned to this scenario.</p>' +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function normalizeVideoUrl(url) {
+    url = String(url || '').trim();
+
+    if (!url) return { type: '', url: '' };
+
+    var youtubeId = extractYouTubeId(url);
+
+    if (youtubeId) {
+      return {
+        type: 'youtube',
+        url: 'https://www.youtube-nocookie.com/embed/' + youtubeId + '?rel=0&playsinline=1&modestbranding=1'
+      };
+    }
+
+    var driveId = extractDriveFileId(url);
+
+    if (driveId) {
+      return {
+        type: 'drive-preview',
+        url: 'https://drive.google.com/file/d/' + driveId + '/preview'
+      };
+    }
+
+    return {
+      type: 'mp4',
+      url: url
+    };
+  }
+
+  function extractYouTubeId(url) {
+    var patterns = [
+      /youtube\.com\/watch\?v=([^&]+)/,
+      /youtube\.com\/embed\/([^?&]+)/,
+      /youtu\.be\/([^?&]+)/,
+      /youtube\.com\/shorts\/([^?&]+)/
+    ];
+
+    for (var i = 0; i < patterns.length; i++) {
+      var match = String(url).match(patterns[i]);
+      if (match && match[1]) return match[1];
+    }
+
+    return '';
+  }
+
+  function extractDriveFileId(url) {
+    var patterns = [
+      /drive\.google\.com\/file\/d\/([^/]+)/,
+      /drive\.google\.com\/open\?id=([^&]+)/,
+      /drive\.google\.com\/uc\?id=([^&]+)/
+    ];
+
+    for (var i = 0; i < patterns.length; i++) {
+      var match = String(url).match(patterns[i]);
+      if (match && match[1]) return match[1];
+    }
+
+    return '';
+  }
+
+  function playScenarioVoice() {
+    var index = AppState.training.currentIndex;
+    var scenario = AppState.training.scenarios[index];
+    var playBtn = document.getElementById('playVoiceBtn');
+
+    if (!scenario) {
+      renderLocalFeedback('Scenario is not available.', false);
+      return;
+    }
+
+    if (playBtn) {
+      playBtn.disabled = true;
+      playBtn.textContent = 'Generating ATC audio...';
+    }
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (playBtn) {
+          playBtn.disabled = false;
+          playBtn.textContent = '▶ Play ATC audio';
+        }
+
+        if (!res || !res.ok) {
+          renderLocalFeedback(res && res.message ? res.message : 'Could not generate audio.', false);
+          return;
+        }
+
+        playBase64Audio(res.audioBase64);
+      })
+      .withFailureHandler(function(err) {
+        if (playBtn) {
+          playBtn.disabled = false;
+          playBtn.textContent = '▶ Play ATC audio';
+        }
+
+        handleServerError(err);
+      })
+      .apiGenerateScenarioVoice(AppState.sessionToken, {
+        scenarioId: scenario.scenarioId
+      });
+  }
+
+  function playBase64Audio(audioBase64) {
+    if (!audioBase64) {
+      renderLocalFeedback('Audio content is empty.', false);
+      return;
+    }
+
+    try {
+      var audio = new Audio('data:audio/mp3;base64,' + audioBase64);
+      audio.volume = 1;
+      audio.play();
+    } catch (err) {
+      renderLocalFeedback('Could not play audio: ' + err.message, false);
+    }
+  }
+
+  function submitScenarioAnswer() {
+    var index = AppState.training.currentIndex;
+    var scenario = AppState.training.scenarios[index];
+    var answerEl = document.getElementById('studentAnswer');
+    var submitBtn = document.getElementById('submitAttemptBtn');
+
+    if (!scenario || !answerEl) {
+      showContentError('Training scenario is not available.');
+      return;
+    }
+
+    var answer = answerEl.value.trim();
+
+    if (!answer) {
+      renderLocalFeedback('Please type your read-back before submitting.', false);
+      return;
+    }
+
+    var responseTimeSec = AppState.training.scenarioStartMs
+      ? Math.round((Date.now() - AppState.training.scenarioStartMs) / 1000)
+      : 0;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Evaluating...';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send read-back';
+
+        if (!res || !res.ok) {
+          renderLocalFeedback(res && res.message ? res.message : 'Could not save attempt.', false);
+          return;
+        }
+
+        renderAttemptFeedback(res);
+      })
+      .withFailureHandler(function(err) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send read-back';
+        handleServerError(err);
+      })
+      .apiSubmitAttempt(AppState.sessionToken, {
+        scenarioId: scenario.scenarioId,
+        studentAnswer: answer,
+        responseTimeSec: responseTimeSec
+      });
+  }
+
+  function renderAttemptFeedback(res) {
+    var feedback = document.getElementById('attemptFeedback');
+    var answerEl = document.getElementById('studentAnswer');
+    var submitBtn = document.getElementById('submitAttemptBtn');
+
+    var evaluation = res.evaluation || {};
+    var missing = evaluation.keywordsMissing || [];
+    var ok = !!evaluation.correct;
+
+    if (answerEl) answerEl.disabled = true;
+    if (submitBtn) submitBtn.classList.add('hidden');
+    if (!feedback) return;
+
+    feedback.classList.remove('hidden');
+    feedback.classList.toggle('ok', ok);
+    feedback.classList.toggle('bad', !ok);
+
+    feedback.innerHTML =
+      '<h3>' + (ok ? '✓ Read-back accepted' : '✗ Non-standard read-back') + '</h3>' +
+      '<p><strong>Score:</strong> ' + escapeHtml(evaluation.score || 0) + '/100</p>' +
+      '<p><strong>Expected:</strong> ' + escapeHtml(res.expectedAnswer || '') + '</p>' +
+      (missing.length ? '<p><strong>Missing keywords:</strong> ' + escapeHtml(missing.join(', ')) + '</p>' : '<p><strong>All required keywords were included.</strong></p>') +
+      (res.progress ? '<p><strong>Route progress:</strong> ' + escapeHtml(res.progress.progressPct || 0) + '%</p>' : '') +
+      '<div class="action-row">' +
+        '<button class="btn secondary" onclick="retryCurrentScenario()">Retry</button>' +
+        '<button class="btn primary" onclick="goToNextScenario()">' + (AppState.training.currentIndex + 1 >= AppState.training.scenarios.length ? 'Finish route' : 'Next scenario') + '</button>' +
+      '</div>';
+  }
+
+  function renderLocalFeedback(message, ok) {
+    var feedback = document.getElementById('attemptFeedback');
+
+    if (!feedback) return;
+
+    feedback.classList.remove('hidden');
+    feedback.classList.toggle('ok', !!ok);
+    feedback.classList.toggle('bad', !ok);
+
+    feedback.innerHTML =
+      '<h3>' + (ok ? 'Message' : 'Check your input') + '</h3>' +
+      '<p>' + escapeHtml(message) + '</p>';
+  }
+
+  function retryCurrentScenario() {
+    renderTrainingScenario();
+  }
+
+  function goToNextScenario() {
+    var nextIndex = AppState.training.currentIndex + 1;
+
+    if (nextIndex >= AppState.training.scenarios.length) {
+      renderTrainingFinished();
+      return;
+    }
+
+    AppState.training.currentIndex = nextIndex;
+    renderTrainingScenario();
+  }
+
+  function renderTrainingFinished() {
+    document.getElementById('contentArea').innerHTML =
+      '<div class="panel">' +
+        '<p class="eyebrow">Route completed</p>' +
+        '<h3>Training session finished</h3>' +
+        '<p class="subtitle">Your attempts were saved successfully. You can review your progress or repeat the route.</p>' +
+        '<div class="action-row">' +
+          '<button class="btn secondary" onclick="renderScenarioRoute(AppState.training.route)">Back to route</button>' +
+          '<button class="btn primary" onclick="renderProgressPlaceholder()">View progress</button>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function renderProgressPlaceholder() {
+    setActiveNav('Progress');
+
+    document.getElementById('contentArea').innerHTML =
+      '<div class="panel">' +
+        '<p class="eyebrow">Progress</p>' +
+        '<h3>Loading progress...</h3>' +
+        '<p class="subtitle">Please wait while your progress is loaded.</p>' +
+      '</div>';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) {
+          showContentError(res && res.message ? res.message : 'Could not load progress.');
+          return;
+        }
+
+        renderProgressTable(res.progress || []);
+      })
+      .withFailureHandler(handleServerError)
+      .apiGetMyProgress(AppState.sessionToken);
+  }
+
+  function renderProgressTable(progressRows) {
+    var rows = '';
+
+    progressRows.forEach(function(row) {
+      var completed = String(row.completed).toUpperCase() === 'TRUE' || row.completed === true;
+
+      rows +=
+        '<tr>' +
+          '<td>' + escapeHtml(row.level) + '</td>' +
+          '<td>' + escapeHtml(row.country) + '</td>' +
+          '<td>' + escapeHtml(row.completedScenarios) + ' / ' + escapeHtml(row.totalScenarios) + '</td>' +
+          '<td>' + escapeHtml(row.progressPct) + '%</td>' +
+          '<td>' + escapeHtml(row.scoreAvg) + '%</td>' +
+          '<td>' + (completed ? 'Completed' : 'In progress') + '</td>' +
+          '<td>' + escapeHtml(row.updatedAt || '') + '</td>' +
+        '</tr>';
+    });
+
+    if (!rows) {
+      rows = '<tr><td colspan="7">No progress recorded yet.</td></tr>';
+    }
+
+    document.getElementById('contentArea').innerHTML =
+      '<div class="panel">' +
+        '<p class="eyebrow">My Progress</p>' +
+        '<h3>Training progress</h3>' +
+        '<p class="subtitle">Review your progress by level and country.</p>' +
+        '<div class="table-wrap">' +
+          '<table>' +
+            '<thead>' +
+              '<tr>' +
+                '<th>Level</th>' +
+                '<th>Country</th>' +
+                '<th>Completed</th>' +
+                '<th>Progress</th>' +
+                '<th>Average score</th>' +
+                '<th>Status</th>' +
+                '<th>Updated</th>' +
+              '</tr>' +
+            '</thead>' +
+            '<tbody>' + rows + '</tbody>' +
+          '</table>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function renderCertificatesPlaceholder() {
+    setActiveNav('Certificates');
+
+    document.getElementById('contentArea').innerHTML =
+      '<div class="panel">' +
+        '<p class="eyebrow">Certificates</p>' +
+        '<h3>Certificates module</h3>' +
+        '<p class="subtitle">Certificates will be generated as PDF when a student completes the required route and score conditions.</p>' +
+      '</div>';
+  }
+
+  function renderAdminTabs(activeTab) {
+    return (
+      '<div style="margin-bottom:16px; display:flex; gap:10px; flex-wrap:wrap;">' +
+        '<button class="btn ' + (activeTab === 'users' ? 'primary' : 'secondary') + '" onclick="renderAdminUsers()">Users</button>' +
+        '<button class="btn ' + (activeTab === 'scenarios' ? 'primary' : 'secondary') + '" onclick="renderAdminScenarios()">Scenarios</button>' +
+      '</div>'
+    );
+  }
+
+  function renderAdminUsers() {
+    setActiveNav('Admin');
+
+    document.getElementById('contentArea').innerHTML =
+      '<div class="panel">' +
+        renderAdminTabs('users') +
+        '<p class="eyebrow">Admin</p>' +
+        '<h3>Loading users...</h3>' +
+        '<p class="subtitle">Please wait while the user database is loaded.</p>' +
+      '</div>';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) {
+          showContentError(res && res.message ? res.message : 'Could not load users.');
+          return;
+        }
+
+        renderUsersTable(res.users || []);
+      })
+      .withFailureHandler(handleServerError)
+      .apiAdminListUsers(AppState.sessionToken);
+  }
+
+  function renderUsersTable(users) {
+    var rows = '';
+
+    users.forEach(function(user) {
+      var safeUserId = escapeHtml(user.userId);
+      var safeRole = escapeHtml(user.role);
+
+      rows +=
+        '<tr>' +
+          '<td>' + escapeHtml(user.name) + '</td>' +
+          '<td>' + escapeHtml(user.email) + '</td>' +
+          '<td>' + escapeHtml(user.role) + '</td>' +
+          '<td><span class="status ' + escapeHtml(user.status) + '">' + escapeHtml(user.status) + '</span></td>' +
+          '<td>' + escapeHtml(user.currentLevel) + '</td>' +
+          '<td>' + escapeHtml(user.currentCountry) + '</td>' +
+          '<td>' +
+            '<button class="btn primary" onclick="adminUpdateUser(\'' + safeUserId + '\', \'STUDENT\', \'ACTIVE\')">Approve Student</button> ' +
+            '<button class="btn secondary" onclick="adminUpdateUser(\'' + safeUserId + '\', \'INSTRUCTOR\', \'ACTIVE\')">Set Instructor</button> ' +
+            '<button class="btn danger" onclick="adminUpdateUser(\'' + safeUserId + '\', \'' + safeRole + '\', \'BLOCKED\')">Block</button>' +
+          '</td>' +
+        '</tr>';
+    });
+
+    if (!rows) {
+      rows = '<tr><td colspan="7">No users found.</td></tr>';
+    }
+
+    document.getElementById('contentArea').innerHTML =
+      '<div class="panel">' +
+        renderAdminTabs('users') +
+        '<p class="eyebrow">Admin Panel</p>' +
+        '<h3>User management</h3>' +
+        '<p class="subtitle">Approve pending users, assign instructor role or block accounts.</p>' +
+        '<div style="margin-bottom:16px; display:flex; gap:10px; flex-wrap:wrap;">' +
+          '<button class="btn secondary" onclick="renderAdminUsers()">Refresh users</button>' +
+        '</div>' +
+        '<div class="table-wrap">' +
+          '<table>' +
+            '<thead>' +
+              '<tr>' +
+                '<th>Name</th>' +
+                '<th>Email</th>' +
+                '<th>Role</th>' +
+                '<th>Status</th>' +
+                '<th>Level</th>' +
+                '<th>Country</th>' +
+                '<th>Actions</th>' +
+              '</tr>' +
+            '</thead>' +
+            '<tbody>' + rows + '</tbody>' +
+          '</table>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function adminUpdateUser(userId, role, status) {
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) {
+          alert(res && res.message ? res.message : 'Could not update user.');
+          return;
+        }
+
+        renderAdminUsers();
+      })
+      .withFailureHandler(handleServerError)
+      .apiAdminUpdateUser(AppState.sessionToken, {
+        userId: userId,
+        role: role,
+        status: status
+      });
+  }
+
+  function renderAdminScenarios() {
+    setActiveNav('Admin');
+
+    document.getElementById('contentArea').innerHTML =
+      '<div class="panel">' +
+        renderAdminTabs('scenarios') +
+        '<p class="eyebrow">Scenario Manager</p>' +
+        '<h3>Loading scenarios...</h3>' +
+      '</div>';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) {
+          showContentError(res && res.message ? res.message : 'Could not load scenarios.');
+          return;
+        }
+
+        AppState.admin.scenarios = res.scenarios || [];
+        renderAdminScenarioTable(AppState.admin.scenarios);
+      })
+      .withFailureHandler(handleServerError)
+      .apiAdminListScenarios(AppState.sessionToken);
+  }
+
+  function renderAdminScenarioTable(scenarios) {
+    var rows = '';
+
+    scenarios.forEach(function(s) {
+      var safeId = escapeHtml(s.scenarioId);
+      var active = s.isActive === true || String(s.isActive).toUpperCase() === 'TRUE';
+
+      rows +=
+        '<tr>' +
+          '<td>' + escapeHtml(s.scenarioOrder) + '</td>' +
+          '<td>' + escapeHtml(s.level) + '</td>' +
+          '<td>' + escapeHtml(s.country) + '</td>' +
+          '<td>' + escapeHtml(s.context) + '</td>' +
+          '<td><span class="status ' + (active ? 'ACTIVE' : 'BLOCKED') + '">' + (active ? 'ACTIVE' : 'INACTIVE') + '</span></td>' +
+          '<td>' + escapeHtml(s.version || 1) + '</td>' +
+          '<td>' +
+            '<button class="btn primary" onclick="renderScenarioForm(\'' + safeId + '\')">Edit</button> ' +
+            '<button class="btn secondary" onclick="adminSetScenarioActive(\'' + safeId + '\', ' + (!active) + ')">' + (active ? 'Deactivate' : 'Activate') + '</button>' +
+          '</td>' +
+        '</tr>';
+    });
+
+    if (!rows) {
+      rows = '<tr><td colspan="7">No scenarios found.</td></tr>';
+    }
+
+    document.getElementById('contentArea').innerHTML =
+      '<div class="panel">' +
+        renderAdminTabs('scenarios') +
+        '<p class="eyebrow">Scenario Manager</p>' +
+        '<h3>Training scenarios</h3>' +
+        '<p class="subtitle">Create, edit, activate or deactivate simulator scenarios.</p>' +
+        '<div style="margin-bottom:16px; display:flex; gap:10px; flex-wrap:wrap;">' +
+          '<button class="btn primary" onclick="renderScenarioForm()">New scenario</button>' +
+          '<button class="btn secondary" onclick="seedSampleScenarios()">Load sample scenarios</button>' +
+          '<button class="btn secondary" onclick="renderAdminScenarios()">Refresh</button>' +
+        '</div>' +
+        '<div class="table-wrap">' +
+          '<table>' +
+            '<thead>' +
+              '<tr>' +
+                '<th>Order</th>' +
+                '<th>Level</th>' +
+                '<th>Country</th>' +
+                '<th>Context</th>' +
+                '<th>Status</th>' +
+                '<th>Version</th>' +
+                '<th>Actions</th>' +
+              '</tr>' +
+            '</thead>' +
+            '<tbody>' + rows + '</tbody>' +
+          '</table>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function findAdminScenarioById(scenarioId) {
+    var scenarios = AppState.admin.scenarios || [];
+
+    for (var i = 0; i < scenarios.length; i++) {
+      if (String(scenarios[i].scenarioId) === String(scenarioId)) {
+        return scenarios[i];
+      }
+    }
+
+    return null;
+  }
+
+  function renderScenarioForm(scenarioId) {
+    var s = scenarioId ? findAdminScenarioById(scenarioId) : null;
+
+    if (!s) {
+      s = {
+        scenarioId: '',
+        scenarioOrder: '',
+        level: 1,
+        country: 'USA',
+        context: '',
+        atcText: '',
+        expectedReadback: '',
+        keywordsText: '',
+        imageFileId: '',
+        videoUrl: '',
+        audioUrl: '',
+        isActive: true
+      };
+    }
+
+    document.getElementById('contentArea').innerHTML =
+      '<div class="panel">' +
+        renderAdminTabs('scenarios') +
+        '<p class="eyebrow">Scenario Manager</p>' +
+        '<h3>' + (s.scenarioId ? 'Edit scenario' : 'New scenario') + '</h3>' +
+        '<p class="subtitle">Use pipe character | or one keyword per line.</p>' +
+
+        '<input type="hidden" id="scenarioId" value="' + escapeHtml(s.scenarioId || '') + '">' +
+
+        '<div style="display:grid; grid-template-columns:repeat(3,minmax(160px,1fr)); gap:12px; margin-bottom:12px;">' +
+          '<input id="scenarioOrder" class="input" type="number" min="1" placeholder="Order" value="' + escapeHtml(s.scenarioOrder || '') + '">' +
+          '<input id="scenarioLevel" class="input" type="number" min="1" placeholder="Level" value="' + escapeHtml(s.level || 1) + '">' +
+          '<select id="scenarioCountry" class="input">' +
+            optionHtml('USA', s.country) +
+            optionHtml('UK', s.country) +
+            optionHtml('Australia', s.country) +
+            optionHtml('India', s.country) +
+          '</select>' +
+        '</div>' +
+
+        '<div style="display:grid; gap:12px;">' +
+          '<input id="scenarioContext" class="input" type="text" placeholder="Context / phase" value="' + escapeHtml(s.context || '') + '">' +
+          '<textarea id="scenarioAtcText" class="textarea" rows="3" placeholder="ATC text">' + escapeHtml(s.atcText || '') + '</textarea>' +
+          '<textarea id="scenarioExpected" class="textarea" rows="3" placeholder="Expected read-back">' + escapeHtml(s.expectedReadback || '') + '</textarea>' +
+          '<textarea id="scenarioKeywords" class="textarea" rows="3" placeholder="Keywords separated by | or new lines">' + escapeHtml(s.keywordsText || (s.keywords || []).join('|')) + '</textarea>' +
+          '<input id="scenarioVideoUrl" class="input" type="text" placeholder="Video URL: YouTube, Drive preview or MP4" value="' + escapeHtml(s.videoUrl || '') + '">' +
+          '<input id="scenarioImageFileId" class="input" type="text" placeholder="Image Google Drive File ID" value="' + escapeHtml(s.imageFileId || '') + '">' +
+          '<input id="scenarioAudioUrl" class="input" type="text" placeholder="Ambient audio URL" value="' + escapeHtml(s.audioUrl || '') + '">' +
+
+          '<label style="display:flex; gap:10px; align-items:center; color:var(--muted);">' +
+            '<input id="scenarioIsActive" type="checkbox" ' + (s.isActive ? 'checked' : '') + '> Active scenario' +
+          '</label>' +
+
+          '<div id="scenarioFormMessage" class="message"></div>' +
+
+          '<div class="action-row">' +
+            '<button class="btn secondary" onclick="renderAdminScenarios()">Cancel</button>' +
+            '<button id="saveScenarioBtn" class="btn primary" onclick="adminSaveScenario()">Save scenario</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function optionHtml(value, selectedValue) {
+    var selected = String(value).toUpperCase() === String(selectedValue || '').toUpperCase()
+      ? ' selected'
+      : '';
+
+    return '<option value="' + escapeHtml(value) + '"' + selected + '>' + escapeHtml(value) + '</option>';
+  }
+
+  function adminSaveScenario() {
+    var btn = document.getElementById('saveScenarioBtn');
+    var msg = document.getElementById('scenarioFormMessage');
+
+    var payload = {
+      scenarioId: document.getElementById('scenarioId').value.trim(),
+      scenarioOrder: Number(document.getElementById('scenarioOrder').value || 0),
+      level: Number(document.getElementById('scenarioLevel').value || 1),
+      country: document.getElementById('scenarioCountry').value,
+      context: document.getElementById('scenarioContext').value.trim(),
+      atcText: document.getElementById('scenarioAtcText').value.trim(),
+      expectedReadback: document.getElementById('scenarioExpected').value.trim(),
+      keywordsText: document.getElementById('scenarioKeywords').value.trim(),
+      videoUrl: document.getElementById('scenarioVideoUrl').value.trim(),
+      imageFileId: document.getElementById('scenarioImageFileId').value.trim(),
+      audioUrl: document.getElementById('scenarioAudioUrl').value.trim(),
+      isActive: document.getElementById('scenarioIsActive').checked
+    };
+
+    if (msg) msg.textContent = 'Saving scenario...';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+    }
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Save scenario';
+        }
+
+        if (!res || !res.ok) {
+          if (msg) msg.textContent = res && res.message ? res.message : 'Could not save scenario.';
+          return;
+        }
+
+        alert(res.message || 'Scenario saved.');
+        renderAdminScenarios();
+      })
+      .withFailureHandler(function(err) {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Save scenario';
+        }
+
+        if (msg) msg.textContent = err && err.message ? err.message : 'Server error.';
+      })
+      .apiAdminSaveScenario(AppState.sessionToken, payload);
+  }
+
+  function adminSetScenarioActive(scenarioId, isActive) {
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) {
+          alert(res && res.message ? res.message : 'Could not update scenario.');
+          return;
+        }
+
+        renderAdminScenarios();
+      })
+      .withFailureHandler(handleServerError)
+      .apiAdminSetScenarioActive(AppState.sessionToken, {
+        scenarioId: scenarioId,
+        isActive: isActive
+      });
+  }
+
+  function seedSampleScenarios() {
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) {
+          alert(res && res.message ? res.message : 'Could not create scenarios.');
+          return;
+        }
+
+        alert((res.message || 'Scenarios processed.') + ' Total: ' + (res.total || 0));
+        renderAdminScenarios();
+      })
+      .withFailureHandler(handleServerError)
+      .apiAdminSeedSampleScenarios(AppState.sessionToken);
+  }
+
+  function logout() {
+    var token = AppState.sessionToken;
+
+    sessionStorage.removeItem('icao_session_token');
+
+    AppState.sessionToken = '';
+    AppState.user = null;
+    AppState.home = null;
+    AppState.training = {
+      route: null,
+      scenarios: [],
+      currentIndex: 0,
+      scenarioStartMs: null
+    };
+
+    if (token) {
+      google.script.run.apiLogout(token);
+    }
+
+    showScreen('loginScreen');
+    setLoginMessage('');
+
+    var codeBox = document.getElementById('otpBox');
+    if (codeBox) codeBox.classList.add('hidden');
+
+    var codeInput = document.getElementById('loginCode');
+    if (codeInput) codeInput.value = '';
+  }
+
+  function showScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(function(screen) {
+      screen.classList.remove('active');
+    });
+
+    var target = document.getElementById(screenId);
+    if (target) target.classList.add('active');
+  }
+
+  function setLoginMessage(message) {
+    var el = document.getElementById('loginMessage');
+    if (el) el.textContent = message || '';
+  }
+
+  function setLoginButtonsDisabled(disabled) {
+    var requestBtn = document.getElementById('requestCodeBtn');
+    var verifyBtn = document.querySelector('#otpBox button');
+
+    if (requestBtn) {
+      requestBtn.disabled = disabled;
+      requestBtn.textContent = disabled ? 'Please wait...' : 'Send access code';
+    }
+
+    if (verifyBtn) verifyBtn.disabled = disabled;
+  }
+
+  function setActiveNav(label) {
+    document.querySelectorAll('.nav-item').forEach(function(btn) {
+      btn.classList.remove('active');
+
+      if (btn.textContent.trim() === label) {
+        btn.classList.add('active');
+      }
+    });
+  }
+
+  function metricCard(label, value) {
+    return (
+      '<div class="metric-card">' +
+        '<span>' + escapeHtml(label) + '</span>' +
+        '<strong>' + escapeHtml(value) + '</strong>' +
+      '</div>'
+    );
+  }
+
+  function showContentError(message) {
+    var contentArea = document.getElementById('contentArea');
+
+    if (contentArea) {
+      contentArea.innerHTML =
+        '<div class="panel">' +
+          '<h3>Error</h3>' +
+          '<p class="subtitle">' + escapeHtml(message) + '</p>' +
+        '</div>';
+    }
+  }
+
+  function handleServerError(err) {
+    console.error(err);
+
+    var message = err && err.message ? err.message : 'Server error.';
+    var appScreen = document.getElementById('appScreen');
+
+    if (appScreen && appScreen.classList.contains('active')) {
+      showContentError(message);
+    } else {
+      setLoginMessage(message);
+    }
+  }
+
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
+  }
+
+  function escapeHtml(value) {
+    return String(value === undefined || value === null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+function renderLevelMap(data) {
+  var levels = data && data.levels ? data.levels : [];
+  var html = '';
+
+  levels.forEach(function(levelItem) {
+    var locked = levelItem.locked === true || levelItem.unlocked === false;
+
+    var levelStatus = levelItem.completed
+      ? 'Completed'
+      : (locked ? 'Locked' : 'Unlocked');
+
+    var badgeClass = levelItem.completed
+      ? 'ACTIVE'
+      : (locked ? 'BLOCKED' : 'PENDING');
+
+    var progressPct = levelItem.totalCountries
+      ? Math.round((Number(levelItem.completedCountries || 0) / Number(levelItem.totalCountries || 1)) * 100)
+      : 0;
+
+    html +=
+      '<div class="level-map-card ' + (locked ? 'locked-card' : '') + '">' +
+        '<div class="level-map-left">' +
+          '<div class="level-orb">' + (locked ? '🔒' : (levelItem.completed ? '✅' : '✈')) + '</div>' +
+
+          '<div class="level-map-body">' +
+            '<p class="eyebrow">Training Level</p>' +
+            '<h3>Level ' + escapeHtml(levelItem.level) + '</h3>' +
+            '<p class="subtitle">Countries completed: ' +
+              escapeHtml(levelItem.completedCountries || 0) +
+              ' / ' +
+              escapeHtml(levelItem.totalCountries || 0) +
+            '</p>' +
+
+            '<div class="progress-track compact">' +
+              '<div class="progress-bar" style="width:' + escapeHtml(progressPct) + '%;"></div>' +
+            '</div>' +
+
+            '<div class="level-country-preview">' +
+              renderCountryPreviewFlags(levelItem.countries || []) +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="level-map-actions">' +
+          '<span class="status ' + badgeClass + '">' + escapeHtml(levelStatus) + '</span>' +
+          '<button class="btn ' + (locked ? 'secondary' : 'primary') + '" ' +
+            (locked ? 'disabled' : 'onclick="openLevelCountries(' + Number(levelItem.level) + ')"') +
+          '>' +
+            (locked ? 'Locked' : 'Open countries') +
+          '</button>' +
+        '</div>' +
+      '</div>';
+  });
+
+  if (!html) {
+    html =
+      '<div class="panel">' +
+        '<h3>No training levels available</h3>' +
+        '<p class="subtitle">Ask the admin to configure active scenarios.</p>' +
+      '</div>';
+  }
+
+  document.getElementById('contentArea').innerHTML =
+    '<div class="panel">' +
+      '<p class="eyebrow">Level Map</p>' +
+      '<h3>Choose your training level</h3>' +
+      '<p class="subtitle">Admins and instructors can open all levels. Students only access unlocked levels.</p>' +
+    '</div>' +
+    '<div class="level-map-grid">' + html + '</div>';
+}
+
+
+function renderCountryPreviewFlags(countries) {
+  var html = '';
+
+  countries.slice(0, 10).forEach(function(item) {
+    html +=
+      '<span class="preview-flag">' +
+        getFlagHtml(item.country, 'flag-preview') +
+      '</span>';
+  });
+
+  if (countries.length > 10) {
+    html += '<span class="preview-more">+' + escapeHtml(countries.length - 10) + '</span>';
+  }
+
+  return html || '<span class="subtitle">No countries configured</span>';
+}
+
+
+function openLevelCountries(level) {
+  var catalog = AppState.training.catalog || {};
+  var levels = catalog.levels || [];
+  var selected = null;
+
+  for (var i = 0; i < levels.length; i++) {
+    if (Number(levels[i].level) === Number(level)) {
+      selected = levels[i];
+      break;
+    }
+  }
+
+  if (!selected) {
+    showContentError('Level not found.');
+    return;
+  }
+
+  if (selected.locked || selected.unlocked === false) {
+    showContentError('This level is locked.');
+    return;
+  }
+
+  AppState.training.selectedLevel = selected.level;
+  AppState.training.selectedLevelData = selected;
+  AppState.training.countries = selected.countries || [];
+
+  renderCountryTrainingHub(selected);
+}
+
+
+function renderCountryTrainingHub(levelItem) {
+  var countries = levelItem.countries || [];
+  var cards = '';
+
+  countries.forEach(function(countryItem) {
+    var meta = getCountryUi(countryItem.country);
+
+    var completed =
+      countryItem.completed === true ||
+      String(countryItem.completed).toUpperCase() === 'TRUE';
+
+    cards +=
+      '<div class="country-card">' +
+        '<div class="country-flag">' +
+          getFlagHtml(countryItem.country, 'flag-lg') +
+        '</div>' +
+
+        '<div class="country-body">' +
+          '<p class="eyebrow">' + escapeHtml(meta.accent) + '</p>' +
+          '<h3>' + escapeHtml(meta.label) + '</h3>' +
+
+          '<p class="subtitle">' +
+            'Scenarios: ' + escapeHtml(countryItem.totalScenarios || 0) +
+            ' · Completed: ' + escapeHtml(countryItem.completedScenarios || 0) +
+            ' · Avg score: ' + escapeHtml(countryItem.scoreAvg || 0) + '%' +
+          '</p>' +
+
+          '<div class="progress-track compact">' +
+            '<div class="progress-bar" style="width:' + escapeHtml(countryItem.progressPct || 0) + '%;"></div>' +
+          '</div>' +
+
+          '<div class="country-footer">' +
+            '<span class="status ' + (completed ? 'ACTIVE' : 'PENDING') + '">' +
+              (completed ? 'Completed' : 'In progress') +
+            '</span>' +
+
+            '<button class="btn primary" onclick="startCountryTraining(\'' + escapeJs(countryItem.country) + '\', ' + Number(levelItem.level) + ')">' +
+              (completed ? 'Review' : 'Train') +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  });
+
+  if (!cards) {
+    cards =
+      '<div class="panel">' +
+        '<h3>No countries configured</h3>' +
+        '<p class="subtitle">This level exists, but it does not have active countries yet.</p>' +
+      '</div>';
+  }
+
+  document.getElementById('contentArea').innerHTML =
+    '<div class="panel">' +
+      '<p class="eyebrow">Country Training Hub</p>' +
+      '<h3>Level ' + escapeHtml(levelItem.level) + ' · Choose your ATC country</h3>' +
+      '<p class="subtitle">Each country represents an ATC accent and training route.</p>' +
+
+      '<div class="action-row">' +
+        '<button class="btn secondary" onclick="renderLevelMap(AppState.training.catalog)">Back to levels</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="country-grid">' + cards + '</div>';
+}
+
+
+var COUNTRY_UI = {
+  USA: {
+    code: 'us',
+    emoji: '🇺🇸',
+    label: 'United States',
+    accent: 'American ATC'
+  },
+  UK: {
+    code: 'gb',
+    emoji: '🇬🇧',
+    label: 'United Kingdom',
+    accent: 'British ATC'
+  },
+  INDIA: {
+    code: 'in',
+    emoji: '🇮🇳',
+    label: 'India',
+    accent: 'Indian ATC'
+  },
+  AUSTRALIA: {
+    code: 'au',
+    emoji: '🇦🇺',
+    label: 'Australia',
+    accent: 'Australian ATC'
+  },
+  CANADA: {
+    code: 'ca',
+    emoji: '🇨🇦',
+    label: 'Canada',
+    accent: 'Canadian ATC'
+  },
+  IRELAND: {
+    code: 'ie',
+    emoji: '🇮🇪',
+    label: 'Ireland',
+    accent: 'Irish ATC'
+  },
+  'NEW ZEALAND': {
+    code: 'nz',
+    emoji: '🇳🇿',
+    label: 'New Zealand',
+    accent: 'New Zealand ATC'
+  },
+  'SOUTH AFRICA': {
+    code: 'za',
+    emoji: '🇿🇦',
+    label: 'South Africa',
+    accent: 'South African ATC'
+  },
+  COLOMBIA: {
+    code: 'co',
+    emoji: '🇨🇴',
+    label: 'Colombia',
+    accent: 'Colombian ATC English'
+  },
+  BRAZIL: {
+    code: 'br',
+    emoji: '🇧🇷',
+    label: 'Brazil',
+    accent: 'Brazilian ATC English'
+  },
+  MEXICO: {
+    code: 'mx',
+    emoji: '🇲🇽',
+    label: 'Mexico',
+    accent: 'Mexican ATC English'
+  },
+  SPAIN: {
+    code: 'es',
+    emoji: '🇪🇸',
+    label: 'Spain',
+    accent: 'Spanish ATC English'
+  },
+  FRANCE: {
+    code: 'fr',
+    emoji: '🇫🇷',
+    label: 'France',
+    accent: 'French ATC English'
+  },
+  GERMANY: {
+    code: 'de',
+    emoji: '🇩🇪',
+    label: 'Germany',
+    accent: 'German ATC English'
+  }
+};
+
+function getCountryUi(country) {
+  var key = String(country || '').trim().toUpperCase();
+
+  return COUNTRY_UI[key] || {
+    code: '',
+    emoji: '🌐',
+    label: country || 'Unknown country',
+    accent: 'International ATC'
+  };
+}
+
+
+
+
+function getFlagHtml(country, sizeClass) {
+  var meta = getCountryUi(country);
+  var cssClass = sizeClass || 'flag-lg';
+
+  return (
+    '<span class="' + cssClass + ' flag-emoji" title="' + escapeHtml(meta.label) + '">' +
+      escapeHtml(meta.emoji || '🌐') +
+    '</span>'
+  );
+}
+
+
+/*******************************************************
+ * LEVEL MAP UI FIX - paste before 
+ *******************************************************/
+
+var COUNTRY_UI_FIXED = {
+  USA: { emoji: '🇺🇸', label: 'United States', accent: 'American ATC' },
+  US: { emoji: '🇺🇸', label: 'United States', accent: 'American ATC' },
+  UK: { emoji: '🇬🇧', label: 'United Kingdom', accent: 'British ATC' },
+  INDIA: { emoji: '🇮🇳', label: 'India', accent: 'Indian ATC' },
+  IN: { emoji: '🇮🇳', label: 'India', accent: 'Indian ATC' },
+  AUSTRALIA: { emoji: '🇦🇺', label: 'Australia', accent: 'Australian ATC' },
+  CANADA: { emoji: '🇨🇦', label: 'Canada', accent: 'Canadian ATC' },
+  COLOMBIA: { emoji: '🇨🇴', label: 'Colombia', accent: 'Colombian ATC English' },
+  CO: { emoji: '🇨🇴', label: 'Colombia', accent: 'Colombian ATC English' },
+  BRAZIL: { emoji: '🇧🇷', label: 'Brazil', accent: 'Brazilian ATC English' },
+  MEXICO: { emoji: '🇲🇽', label: 'Mexico', accent: 'Mexican ATC English' },
+  SPAIN: { emoji: '🇪🇸', label: 'Spain', accent: 'Spanish ATC English' },
+  FRANCE: { emoji: '🇫🇷', label: 'France', accent: 'French ATC English' },
+  GERMANY: { emoji: '🇩🇪', label: 'Germany', accent: 'German ATC English' },
+  IRELAND: { emoji: '🇮🇪', label: 'Ireland', accent: 'Irish ATC' },
+  'NEW ZEALAND': { emoji: '🇳🇿', label: 'New Zealand', accent: 'New Zealand ATC' },
+  'SOUTH AFRICA': { emoji: '🇿🇦', label: 'South Africa', accent: 'South African ATC' }
+};
+
+function uiEscapeHtmlFixed(value) {
+  return String(value === undefined || value === null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function uiEscapeJsFixed(value) {
+  return String(value || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'");
+}
+
+function getCountryUi(country) {
+  var raw = String(country || '').trim();
+  var key = raw.toUpperCase();
+
+  return COUNTRY_UI_FIXED[key] || {
+    emoji: '🌐',
+    label: raw || 'Unknown country',
+    accent: 'International ATC'
+  };
+}
+
+function getFlagHtml(country, sizeClass) {
+  var meta = getCountryUi(country);
+  var cssClass = sizeClass || 'flag-lg';
+
+  return (
+    '<span class="' + cssClass + ' flag-emoji" title="' + uiEscapeHtmlFixed(meta.label) + '">' +
+      uiEscapeHtmlFixed(meta.emoji || '🌐') +
+    '</span>'
+  );
+}
+
+function renderLevelMap(data) {
+  var levels = data && data.levels ? data.levels : [];
+  var cards = '';
+
+  levels.forEach(function(levelItem) {
+    var locked = levelItem.locked === true || levelItem.unlocked === false;
+
+    var progressPct = levelItem.totalCountries
+      ? Math.round((Number(levelItem.completedCountries || 0) / Number(levelItem.totalCountries || 1)) * 100)
+      : 0;
+
+    var statusText = levelItem.completed
+      ? 'Completed'
+      : (locked ? 'Locked' : 'Unlocked');
+
+    var statusClass = levelItem.completed
+      ? 'ACTIVE'
+      : (locked ? 'BLOCKED' : 'PENDING');
+
+    cards +=
+      '<article class="level-card-pro ' + (locked ? 'is-locked' : 'is-open') + '">' +
+
+        '<div class="level-card-top">' +
+          '<div class="level-icon-pro">' +
+            (locked ? '🔒' : (levelItem.completed ? '✅' : '✈️')) +
+          '</div>' +
+
+          '<div class="level-title-block">' +
+            '<p class="eyebrow">Training Level</p>' +
+            '<h3>Level ' + uiEscapeHtmlFixed(levelItem.level) + '</h3>' +
+            '<p class="subtitle">' +
+              'Countries completed: ' +
+              uiEscapeHtmlFixed(levelItem.completedCountries || 0) +
+              ' / ' +
+              uiEscapeHtmlFixed(levelItem.totalCountries || 0) +
+            '</p>' +
+          '</div>' +
+
+          '<span class="status ' + statusClass + '">' + uiEscapeHtmlFixed(statusText) + '</span>' +
+        '</div>' +
+
+        '<div class="progress-track compact level-progress-pro">' +
+          '<div class="progress-bar" style="width:' + uiEscapeHtmlFixed(progressPct) + '%;"></div>' +
+        '</div>' +
+
+        '<div class="level-flags-row">' +
+          renderCountryPreviewFlags(levelItem.countries || []) +
+        '</div>' +
+
+        '<div class="level-card-footer">' +
+          '<button class="btn ' + (locked ? 'secondary' : 'primary') + '" ' +
+            (locked ? 'disabled' : 'onclick="openLevelCountries(' + Number(levelItem.level) + ')"') +
+          '>' +
+            (locked ? 'Locked' : 'Open countries') +
+          '</button>' +
+        '</div>' +
+
+      '</article>';
+  });
+
+  if (!cards) {
+    cards =
+      '<div class="panel">' +
+        '<h3>No training levels available</h3>' +
+        '<p class="subtitle">Ask the admin to configure active scenarios.</p>' +
+      '</div>';
+  }
+
+  document.getElementById('contentArea').innerHTML =
+    '<section class="panel level-map-header">' +
+      '<p class="eyebrow">Level Map</p>' +
+      '<h3>Choose your training level</h3>' +
+      '<p class="subtitle">' +
+        'Admins and instructors can open all levels. Students only access unlocked levels.' +
+      '</p>' +
+    '</section>' +
+
+    '<section class="level-map-grid-pro">' +
+      cards +
+    '</section>';
+}
+
+function renderCountryPreviewFlags(countries) {
+  var html = '';
+
+  if (!countries || !countries.length) {
+    return '<span class="no-country-pill">No countries configured</span>';
+  }
+
+  countries.slice(0, 8).forEach(function(item) {
+    var country = item.country || '';
+
+    html +=
+      '<span class="country-flag-pill">' +
+        getFlagHtml(country, 'flag-preview') +
+        '<span>' + uiEscapeHtmlFixed(getCountryUi(country).label) + '</span>' +
+      '</span>';
+  });
+
+  if (countries.length > 8) {
+    html += '<span class="country-flag-pill more">+' + uiEscapeHtmlFixed(countries.length - 8) + '</span>';
+  }
+
+  return html;
+}
+
+function openLevelCountries(level) {
+  var catalog = AppState && AppState.training ? AppState.training.catalog : null;
+  var levels = catalog && catalog.levels ? catalog.levels : [];
+  var selected = null;
+
+  for (var i = 0; i < levels.length; i++) {
+    if (Number(levels[i].level) === Number(level)) {
+      selected = levels[i];
+      break;
+    }
+  }
+
+  if (!selected) {
+    showContentError('Level not found.');
+    return;
+  }
+
+  if (selected.locked || selected.unlocked === false) {
+    showContentError('This level is locked.');
+    return;
+  }
+
+  AppState.training.selectedLevel = selected.level;
+  AppState.training.selectedLevelData = selected;
+  AppState.training.countries = selected.countries || [];
+
+  renderCountryTrainingHub(selected);
+}
+
+function renderCountryTrainingHub(levelItem) {
+  var countries = levelItem && levelItem.countries ? levelItem.countries : [];
+  var cards = '';
+
+  countries.forEach(function(countryItem) {
+    var country = countryItem.country || '';
+    var meta = getCountryUi(country);
+
+    var completed =
+      countryItem.completed === true ||
+      String(countryItem.completed).toUpperCase() === 'TRUE';
+
+    cards +=
+      '<article class="country-card-pro">' +
+        '<div class="country-card-flag">' +
+          getFlagHtml(country, 'flag-xl') +
+        '</div>' +
+
+        '<div class="country-card-content">' +
+          '<p class="eyebrow">' + uiEscapeHtmlFixed(meta.accent) + '</p>' +
+          '<h3>' + uiEscapeHtmlFixed(meta.label) + '</h3>' +
+
+          '<p class="subtitle">' +
+            'Scenarios: ' + uiEscapeHtmlFixed(countryItem.totalScenarios || 0) +
+            ' · Completed: ' + uiEscapeHtmlFixed(countryItem.completedScenarios || 0) +
+            ' · Avg score: ' + uiEscapeHtmlFixed(countryItem.scoreAvg || 0) + '%' +
+          '</p>' +
+
+          '<div class="progress-track compact">' +
+            '<div class="progress-bar" style="width:' + uiEscapeHtmlFixed(countryItem.progressPct || 0) + '%;"></div>' +
+          '</div>' +
+
+          '<div class="country-card-footer">' +
+            '<span class="status ' + (completed ? 'ACTIVE' : 'PENDING') + '">' +
+              (completed ? 'Completed' : 'In progress') +
+            '</span>' +
+
+            '<button class="btn primary" onclick="startCountryTraining(\'' + uiEscapeJsFixed(country) + '\', ' + Number(levelItem.level) + ')">' +
+              (completed ? 'Review' : 'Train') +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+      '</article>';
+  });
+
+  if (!cards) {
+    cards =
+      '<div class="panel">' +
+        '<h3>No countries configured</h3>' +
+        '<p class="subtitle">This level exists, but it does not have active countries yet.</p>' +
+      '</div>';
+  }
+
+  document.getElementById('contentArea').innerHTML =
+    '<section class="panel">' +
+      '<p class="eyebrow">Country Training Hub</p>' +
+      '<h3>Level ' + uiEscapeHtmlFixed(levelItem.level) + ' · Choose your ATC country</h3>' +
+      '<p class="subtitle">Each country represents an ATC accent and training route.</p>' +
+
+      '<div class="action-row">' +
+        '<button class="btn secondary" onclick="renderLevelMap(AppState.training.catalog)">Back to levels</button>' +
+      '</div>' +
+    '</section>' +
+
+    '<section class="country-grid-pro">' +
+      cards +
+    '</section>';
+}
+
+/*******************************************************
+ * COUNTRY FLAGS + TRAIN BUTTON FIX
+ *******************************************************/
+
+var COUNTRY_UI_FIXED_FINAL = {
+  USA: { code: 'us', emoji: '🇺🇸', label: 'United States', accent: 'American ATC' },
+  US: { code: 'us', emoji: '🇺🇸', label: 'United States', accent: 'American ATC' },
+
+  UK: { code: 'gb', emoji: '🇬🇧', label: 'United Kingdom', accent: 'British ATC' },
+  GB: { code: 'gb', emoji: '🇬🇧', label: 'United Kingdom', accent: 'British ATC' },
+
+  INDIA: { code: 'in', emoji: '🇮🇳', label: 'India', accent: 'Indian ATC' },
+  IN: { code: 'in', emoji: '🇮🇳', label: 'India', accent: 'Indian ATC' },
+
+  COLOMBIA: { code: 'co', emoji: '🇨🇴', label: 'Colombia', accent: 'Colombian ATC English' },
+  CO: { code: 'co', emoji: '🇨🇴', label: 'Colombia', accent: 'Colombian ATC English' },
+
+  AUSTRALIA: { code: 'au', emoji: '🇦🇺', label: 'Australia', accent: 'Australian ATC' },
+  CANADA: { code: 'ca', emoji: '🇨🇦', label: 'Canada', accent: 'Canadian ATC' },
+  BRAZIL: { code: 'br', emoji: '🇧🇷', label: 'Brazil', accent: 'Brazilian ATC English' },
+  MEXICO: { code: 'mx', emoji: '🇲🇽', label: 'Mexico', accent: 'Mexican ATC English' },
+  SPAIN: { code: 'es', emoji: '🇪🇸', label: 'Spain', accent: 'Spanish ATC English' },
+  FRANCE: { code: 'fr', emoji: '🇫🇷', label: 'France', accent: 'French ATC English' },
+  GERMANY: { code: 'de', emoji: '🇩🇪', label: 'Germany', accent: 'German ATC English' }
+};
+
+function getCountryUi(country) {
+  var raw = String(country || '').trim();
+  var key = raw.toUpperCase();
+
+  return COUNTRY_UI_FIXED_FINAL[key] || {
+    code: '',
+    emoji: '🌐',
+    label: raw || 'Unknown country',
+    accent: 'International ATC'
+  };
+}
+
+function getFlagHtml(country, sizeClass) {
+  var meta = getCountryUi(country);
+  var cssClass = sizeClass || 'flag-lg';
+
+  if (meta.code) {
+    return (
+      '<span class="flag-shell">' +
+        '<img class="' + cssClass + ' flag-img" src="https://flagcdn.com/' + meta.code + '.svg" alt="' + escapeHtml(meta.label) + ' flag">' +
+      '</span>'
+    );
+  }
+
+  return (
+    '<span class="' + cssClass + ' flag-emoji">' +
+      escapeHtml(meta.emoji || '🌐') +
+    '</span>'
+  );
+}
+
+function renderCountryTrainingHub(levelItem) {
+  var countries = levelItem && levelItem.countries ? levelItem.countries : [];
+  var cards = '';
+
+  countries.forEach(function(countryItem) {
+    var country = countryItem.country || '';
+    var meta = getCountryUi(country);
+
+    var completed =
+      countryItem.completed === true ||
+      String(countryItem.completed).toUpperCase() === 'TRUE';
+
+    cards +=
+      '<article class="country-card-pro">' +
+        '<div class="country-card-flag">' +
+          getFlagHtml(country, 'flag-xl') +
+        '</div>' +
+
+        '<div class="country-card-content">' +
+          '<p class="eyebrow">' + escapeHtml(meta.accent) + '</p>' +
+          '<h3>' + escapeHtml(meta.label) + '</h3>' +
+
+          '<p class="subtitle">' +
+            'Scenarios: ' + escapeHtml(countryItem.totalScenarios || 0) +
+            ' · Completed: ' + escapeHtml(countryItem.completedScenarios || 0) +
+            ' · Avg score: ' + escapeHtml(countryItem.scoreAvg || 0) + '%' +
+          '</p>' +
+
+          '<div class="progress-track compact">' +
+            '<div class="progress-bar" style="width:' + escapeHtml(countryItem.progressPct || 0) + '%;"></div>' +
+          '</div>' +
+
+          '<div class="country-card-footer">' +
+            '<span class="status ' + (completed ? 'ACTIVE' : 'PENDING') + '">' +
+              (completed ? 'Completed' : 'In progress') +
+            '</span>' +
+
+            '<button class="btn primary" onclick="startCountryTraining(\'' + escapeJsValue(country) + '\', ' + Number(levelItem.level || 1) + ')">' +
+              (completed ? 'Review' : 'Train') +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+      '</article>';
+  });
+
+  if (!cards) {
+    cards =
+      '<div class="panel">' +
+        '<h3>No countries configured</h3>' +
+        '<p class="subtitle">This level exists, but it does not have active countries yet.</p>' +
+      '</div>';
+  }
+
+  document.getElementById('contentArea').innerHTML =
+    '<section class="panel">' +
+      '<p class="eyebrow">Country Training Hub</p>' +
+      '<h3>Level ' + escapeHtml(levelItem.level) + ' · Choose your ATC country</h3>' +
+      '<p class="subtitle">Each country represents an ATC accent and training route.</p>' +
+
+      '<div class="action-row">' +
+        '<button class="btn secondary" onclick="renderLevelMap(AppState.training.catalog)">Back to levels</button>' +
+      '</div>' +
+    '</section>' +
+
+    '<section class="country-grid-pro">' +
+      cards +
+    '</section>';
+}
+
+function startCountryTraining(country, level) {
+  AppState.training.selectedCountry = country;
+  AppState.training.selectedLevel = Number(level || 1);
+
+  document.getElementById('contentArea').innerHTML =
+    '<div class="panel">' +
+      '<p class="eyebrow">Simulator</p>' +
+      '<h3>Loading Level ' + escapeHtml(AppState.training.selectedLevel) + ' · ' + escapeHtml(country) + ' scenarios...</h3>' +
+      '<p class="subtitle">Preparing ATC route.</p>' +
+    '</div>';
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      console.log('apiGetStudentScenariosV4_SAFE response:', res);
+
+      if (!res || !res.ok) {
+        showContentError(
+          'Could not load scenarios.\n\n' +
+          'SOURCE: ' + (res && res.source ? res.source : 'No source returned.') + '\n\n' +
+          'MESSAGE: ' + (res && res.message ? res.message : 'No server message returned.')
+        );
+        return;
+      }
+
+      renderScenarioRoute(res.data);
+    })
+    .withFailureHandler(function(err) {
+      showContentError(
+        'Could not load scenarios.\n\n' +
+        (err && err.message ? err.message : JSON.stringify(err))
+      );
+    })
+    .apiGetStudentScenariosV4_SAFE(AppState.sessionToken, {
+      level: AppState.training.selectedLevel,
+      country: country
+    });
+}
+
+function escapeJsValue(value) {
+  return String(value || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'");
+}
+
+
+
+
+
+
+/*******************************************************
+ * IMMERSIVE SIMULATOR UI
+ *******************************************************/
+
+var SIM_PHASE_MAP = [
+  { code: 'STARTUP', label: 'Startup' },
+  { code: 'TAXI_OUT', label: 'Taxi Out' },
+  { code: 'TAKEOFF', label: 'Takeoff' },
+  { code: 'DEPARTURE', label: 'Departure' },
+  { code: 'CRUISE', label: 'Cruise' },
+  { code: 'APPROACH', label: 'Approach' },
+  { code: 'LANDING', label: 'Landing' },
+  { code: 'TAXI_IN', label: 'Taxi In' }
+];
+
+function normalizePhaseCodeSim(code) {
+  return String(code || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_')
+    .replace(/-/g, '_');
+}
+
+function getPhaseIndexForScenarioSim(scenario) {
+  var code = normalizePhaseCodeSim(
+    scenario && (scenario.phaseCode || scenario.phaseLabel || scenario.phaseName)
+  );
+
+  for (var i = 0; i < SIM_PHASE_MAP.length; i++) {
+    if (SIM_PHASE_MAP[i].code === code) return i;
+  }
+
+  return 0;
+}
+
+function getCurrentScenarioSim() {
+  var route = AppState.training && AppState.training.route ? AppState.training.route : null;
+  var idx = Number(AppState.training && AppState.training.currentIndex || 0);
+
+  if (!route || !route.scenarios || !route.scenarios.length) return null;
+  if (idx < 0) idx = 0;
+  if (idx >= route.scenarios.length) idx = route.scenarios.length - 1;
+
+  AppState.training.currentIndex = idx;
+  return route.scenarios[idx];
+}
+
+function renderScenarioRoute(data) {
+  AppState.training = AppState.training || {};
+  AppState.training.route = data || {};
+  AppState.training.currentIndex = 0;
+  AppState.training.lastImmersiveFeedback = '';
+
+  renderScenarioStageImmersive();
+}
+
+function renderScenarioStageImmersive() {
+  var route = AppState.training.route || {};
+  var scenarios = route.scenarios || [];
+  var currentIndex = Number(AppState.training.currentIndex || 0);
+  var scenario = getCurrentScenarioSim();
+
+  if (!scenario) {
+    showContentError('No scenarios available for this route.');
+    return;
+  }
+
+  var total = scenarios.length;
+  var countryMeta = getCountryUi(scenario.country || route.currentCountry || 'USA');
+  var scenarioType = String(scenario.scenarioType || 'NORMAL').toUpperCase();
+  var emergencyType = String(scenario.emergencyType || '').trim();
+  var atcText = String(scenario.atcText || '').trim();
+  var contextText = String(scenario.context || '').trim();
+  var readbackPlaceholder = 'Type your read-back here...';
+
+  var suspiciousAtc = !atcText || atcText.toUpperCase() === String(scenario.country || '').trim().toUpperCase();
+
+  document.getElementById('contentArea').innerHTML =
+    '<section class="sim-hero-card">' +
+      '<div class="sim-hero-top">' +
+        '<div>' +
+          '<p class="eyebrow">Live training</p>' +
+          '<h3>Scenario ' + escapeHtml(currentIndex + 1) + ' of ' + escapeHtml(total) + '</h3>' +
+          '<p class="subtitle">' +
+            'Level ' + escapeHtml(route.currentLevel || scenario.level || 1) +
+            ' · ' + escapeHtml(route.currentCountry || scenario.country || '') +
+            ' · ' + escapeHtml(scenario.phaseName || scenario.phaseLabel || scenario.phaseCode || 'Flight phase') +
+          '</p>' +
+        '</div>' +
+
+        '<div class="sim-chip-stack">' +
+          '<span class="sim-chip">' + escapeHtml(countryMeta.accent) + '</span>' +
+          '<span class="sim-chip">' + escapeHtml(scenarioType) + '</span>' +
+          (emergencyType ? '<span class="sim-chip warning">' + escapeHtml(emergencyType.replace(/_/g, ' ')) + '</span>' : '') +
+        '</div>' +
+      '</div>' +
+
+      '<canvas id="flight-progress-canvas" class="flight-progress-canvas"></canvas>' +
+    '</section>' +
+
+    '<section class="sim-layout">' +
+
+      '<div class="sim-main-column">' +
+        '<article class="sim-stage-card">' +
+          '<div class="sim-card-title-row">' +
+            '<p class="eyebrow">SIM VISUAL</p>' +
+            '<span class="sim-live-dot">LIVE</span>' +
+          '</div>' +
+          '<div id="simVisualHost" class="sim-visual-host"></div>' +
+        '</article>' +
+
+        '<article class="sim-atc-card">' +
+          '<div class="sim-card-title-row">' +
+            '<p class="eyebrow">ATC TRANSMISSION</p>' +
+            '<button class="btn primary" onclick="immersivePlayAtcAudio()">▶ Play ATC audio</button>' +
+          '</div>' +
+
+          '<div class="sim-atc-console">' +
+            (suspiciousAtc
+              ? '<div class="sim-warning-inline">El campo ATC del escenario parece mal cargado. Revisa la fila en la hoja de Scenarios.</div>'
+              : '') +
+            '<div class="sim-atc-text" id="simAtcText">' +
+              escapeHtml(atcText || 'No ATC text configured for this scenario.') +
+            '</div>' +
+          '</div>' +
+        '</article>' +
+      '</div>' +
+
+      '<aside class="sim-side-column">' +
+        '<article class="sim-side-card">' +
+          '<p class="eyebrow">FLIGHT PROFILE</p>' +
+          '<div class="sim-side-grid">' +
+            '<div class="sim-side-item"><span>Country</span><strong>' + escapeHtml(countryMeta.label) + '</strong></div>' +
+            '<div class="sim-side-item"><span>Phase</span><strong>' + escapeHtml(scenario.phaseName || scenario.phaseCode || '-') + '</strong></div>' +
+            '<div class="sim-side-item"><span>Scenario</span><strong>' + escapeHtml(scenario.flightScenarioName || scenario.flightScenarioId || '-') + '</strong></div>' +
+            '<div class="sim-side-item"><span>Version</span><strong>' + escapeHtml(scenario.version || 1) + '</strong></div>' +
+          '</div>' +
+        '</article>' +
+
+        '<article class="sim-side-card">' +
+          '<p class="eyebrow">BRIEFING</p>' +
+          '<div class="sim-briefing-box">' +
+            escapeHtml(contextText || 'No briefing context configured.') +
+          '</div>' +
+        '</article>' +
+
+        '<article class="sim-side-card">' +
+          '<p class="eyebrow">MEDIA STATUS</p>' +
+          '<div class="sim-side-grid">' +
+            '<div class="sim-side-item"><span>Video</span><strong>' + escapeHtml(scenario.videoUrl ? 'Configured' : 'Fallback visual') + '</strong></div>' +
+            '<div class="sim-side-item"><span>Audio</span><strong>' + escapeHtml(scenario.audioUrl ? 'Ready file' : 'TTS / Dynamic') + '</strong></div>' +
+          '</div>' +
+        '</article>' +
+      '</aside>' +
+    '</section>' +
+
+    '<section class="sim-readback-card">' +
+      '<div class="sim-card-title-row">' +
+        '<p class="eyebrow">PILOT READ-BACK</p>' +
+      '</div>' +
+
+      '<textarea id="pilotReadback" class="sim-readback-input" placeholder="' + escapeHtml(readbackPlaceholder) + '"></textarea>' +
+
+      '<div id="simFeedbackBox" class="sim-feedback-box">' +
+        (AppState.training.lastImmersiveFeedback || '') +
+      '</div>' +
+
+      '<div class="sim-action-row">' +
+        '<button class="btn secondary" onclick="immersiveBackToCountries()">Back to route</button>' +
+        '<button class="btn primary" onclick="immersiveSendReadback()">Send read-back</button>' +
+      '</div>' +
+
+      '<textarea id="studentAnswer" class="legacy-bridge-field"></textarea>' +
+      '<textarea id="studentReadback" class="legacy-bridge-field"></textarea>' +
+      '<textarea id="readbackInput" class="legacy-bridge-field"></textarea>' +
+    '</section>';
+
+  mountImmersiveScenarioVisual(scenario);
+  drawImmersiveFlightProgressCanvas(scenario);
+  syncImmersiveLegacyFields();
+}
+
+function mountImmersiveScenarioVisual(scenario) {
+  var host = document.getElementById('simVisualHost');
+  if (!host) return;
+
+  var videoUrl = String(scenario.videoUrl || '').trim();
+
+  if (videoUrl) {
+    host.innerHTML = buildScenarioVisualHtml(videoUrl, scenario);
+    return;
+  }
+
+  host.innerHTML =
+    '<div class="sim-fallback-visual">' +
+      '<div class="sim-fallback-overlay">' +
+        '<div class="sim-fallback-hud">' +
+          '<span>ICAO TRAINER PRO</span>' +
+          '<span>' + escapeHtml(scenario.country || 'INTL') + '</span>' +
+          '<span>' + escapeHtml(scenario.phaseName || scenario.phaseCode || 'PHASE') + '</span>' +
+        '</div>' +
+        '<div class="sim-fallback-center">' +
+          '<div class="sim-radar-ring ring-1"></div>' +
+          '<div class="sim-radar-ring ring-2"></div>' +
+          '<div class="sim-radar-ring ring-3"></div>' +
+          '<div class="sim-radar-sweep"></div>' +
+          '<div class="sim-plane-icon">✈</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+}
+
+function buildScenarioVisualHtml(url, scenario) {
+  var normalized = normalizeScenarioVideoUrl(url);
+
+  if (normalized.type === 'youtube') {
+    return (
+      '<div class="sim-video-frame">' +
+        '<iframe class="sim-video-iframe" ' +
+          'src="' + normalized.url + '" ' +
+          'title="Scenario video" ' +
+          'frameborder="0" ' +
+          'allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" ' +
+          'allowfullscreen>' +
+        '</iframe>' +
+      '</div>'
+    );
+  }
+
+  return (
+    '<div class="sim-video-frame">' +
+      '<video class="sim-video-native" controls playsinline preload="metadata">' +
+        '<source src="' + escapeHtml(url) + '">' +
+      '</video>' +
+    '</div>'
+  );
+}
+
+function normalizeScenarioVideoUrl(url) {
+  var clean = String(url || '').trim();
+
+  var ytMatch = clean.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?/]+)/i);
+  if (ytMatch && ytMatch[1]) {
+    return {
+      type: 'youtube',
+      url: 'https://www.youtube-nocookie.com/embed/' + ytMatch[1] + '?rel=0&modestbranding=1&playsinline=1'
+    };
+  }
+
+  if (/youtube\.com\/embed\//i.test(clean)) {
+    return { type: 'youtube', url: clean };
+  }
+
+  return { type: 'native', url: clean };
+}
+
+function drawImmersiveFlightProgressCanvas(scenario) {
+  var canvas = document.getElementById('flight-progress-canvas');
+  if (!canvas) return;
+
+  canvas.width = canvas.offsetWidth || 900;
+  canvas.height = 70;
+
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width;
+  var H = canvas.height;
+  var active = getPhaseIndexForScenarioSim(scenario);
+  var phases = SIM_PHASE_MAP.length;
+  var padX = 52;
+  var lineY = H / 2 + 8;
+  var step = (W - padX * 2) / (phases - 1);
+
+  ctx.clearRect(0, 0, W, H);
+
+  ctx.beginPath();
+  ctx.moveTo(padX, lineY);
+  ctx.lineTo(W - padX, lineY);
+  ctx.strokeStyle = '#23324f';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  if (active > 0) {
+    ctx.beginPath();
+    ctx.moveTo(padX, lineY);
+    ctx.lineTo(padX + active * step, lineY);
+    ctx.strokeStyle = '#22d3ee';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  }
+
+  SIM_PHASE_MAP.forEach(function(phase, i) {
+    var x = padX + i * step;
+    var isDone = i < active;
+    var isNow = i === active;
+
+    ctx.font = '600 10px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = isNow ? '#22d3ee' : isDone ? '#cbd5e1' : '#64748b';
+    ctx.fillText(phase.label, x, lineY - 20);
+
+    ctx.beginPath();
+    ctx.arc(x, lineY, isNow ? 7 : 5, 0, Math.PI * 2);
+    ctx.fillStyle = isNow ? '#22d3ee' : isDone ? '#3b82f6' : '#122033';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = isNow ? '#67e8f9' : '#334155';
+    ctx.stroke();
+  });
+
+  var planeX = padX + active * step;
+  ctx.font = '24px Arial';
+  ctx.fillStyle = '#22d3ee';
+  ctx.fillText('✈', planeX, lineY + 26);
+}
+
+function immersivePlayAtcAudio() {
+  var scenario = null;
+
+  if (typeof getCurrentScenarioSim === 'function') {
+    scenario = getCurrentScenarioSim();
+  } else {
+    var route = AppState.training && AppState.training.route ? AppState.training.route : null;
+    var index = Number(AppState.training && AppState.training.currentIndex || 0);
+    scenario = route && route.scenarios ? route.scenarios[index] : null;
+  }
+
+  if (!scenario) {
+    setImmersiveFeedback('Scenario is not available.', 'danger');
+    return;
+  }
+
+  var atcText = String(scenario.atcText || '').trim();
+  var country = String(scenario.country || '').trim();
+
+  if (!atcText || atcText.toUpperCase() === country.toUpperCase()) {
+    setImmersiveFeedback(
+      'Este escenario no tiene una transmisión ATC válida. Corrige el campo atcText en Admin → Scenarios.',
+      'danger'
+    );
+    return;
+  }
+
+  var playButton = event && event.target ? event.target : null;
+
+  if (playButton) {
+    playButton.disabled = true;
+    playButton.textContent = 'Generating ATC voice...';
+  }
+
+  if (scenario.audioUrl) {
+    try {
+      var audio = new Audio(scenario.audioUrl);
+
+      audio.onended = function() {
+        if (playButton) {
+          playButton.disabled = false;
+          playButton.textContent = '▶ Play transmission';
+        }
+      };
+
+      audio.onerror = function() {
+        if (playButton) {
+          playButton.disabled = false;
+          playButton.textContent = '▶ Play transmission';
+        }
+
+        setImmersiveFeedback('No pude reproducir el audioUrl guardado. Intentando generar voz con Google TTS...', 'warning');
+        generateScenarioVoiceFromServer_(scenario, playButton);
+      };
+
+      audio.play();
+
+      setImmersiveFeedback('Playing pre-generated professional ATC audio.', 'success');
+      return;
+
+    } catch (err) {
+      setImmersiveFeedback('AudioUrl failed. Generating voice with Google TTS...', 'warning');
+    }
+  }
+
+  generateScenarioVoiceFromServer_(scenario, playButton);
+}
+
+
+function generateScenarioVoiceFromServer_(scenario, playButton) {
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (playButton) {
+        playButton.disabled = false;
+        playButton.textContent = '▶ Play transmission';
+      }
+
+      if (!res || !res.ok) {
+        setImmersiveFeedback(
+          res && res.message
+            ? res.message
+            : 'No pude generar la voz ATC. Revisa GOOGLE_TTS_API_KEY y TTSService.gs.',
+          'danger'
+        );
+        return;
+      }
+
+      if (!res.audioBase64) {
+        setImmersiveFeedback('Google TTS respondió, pero no devolvió audioBase64.', 'danger');
+        return;
+      }
+
+      playBase64AudioSafe_(res.audioBase64);
+
+      setImmersiveFeedback(
+        'ATC voice generated: ' +
+          (res.voiceProfile || '') +
+          ' · ' +
+          (res.voiceName || '') +
+          ' · ' +
+          (res.languageCode || ''),
+        'success'
+      );
+    })
+    .withFailureHandler(function(err) {
+      if (playButton) {
+        playButton.disabled = false;
+        playButton.textContent = '▶ Play transmission';
+      }
+
+      setImmersiveFeedback(
+        err && err.message
+          ? err.message
+          : 'Server error generating ATC voice.',
+        'danger'
+      );
+    })
+    .apiGenerateScenarioVoice(AppState.sessionToken, {
+      scenarioId: scenario.scenarioId
+    });
+}
+
+
+function playBase64AudioSafe_(audioBase64) {
+  try {
+    var audio = new Audio('data:audio/mp3;base64,' + audioBase64);
+    audio.volume = 1;
+    audio.play();
+  } catch (err) {
+    setImmersiveFeedback('Could not play generated audio: ' + err.message, 'danger');
+  }
+}
+
+function immersiveSendReadback() {
+  var txt = document.getElementById('pilotReadback');
+  var value = txt ? txt.value.trim() : '';
+
+  if (!value) {
+    setImmersiveFeedback('Escribe tu read-back antes de enviarlo.', 'warning');
+    return;
+  }
+
+  syncImmersiveLegacyFields();
+
+  var handlers = [
+    'sendReadback',
+    'submitReadback',
+    'checkReadback',
+    'validateReadback',
+    'submitAttempt',
+    'sendScenarioAnswer',
+    'sendReadBack'
+  ];
+
+  for (var i = 0; i < handlers.length; i++) {
+    var fn = window[handlers[i]];
+    if (typeof fn === 'function') {
+      fn();
+      return;
+    }
+  }
+
+  setImmersiveFeedback(
+    'No encontré el handler actual de evaluación. Conecta immersiveSendReadback() con tu función real de validación.',
+    'danger'
+  );
+}
+
+function syncImmersiveLegacyFields() {
+  var value = '';
+  var source = document.getElementById('pilotReadback');
+  if (source) value = source.value || '';
+
+  ['studentAnswer', 'studentReadback', 'readbackInput'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = value;
+  });
+}
+
+function setImmersiveFeedback(message, type) {
+  var box = document.getElementById('simFeedbackBox');
+  if (!box) return;
+
+  var cls = 'sim-feedback-box';
+  if (type === 'warning') cls += ' warning';
+  if (type === 'danger') cls += ' danger';
+  if (type === 'success') cls += ' success';
+
+  box.className = cls;
+  box.innerHTML = escapeHtml(message || '');
+  AppState.training.lastImmersiveFeedback = box.innerHTML;
+}
+
+function immersiveBackToCountries() {
+  if (AppState.training && AppState.training.selectedLevelData) {
+    renderCountryTrainingHub(AppState.training.selectedLevelData);
+    return;
+  }
+
+  if (AppState.training && AppState.training.catalog) {
+    renderLevelMap(AppState.training.catalog);
+    return;
+  }
+
+  renderSimulatorPlaceholder();
+}
+
+/*******************************************************
+ * SIMULATOR EXPERIENCE PRO FIX
+ *******************************************************/
+
+function enableSimulatorFocusMode() {
+  document.body.classList.add('sim-focus-mode');
+}
+
+function disableSimulatorFocusMode() {
+  document.body.classList.remove('sim-focus-mode');
+}
+
+function getScenarioAtcTextSafe(scenario) {
+  var atc = String(scenario && scenario.atcText ? scenario.atcText : '').trim();
+  var country = String(scenario && scenario.country ? scenario.country : '').trim();
+
+  if (!atc) return '';
+  if (atc.toUpperCase() === country.toUpperCase()) return '';
+
+  return atc;
+}
+
+function getScenarioBriefingSafe(scenario) {
+  var context = String(scenario && scenario.context ? scenario.context : '').trim();
+  var country = String(scenario && scenario.country ? scenario.country : '').trim();
+
+  if (!context || context.toUpperCase() === country.toUpperCase()) {
+    return 'No operational briefing configured. Review the scenario data in Admin.';
+  }
+
+  return context;
+}
+
+function renderScenarioStageImmersive() {
+  enableSimulatorFocusMode();
+
+  var route = AppState.training.route || {};
+  var scenarios = route.scenarios || [];
+  var currentIndex = Number(AppState.training.currentIndex || 0);
+  var scenario = getCurrentScenarioSim();
+
+  if (!scenario) {
+    showContentError('No scenarios available for this route.');
+    return;
+  }
+
+  var total = scenarios.length;
+  var countryMeta = getCountryUi(scenario.country || route.currentCountry || 'USA');
+  var scenarioType = String(scenario.scenarioType || 'NORMAL').toUpperCase();
+  var emergencyType = String(scenario.emergencyType || '').trim();
+  var atcText = getScenarioAtcTextSafe(scenario);
+  var briefing = getScenarioBriefingSafe(scenario);
+  var suspiciousData = !atcText;
+
+  document.getElementById('contentArea').innerHTML =
+    '<section class="sim-cockpit">' +
+
+      '<div class="sim-cockpit-header">' +
+        '<div>' +
+          '<p class="eyebrow">Live simulator</p>' +
+          '<h2>Scenario ' + escapeHtml(currentIndex + 1) + ' of ' + escapeHtml(total) + '</h2>' +
+          '<p class="subtitle">' +
+            'Level ' + escapeHtml(route.currentLevel || scenario.level || 1) +
+            ' · ' + escapeHtml(countryMeta.label) +
+            ' · ' + escapeHtml(scenario.phaseName || scenario.phaseCode || 'Flight phase') +
+          '</p>' +
+        '</div>' +
+
+        '<div class="sim-cockpit-actions">' +
+          '<span class="sim-chip">' + escapeHtml(countryMeta.accent) + '</span>' +
+          '<span class="sim-chip">' + escapeHtml(scenarioType) + '</span>' +
+          (emergencyType ? '<span class="sim-chip warning">' + escapeHtml(emergencyType.replace(/_/g, ' ')) + '</span>' : '') +
+          '<button class="btn secondary" onclick="disableSimulatorFocusMode()">☰ Menu</button>' +
+        '</div>' +
+      '</div>' +
+
+      '<canvas id="flight-progress-canvas" class="flight-progress-canvas pro"></canvas>' +
+
+      '<div class="sim-priority-layout">' +
+
+        '<main class="sim-priority-main">' +
+          '<article class="sim-video-priority-card">' +
+            '<div class="sim-section-title">' +
+              '<span>SIM VISUAL</span>' +
+              '<span class="sim-live-dot">LIVE</span>' +
+            '</div>' +
+            '<div id="simVisualHost" class="sim-visual-priority-host"></div>' +
+          '</article>' +
+
+          '<article class="sim-radio-card">' +
+            '<div class="sim-section-title">' +
+              '<span>ATC RADIO</span>' +
+              '<button class="btn primary" onclick="immersivePlayAtcAudio()">▶ Play transmission</button>' +
+            '</div>' +
+
+            '<div class="sim-radio-console">' +
+              (suspiciousData
+                ? '<div class="sim-data-warning">' +
+                    'This scenario has invalid ATC text. Edit the scenario and replace the country name with a real ATC transmission.' +
+                  '</div>'
+                : '') +
+              '<div class="sim-radio-text">' +
+                escapeHtml(atcText || 'NO ATC TRANSMISSION CONFIGURED') +
+              '</div>' +
+            '</div>' +
+          '</article>' +
+
+          '<article class="sim-readback-priority-card">' +
+            '<div class="sim-section-title">' +
+              '<span>PILOT READ-BACK</span>' +
+              '<span class="sim-helper-text">Repeat the clearance exactly as a pilot would.</span>' +
+            '</div>' +
+
+            '<textarea id="pilotReadback" class="sim-readback-priority-input" placeholder="Type your pilot read-back here..."></textarea>' +
+
+            '<div id="simFeedbackBox" class="sim-feedback-box"></div>' +
+
+            '<div class="sim-action-row">' +
+              '<button class="btn secondary" onclick="immersiveBackToCountries()">Back to route</button>' +
+              '<button class="btn primary big-action" onclick="immersiveSendReadback()">Send read-back</button>' +
+            '</div>' +
+
+            '<textarea id="studentAnswer" class="legacy-bridge-field"></textarea>' +
+            '<textarea id="studentReadback" class="legacy-bridge-field"></textarea>' +
+            '<textarea id="readbackInput" class="legacy-bridge-field"></textarea>' +
+          '</article>' +
+        '</main>' +
+
+        '<aside class="sim-priority-side">' +
+          '<article class="sim-side-card compact">' +
+            '<p class="eyebrow">Flight profile</p>' +
+            '<div class="sim-side-grid">' +
+              '<div class="sim-side-item"><span>Country</span><strong>' + escapeHtml(countryMeta.label) + '</strong></div>' +
+              '<div class="sim-side-item"><span>Phase</span><strong>' + escapeHtml(scenario.phaseName || scenario.phaseCode || '-') + '</strong></div>' +
+              '<div class="sim-side-item"><span>Scenario</span><strong>' + escapeHtml(scenario.flightScenarioName || scenario.flightScenarioId || '-') + '</strong></div>' +
+              '<div class="sim-side-item"><span>Version</span><strong>' + escapeHtml(scenario.version || 1) + '</strong></div>' +
+            '</div>' +
+          '</article>' +
+
+          '<article class="sim-side-card compact">' +
+            '<p class="eyebrow">Briefing</p>' +
+            '<div class="sim-briefing-box compact">' + escapeHtml(briefing) + '</div>' +
+          '</article>' +
+
+          '<article class="sim-side-card compact">' +
+            '<p class="eyebrow">Immersion status</p>' +
+            '<div class="sim-side-grid">' +
+              '<div class="sim-side-item"><span>Video</span><strong>' + escapeHtml(scenario.videoUrl ? 'Configured' : 'Fallback visual') + '</strong></div>' +
+              '<div class="sim-side-item"><span>Voice</span><strong>' + escapeHtml(scenario.audioUrl ? 'Audio file' : 'Dynamic / Browser') + '</strong></div>' +
+              '<div class="sim-side-item"><span>Read-back</span><strong>Manual input</strong></div>' +
+            '</div>' +
+          '</article>' +
+        '</aside>' +
+
+      '</div>' +
+    '</section>';
+
+  mountImmersiveScenarioVisualPro(scenario);
+  drawImmersiveFlightProgressCanvas(scenario);
+  bindImmersiveReadbackSync();
+}
+
+function mountImmersiveScenarioVisualPro(scenario) {
+  var host = document.getElementById('simVisualHost');
+  if (!host) return;
+
+  var videoUrl = String(scenario.videoUrl || '').trim();
+
+  if (videoUrl) {
+    host.innerHTML = buildScenarioVisualHtml(videoUrl, scenario);
+    return;
+  }
+
+  host.innerHTML =
+    '<div class="sim-fallback-visual pro">' +
+      '<div class="sim-fallback-hud">' +
+        '<span>ICAO TRAINER PRO</span>' +
+        '<span>' + escapeHtml(scenario.country || 'INTL') + '</span>' +
+        '<span>' + escapeHtml(scenario.phaseName || scenario.phaseCode || 'PHASE') + '</span>' +
+      '</div>' +
+      '<div class="sim-fallback-center">' +
+        '<div class="sim-radar-ring ring-1"></div>' +
+        '<div class="sim-radar-ring ring-2"></div>' +
+        '<div class="sim-radar-ring ring-3"></div>' +
+        '<div class="sim-radar-sweep"></div>' +
+        '<div class="sim-plane-icon">✈</div>' +
+      '</div>' +
+    '</div>';
+}
+
+function bindImmersiveReadbackSync() {
+  var input = document.getElementById('pilotReadback');
+  if (!input) return;
+
+  input.addEventListener('input', syncImmersiveLegacyFields);
+  input.focus();
+}
+
+function immersivePlayAtcAudio() {
+  var scenario = getCurrentScenarioSim();
+
+  if (!scenario) {
+    setImmersiveFeedback('Scenario is not available.', 'danger');
+    return;
+  }
+
+  var atcText = getScenarioAtcTextSafe(scenario);
+
+  if (!atcText) {
+    setImmersiveFeedback('This scenario does not have a valid ATC transmission. Fix atcText in Admin → Scenarios.', 'danger');
+    return;
+  }
+
+  if (scenario.audioUrl) {
+    var player = document.getElementById('globalScenarioAudioPlayer');
+
+    if (!player) {
+      player = document.createElement('audio');
+      player.id = 'globalScenarioAudioPlayer';
+      document.body.appendChild(player);
+    }
+
+    player.src = scenario.audioUrl;
+    player.play().catch(function() {
+      browserSpeakAtcFallback(atcText, scenario.country);
+    });
+
+    return;
+  }
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (res && res.ok && res.audioBase64) {
+        playBase64Audio(res.audioBase64);
+        setImmersiveFeedback('ATC transmission played with cloud TTS.', 'success');
+        return;
+      }
+
+      browserSpeakAtcFallback(atcText, scenario.country);
+
+      setImmersiveFeedback(
+        'Cloud TTS is not configured yet. Playing local browser voice as training fallback.',
+        'warning'
+      );
+    })
+    .withFailureHandler(function() {
+      browserSpeakAtcFallback(atcText, scenario.country);
+
+      setImmersiveFeedback(
+        'Cloud TTS failed. Playing local browser voice as training fallback.',
+        'warning'
+      );
+    })
+    .apiGenerateScenarioVoice(AppState.sessionToken, {
+      scenarioId: scenario.scenarioId
+    });
+}
+
+function browserSpeakAtcFallback(text, country) {
+  if (!window.speechSynthesis) {
+    setImmersiveFeedback('Browser speech synthesis is not available.', 'danger');
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+
+  var utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = getBrowserVoiceLangForCountry(country);
+  utterance.rate = 0.86;
+  utterance.pitch = 0.92;
+  utterance.volume = 1;
+
+  var voices = window.speechSynthesis.getVoices();
+  var preferred = pickBrowserVoiceForCountry(voices, country);
+
+  if (preferred) {
+    utterance.voice = preferred;
+  }
+
+  window.speechSynthesis.speak(utterance);
+}
+
+function getBrowserVoiceLangForCountry(country) {
+  var key = String(country || '').trim().toUpperCase();
+
+  if (key === 'UK' || key === 'GB') return 'en-GB';
+  if (key === 'AUSTRALIA') return 'en-AU';
+  if (key === 'INDIA' || key === 'IN') return 'en-IN';
+  if (key === 'CANADA') return 'en-CA';
+
+  return 'en-US';
+}
+
+function pickBrowserVoiceForCountry(voices, country) {
+  var lang = getBrowserVoiceLangForCountry(country);
+
+  for (var i = 0; i < voices.length; i++) {
+    if (String(voices[i].lang || '').toLowerCase() === lang.toLowerCase()) {
+      return voices[i];
+    }
+  }
+
+  for (var j = 0; j < voices.length; j++) {
+    if (String(voices[j].lang || '').toLowerCase().indexOf('en') === 0) {
+      return voices[j];
+    }
+  }
+
+  return null;
+}
+
+function immersiveSendReadback() {
+  var txt = document.getElementById('pilotReadback');
+  var value = txt ? txt.value.trim() : '';
+
+  if (!value) {
+    setImmersiveFeedback('Write your read-back before sending it.', 'warning');
+    return;
+  }
+
+  syncImmersiveLegacyFields();
+
+  if (typeof submitScenarioAnswer === 'function') {
+    submitScenarioAnswer();
+    return;
+  }
+
+  setImmersiveFeedback('Evaluation handler not found. Check submitScenarioAnswer().', 'danger');
+}
+
+function setImmersiveFeedback(message, type) {
+  var box = document.getElementById('simFeedbackBox');
+  if (!box) return;
+
+  var cls = 'sim-feedback-box';
+
+  if (type === 'warning') cls += ' warning';
+  if (type === 'danger') cls += ' danger';
+  if (type === 'success') cls += ' success';
+
+  box.className = cls;
+  box.innerHTML = escapeHtml(message || '');
+}
+
+function immersiveBackToCountries() {
+  disableSimulatorFocusMode();
+
+  if (AppState.training && AppState.training.selectedLevelData) {
+    renderCountryTrainingHub(AppState.training.selectedLevelData);
+    return;
+  }
+
+  if (AppState.training && AppState.training.catalog) {
+    renderLevelMap(AppState.training.catalog);
+    return;
+  }
+
+  renderSimulatorPlaceholder();
+}
+
+
+
+
+
+
+/*******************************************************
+ * ADMIN SCENARIO GENERATOR PRO
+ * Dropdowns, autofill, validation and templates
+ *******************************************************/
+
+var ADMIN_LEVEL_COUNTRY_RULES = {
+  1: ['USA', 'UK'],
+  2: ['India', 'Australia'],
+  3: ['Canada', 'USA'],
+  4: ['UK', 'Australia', 'India'],
+  5: ['USA', 'UK', 'India', 'Australia', 'Canada']
+};
+
+var ADMIN_COUNTRIES_MASTER = [
+  'USA',
+  'UK',
+  'India',
+  'Australia',
+  'Canada',
+  'Colombia',
+  'Brazil',
+  'Mexico',
+  'Spain',
+  'France',
+  'Germany',
+  'Ireland',
+  'New Zealand',
+  'South Africa'
+];
+
+var ADMIN_FLIGHT_PHASES = [
+  {
+    code: 'STARTUP',
+    name: 'Pre-flight / Startup',
+    label: 'Startup',
+    order: 1
+  },
+  {
+    code: 'TAXI_OUT',
+    name: 'Taxi Out',
+    label: 'Taxi Out',
+    order: 2
+  },
+  {
+    code: 'TAKEOFF',
+    name: 'Takeoff',
+    label: 'Takeoff',
+    order: 3
+  },
+  {
+    code: 'DEPARTURE',
+    name: 'Departure / Climb',
+    label: 'Departure',
+    order: 4
+  },
+  {
+    code: 'CRUISE',
+    name: 'Enroute / Cruise',
+    label: 'Cruise',
+    order: 5
+  },
+  {
+    code: 'APPROACH',
+    name: 'Descent / Approach',
+    label: 'Approach',
+    order: 6
+  },
+  {
+    code: 'LANDING',
+    name: 'Landing',
+    label: 'Landing',
+    order: 7
+  },
+  {
+    code: 'TAXI_IN',
+    name: 'Taxi In / Shutdown',
+    label: 'Taxi In',
+    order: 8
+  }
+];
+
+var ADMIN_SCENARIO_TYPES = [
+  'NORMAL',
+  'EMERGENCY'
+];
+
+var ADMIN_EMERGENCY_TYPES = [
+  '',
+  'ENGINE_FAILURE',
+  'RADIO_FAILURE',
+  'MEDICAL_EMERGENCY',
+  'WEATHER_DEVIATION',
+  'PAN_PAN',
+  'MAYDAY',
+  'LOW_FUEL',
+  'GO_AROUND',
+  'REJECTED_TAKEOFF',
+  'LOSS_OF_SEPARATION'
+];
+
+function adminHtml(value) {
+  if (typeof escapeHtml === 'function') {
+    return escapeHtml(value);
+  }
+
+  return String(value === undefined || value === null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function adminJs(value) {
+  return String(value || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'");
+}
+
+function adminNormalizeCountry(country) {
+  var raw = String(country || '').trim();
+
+  if (!raw) return 'USA';
+
+  var upper = raw.toUpperCase();
+
+  if (upper === 'US') return 'USA';
+  if (upper === 'GB') return 'UK';
+  if (upper === 'IN') return 'India';
+  if (upper === 'CO') return 'Colombia';
+
+  return raw;
+}
+
+function adminGetCountriesForLevel(level, selectedCountry) {
+  level = Number(level || 1);
+
+  var list = ADMIN_LEVEL_COUNTRY_RULES[level] || ADMIN_COUNTRIES_MASTER.slice();
+  var normalizedSelected = adminNormalizeCountry(selectedCountry || '');
+
+  if (normalizedSelected && list.map(function(c) {
+    return String(c).toUpperCase();
+  }).indexOf(String(normalizedSelected).toUpperCase()) < 0) {
+    list = [normalizedSelected].concat(list);
+  }
+
+  return list;
+}
+
+function adminOptionHtml(value, selectedValue, label) {
+  var selected =
+    String(value || '').toUpperCase() === String(selectedValue || '').toUpperCase()
+      ? ' selected'
+      : '';
+
+  return '<option value="' + adminHtml(value) + '"' + selected + '>' + adminHtml(label || value) + '</option>';
+}
+
+function adminLevelOptionsHtml(selectedLevel) {
+  var html = '';
+  selectedLevel = Number(selectedLevel || 1);
+
+  for (var i = 1; i <= 50; i++) {
+    html += adminOptionHtml(i, selectedLevel, 'Level ' + i);
+  }
+
+  return html;
+}
+
+function adminCountryOptionsHtml(level, selectedCountry) {
+  var countries = adminGetCountriesForLevel(level, selectedCountry);
+  var html = '';
+
+  countries.forEach(function(country) {
+    html += adminOptionHtml(country, selectedCountry || 'USA', country);
+  });
+
+  return html;
+}
+
+function adminPhaseOptionsHtml(selectedCode) {
+  var html = '';
+  selectedCode = String(selectedCode || 'STARTUP').toUpperCase();
+
+  ADMIN_FLIGHT_PHASES.forEach(function(phase) {
+    html += adminOptionHtml(
+      phase.code,
+      selectedCode,
+      phase.order + '. ' + phase.name
+    );
+  });
+
+  return html;
+}
+
+function adminScenarioTypeOptionsHtml(selectedType) {
+  var html = '';
+  selectedType = String(selectedType || 'NORMAL').toUpperCase();
+
+  ADMIN_SCENARIO_TYPES.forEach(function(type) {
+    html += adminOptionHtml(type, selectedType, type);
+  });
+
+  return html;
+}
+
+function adminEmergencyTypeOptionsHtml(selectedType) {
+  var html = '';
+  selectedType = String(selectedType || '').toUpperCase();
+
+  ADMIN_EMERGENCY_TYPES.forEach(function(type) {
+    var label = type ? type.replace(/_/g, ' ') : 'No emergency';
+    html += adminOptionHtml(type, selectedType, label);
+  });
+
+  return html;
+}
+
+function adminGetPhaseByCode(code) {
+  code = String(code || 'STARTUP').toUpperCase();
+
+  for (var i = 0; i < ADMIN_FLIGHT_PHASES.length; i++) {
+    if (ADMIN_FLIGHT_PHASES[i].code === code) {
+      return ADMIN_FLIGHT_PHASES[i];
+    }
+  }
+
+  return ADMIN_FLIGHT_PHASES[0];
+}
+
+function adminBuildFlightId(level, country, scenarioType) {
+  var cleanCountry = String(country || 'USA')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '_');
+
+  var cleanType = String(scenarioType || 'NORMAL')
+    .trim()
+    .toUpperCase();
+
+  return 'FLT-L' + Number(level || 1) + '-' + cleanCountry + '-' + cleanType;
+}
+
+function adminBuildFlightName(level, country, scenarioType) {
+  var typeLabel = String(scenarioType || 'NORMAL').toUpperCase() === 'EMERGENCY'
+    ? 'Emergency Flight'
+    : 'Normal Flight';
+
+  return String(country || 'USA') + ' Level ' + Number(level || 1) + ' ' + typeLabel;
+}
+
+function adminIsAutoFlightId(value) {
+  return !value || /^FLT-L\d+-/i.test(String(value || '').trim());
+}
+
+function renderScenarioForm(scenarioId) {
+  var s = scenarioId ? findAdminScenarioById(scenarioId) : null;
+
+  if (!s) {
+    s = {
+      scenarioId: '',
+      scenarioOrder: 1,
+      level: 1,
+      country: 'USA',
+      flightScenarioId: '',
+      flightScenarioName: '',
+      phaseCode: 'STARTUP',
+      phaseName: 'Pre-flight / Startup',
+      phaseOrder: 1,
+      scenarioType: 'NORMAL',
+      emergencyType: '',
+      context: '',
+      atcText: '',
+      expectedReadback: '',
+      keywordsText: '',
+      imageFileId: '',
+      videoUrl: '',
+      audioUrl: '',
+      isActive: true
+    };
+  }
+
+  var selectedPhase = adminGetPhaseByCode(s.phaseCode || 'STARTUP');
+
+  document.getElementById('contentArea').innerHTML =
+    '<div class="panel admin-generator-panel">' +
+      renderAdminTabs('scenarios') +
+
+      '<div class="admin-generator-header">' +
+        '<div>' +
+          '<p class="eyebrow">Scenario Generator</p>' +
+          '<h3>' + (s.scenarioId ? 'Edit scenario' : 'New scenario') + '</h3>' +
+          '<p class="subtitle">Create structured ATC training content using dropdowns, autofill and validation.</p>' +
+        '</div>' +
+
+        '<div class="admin-generator-actions">' +
+          '<button class="btn secondary" onclick="renderAdminScenarios()">Back</button>' +
+          '<button class="btn secondary" onclick="adminValidateScenarioForm(true)">Validate</button>' +
+          '<button id="saveScenarioBtn" class="btn primary" onclick="adminSaveScenario()">Save scenario</button>' +
+        '</div>' +
+      '</div>' +
+
+      '<input type="hidden" id="scenarioId" value="' + adminHtml(s.scenarioId || '') + '">' +
+
+      '<div class="admin-form-section">' +
+        '<div class="admin-section-title">' +
+          '<span>1</span>' +
+          '<div>' +
+            '<h4>Route setup</h4>' +
+            '<p>Define where this scenario belongs.</p>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="admin-form-grid three">' +
+          '<label class="admin-field">' +
+            '<span>Level</span>' +
+            '<select id="scenarioLevel" class="input" onchange="adminOnLevelChanged()">' +
+              adminLevelOptionsHtml(s.level || 1) +
+            '</select>' +
+          '</label>' +
+
+          '<label class="admin-field">' +
+            '<span>Country / accent</span>' +
+            '<select id="scenarioCountry" class="input" onchange="adminAutoFillScenarioMeta()">' +
+              adminCountryOptionsHtml(s.level || 1, s.country || 'USA') +
+            '</select>' +
+          '</label>' +
+
+          '<label class="admin-field">' +
+            '<span>Exercise order inside phase</span>' +
+            '<input id="scenarioOrder" class="input" type="number" min="1" value="' + adminHtml(s.scenarioOrder || 1) + '">' +
+          '</label>' +
+        '</div>' +
+
+        '<div class="admin-form-grid two">' +
+          '<label class="admin-field">' +
+            '<span>Flight Scenario ID</span>' +
+            '<input id="flightScenarioId" class="input mono" type="text" value="' + adminHtml(s.flightScenarioId || '') + '">' +
+          '</label>' +
+
+          '<label class="admin-field">' +
+            '<span>Flight Scenario Name</span>' +
+            '<input id="flightScenarioName" class="input" type="text" value="' + adminHtml(s.flightScenarioName || '') + '">' +
+          '</label>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="admin-form-section">' +
+        '<div class="admin-section-title">' +
+          '<span>2</span>' +
+          '<div>' +
+            '<h4>Flight phase</h4>' +
+            '<p>Choose the phase of flight. Phase order is applied automatically.</p>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="admin-form-grid three">' +
+          '<label class="admin-field">' +
+            '<span>Flight phase</span>' +
+            '<select id="scenarioPhaseCode" class="input" onchange="adminOnPhaseChanged()">' +
+              adminPhaseOptionsHtml(s.phaseCode || selectedPhase.code) +
+            '</select>' +
+          '</label>' +
+
+          '<label class="admin-field">' +
+            '<span>Phase name</span>' +
+            '<input id="scenarioPhaseName" class="input" type="text" readonly value="' + adminHtml(s.phaseName || selectedPhase.name) + '">' +
+          '</label>' +
+
+          '<label class="admin-field">' +
+            '<span>Phase order</span>' +
+            '<input id="scenarioPhaseOrder" class="input" type="number" readonly value="' + adminHtml(s.phaseOrder || selectedPhase.order) + '">' +
+          '</label>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="admin-form-section">' +
+        '<div class="admin-section-title">' +
+          '<span>3</span>' +
+          '<div>' +
+            '<h4>Scenario type</h4>' +
+            '<p>Normal operation or emergency training.</p>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="admin-form-grid two">' +
+          '<label class="admin-field">' +
+            '<span>Scenario Type</span>' +
+            '<select id="scenarioType" class="input" onchange="adminAutoFillScenarioMeta()">' +
+              adminScenarioTypeOptionsHtml(s.scenarioType || 'NORMAL') +
+            '</select>' +
+          '</label>' +
+
+          '<label class="admin-field">' +
+            '<span>Emergency Type</span>' +
+            '<select id="emergencyType" class="input">' +
+              adminEmergencyTypeOptionsHtml(s.emergencyType || '') +
+            '</select>' +
+          '</label>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="admin-form-section">' +
+        '<div class="admin-section-title">' +
+          '<span>4</span>' +
+          '<div>' +
+            '<h4>ATC exercise content</h4>' +
+            '<p>This is what the student will hear, read back and be evaluated on.</p>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="admin-quick-row">' +
+          '<button class="btn secondary" onclick="adminFillTemplateFromPhase()">Use phase template</button>' +
+          '<button class="btn secondary" onclick="adminClearExerciseFields()">Clear exercise text</button>' +
+        '</div>' +
+
+        '<label class="admin-field full">' +
+          '<span>Context / briefing</span>' +
+          '<input id="scenarioContext" class="input" type="text" placeholder="Example: Startup clearance at gate A12" value="' + adminHtml(s.context || '') + '">' +
+        '</label>' +
+
+        '<label class="admin-field full">' +
+          '<span>ATC text</span>' +
+          '<textarea id="scenarioAtcText" class="textarea admin-big-text" rows="4" placeholder="Example: FASTAIR 345 START UP APPROVED TEMPERATURE MINUS 2">' + adminHtml(s.atcText || '') + '</textarea>' +
+        '</label>' +
+
+        '<label class="admin-field full">' +
+          '<span>Expected pilot read-back</span>' +
+          '<textarea id="scenarioExpected" class="textarea admin-big-text" rows="4" placeholder="Example: START UP APPROVED FASTAIR 345">' + adminHtml(s.expectedReadback || '') + '</textarea>' +
+        '</label>' +
+
+        '<label class="admin-field full">' +
+          '<span>Keywords for validation</span>' +
+          '<textarea id="scenarioKeywords" class="textarea" rows="3" placeholder="Use | to separate keywords. Example: START UP APPROVED|FASTAIR 345">' +
+            adminHtml(s.keywordsText || (s.keywords || []).join('|')) +
+          '</textarea>' +
+        '</label>' +
+      '</div>' +
+
+      '<div class="admin-form-section">' +
+        '<div class="admin-section-title">' +
+          '<span>5</span>' +
+          '<div>' +
+            '<h4>Media and status</h4>' +
+            '<p>Optional video, image and ambient audio.</p>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="admin-form-grid two">' +
+          '<label class="admin-field">' +
+            '<span>Video URL</span>' +
+            '<input id="scenarioVideoUrl" class="input" type="text" placeholder="YouTube, Drive preview or MP4 URL" value="' + adminHtml(s.videoUrl || '') + '">' +
+          '</label>' +
+
+          '<label class="admin-field">' +
+            '<span>Image Google Drive File ID</span>' +
+            '<input id="scenarioImageFileId" class="input" type="text" placeholder="Google Drive image file ID" value="' + adminHtml(s.imageFileId || '') + '">' +
+          '</label>' +
+
+          '<label class="admin-field">' +
+            '<span>Ambient audio URL</span>' +
+            '<input id="scenarioAudioUrl" class="input" type="text" placeholder="Optional ambient audio URL" value="' + adminHtml(s.audioUrl || '') + '">' +
+          '</label>' +
+
+          '<label class="admin-field checkbox-field">' +
+            '<span>Scenario status</span>' +
+            '<div class="admin-checkbox-line">' +
+              '<input id="scenarioIsActive" type="checkbox" ' + (s.isActive ? 'checked' : '') + '> Active scenario' +
+            '</div>' +
+          '</label>' +
+        '</div>' +
+      '</div>' +
+
+      '<div id="scenarioFormMessage" class="message admin-form-message"></div>' +
+
+      '<div class="admin-generator-bottom-actions">' +
+        '<button class="btn secondary" onclick="renderAdminScenarios()">Cancel</button>' +
+        '<button class="btn secondary" onclick="adminValidateScenarioForm(true)">Validate</button>' +
+        '<button class="btn primary" onclick="adminSaveScenario()">Save scenario</button>' +
+      '</div>' +
+    '</div>';
+
+  setTimeout(function() {
+    adminOnPhaseChanged();
+    adminAutoFillScenarioMeta();
+  }, 30);
+}
+
+function adminOnLevelChanged() {
+  var levelEl = document.getElementById('scenarioLevel');
+  var countryEl = document.getElementById('scenarioCountry');
+
+  if (!levelEl || !countryEl) return;
+
+  var currentCountry = countryEl.value || 'USA';
+  countryEl.innerHTML = adminCountryOptionsHtml(Number(levelEl.value || 1), currentCountry);
+
+  adminAutoFillScenarioMeta();
+}
+
+function adminOnPhaseChanged() {
+  var phaseCodeEl = document.getElementById('scenarioPhaseCode');
+  var phaseNameEl = document.getElementById('scenarioPhaseName');
+  var phaseOrderEl = document.getElementById('scenarioPhaseOrder');
+
+  if (!phaseCodeEl || !phaseNameEl || !phaseOrderEl) return;
+
+  var phase = adminGetPhaseByCode(phaseCodeEl.value);
+
+  phaseNameEl.value = phase.name;
+  phaseOrderEl.value = phase.order;
+}
+
+function adminAutoFillScenarioMeta() {
+  var levelEl = document.getElementById('scenarioLevel');
+  var countryEl = document.getElementById('scenarioCountry');
+  var typeEl = document.getElementById('scenarioType');
+  var flightIdEl = document.getElementById('flightScenarioId');
+  var flightNameEl = document.getElementById('flightScenarioName');
+  var emergencyEl = document.getElementById('emergencyType');
+
+  if (!levelEl || !countryEl || !typeEl || !flightIdEl || !flightNameEl) return;
+
+  var level = Number(levelEl.value || 1);
+  var country = countryEl.value || 'USA';
+  var scenarioType = String(typeEl.value || 'NORMAL').toUpperCase();
+
+  var defaultId = adminBuildFlightId(level, country, scenarioType);
+  var defaultName = adminBuildFlightName(level, country, scenarioType);
+
+  if (adminIsAutoFlightId(flightIdEl.value)) {
+    flightIdEl.value = defaultId;
+  }
+
+  if (!flightNameEl.value || /Level\s+\d+/i.test(flightNameEl.value)) {
+    flightNameEl.value = defaultName;
+  }
+
+  if (emergencyEl) {
+    if (scenarioType === 'NORMAL') {
+      emergencyEl.value = '';
+      emergencyEl.disabled = true;
+    } else {
+      emergencyEl.disabled = false;
+    }
+  }
+}
+
+function adminFillTemplateFromPhase() {
+  var phaseCodeEl = document.getElementById('scenarioPhaseCode');
+  var countryEl = document.getElementById('scenarioCountry');
+
+  var phaseCode = phaseCodeEl ? phaseCodeEl.value : 'STARTUP';
+  var country = countryEl ? countryEl.value : 'USA';
+
+  var template = adminGetTemplateForPhase(phaseCode, country);
+
+  document.getElementById('scenarioContext').value = template.context;
+  document.getElementById('scenarioAtcText').value = template.atcText;
+  document.getElementById('scenarioExpected').value = template.expectedReadback;
+  document.getElementById('scenarioKeywords').value = template.keywords;
+
+  adminSetScenarioFormMessage('Template loaded for ' + phaseCode + '.', 'ok');
+}
+
+function adminGetTemplateForPhase(phaseCode, country) {
+  phaseCode = String(phaseCode || 'STARTUP').toUpperCase();
+
+  var templates = {
+    STARTUP: {
+      context: 'Pre-flight startup clearance',
+      atcText: 'FASTAIR 345 START UP APPROVED TEMPERATURE MINUS 2',
+      expectedReadback: 'START UP APPROVED FASTAIR 345',
+      keywords: 'START UP APPROVED|FASTAIR 345'
+    },
+
+    TAXI_OUT: {
+      context: 'Taxi clearance to holding point',
+      atcText: 'FASTAIR 345 TAXI TO HOLDING POINT RUNWAY 27 VIA ALPHA',
+      expectedReadback: 'TAXI TO HOLDING POINT RUNWAY 27 VIA ALPHA FASTAIR 345',
+      keywords: 'TAXI|HOLDING POINT|RUNWAY 27|ALPHA|FASTAIR 345'
+    },
+
+    TAKEOFF: {
+      context: 'Takeoff clearance',
+      atcText: 'FASTAIR 345 WIND 260 DEGREES 8 KNOTS RUNWAY 27 CLEARED FOR TAKEOFF',
+      expectedReadback: 'RUNWAY 27 CLEARED FOR TAKEOFF FASTAIR 345',
+      keywords: 'RUNWAY 27|CLEARED FOR TAKEOFF|FASTAIR 345'
+    },
+
+    DEPARTURE: {
+      context: 'Departure climb instruction',
+      atcText: 'FASTAIR 345 CLIMB FLIGHT LEVEL 120 CONTACT DEPARTURE 119 DECIMAL 7',
+      expectedReadback: 'CLIMB FLIGHT LEVEL 120 CONTACT DEPARTURE 119 DECIMAL 7 FASTAIR 345',
+      keywords: 'CLIMB|FLIGHT LEVEL 120|DEPARTURE|119 DECIMAL 7|FASTAIR 345'
+    },
+
+    CRUISE: {
+      context: 'Enroute frequency change',
+      atcText: 'FASTAIR 345 CONTACT CONTROL 129 DECIMAL 1',
+      expectedReadback: 'CONTACT CONTROL 129 DECIMAL 1 FASTAIR 345',
+      keywords: 'CONTACT CONTROL|129 DECIMAL 1|FASTAIR 345'
+    },
+
+    APPROACH: {
+      context: 'Approach clearance',
+      atcText: 'FASTAIR 345 DESCEND TO 3000 FEET CLEARED ILS APPROACH RUNWAY 27',
+      expectedReadback: 'DESCEND TO 3000 FEET CLEARED ILS APPROACH RUNWAY 27 FASTAIR 345',
+      keywords: 'DESCEND|3000 FEET|ILS APPROACH|RUNWAY 27|FASTAIR 345'
+    },
+
+    LANDING: {
+      context: 'Landing clearance',
+      atcText: 'FASTAIR 345 WIND 270 DEGREES 6 KNOTS RUNWAY 27 CLEARED TO LAND',
+      expectedReadback: 'RUNWAY 27 CLEARED TO LAND FASTAIR 345',
+      keywords: 'RUNWAY 27|CLEARED TO LAND|FASTAIR 345'
+    },
+
+    TAXI_IN: {
+      context: 'Taxi to stand after landing',
+      atcText: 'FASTAIR 345 TAXI TO STAND B12 VIA BRAVO AND CHARLIE',
+      expectedReadback: 'TAXI TO STAND B12 VIA BRAVO AND CHARLIE FASTAIR 345',
+      keywords: 'TAXI|STAND B12|BRAVO|CHARLIE|FASTAIR 345'
+    }
+  };
+
+  return templates[phaseCode] || templates.STARTUP;
+}
+
+function adminClearExerciseFields() {
+  document.getElementById('scenarioContext').value = '';
+  document.getElementById('scenarioAtcText').value = '';
+  document.getElementById('scenarioExpected').value = '';
+  document.getElementById('scenarioKeywords').value = '';
+
+  adminSetScenarioFormMessage('Exercise text cleared.', 'warning');
+}
+
+function adminCollectScenarioPayload() {
+  var phase = adminGetPhaseByCode(document.getElementById('scenarioPhaseCode').value);
+
+  return {
+    scenarioId: document.getElementById('scenarioId').value.trim(),
+    scenarioOrder: Number(document.getElementById('scenarioOrder').value || 1),
+    level: Number(document.getElementById('scenarioLevel').value || 1),
+    country: document.getElementById('scenarioCountry').value,
+
+    flightScenarioId: document.getElementById('flightScenarioId').value.trim(),
+    flightScenarioName: document.getElementById('flightScenarioName').value.trim(),
+
+    phaseCode: phase.code,
+    phaseName: phase.name,
+    phaseOrder: phase.order,
+    phaseLabel: phase.label,
+
+    scenarioType: document.getElementById('scenarioType').value,
+    emergencyType: document.getElementById('emergencyType').value,
+
+    context: document.getElementById('scenarioContext').value.trim(),
+    atcText: document.getElementById('scenarioAtcText').value.trim(),
+    expectedReadback: document.getElementById('scenarioExpected').value.trim(),
+    keywordsText: document.getElementById('scenarioKeywords').value.trim(),
+
+    videoUrl: document.getElementById('scenarioVideoUrl').value.trim(),
+    imageFileId: document.getElementById('scenarioImageFileId').value.trim(),
+    audioUrl: document.getElementById('scenarioAudioUrl').value.trim(),
+
+    isActive: document.getElementById('scenarioIsActive').checked
+  };
+}
+
+function adminValidateScenarioForm(showMessage) {
+  var payload = adminCollectScenarioPayload();
+  var errors = [];
+
+  if (!payload.level || payload.level < 1) {
+    errors.push('Level is required.');
+  }
+
+  if (!payload.country) {
+    errors.push('Country is required.');
+  }
+
+  if (!payload.flightScenarioId) {
+    errors.push('Flight Scenario ID is required.');
+  }
+
+  if (!payload.flightScenarioName) {
+    errors.push('Flight Scenario Name is required.');
+  }
+
+  if (!payload.phaseCode) {
+    errors.push('Flight phase is required.');
+  }
+
+  if (!payload.context) {
+    errors.push('Context / briefing is required.');
+  }
+
+  if (!payload.atcText) {
+    errors.push('ATC text is required.');
+  }
+
+  if (
+    payload.atcText &&
+    payload.atcText.toUpperCase() === String(payload.country || '').toUpperCase()
+  ) {
+    errors.push('ATC text cannot be only the country name.');
+  }
+
+  if (!payload.expectedReadback) {
+    errors.push('Expected read-back is required.');
+  }
+
+  if (!payload.keywordsText) {
+    errors.push('Keywords are required.');
+  }
+
+  if (payload.scenarioType === 'EMERGENCY' && !payload.emergencyType) {
+    errors.push('Emergency Type is required for emergency scenarios.');
+  }
+
+  if (errors.length) {
+    if (showMessage) {
+      adminSetScenarioFormMessage(errors.join(' | '), 'error');
+    }
+
+    return {
+      ok: false,
+      errors: errors,
+      payload: payload
+    };
+  }
+
+  if (showMessage) {
+    adminSetScenarioFormMessage('Scenario looks good.', 'ok');
+  }
+
+  return {
+    ok: true,
+    errors: [],
+    payload: payload
+  };
+}
+
+function adminSetScenarioFormMessage(message, type) {
+  var msg = document.getElementById('scenarioFormMessage');
+
+  if (!msg) return;
+
+  msg.textContent = message || '';
+  msg.className = 'message admin-form-message';
+
+  if (type) {
+    msg.classList.add('is-' + type);
+  }
+}
+
+function adminSaveScenario() {
+  var validation = adminValidateScenarioForm(false);
+  var btn = document.getElementById('saveScenarioBtn');
+
+  if (!validation.ok) {
+    adminSetScenarioFormMessage(validation.errors.join(' | '), 'error');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+  }
+
+  adminSetScenarioFormMessage('Saving scenario...', 'warning');
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Save scenario';
+      }
+
+      if (!res || !res.ok) {
+        adminSetScenarioFormMessage(
+          res && res.message ? res.message : 'Could not save scenario.',
+          'error'
+        );
+        return;
+      }
+
+      alert(res.message || 'Scenario saved.');
+      renderAdminScenarios();
+    })
+    .withFailureHandler(function(err) {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Save scenario';
+      }
+
+      adminSetScenarioFormMessage(
+        err && err.message ? err.message : 'Server error saving scenario.',
+        'error'
+      );
+    })
+    .apiAdminSaveScenario(AppState.sessionToken, validation.payload);
+}
+
+
+
+
+
+
+/*******************************************************
+ * ROUTE / NEXT SCENARIO SYNC FIX
+ * Keeps immersive simulator and legacy attempt logic aligned
+ *******************************************************/
+
+function normalizeRouteScenariosFix(data) {
+  data = data || {};
+
+  var scenarios = [];
+
+  if (Array.isArray(data.scenarios)) {
+    scenarios = data.scenarios;
+  } else if (data.data && Array.isArray(data.data.scenarios)) {
+    scenarios = data.data.scenarios;
+    data = data.data;
+  }
+
+  scenarios = scenarios
+    .filter(function(s) {
+      return s && s.scenarioId;
+    })
+    .sort(function(a, b) {
+      var phaseA = Number(a.phaseOrder || 0);
+      var phaseB = Number(b.phaseOrder || 0);
+
+      if (phaseA !== phaseB) {
+        return phaseA - phaseB;
+      }
+
+      return Number(a.scenarioOrder || 0) - Number(b.scenarioOrder || 0);
+    });
+
+  data.scenarios = scenarios;
+  data.totalScenarios = scenarios.length;
+
+  return data;
+}
+
+
+function renderScenarioRoute(data) {
+  data = normalizeRouteScenariosFix(data);
+
+  AppState.training = AppState.training || {};
+  AppState.training.route = data;
+  AppState.training.scenarios = data.scenarios || [];
+  AppState.training.currentIndex = 0;
+  AppState.training.scenarioStartMs = Date.now();
+
+  console.log('[ICAO] Route loaded:', {
+    currentLevel: data.currentLevel,
+    currentCountry: data.currentCountry,
+    totalScenarios: data.totalScenarios,
+    scenarios: AppState.training.scenarios
+  });
+
+  if (!AppState.training.scenarios.length) {
+    showContentError(
+      'No scenarios available for this route.\n\n' +
+      'Check that scenarios are ACTIVE and have the same Level + Country.'
+    );
+    return;
+  }
+
+  renderScenarioStageImmersive();
+}
+
+
+function getCurrentScenarioSim() {
+  AppState.training = AppState.training || {};
+
+  var scenarios = [];
+
+  if (Array.isArray(AppState.training.scenarios) && AppState.training.scenarios.length) {
+    scenarios = AppState.training.scenarios;
+  } else if (
+    AppState.training.route &&
+    Array.isArray(AppState.training.route.scenarios)
+  ) {
+    scenarios = AppState.training.route.scenarios;
+    AppState.training.scenarios = scenarios;
+  }
+
+  var idx = Number(AppState.training.currentIndex || 0);
+
+  if (!scenarios.length) {
+    return null;
+  }
+
+  if (idx < 0) {
+    idx = 0;
+  }
+
+  if (idx >= scenarios.length) {
+    idx = scenarios.length - 1;
+  }
+
+  AppState.training.currentIndex = idx;
+
+  return scenarios[idx];
+}
+
+
+function retryCurrentScenario() {
+  AppState.training.scenarioStartMs = Date.now();
+  renderScenarioStageImmersive();
+}
+
+
+function goToNextScenario() {
+  AppState.training = AppState.training || {};
+
+  var scenarios = AppState.training.scenarios || [];
+
+  if (!scenarios.length && AppState.training.route && AppState.training.route.scenarios) {
+    scenarios = AppState.training.route.scenarios;
+    AppState.training.scenarios = scenarios;
+  }
+
+  var nextIndex = Number(AppState.training.currentIndex || 0) + 1;
+
+  if (!scenarios.length) {
+    showContentError(
+      'Training scenario is not available.\n\n' +
+      'The route has no scenarios loaded in AppState.training.scenarios.'
+    );
+    return;
+  }
+
+  if (nextIndex >= scenarios.length) {
+    renderTrainingFinished();
+    return;
+  }
+
+  AppState.training.currentIndex = nextIndex;
+  AppState.training.scenarioStartMs = Date.now();
+
+  renderScenarioStageImmersive();
+}
+
+
+function immersiveSendReadback() {
+  var txt = document.getElementById('pilotReadback');
+  var value = txt ? txt.value.trim() : '';
+
+  if (!value) {
+    setImmersiveFeedback('Write your read-back before sending it.', 'warning');
+    return;
+  }
+
+  syncImmersiveLegacyFields();
+
+  if (typeof submitScenarioAnswer === 'function') {
+    submitScenarioAnswer();
+    return;
+  }
+
+  setImmersiveFeedback('Evaluation handler not found. Check submitScenarioAnswer().', 'danger');
+}
+
+
+function submitScenarioAnswer() {
+  AppState.training = AppState.training || {};
+
+  var scenarios = AppState.training.scenarios || [];
+
+  if (!scenarios.length && AppState.training.route && AppState.training.route.scenarios) {
+    scenarios = AppState.training.route.scenarios;
+    AppState.training.scenarios = scenarios;
+  }
+
+  var index = Number(AppState.training.currentIndex || 0);
+  var scenario = scenarios[index];
+
+  var answerEl =
+    document.getElementById('studentAnswer') ||
+    document.getElementById('pilotReadback') ||
+    document.getElementById('studentReadback') ||
+    document.getElementById('readbackInput');
+
+  if (!scenario) {
+    showContentError(
+      'Training scenario is not available.\n\n' +
+      'Index: ' + index + '\n' +
+      'Loaded scenarios: ' + scenarios.length
+    );
+    return;
+  }
+
+  if (!answerEl) {
+    showContentError('Read-back input is not available.');
+    return;
+  }
+
+  var answer = answerEl.value.trim();
+
+  if (!answer) {
+    setImmersiveFeedback('Please type your read-back before submitting.', 'warning');
+    return;
+  }
+
+  var responseTimeSec = AppState.training.scenarioStartMs
+    ? Math.round((Date.now() - AppState.training.scenarioStartMs) / 1000)
+    : 0;
+
+  setImmersiveFeedback('Evaluating read-back...', 'warning');
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (!res || !res.ok) {
+        setImmersiveFeedback(
+          res && res.message ? res.message : 'Could not save attempt.',
+          'danger'
+        );
+        return;
+      }
+
+      renderAttemptFeedback(res);
+    })
+    .withFailureHandler(function(err) {
+      setImmersiveFeedback(
+        err && err.message ? err.message : 'Server error while evaluating read-back.',
+        'danger'
+      );
+    })
+    .apiSubmitAttempt(AppState.sessionToken, {
+      scenarioId: scenario.scenarioId,
+      studentAnswer: answer,
+      responseTimeSec: responseTimeSec
+    });
+}
+
+
+function renderAttemptFeedback(res) {
+  var evaluation = res.evaluation || {};
+  var missing = evaluation.keywordsMissing || [];
+  var ok = !!evaluation.correct;
+
+  var currentIndex = Number(AppState.training.currentIndex || 0);
+  var total = AppState.training.scenarios ? AppState.training.scenarios.length : 0;
+  var isLast = currentIndex + 1 >= total;
+
+  var html =
+    '<h3>' + (ok ? '✓ Read-back accepted' : '✗ Non-standard read-back') + '</h3>' +
+    '<p><strong>Score:</strong> ' + escapeHtml(evaluation.score || 0) + '/100</p>' +
+    '<p><strong>Expected:</strong> ' + escapeHtml(res.expectedAnswer || '') + '</p>' +
+    (
+      missing.length
+        ? '<p><strong>Missing keywords:</strong> ' + escapeHtml(missing.join(', ')) + '</p>'
+        : '<p><strong>All required keywords were included.</strong></p>'
+    ) +
+    (
+      res.progress
+        ? '<p><strong>Route progress:</strong> ' + escapeHtml(res.progress.progressPct || 0) + '%</p>'
+        : ''
+    ) +
+    '<div class="sim-action-row">' +
+      '<button class="btn secondary" onclick="retryCurrentScenario()">Retry</button>' +
+      '<button class="btn primary big-action" onclick="goToNextScenario()">' +
+        (isLast ? 'Finish route' : 'Next scenario') +
+      '</button>' +
+    '</div>';
+
+  setImmersiveFeedback(html, ok ? 'success' : 'danger');
+
+  var input = document.getElementById('pilotReadback');
+  if (input) {
+    input.disabled = true;
+  }
+}
+
+
+function setImmersiveFeedback(message, type) {
+  var box = document.getElementById('simFeedbackBox');
+  if (!box) return;
+
+  var cls = 'sim-feedback-box';
+
+  if (type === 'warning') cls += ' warning';
+  if (type === 'danger') cls += ' danger';
+  if (type === 'success') cls += ' success';
+
+  box.className = cls;
+  box.innerHTML = message || '';
+}
+
+
+function renderTrainingFinished() {
+  disableSimulatorFocusMode();
+
+  document.getElementById('contentArea').innerHTML =
+    '<div class="panel">' +
+      '<p class="eyebrow">Route completed</p>' +
+      '<h3>Training session finished</h3>' +
+      '<p class="subtitle">Your attempts were saved successfully. You can review your progress or repeat the route.</p>' +
+      '<div class="action-row">' +
+        '<button class="btn secondary" onclick="renderScenarioRoute(AppState.training.route)">Repeat route</button>' +
+        '<button class="btn primary" onclick="renderProgressPlaceholder()">View progress</button>' +
+      '</div>' +
+    '</div>';
+}
+
+
+///SENIOR PILOT COMPLETION//
+
+/*******************************************************
+ * SENIOR PILOT COMPLETION EXPERIENCE
+ *******************************************************/
+
+function pilotSafeHtml(value) {
+  if (typeof escapeHtml === 'function') {
+    return escapeHtml(value);
+  }
+
+  return String(value === undefined || value === null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function pilotSafeJs(value) {
+  if (typeof escapeJsValue === 'function') {
+    return escapeJsValue(value);
+  }
+
+  return String(value || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'");
+}
+
+function getSeniorPilotName_() {
+  return AppState && AppState.user && AppState.user.name
+    ? AppState.user.name
+    : 'Senior Pilot';
+}
+
+function getSeniorCertificateId_(level) {
+  var userId = AppState && AppState.user && AppState.user.userId
+    ? String(AppState.user.userId).slice(-6).toUpperCase()
+    : 'PILOT';
+
+  var date = new Date();
+  var y = date.getFullYear();
+  var m = String(date.getMonth() + 1).padStart(2, '0');
+  var d = String(date.getDate()).padStart(2, '0');
+
+  return 'ICAO-L' + Number(level || 1) + '-' + y + m + d + '-' + userId;
+}
+
+function getCountryLabelSenior_(country) {
+  if (typeof getCountryUi === 'function') {
+    return getCountryUi(country).label || country;
+  }
+
+  return country || 'Country';
+}
+
+function renderCountryCompletionScreen(levelInfo, countryInfo, countryCompleted) {
+  var pilotName = getSeniorPilotName_();
+  var level = Number(levelInfo && levelInfo.level || AppState.training.selectedLevel || 1);
+  var country = countryInfo && countryInfo.country
+    ? countryInfo.country
+    : AppState.training.selectedCountry || 'USA';
+
+  var countryLabel = getCountryLabelSenior_(country);
+  var nextCountry = getNextCountryToTrain_(levelInfo);
+
+  var completedScenarios = Number(countryInfo && countryInfo.completedScenarios || 0);
+  var totalScenarios = Number(countryInfo && countryInfo.totalScenarios || AppState.training.scenarios.length || 0);
+  var scoreAvg = Number(countryInfo && countryInfo.scoreAvg || 0);
+  var levelCompletedCountries = Number(levelInfo && levelInfo.completedCountries || 0);
+  var levelTotalCountries = Number(levelInfo && levelInfo.totalCountries || 0);
+
+  var nextButton = '';
+
+  if (nextCountry) {
+    nextButton =
+      '<button class="btn primary senior-action" onclick="startCountryTraining(\'' +
+        pilotSafeJs(nextCountry.country) +
+        '\', ' +
+        level +
+      ')">' +
+        'Continue next environment · ' + pilotSafeHtml(getCountryLabelSenior_(nextCountry.country)) +
+      '</button>';
+  }
+
+  document.getElementById('contentArea').innerHTML =
+    '<section class="senior-completion-shell">' +
+
+      '<div class="senior-debrief-hero">' +
+        '<div class="senior-radar-mark">' +
+          '<span class="senior-radar-ring r1"></span>' +
+          '<span class="senior-radar-ring r2"></span>' +
+          '<span class="senior-radar-ring r3"></span>' +
+          '<span class="senior-radar-sweep"></span>' +
+          '<span class="senior-plane">✈</span>' +
+        '</div>' +
+
+        '<div class="senior-debrief-copy">' +
+          '<p class="eyebrow">Operational Debrief</p>' +
+          '<h1>Country route completed</h1>' +
+          '<p class="senior-lead">' +
+            pilotSafeHtml(pilotName) +
+            ', you have completed the ' +
+            pilotSafeHtml(countryLabel) +
+            ' ATC communication route for Level ' +
+            pilotSafeHtml(level) +
+            '.' +
+          '</p>' +
+
+          '<div class="senior-verdict">' +
+            '<span>READ-BACK DISCIPLINE CONFIRMED</span>' +
+            '<strong>Operational standard achieved</strong>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="senior-mission-grid">' +
+        '<article class="senior-mission-card">' +
+          '<span>ATC Environment</span>' +
+          '<strong>' + pilotSafeHtml(countryLabel) + '</strong>' +
+          '<small>Country accent route completed</small>' +
+        '</article>' +
+
+        '<article class="senior-mission-card">' +
+          '<span>Exercises</span>' +
+          '<strong>' + pilotSafeHtml(completedScenarios) + ' / ' + pilotSafeHtml(totalScenarios) + '</strong>' +
+          '<small>Read-back events processed</small>' +
+        '</article>' +
+
+        '<article class="senior-mission-card">' +
+          '<span>Average Score</span>' +
+          '<strong>' + pilotSafeHtml(scoreAvg) + '%</strong>' +
+          '<small>Based on submitted attempts</small>' +
+        '</article>' +
+
+        '<article class="senior-mission-card">' +
+          '<span>Level Progress</span>' +
+          '<strong>' + pilotSafeHtml(levelCompletedCountries) + ' / ' + pilotSafeHtml(levelTotalCountries) + '</strong>' +
+          '<small>Countries completed in this level</small>' +
+        '</article>' +
+      '</div>' +
+
+      '<div class="senior-debrief-panel">' +
+        '<div>' +
+          '<p class="eyebrow">Debrief Summary</p>' +
+          '<h3>Route cleared</h3>' +
+          '<p>' +
+            'This route is now recorded in your training progress. Continue with the remaining ATC environments to complete the full level and unlock the level certificate.' +
+          '</p>' +
+        '</div>' +
+
+        '<div class="senior-checklist">' +
+          '<span>✓ ATC transmission reviewed</span>' +
+          '<span>✓ Pilot read-back submitted</span>' +
+          '<span>✓ Scenario progress recorded</span>' +
+          '<span>✓ Country route completed</span>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="senior-actions">' +
+        '<button class="btn secondary" onclick="renderCountryTrainingHub(AppState.training.selectedLevelData)">Back to countries</button>' +
+        '<button class="btn secondary" onclick="renderProgressPlaceholder()">View progress</button>' +
+        nextButton +
+      '</div>' +
+
+    '</section>';
+}
+
+function renderLevelCertificateScreen(levelInfo, countryInfo) {
+  var pilotName = getSeniorPilotName_();
+  var level = Number(levelInfo && levelInfo.level || AppState.training.selectedLevel || 1);
+  var certId = getSeniorCertificateId_(level);
+  var dateText = new Date().toLocaleDateString();
+  var avgScore = calculateLevelAverageScore_(levelInfo);
+
+  var countries = (levelInfo && levelInfo.countries ? levelInfo.countries : [])
+    .map(function(c) {
+      return getCountryLabelSenior_(c.country);
+    })
+    .join(' · ');
+
+  document.getElementById('contentArea').innerHTML =
+    '<section class="senior-certificate-shell">' +
+
+      '<div class="senior-certificate-toolbar">' +
+        '<div>' +
+          '<p class="eyebrow">Level completed</p>' +
+          '<h2>Certificate ready</h2>' +
+          '<p class="subtitle">A professional certificate has been generated for this completed level.</p>' +
+        '</div>' +
+
+        '<div class="senior-actions compact">' +
+          '<button class="btn secondary" onclick="renderSimulatorPlaceholder()">Back to simulator</button>' +
+          '<button class="btn secondary" onclick="renderProgressPlaceholder()">View progress</button>' +
+          '<button class="btn primary" onclick="window.print()">Print certificate</button>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="senior-certificate-card">' +
+        '<div class="senior-cert-watermark">ICAO</div>' +
+
+        '<div class="senior-cert-header">' +
+          '<div>' +
+            '<p class="senior-cert-kicker">ICAO Trainer Pro</p>' +
+            '<h1>Certificate of Operational Proficiency</h1>' +
+          '</div>' +
+          '<div class="senior-cert-id">' +
+            '<span>Certificate ID</span>' +
+            '<strong>' + pilotSafeHtml(certId) + '</strong>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="senior-cert-body">' +
+          '<p>This certifies that</p>' +
+          '<h2>' + pilotSafeHtml(pilotName) + '</h2>' +
+          '<p>has successfully completed</p>' +
+          '<h3>Level ' + pilotSafeHtml(level) + ' Aviation Communication Training</h3>' +
+
+          '<div class="senior-cert-route">' +
+            '<span>Completed ATC environments</span>' +
+            '<strong>' + pilotSafeHtml(countries || 'N/A') + '</strong>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="senior-cert-metrics">' +
+          '<div>' +
+            '<span>Average Score</span>' +
+            '<strong>' + pilotSafeHtml(avgScore) + '%</strong>' +
+          '</div>' +
+          '<div>' +
+            '<span>Training Level</span>' +
+            '<strong>Level ' + pilotSafeHtml(level) + '</strong>' +
+          '</div>' +
+          '<div>' +
+            '<span>Date Issued</span>' +
+            '<strong>' + pilotSafeHtml(dateText) + '</strong>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="senior-cert-footer">' +
+          '<div class="senior-signature">' +
+            '<span></span>' +
+            '<strong>Training Platform Authority</strong>' +
+            '<small>ICAO Trainer Pro</small>' +
+          '</div>' +
+
+          '<div class="senior-seal">' +
+            '<span>ATP</span>' +
+            '<small>Verified</small>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+
+    '</section>';
+}
+
+function calculateLevelAverageScore_(levelInfo) {
+  if (!levelInfo || !levelInfo.countries || !levelInfo.countries.length) {
+    return 0;
+  }
+
+  var sum = 0;
+  var count = 0;
+
+  levelInfo.countries.forEach(function(country) {
+    var score = Number(country.scoreAvg || 0);
+
+    if (score > 0) {
+      sum += score;
+      count++;
+    }
+  });
+
+  if (!count) return 0;
+
+  return Math.round(sum / count);
+}
+
+
+/*******************************************************
+ * FINAL ROUTE COMPLETION FIX
+ * Forces country debrief and level certificate detection
+ *******************************************************/
+
+function renderAttemptFeedback(res) {
+  var evaluation = res.evaluation || {};
+  var missing = evaluation.keywordsMissing || [];
+  var ok = !!evaluation.correct;
+
+  var currentIndex = Number(AppState.training.currentIndex || 0);
+  var total = AppState.training.scenarios ? AppState.training.scenarios.length : 0;
+  var isLast = currentIndex + 1 >= total;
+
+  var html =
+    '<h3>' + (ok ? '✓ Read-back accepted' : '✗ Non-standard read-back') + '</h3>' +
+    '<p><strong>Score:</strong> ' + escapeHtml(evaluation.score || 0) + '/100</p>' +
+    '<p><strong>Expected:</strong> ' + escapeHtml(res.expectedAnswer || '') + '</p>' +
+    (
+      missing.length
+        ? '<p><strong>Missing keywords:</strong> ' + escapeHtml(missing.join(', ')) + '</p>'
+        : '<p><strong>All required keywords were included.</strong></p>'
+    ) +
+    (
+      res.progress
+        ? '<p><strong>Route progress:</strong> ' + escapeHtml(res.progress.progressPct || 0) + '%</p>'
+        : ''
+    ) +
+    '<div class="sim-action-row">' +
+      '<button class="btn secondary" onclick="retryCurrentScenario()">Retry</button>' +
+      '<button class="btn primary big-action" onclick="' + (isLast ? 'renderTrainingFinished()' : 'goToNextScenario()') + '">' +
+        (isLast ? 'Finish route and view debrief' : 'Next exercise') +
+      '</button>' +
+    '</div>';
+
+  setImmersiveFeedback(html, ok ? 'success' : 'danger');
+
+  var input = document.getElementById('pilotReadback');
+  if (input) {
+    input.disabled = true;
+  }
+}
+
+
+function goToNextScenario() {
+  AppState.training = AppState.training || {};
+
+  var scenarios = AppState.training.scenarios || [];
+
+  if (!scenarios.length && AppState.training.route && AppState.training.route.scenarios) {
+    scenarios = AppState.training.route.scenarios;
+    AppState.training.scenarios = scenarios;
+  }
+
+  var nextIndex = Number(AppState.training.currentIndex || 0) + 1;
+
+  if (!scenarios.length) {
+    showContentError('Training scenario is not available.');
+    return;
+  }
+
+  if (nextIndex >= scenarios.length) {
+    renderTrainingFinished();
+    return;
+  }
+
+  AppState.training.currentIndex = nextIndex;
+  AppState.training.scenarioStartMs = Date.now();
+
+  renderScenarioStageImmersive();
+}
+
+
+function renderTrainingFinished() {
+  disableSimulatorFocusMode();
+
+  markCurrentRouteCompletedOnClient_();
+
+  document.getElementById('contentArea').innerHTML =
+    '<div class="panel">' +
+      '<p class="eyebrow">Operational Debrief</p>' +
+      '<h3>Processing route completion...</h3>' +
+      '<p class="subtitle">Verifying country and level progress.</p>' +
+    '</div>';
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      var catalog = null;
+
+      if (res && res.ok && res.catalog) {
+        catalog = res.catalog;
+      } else {
+        catalog = AppState.training.catalog;
+      }
+
+      catalog = mergeCurrentRouteCompletionIntoCatalog_(catalog);
+      AppState.training.catalog = catalog;
+
+      renderCompletionExperience(catalog);
+    })
+    .withFailureHandler(function() {
+      var catalog = mergeCurrentRouteCompletionIntoCatalog_(AppState.training.catalog);
+      AppState.training.catalog = catalog;
+
+      renderCompletionExperience(catalog);
+    })
+    .apiGetTrainingCatalogV5_HARD(AppState.sessionToken);
+}
+
+
+function renderCompletionExperience(catalog) {
+  catalog = mergeCurrentRouteCompletionIntoCatalog_(catalog);
+
+  var route = AppState.training.route || {};
+  var level = Number(route.currentLevel || AppState.training.selectedLevel || 1);
+  var country = String(route.currentCountry || AppState.training.selectedCountry || 'USA');
+
+  var levelInfo = completionFindLevel_(catalog, level);
+  var countryInfo = completionFindCountry_(levelInfo, country);
+
+  var countryCompleted = completionIsCountryCompleted_(countryInfo);
+  var levelCompleted = completionIsLevelCompleted_(levelInfo);
+
+  AppState.training.lastCompletedLevelInfo = levelInfo;
+  AppState.training.lastCompletedCountryInfo = countryInfo;
+  AppState.training.lastLevelCompleted = levelCompleted;
+
+  renderCountryCompletionScreen(levelInfo, countryInfo, countryCompleted, levelCompleted);
+}
+
+
+function markCurrentRouteCompletedOnClient_() {
+  AppState.training = AppState.training || {};
+
+  var route = AppState.training.route || {};
+  var level = Number(route.currentLevel || AppState.training.selectedLevel || 1);
+  var country = String(route.currentCountry || AppState.training.selectedCountry || 'USA');
+
+  AppState.training.lastCompletedRoute = {
+    level: level,
+    country: country,
+    totalScenarios: AppState.training.scenarios ? AppState.training.scenarios.length : 0
+  };
+}
+
+
+function mergeCurrentRouteCompletionIntoCatalog_(catalog) {
+  catalog = catalog || AppState.training.catalog || { levels: [] };
+  catalog.levels = catalog.levels || [];
+
+  var completedRoute = AppState.training.lastCompletedRoute || {};
+  var level = Number(completedRoute.level || AppState.training.selectedLevel || 1);
+  var country = String(completedRoute.country || AppState.training.selectedCountry || 'USA');
+
+  var levelInfo = completionFindLevel_(catalog, level);
+
+  if (!levelInfo) {
+    levelInfo = {
+      level: level,
+      totalCountries: 1,
+      completedCountries: 0,
+      completed: false,
+      unlocked: true,
+      locked: false,
+      countries: []
+    };
+
+    catalog.levels.push(levelInfo);
+  }
+
+  levelInfo.countries = levelInfo.countries || [];
+
+  var countryInfo = completionFindCountry_(levelInfo, country);
+
+  if (!countryInfo) {
+    countryInfo = {
+      country: country,
+      level: level,
+      totalScenarios: completedRoute.totalScenarios || 0,
+      completedScenarios: 0,
+      progressPct: 0,
+      scoreAvg: 0,
+      completed: false
+    };
+
+    levelInfo.countries.push(countryInfo);
+  }
+
+  var totalScenarios = Number(countryInfo.totalScenarios || completedRoute.totalScenarios || 0);
+
+  countryInfo.totalScenarios = totalScenarios;
+  countryInfo.completedScenarios = totalScenarios;
+  countryInfo.progressPct = 100;
+  countryInfo.completed = true;
+
+  var completedCountries = 0;
+
+  levelInfo.countries.forEach(function(c) {
+    if (completionIsCountryCompleted_(c)) {
+      completedCountries++;
+    }
+  });
+
+  levelInfo.totalCountries = levelInfo.countries.length;
+  levelInfo.completedCountries = completedCountries;
+  levelInfo.completed = levelInfo.totalCountries > 0 && completedCountries >= levelInfo.totalCountries;
+
+  return catalog;
+}
+
+
+function completionNormalizeCountryKey_(country) {
+  var key = String(country || '').trim().toUpperCase();
+
+  if (key === 'US') return 'USA';
+  if (key === 'IN') return 'INDIA';
+  if (key === 'CO') return 'COLOMBIA';
+  if (key === 'GB') return 'UK';
+
+  return key;
+}
+
+
+function completionFindLevel_(catalog, level) {
+  catalog = catalog || {};
+  var levels = catalog.levels || [];
+
+  for (var i = 0; i < levels.length; i++) {
+    if (Number(levels[i].level) === Number(level)) {
+      return levels[i];
+    }
+  }
+
+  return null;
+}
+
+
+function completionFindCountry_(levelInfo, country) {
+  levelInfo = levelInfo || {};
+  var countries = levelInfo.countries || [];
+  var target = completionNormalizeCountryKey_(country);
+
+  for (var i = 0; i < countries.length; i++) {
+    if (completionNormalizeCountryKey_(countries[i].country) === target) {
+      return countries[i];
+    }
+  }
+
+  return null;
+}
+
+
+function completionIsCountryCompleted_(countryInfo) {
+  if (!countryInfo) return false;
+
+  if (countryInfo.completed === true) return true;
+
+  var completed = Number(countryInfo.completedScenarios || 0);
+  var total = Number(countryInfo.totalScenarios || 0);
+
+  return total > 0 && completed >= total;
+}
+
+
+function completionIsLevelCompleted_(levelInfo) {
+  if (!levelInfo) return false;
+
+  if (levelInfo.completed === true) return true;
+
+  var totalCountries = Number(levelInfo.totalCountries || 0);
+  var completedCountries = Number(levelInfo.completedCountries || 0);
+
+  return totalCountries > 0 && completedCountries >= totalCountries;
+}
+
+
+
+/*******************************************************
+ * COMPLETION PROCESSING HARD FIX
+ *******************************************************/
+
+function renderTrainingFinished() {
+  if (typeof disableSimulatorFocusMode === 'function') {
+    disableSimulatorFocusMode();
+  }
+
+  markCurrentRouteCompletedOnClientHard_();
+
+  document.getElementById('contentArea').innerHTML =
+    '<div class="panel">' +
+      '<p class="eyebrow">Operational Debrief</p>' +
+      '<h3>Processing route completion...</h3>' +
+      '<p class="subtitle">Verifying country and level progress.</p>' +
+    '</div>';
+
+  var finished = false;
+
+  var fallbackTimer = setTimeout(function() {
+    if (finished) return;
+
+    finished = true;
+
+    var localCatalog = buildCompletionCatalogHard_(AppState.training.catalog);
+    AppState.training.catalog = localCatalog;
+
+    renderCompletionExperienceHard_(localCatalog);
+  }, 1800);
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (finished) return;
+
+      finished = true;
+      clearTimeout(fallbackTimer);
+
+      var catalog = res && res.ok && res.catalog
+        ? res.catalog
+        : AppState.training.catalog;
+
+      catalog = buildCompletionCatalogHard_(catalog);
+      AppState.training.catalog = catalog;
+
+      renderCompletionExperienceHard_(catalog);
+    })
+    .withFailureHandler(function(err) {
+      if (finished) return;
+
+      finished = true;
+      clearTimeout(fallbackTimer);
+
+      var catalog = buildCompletionCatalogHard_(AppState.training.catalog);
+      AppState.training.catalog = catalog;
+
+      renderCompletionExperienceHard_(catalog);
+    })
+    .apiGetTrainingCatalogV5_HARD(AppState.sessionToken);
+}
+
+
+function markCurrentRouteCompletedOnClientHard_() {
+  AppState.training = AppState.training || {};
+
+  var route = AppState.training.route || {};
+  var scenarios = AppState.training.scenarios || route.scenarios || [];
+
+  var level = Number(
+    route.currentLevel ||
+    AppState.training.selectedLevel ||
+    1
+  );
+
+  var country = String(
+    route.currentCountry ||
+    AppState.training.selectedCountry ||
+    'USA'
+  );
+
+  AppState.training.lastCompletedRoute = {
+    level: level,
+    country: country,
+    totalScenarios: scenarios.length,
+    completedScenarios: scenarios.length
+  };
+}
+
+
+function buildCompletionCatalogHard_(catalog) {
+  catalog = catalog || AppState.training.catalog || {};
+  catalog.levels = catalog.levels || [];
+
+  var route = AppState.training.lastCompletedRoute || {};
+  var levelNumber = Number(route.level || AppState.training.selectedLevel || 1);
+  var countryName = String(route.country || AppState.training.selectedCountry || 'USA');
+
+  var levelInfo = findOrCreateCompletionLevelHard_(catalog, levelNumber);
+  var countryInfo = findOrCreateCompletionCountryHard_(levelInfo, countryName);
+
+  var total = Number(
+    countryInfo.totalScenarios ||
+    route.totalScenarios ||
+    AppState.training.scenarios.length ||
+    0
+  );
+
+  countryInfo.totalScenarios = total;
+  countryInfo.completedScenarios = total;
+  countryInfo.progressPct = 100;
+  countryInfo.completed = true;
+
+  var completedCountries = 0;
+
+  levelInfo.countries.forEach(function(c) {
+    if (isCompletionCountryDoneHard_(c)) {
+      completedCountries++;
+    }
+  });
+
+  levelInfo.totalCountries = levelInfo.countries.length;
+  levelInfo.completedCountries = completedCountries;
+  levelInfo.completed = levelInfo.totalCountries > 0 && completedCountries >= levelInfo.totalCountries;
+  levelInfo.unlocked = true;
+  levelInfo.locked = false;
+
+  AppState.training.selectedLevelData = levelInfo;
+  AppState.training.lastCompletedLevelInfo = levelInfo;
+  AppState.training.lastCompletedCountryInfo = countryInfo;
+  AppState.training.lastLevelCompleted = levelInfo.completed;
+
+  return catalog;
+}
+
+
+function findOrCreateCompletionLevelHard_(catalog, levelNumber) {
+  var levels = catalog.levels || [];
+
+  for (var i = 0; i < levels.length; i++) {
+    if (Number(levels[i].level) === Number(levelNumber)) {
+      levels[i].countries = levels[i].countries || [];
+      return levels[i];
+    }
+  }
+
+  var newLevel = {
+    level: Number(levelNumber),
+    totalCountries: 0,
+    completedCountries: 0,
+    completed: false,
+    unlocked: true,
+    locked: false,
+    countries: []
+  };
+
+  levels.push(newLevel);
+  catalog.levels = levels;
+
+  return newLevel;
+}
+
+
+function findOrCreateCompletionCountryHard_(levelInfo, countryName) {
+  levelInfo.countries = levelInfo.countries || [];
+
+  var target = normalizeCompletionCountryHard_(countryName);
+
+  for (var i = 0; i < levelInfo.countries.length; i++) {
+    if (normalizeCompletionCountryHard_(levelInfo.countries[i].country) === target) {
+      return levelInfo.countries[i];
+    }
+  }
+
+  var newCountry = {
+    country: countryName,
+    level: levelInfo.level,
+    totalScenarios: AppState.training.scenarios ? AppState.training.scenarios.length : 0,
+    completedScenarios: 0,
+    progressPct: 0,
+    scoreAvg: 0,
+    completed: false
+  };
+
+  levelInfo.countries.push(newCountry);
+
+  return newCountry;
+}
+
+
+function normalizeCompletionCountryHard_(country) {
+  var key = String(country || '').trim().toUpperCase();
+
+  if (key === 'US') return 'USA';
+  if (key === 'IN') return 'INDIA';
+  if (key === 'CO') return 'COLOMBIA';
+  if (key === 'GB') return 'UK';
+
+  return key;
+}
+
+
+function isCompletionCountryDoneHard_(countryInfo) {
+  if (!countryInfo) return false;
+  if (countryInfo.completed === true) return true;
+
+  var completed = Number(countryInfo.completedScenarios || 0);
+  var total = Number(countryInfo.totalScenarios || 0);
+
+  return total > 0 && completed >= total;
+}
+
+
+function renderCompletionExperienceHard_(catalog) {
+  var route = AppState.training.lastCompletedRoute || {};
+  var levelNumber = Number(route.level || AppState.training.selectedLevel || 1);
+  var countryName = String(route.country || AppState.training.selectedCountry || 'USA');
+
+  var levelInfo = findOrCreateCompletionLevelHard_(catalog, levelNumber);
+  var countryInfo = findOrCreateCompletionCountryHard_(levelInfo, countryName);
+
+  var levelCompleted =
+    levelInfo.completed === true ||
+    (
+      Number(levelInfo.totalCountries || 0) > 0 &&
+      Number(levelInfo.completedCountries || 0) >= Number(levelInfo.totalCountries || 0)
+    );
+
+  AppState.training.lastCompletedLevelInfo = levelInfo;
+  AppState.training.lastCompletedCountryInfo = countryInfo;
+  AppState.training.lastLevelCompleted = levelCompleted;
+
+  try {
+    if (typeof renderCountryCompletionScreen === 'function') {
+      renderCountryCompletionScreen(levelInfo, countryInfo, true, levelCompleted);
+      return;
+    }
+  } catch (err) {
+    console.error('renderCountryCompletionScreen failed:', err);
+  }
+
+  renderFallbackOperationalDebriefHard_(levelInfo, countryInfo, levelCompleted);
+}
+
+
+function renderFallbackOperationalDebriefHard_(levelInfo, countryInfo, levelCompleted) {
+  var countryLabel = countryInfo.country || 'Country';
+  var level = levelInfo.level || 1;
+
+  document.getElementById('contentArea').innerHTML =
+    '<section class="panel">' +
+      '<p class="eyebrow">Operational Debrief</p>' +
+      '<h3>' + (levelCompleted ? 'Level completed' : 'Country route completed') + '</h3>' +
+      '<p class="subtitle">' +
+        'You completed the ' + escapeHtml(countryLabel) +
+        ' ATC communication route for Level ' + escapeHtml(level) + '.' +
+      '</p>' +
+
+      '<div class="action-row">' +
+        '<button class="btn secondary" onclick="renderCountryTrainingHub(AppState.training.selectedLevelData)">Back to countries</button>' +
+        '<button class="btn secondary" onclick="renderProgressPlaceholder()">View progress</button>' +
+        (
+          levelCompleted
+            ? '<button class="btn primary" onclick="renderLevelCertificateScreen(AppState.training.lastCompletedLevelInfo, AppState.training.lastCompletedCountryInfo)">View Level Certificate</button>'
+            : ''
+        ) +
+      '</div>' +
+    '</section>';
+}
+
+
+
+/*******************************************************
+ * LEVEL CERTIFICATE PATCH
+ *******************************************************/
+
+function certSafeHtml(value) {
+  if (typeof escapeHtml === 'function') {
+    return escapeHtml(value);
+  }
+
+  return String(value === undefined || value === null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function getSeniorPilotName_() {
+  return AppState && AppState.user && AppState.user.name
+    ? AppState.user.name
+    : 'Senior Pilot';
+}
+
+function getSeniorCertificateId_(level) {
+  var email = AppState && AppState.user && AppState.user.email
+    ? AppState.user.email
+    : 'pilot';
+
+  var code = String(email)
+    .split('@')[0]
+    .replace(/[^\w]/g, '')
+    .slice(0, 6)
+    .toUpperCase();
+
+  var date = new Date();
+  var y = date.getFullYear();
+  var m = String(date.getMonth() + 1).padStart(2, '0');
+  var d = String(date.getDate()).padStart(2, '0');
+
+  return 'ICAO-L' + Number(level || 1) + '-' + y + m + d + '-' + code;
+}
+
+function getCountryLabelSenior_(country) {
+  if (typeof getCountryUi === 'function') {
+    var meta = getCountryUi(country);
+    return meta && meta.label ? meta.label : country;
+  }
+
+  return country || 'Country';
+}
+
+function calculateLevelAverageScore_(levelInfo) {
+  if (!levelInfo || !levelInfo.countries || !levelInfo.countries.length) {
+    return 0;
+  }
+
+  var sum = 0;
+  var count = 0;
+
+  levelInfo.countries.forEach(function(country) {
+    var score = Number(country.scoreAvg || 0);
+
+    if (score > 0) {
+      sum += score;
+      count++;
+    }
+  });
+
+  if (!count) {
+    return 0;
+  }
+
+  return Math.round(sum / count);
+}
+
+function renderLevelCertificateScreen(levelInfo, countryInfo) {
+  levelInfo = levelInfo || {};
+  countryInfo = countryInfo || {};
+
+  var pilotName = getSeniorPilotName_();
+  var level = Number(levelInfo.level || AppState.training.selectedLevel || 1);
+  var certId = getSeniorCertificateId_(level);
+  var dateText = new Date().toLocaleDateString();
+  var avgScore = calculateLevelAverageScore_(levelInfo);
+
+  var countries = '';
+
+  if (levelInfo.countries && levelInfo.countries.length) {
+    countries = levelInfo.countries.map(function(c) {
+      return getCountryLabelSenior_(c.country);
+    }).join(' · ');
+  } else if (countryInfo.country) {
+    countries = getCountryLabelSenior_(countryInfo.country);
+  } else {
+    countries = 'N/A';
+  }
+
+  document.getElementById('contentArea').innerHTML =
+    '<section class="senior-certificate-shell">' +
+
+      '<div class="senior-certificate-toolbar">' +
+        '<div>' +
+          '<p class="eyebrow">Level completed</p>' +
+          '<h2>Certificate ready</h2>' +
+          '<p class="subtitle">A professional certificate has been generated for this completed level.</p>' +
+        '</div>' +
+
+        '<div class="senior-actions compact">' +
+          '<button class="btn secondary" onclick="renderSimulatorPlaceholder()">Back to simulator</button>' +
+          '<button class="btn secondary" onclick="renderProgressPlaceholder()">View progress</button>' +
+          '<button class="btn primary" onclick="window.print()">Print certificate</button>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="senior-certificate-card">' +
+        '<div class="senior-cert-watermark">ICAO</div>' +
+
+        '<div class="senior-cert-header">' +
+          '<div>' +
+            '<p class="senior-cert-kicker">ICAO Trainer Pro</p>' +
+            '<h1>Certificate of Operational Proficiency</h1>' +
+          '</div>' +
+
+          '<div class="senior-cert-id">' +
+            '<span>Certificate ID</span>' +
+            '<strong>' + certSafeHtml(certId) + '</strong>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="senior-cert-body">' +
+          '<p>This certifies that</p>' +
+          '<h2>' + certSafeHtml(pilotName) + '</h2>' +
+          '<p>has successfully completed</p>' +
+          '<h3>Level ' + certSafeHtml(level) + ' Aviation Communication Training</h3>' +
+
+          '<div class="senior-cert-route">' +
+            '<span>Completed ATC environments</span>' +
+            '<strong>' + certSafeHtml(countries) + '</strong>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="senior-cert-metrics">' +
+          '<div>' +
+            '<span>Average Score</span>' +
+            '<strong>' + certSafeHtml(avgScore) + '%</strong>' +
+          '</div>' +
+
+          '<div>' +
+            '<span>Training Level</span>' +
+            '<strong>Level ' + certSafeHtml(level) + '</strong>' +
+          '</div>' +
+
+          '<div>' +
+            '<span>Date Issued</span>' +
+            '<strong>' + certSafeHtml(dateText) + '</strong>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="senior-cert-footer">' +
+          '<div class="senior-signature">' +
+            '<span></span>' +
+            '<strong>Training Platform Authority</strong>' +
+            '<small>ICAO Trainer Pro</small>' +
+          '</div>' +
+
+          '<div class="senior-seal">' +
+            '<span>ATP</span>' +
+            '<small>Verified</small>' +
+          '</div>' +
+        '</div>' +
+
+      '</div>' +
+
+    '</section>';
+}
+
+
+window.renderTrainingFinished = renderTrainingFinished;
+
+window.renderAttemptFeedback = renderAttemptFeedback;
+window.goToNextScenario = goToNextScenario;
+window.renderTrainingFinished = renderTrainingFinished;
+window.renderCompletionExperience = renderCompletionExperience;
+
+
+window.renderCountryCompletionScreen = renderCountryCompletionScreen;
+window.renderLevelCertificateScreen = renderLevelCertificateScreen;
+
+window.renderScenarioRoute = renderScenarioRoute;
+window.getCurrentScenarioSim = getCurrentScenarioSim;
+window.goToNextScenario = goToNextScenario;
+window.retryCurrentScenario = retryCurrentScenario;
+window.submitScenarioAnswer = submitScenarioAnswer;
+window.renderAttemptFeedback = renderAttemptFeedback;
+window.renderTrainingFinished = renderTrainingFinished;
+window.immersiveSendReadback = immersiveSendReadback;
+window.renderScenarioForm = renderScenarioForm;
+window.adminSaveScenario = adminSaveScenario;
+window.adminValidateScenarioForm = adminValidateScenarioForm;
+window.adminOnLevelChanged = adminOnLevelChanged;
+window.adminOnPhaseChanged = adminOnPhaseChanged;
+window.adminAutoFillScenarioMeta = adminAutoFillScenarioMeta;
+window.adminFillTemplateFromPhase = adminFillTemplateFromPhase;
+window.adminClearExerciseFields = adminClearExerciseFields;
+
+
+
+window.renderScenarioStageImmersive = renderScenarioStageImmersive;
+window.immersivePlayAtcAudio = immersivePlayAtcAudio;
+window.immersiveSendReadback = immersiveSendReadback;
+window.immersiveBackToCountries = immersiveBackToCountries;
+window.disableSimulatorFocusMode = disableSimulatorFocusMode;
+
+
+window.renderScenarioRoute = renderScenarioRoute;
+window.renderScenarioStageImmersive = renderScenarioStageImmersive;
+window.immersivePlayAtcAudio = immersivePlayAtcAudio;
+window.immersiveSendReadback = immersiveSendReadback;
+window.immersiveBackToCountries = immersiveBackToCountries;
+
+window.getCountryUi = getCountryUi;
+window.getFlagHtml = getFlagHtml;
+window.renderCountryTrainingHub = renderCountryTrainingHub;
+window.startCountryTraining = startCountryTraining;
+
+window.renderLevelMap = renderLevelMap;
+window.renderCountryPreviewFlags = renderCountryPreviewFlags;
+window.openLevelCountries = openLevelCountries;
+window.renderCountryTrainingHub = renderCountryTrainingHub;
+window.getCountryUi = getCountryUi;
+window.getFlagHtml = getFlagHtml;
+
+
+
+window.getCountryUi = getCountryUi;
+window.getFlagHtml = getFlagHtml;
+
+  window.AppState = AppState;
+
+  window.requestLoginCode = requestLoginCode;
+  window.verifyLoginCode = verifyLoginCode;
+  window.logout = logout;
+
+  window.renderHome = renderHome;
+  window.renderSimulatorPlaceholder = renderSimulatorPlaceholder;
+  window.renderProgressPlaceholder = renderProgressPlaceholder;
+  window.renderCertificatesPlaceholder = renderCertificatesPlaceholder;
+
+  window.renderAdminUsers = renderAdminUsers;
+  window.renderAdminScenarios = renderAdminScenarios;
+  window.renderScenarioForm = renderScenarioForm;
+  window.adminSaveScenario = adminSaveScenario;
+  window.adminSetScenarioActive = adminSetScenarioActive;
+  window.adminUpdateUser = adminUpdateUser;
+  window.seedSampleScenarios = seedSampleScenarios;
+
+  window.startTraining = startTraining;
+  window.renderScenarioRoute = renderScenarioRoute;
+  window.renderTrainingScenario = renderTrainingScenario;
+  window.playScenarioVoice = playScenarioVoice;
+  window.submitScenarioAnswer = submitScenarioAnswer;
+  window.retryCurrentScenario = retryCurrentScenario;
+  window.goToNextScenario = goToNextScenario;
+
+  </script>
+
+  

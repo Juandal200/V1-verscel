@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Non-Routine Operations — AEROCOMMS LMS</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:        #07101e;
+    --navy-2:      #0d1b2e;
+    --navy-3:      #132240;
+    --border:      rgba(255,255,255,0.08);
+    --accent:      #00d48e;
+    --accent-dim:  rgba(0,212,142,0.10);
+    --red:         #ef4444;
+    --red-dim:     rgba(239,68,68,0.10);
+    --text:        #dde6f0;
+    --muted:       #6b8aad;
+    --radius:      10px;
+
+    --zone-medical:   #f59e0b;
+    --zone-mechanical:#3b82f6;
+    --zone-security:  #a855f7;
+  }
+
+  body {
+    background: var(--navy);
+    color: var(--text);
+    font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+    min-height: 100vh;
+    padding: 32px 16px 80px;
+  }
+
+  /* ── Header ── */
+  .lms-header {
+    max-width: 1060px;
+    margin: 0 auto 32px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .lms-eyebrow {
+    font-size: 10px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--accent); opacity: 0.8; margin-bottom: 4px;
+  }
+  .lms-title   { font-size: 22px; font-weight: 700; color: #f0f6ff; letter-spacing: -0.3px; }
+  .lms-subtitle { font-size: 13px; color: var(--muted); margin-top: 3px; }
+
+  .lms-counter {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px;
+    font-size: 12px; color: var(--muted); white-space: nowrap;
+  }
+  .lms-counter strong { color: var(--text); font-size: 20px; font-weight: 700; }
+
+  /* ── Progress ── */
+  .progress-wrap { max-width: 1060px; margin: 0 auto 28px; }
+  .progress-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .progress-track { height: 4px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+  .progress-fill  { height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), #3b82f6); border-radius: 4px; transition: width 0.4s ease; }
+
+  /* ── Instructions ── */
+  .instructions {
+    max-width: 1060px; margin: 0 auto 28px;
+    background: rgba(59,130,246,0.07); border: 1px solid rgba(59,130,246,0.2);
+    border-radius: var(--radius); padding: 14px 18px;
+    font-size: 13px; color: #93b4d4; line-height: 1.6;
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+
+  /* ── Main layout ── */
+  .game-layout {
+    max-width: 1060px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 740px) { .game-layout { grid-template-columns: 1fr; } }
+
+  /* ── Card pool ── */
+  .pool-panel {
+    background: rgba(15,23,42,0.7);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 16px;
+    position: sticky;
+    top: 20px;
+  }
+  .pool-label {
+    font-size: 10px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
+  }
+  #cardPool {
+    display: flex; flex-direction: column; gap: 9px;
+    min-height: 60px;
+  }
+
+  /* ── Scenario cards ── */
+  .scenario-card {
+    background: var(--navy-2);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 12px 14px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    cursor: grab;
+    user-select: none;
+    transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s, transform 0.12s;
+    position: relative;
+  }
+  .scenario-card:hover { border-color: rgba(255,255,255,0.2); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.3); }
+  .scenario-card.dragging { opacity: 0.45; cursor: grabbing; transform: scale(0.97); }
+  .scenario-card.locked   { cursor: default; pointer-events: none; opacity: 0.6; }
+
+  .scenario-card .card-category-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    display: inline-block; margin-right: 7px; vertical-align: middle; flex-shrink: 0;
+  }
+
+  /* Snap-back animation */
+  @keyframes snapBack {
+    0%   { transform: scale(1.04); border-color: var(--red); background: var(--red-dim); }
+    100% { transform: scale(1);    border-color: var(--border); background: var(--navy-2); }
+  }
+  .scenario-card.snap-back { animation: snapBack 0.45s ease forwards; }
+
+  /* ── Drop zones ── */
+  .zones-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+
+  .drop-zone {
+    background: rgba(15,23,42,0.6);
+    border: 2px dashed rgba(255,255,255,0.1);
+    border-radius: 14px;
+    padding: 18px 16px;
+    min-height: 220px;
+    transition: border-color 0.2s, background 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .drop-zone.drag-over {
+    border-color: rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.04);
+  }
+  .drop-zone.drop-accept { border-color: var(--accent); background: var(--accent-dim); }
+  .drop-zone.drop-reject { border-color: var(--red);    background: var(--red-dim); }
+
+  .zone-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 4px;
+  }
+  .zone-icon {
+    width: 34px; height: 34px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; flex-shrink: 0;
+  }
+  .zone-icon.medical    { background: rgba(245,158,11,0.15); }
+  .zone-icon.mechanical { background: rgba(59,130,246,0.15); }
+  .zone-icon.security   { background: rgba(168,85,247,0.15); }
+
+  .zone-title {
+    font-size: 14px; font-weight: 700; color: #f0f6ff; line-height: 1.2;
+  }
+  .zone-subtitle { font-size: 11px; color: var(--muted); }
+
+  .zone-divider {
+    height: 1px; background: var(--border); margin: 0 -16px;
+  }
+
+  .zone-cards { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+
+  .zone-placeholder {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: rgba(255,255,255,0.18);
+    font-style: italic;
+    text-align: center;
+    min-height: 60px;
+    pointer-events: none;
+  }
+
+  /* Locked card inside a zone */
+  .scenario-card.locked-medical    { border-color: rgba(245,158,11,0.5);  background: rgba(245,158,11,0.07); }
+  .scenario-card.locked-mechanical { border-color: rgba(59,130,246,0.5);  background: rgba(59,130,246,0.07); }
+  .scenario-card.locked-security   { border-color: rgba(168,85,247,0.5);  background: rgba(168,85,247,0.07); }
+
+  /* Drop confirm flash */
+  @keyframes dropFlash {
+    0%   { background: rgba(0,212,142,0.18); }
+    100% { background: transparent; }
+  }
+  .drop-zone.drop-flash { animation: dropFlash 0.5s ease; }
+
+  /* ── Success overlay ── */
+  .success-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 999;
+    background: rgba(7,16,30,0.88);
+    backdrop-filter: blur(6px);
+    align-items: center; justify-content: center;
+  }
+  .success-overlay.visible { display: flex; }
+
+  .success-card {
+    background: var(--navy-2);
+    border: 1px solid rgba(0,212,142,0.3);
+    border-radius: 20px;
+    padding: 44px 48px;
+    text-align: center;
+    max-width: 420px;
+    width: 90%;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+    animation: successIn 0.4s cubic-bezier(.22,1,.36,1);
+  }
+  @keyframes successIn {
+    from { transform: scale(0.88); opacity: 0; }
+    to   { transform: scale(1);    opacity: 1; }
+  }
+  .success-checkmark {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: rgba(0,212,142,0.12);
+    border: 2px solid rgba(0,212,142,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; margin: 0 auto 20px;
+  }
+  .success-score {
+    font-size: 52px; font-weight: 800; letter-spacing: -2px;
+    color: var(--accent); line-height: 1; margin-bottom: 6px;
+  }
+  .success-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 16px;
+  }
+  .success-detail { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 28px; }
+
+  /* ── Buttons ── */
+  .btn {
+    padding: 12px 28px; border-radius: 9px; font-size: 13px;
+    font-weight: 800; letter-spacing: 0.4px; cursor: pointer; border: none;
+    transition: opacity 0.15s, transform 0.12s;
+  }
+  .btn:hover { opacity: 0.88; transform: translateY(-1px); }
+  .btn-primary { background: var(--accent); color: #07101e; }
+  .btn-ghost   { background: rgba(255,255,255,0.05); color: var(--text); border: 1px solid var(--border); }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 28px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #1a2a3a; border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 22px;
+    font-size: 13px; color: var(--text);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    transition: transform 0.28s cubic-bezier(.22,1,.36,1), opacity 0.28s;
+    opacity: 0; pointer-events: none; z-index: 998; white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+  /* ── Loading ── */
+  .state-msg { text-align: center; padding: 60px 20px; color: var(--muted); font-size: 14px; }
+  .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 16px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="lms-header">
+  <div>
+    <div class="lms-eyebrow">AEROCOMMS LMS &mdash; Module 2</div>
+    <h1 class="lms-title">Non-Routine Operations</h1>
+    <p class="lms-subtitle">Drag each scenario into the correct category</p>
+  </div>
+  <div class="lms-counter">
+    <div>
+      <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px;">Placed</div>
+      <strong id="placedCount">0</strong><span style="font-size:13px;color:var(--muted);"> / <span id="totalCount">0</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- Progress -->
+<div class="progress-wrap">
+  <div class="progress-meta"><span>Progress</span><span id="progressPct">0%</span></div>
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
+<!-- Instructions -->
+<div class="instructions">
+  <span style="font-size:16px;flex-shrink:0;">&#9881;</span>
+  <span>Drag each <strong>Scenario card</strong> from the pool on the left and drop it into the correct category zone.
+  A correct drop locks the card in place. An incorrect drop returns the card to the pool.</span>
+</div>
+
+<!-- Game -->
+<div class="game-layout">
+
+  <!-- Card pool -->
+  <div class="pool-panel">
+    <div class="pool-label">Scenario Pool</div>
+    <div id="cardPool">
+      <div class="state-msg"><div class="spinner"></div>Loading scenarios…</div>
+    </div>
+  </div>
+
+  <!-- Drop zones -->
+  <div class="zones-grid">
+    <div class="drop-zone" id="zone-Medical"
+      ondragover="onDragOver(event,'Medical')"
+      ondragleave="onDragLeave(event,'Medical')"
+      ondrop="onDrop(event,'Medical')">
+      <div class="zone-header">
+        <div class="zone-icon medical">&#128138;</div>
+        <div>
+          <div class="zone-title">Medical</div>
+          <div class="zone-subtitle">Passenger or crew health events</div>
+        </div>
+      </div>
+      <div class="zone-divider"></div>
+      <div class="zone-cards" id="zone-cards-Medical"></div>
+      <div class="zone-placeholder" id="zone-ph-Medical">Drop medical scenarios here</div>
+    </div>
+
+    <div class="drop-zone" id="zone-Mechanical"
+      ondragover="onDragOver(event,'Mechanical')"
+      ondragleave="onDragLeave(event,'Mechanical')"
+      ondrop="onDrop(event,'Mechanical')">
+      <div class="zone-header">
+        <div class="zone-icon mechanical">&#9881;</div>
+        <div>
+          <div class="zone-title">Mechanical</div>
+          <div class="zone-subtitle">Aircraft system or technical failures</div>
+        </div>
+      </div>
+      <div class="zone-divider"></div>
+      <div class="zone-cards" id="zone-cards-Mechanical"></div>
+      <div class="zone-placeholder" id="zone-ph-Mechanical">Drop mechanical scenarios here</div>
+    </div>
+
+    <div class="drop-zone" id="zone-Security"
+      ondragover="onDragOver(event,'Security')"
+      ondragleave="onDragLeave(event,'Security')"
+      ondrop="onDrop(event,'Security')">
+      <div class="zone-header">
+        <div class="zone-icon security">&#128274;</div>
+        <div>
+          <div class="zone-title">Security</div>
+          <div class="zone-subtitle">Threat, disruptive passenger or breach</div>
+        </div>
+      </div>
+      <div class="zone-divider"></div>
+      <div class="zone-cards" id="zone-cards-Security"></div>
+      <div class="zone-placeholder" id="zone-ph-Security">Drop security scenarios here</div>
+    </div>
+  </div>
+</div>
+
+<!-- Success overlay -->
+<div class="success-overlay" id="successOverlay">
+  <div class="success-card">
+    <div class="success-checkmark">&#10003;</div>
+    <div class="success-score">100%</div>
+    <div class="success-label">Module Complete</div>
+    <div class="success-detail" id="successDetail"></div>
+    <button class="btn btn-primary" onclick="resetGame()">Try Again</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  var _scenarios   = [];   // [{Scenario, Category}]
+  var _placed      = 0;
+  var _dragId      = null; // id of card being dragged
+  var _completed   = false;
+
+  /* ── Boot ── */
+  window.onload = function() {
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(onDataLoaded)
+        .withFailureHandler(onLoadError)
+        .fetchLMSData('Admin_NonRoutine');
+    } else {
+      onDataLoaded([
+        { Scenario: 'Passenger loses consciousness mid-flight',              Category: 'Medical'    },
+        { Scenario: 'Crew member reports severe chest pain',                 Category: 'Medical'    },
+        { Scenario: 'Child has severe allergic reaction onboard',            Category: 'Medical'    },
+        { Scenario: 'Engine fire warning light illuminates',                 Category: 'Mechanical' },
+        { Scenario: 'Hydraulic system pressure drops to zero',               Category: 'Mechanical' },
+        { Scenario: 'Landing gear indicator fails to show locked',           Category: 'Mechanical' },
+        { Scenario: 'Passenger threatens crew with a prohibited item',       Category: 'Security'   },
+        { Scenario: 'Unattended bag found in lavatory',                      Category: 'Security'   },
+        { Scenario: 'Passenger refuses to comply with seatbelt instruction', Category: 'Security'   }
+      ]);
+    }
+  };
+
+  function onDataLoaded(rows) {
+    _scenarios = (rows || []).filter(function(r) { return r.Scenario && r.Category; });
+    if (!_scenarios.length) {
+      byId('cardPool').innerHTML =
+        '<p style="font-size:13px;color:var(--muted);padding:12px 0;">No data in <strong>Admin_NonRoutine</strong>. Add Scenario/Category rows first.</p>';
+      return;
+    }
+    byId('totalCount').textContent = _scenarios.length;
+    buildPool();
+  }
+
+  function onLoadError(err) {
+    byId('cardPool').innerHTML =
+      '<p style="font-size:13px;color:#ef4444;">Failed to load: ' + esc(err.message || err) + '</p>';
+  }
+
+  /* ── Build pool ── */
+  function buildPool() {
+    var pool = byId('cardPool');
+    pool.innerHTML = '';
+    var shuffled = shuffle(_scenarios.slice());
+    shuffled.forEach(function(s, i) {
+      var id = 'card-' + i;
+      var card = makeCard(id, s.Scenario, s.Category);
+      pool.appendChild(card);
+    });
+  }
+
+  function makeCard(id, scenario, category) {
+    var card = document.createElement('div');
+    card.className = 'scenario-card';
+    card.id = id;
+    card.draggable = true;
+    card.dataset.scenario = scenario;
+    card.dataset.category = category;
+
+    var dot = document.createElement('span');
+    dot.className = 'card-category-dot';
+    dot.style.background = zoneColor(category);
+
+    card.appendChild(dot);
+    card.appendChild(document.createTextNode(scenario));
+
+    card.addEventListener('dragstart', onDragStart);
+    card.addEventListener('dragend',   onDragEnd);
+
+    // Touch support
+    card.addEventListener('touchstart', onTouchStart, { passive: true });
+    card.addEventListener('touchmove',  onTouchMove,  { passive: false });
+    card.addEventListener('touchend',   onTouchEnd,   { passive: true });
+
+    return card;
+  }
+
+  /* ── Drag events ── */
+  function onDragStart(e) {
+    _dragId = e.currentTarget.id;
+    e.currentTarget.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', _dragId);
+  }
+
+  function onDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+    _dragId = null;
+    clearZoneStates();
+  }
+
+  function onDragOver(e, zoneName) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    var zone = byId('zone-' + zoneName);
+    zone.classList.add('drag-over');
+  }
+
+  function onDragLeave(e, zoneName) {
+    if (!byId('zone-' + zoneName).contains(e.relatedTarget)) {
+      byId('zone-' + zoneName).classList.remove('drag-over');
+    }
+  }
+
+  function onDrop(e, zoneName) {
+    e.preventDefault();
+    clearZoneStates();
+    var cardId  = e.dataTransfer.getData('text/plain') || _dragId;
+    var card    = byId(cardId);
+    if (!card) return;
+    handleDrop(card, zoneName);
+  }
+
+  function handleDrop(card, zoneName) {
+    var correct = String(card.dataset.category || '').trim();
+
+    if (correct.toLowerCase() === zoneName.toLowerCase()) {
+      // ── Correct ──
+      var zone      = byId('zone-' + zoneName);
+      var cardsArea = byId('zone-cards-' + zoneName);
+      var ph        = byId('zone-ph-'    + zoneName);
+
+      card.draggable = false;
+      card.classList.add('locked', 'locked-' + zoneName.toLowerCase());
+      cardsArea.appendChild(card);
+      if (ph) ph.style.display = 'none';
+
+      // Flash zone
+      zone.classList.add('drop-accept');
+      setTimeout(function() {
+        zone.classList.remove('drop-accept');
+        zone.classList.add('drop-flash');
+        setTimeout(function() { zone.classList.remove('drop-flash'); }, 500);
+      }, 200);
+
+      _placed++;
+      updateProgress();
+      showToast('&#10003; Correct — ' + zoneName);
+
+      if (_placed === _scenarios.length) finishGame();
+
+    } else {
+      // ── Incorrect — snap back to pool ──
+      var pool = byId('cardPool');
+      pool.appendChild(card);
+
+      var zone = byId('zone-' + zoneName);
+      zone.classList.add('drop-reject');
+      setTimeout(function() { zone.classList.remove('drop-reject'); }, 400);
+
+      card.classList.add('snap-back');
+      setTimeout(function() { card.classList.remove('snap-back'); }, 500);
+
+      showToast('&#10007; Wrong category — try again');
+    }
+  }
+
+  /* ── Touch support (mobile drag-and-drop fallback) ── */
+  var _touch = { card: null, clone: null, startX: 0, startY: 0 };
+
+  function onTouchStart(e) {
+    var card = e.currentTarget;
+    if (card.classList.contains('locked')) return;
+    _touch.card   = card;
+    _touch.startX = e.touches[0].clientX;
+    _touch.startY = e.touches[0].clientY;
+
+    var clone = card.cloneNode(true);
+    clone.style.cssText =
+      'position:fixed;pointer-events:none;opacity:0.85;z-index:9997;' +
+      'width:' + card.offsetWidth + 'px;' +
+      'left:' + (e.touches[0].clientX - card.offsetWidth / 2) + 'px;' +
+      'top:'  + (e.touches[0].clientY - 24) + 'px;' +
+      'transform:rotate(2deg) scale(1.03);' +
+      'box-shadow:0 10px 30px rgba(0,0,0,0.5);';
+    document.body.appendChild(clone);
+    _touch.clone = clone;
+    card.style.opacity = '0.3';
+  }
+
+  function onTouchMove(e) {
+    e.preventDefault();
+    if (!_touch.clone) return;
+    var x = e.touches[0].clientX;
+    var y = e.touches[0].clientY;
+    _touch.clone.style.left = (x - _touch.clone.offsetWidth / 2) + 'px';
+    _touch.clone.style.top  = (y - 24) + 'px';
+
+    // Highlight zone under finger
+    _touch.clone.style.display = 'none';
+    var el = document.elementFromPoint(x, y);
+    _touch.clone.style.display = '';
+    var zone = el ? el.closest('.drop-zone') : null;
+    clearZoneStates();
+    if (zone) zone.classList.add('drag-over');
+  }
+
+  function onTouchEnd(e) {
+    if (!_touch.card || !_touch.clone) return;
+    _touch.card.style.opacity = '';
+    _touch.clone.remove();
+
+    var x = e.changedTouches[0].clientX;
+    var y = e.changedTouches[0].clientY;
+    _touch.clone = null;
+
+    var el = document.elementFromPoint(x, y);
+    var zone = el ? el.closest('.drop-zone') : null;
+    clearZoneStates();
+
+    if (zone) {
+      var zoneName = zone.id.replace('zone-', '');
+      handleDrop(_touch.card, zoneName);
+    }
+    _touch.card = null;
+  }
+
+  /* ── Finish ── */
+  function finishGame() {
+    if (_completed) return;
+    _completed = true;
+
+    var total = _scenarios.length;
+    var detail = byId('successDetail');
+    if (detail) {
+      detail.innerHTML =
+        'All <strong>' + total + ' scenarios</strong> correctly categorised.<br>' +
+        '<span style="color:var(--accent);font-weight:700;">Passed &#10003;</span> — Excellent situational awareness.';
+    }
+
+    setTimeout(function() {
+      byId('successOverlay').classList.add('visible');
+    }, 400);
+
+    var email = (typeof AppState !== 'undefined' && AppState.user)
+      ? AppState.user.email : 'student@test.com';
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(function() { showToast('Score saved.'); })
+        .withFailureHandler(function() {})
+        .saveLMSScore(email, 'Non-Routine Operations', 100);
+    }
+  }
+
+  /* ── Reset ── */
+  function resetGame() {
+    _placed    = 0;
+    _completed = false;
+    byId('successOverlay').classList.remove('visible');
+
+    ['Medical', 'Mechanical', 'Security'].forEach(function(z) {
+      byId('zone-cards-' + z).innerHTML = '';
+      var ph = byId('zone-ph-' + z); if (ph) ph.style.display = '';
+    });
+
+    buildPool();
+    updateProgress();
+    showToast('Board reset.');
+  }
+
+  /* ── Helpers ── */
+  function updateProgress() {
+    var total = _scenarios.length || 1;
+    var pct   = Math.round((_placed / total) * 100);
+    byId('placedCount').textContent     = _placed;
+    byId('progressFill').style.width    = pct + '%';
+    byId('progressPct').textContent     = pct + '%';
+  }
+
+  function clearZoneStates() {
+    document.querySelectorAll('.drop-zone').forEach(function(z) {
+      z.classList.remove('drag-over', 'drop-accept', 'drop-reject');
+    });
+  }
+
+  function zoneColor(cat) {
+    var map = { medical: '#f59e0b', mechanical: '#3b82f6', security: '#a855f7' };
+    return map[String(cat).toLowerCase()] || '#6b8aad';
+  }
+
+  function shuffle(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+  }
+
+  function byId(id)  { return document.getElementById(id); }
+  function esc(str)  { return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  var _toastTimer = null;
+  function showToast(msg) {
+    var t = byId('toast');
+    t.innerHTML = msg;
+    t.classList.add('show');
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(function() { t.classList.remove('show'); }, 2800);
+  }
+</script>
+</body>
+</html>

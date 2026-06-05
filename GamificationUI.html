@@ -1,0 +1,1272 @@
+<style>
+  /* ═══════════════════════════════════════════════════════════
+     GAMIFICATION MODULE — all rules scoped to #gamification-module
+     CSS-only interactions via checkbox toggle + :has()
+     ═══════════════════════════════════════════════════════════ */
+
+  #gamification-module {
+    --gam-bg:       #07101e;
+    --gam-surface:  #0b1625;
+    --gam-lift:     #0f1e32;
+    --gam-card:     #111e30;
+    --gam-border:   rgba(255,255,255,0.065);
+    --gam-border-hi: rgba(255,255,255,0.12);
+    --gam-green:    #00d48e;
+    --gam-green-hi: #00f5a8;
+    --gam-orange:   #f59e0b;
+    --gam-orange-hi:#fbbf24;
+    --gam-red:      #ef4444;
+    --gam-blue:     #3b82f6;
+    --gam-text:     #dde6f0;
+    --gam-text-sub: #8fa3bb;
+    --gam-muted:    #4a6280;
+    --gam-radius:   12px;
+    font-family: Inter, 'Segoe UI', Roboto, Arial, sans-serif;
+    color: var(--gam-text);
+    background: var(--gam-bg);
+    border-radius: 20px;
+    border: 1px solid var(--gam-border);
+    box-shadow:
+      0 0 0 1px rgba(0,212,142,0.06),
+      0 32px 80px rgba(0,0,0,0.7),
+      inset 0 1px 0 rgba(255,255,255,0.04);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Top accent line */
+  #gamification-module::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(0,212,142,0.7) 20%,
+      rgba(0,212,142,1) 50%,
+      rgba(59,130,246,0.7) 80%,
+      transparent 100%);
+    z-index: 1;
+  }
+
+  /* ── Hidden state checkboxes ─────────────────────────────── */
+  #gamification-module .gam-icon-cb,
+  #gamification-module .gam-chal-cb {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+
+  /* ── Hidden state checkboxes ─────────────────────────────── */
+  #gamification-module .gam-icon-cb,
+  #gamification-module .gam-chal-cb {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+
+  /* ── Hero Header ─────────────────────────────────────────── */
+  #gamification-module .gam-hero {
+    position: relative;
+    background: linear-gradient(160deg, #0c1e38 0%, #071222 60%, #06101c 100%);
+    border-bottom: 1px solid var(--gam-border);
+    overflow: visible;
+  }
+
+  #gamification-module .gam-hero-glow {
+    position: absolute;
+    top: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 400px;
+    height: 180px;
+    background: radial-gradient(ellipse, rgba(0,212,142,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  #gamification-module .gam-hero-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 22px 26px 20px;
+    position: relative;
+  }
+
+  #gamification-module .gam-hero-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  #gamification-module .gam-hero-emblem {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(0,212,142,0.18), rgba(0,212,142,0.06));
+    border: 1px solid rgba(0,212,142,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    flex-shrink: 0;
+    box-shadow: 0 0 20px rgba(0,212,142,0.12), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+
+  #gamification-module .gam-hero-label {
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gam-green);
+    margin-bottom: 3px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  #gamification-module .gam-hero-label::before {
+    content: '';
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--gam-green);
+    box-shadow: 0 0 6px var(--gam-green);
+    animation: gam-pulse 2.5s ease-in-out infinite;
+  }
+
+  #gamification-module .gam-hero-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--gam-text);
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+
+  #gamification-module .gam-header-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    position: relative;
+    z-index: 300;
+  }
+
+  /* keep .gam-header for backward compat (no-op) */
+  #gamification-module .gam-header { display: none; }
+
+  #gamification-module .gam-icon-wrap {
+    position: relative;
+  }
+
+  #gamification-module .gam-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--gam-border);
+    cursor: pointer;
+    font-size: 1rem;
+    position: relative;
+    transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    user-select: none;
+  }
+
+  #gamification-module .gam-icon-btn:hover {
+    background: rgba(0,212,142,0.1);
+    border-color: rgba(0,212,142,0.3);
+    box-shadow: 0 0 16px rgba(0,212,142,0.1);
+  }
+
+  #gamification-module .gam-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 17px;
+    height: 17px;
+    border-radius: 9px;
+    background: var(--gam-red);
+    color: #fff;
+    font-size: 0.58rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border: 1.5px solid var(--gam-bg);
+    box-shadow: 0 0 10px rgba(239,68,68,0.5);
+    animation: gam-pulse 2.5s ease-in-out infinite;
+  }
+
+  #gamification-module .gam-badge--orange {
+    background: var(--gam-orange);
+    box-shadow: 0 0 10px rgba(245,158,11,0.5);
+  }
+
+  @keyframes gam-pulse {
+    0%, 100% { transform: scale(1);    opacity: 1; }
+    50%       { transform: scale(1.2); opacity: 0.85; }
+  }
+
+  /* ── Dropdown ────────────────────────────────────────────── */
+  #gamification-module .gam-dropdown {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: 300px;
+    background: var(--gam-surface);
+    border: 1px solid var(--gam-border-hi);
+    border-radius: 14px;
+    box-shadow:
+      0 20px 60px rgba(0,0,0,0.65),
+      0 0 0 1px rgba(0,212,142,0.05),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+    z-index: 200;
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    overflow: hidden;
+  }
+
+  #gamification-module .gam-icon-cb:checked ~ .gam-dropdown {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+
+  #gamification-module .gam-dropdown-head {
+    padding: 13px 16px 11px;
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gam-muted);
+    border-bottom: 1px solid var(--gam-border);
+    background: rgba(255,255,255,0.02);
+  }
+
+  #gamification-module .gam-notif-item {
+    padding: 11px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--gam-border);
+    transition: background 0.2s ease;
+  }
+
+  #gamification-module .gam-notif-item:last-child { border-bottom: none; }
+  #gamification-module .gam-notif-item:hover      { background: rgba(255,255,255,0.03); }
+
+  #gamification-module .gam-notif-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #102040, #0a1828);
+    border: 1px solid rgba(0,212,142,0.2);
+    color: var(--gam-green);
+    font-size: 0.7rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    letter-spacing: 0.02em;
+  }
+
+  #gamification-module .gam-notif-body  { flex: 1; min-width: 0; }
+
+  #gamification-module .gam-notif-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--gam-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #gamification-module .gam-notif-sub {
+    font-size: 0.68rem;
+    color: var(--gam-muted);
+    margin-top: 2px;
+  }
+
+  #gamification-module .gam-dd-footer {
+    display: flex;
+    gap: 6px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--gam-border);
+    background: rgba(255,255,255,0.015);
+  }
+
+  #gamification-module .gam-btn-sm {
+    flex: 1;
+    padding: 7px 10px;
+    border-radius: 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0.02em;
+    transition: all 0.2s ease;
+  }
+
+  #gamification-module .gam-btn-sm--accept {
+    background: rgba(0,212,142,0.1);
+    color: var(--gam-green);
+    border: 1px solid rgba(0,212,142,0.22);
+  }
+
+  #gamification-module .gam-btn-sm--accept:hover {
+    background: rgba(0,212,142,0.2);
+    border-color: rgba(0,212,142,0.4);
+    box-shadow: 0 0 12px rgba(0,212,142,0.12);
+  }
+
+  #gamification-module .gam-btn-sm--decline {
+    background: rgba(239,68,68,0.07);
+    color: #f87171;
+    border: 1px solid rgba(239,68,68,0.16);
+  }
+
+  #gamification-module .gam-btn-sm--decline:hover {
+    background: rgba(239,68,68,0.15);
+    border-color: rgba(239,68,68,0.3);
+  }
+
+  /* Challenge items inside trophy dropdown */
+  #gamification-module .gam-chal-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--gam-border);
+    transition: background 0.2s ease;
+  }
+
+  #gamification-module .gam-chal-item:last-child { border-bottom: none; }
+  #gamification-module .gam-chal-item:hover      { background: rgba(255,255,255,0.03); }
+
+  #gamification-module .gam-chal-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  #gamification-module .gam-chal-from {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--gam-text);
+  }
+
+  #gamification-module .gam-chal-scenario {
+    font-size: 0.7rem;
+    color: var(--gam-muted);
+    margin-bottom: 8px;
+  }
+
+  #gamification-module .gam-score-badge {
+    background: rgba(245,158,11,0.1);
+    color: var(--gam-orange);
+    border: 1px solid rgba(245,158,11,0.22);
+    border-radius: 5px;
+    padding: 2px 8px;
+    font-size: 0.67rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    letter-spacing: 0.03em;
+  }
+
+  /* ── Body ─────────────────────────────────────────────────── */
+  #gamification-module .gam-body {
+    padding: 22px 26px 26px;
+  }
+
+  /* ── Section ──────────────────────────────────────────────── */
+  #gamification-module .gam-section { margin-bottom: 28px; }
+  #gamification-module .gam-section:last-child { margin-bottom: 0; }
+
+  #gamification-module .gam-section-label {
+    font-size: 0.63rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gam-muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #gamification-module .gam-section-label::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 12px;
+    border-radius: 2px;
+    background: var(--gam-green);
+    opacity: 0.6;
+    flex-shrink: 0;
+  }
+
+  /* ── Search ───────────────────────────────────────────────── */
+  #gamification-module .gam-search-wrap { position: relative; }
+
+  #gamification-module .gam-search-input {
+    width: 100%;
+    padding: 11px 14px 11px 40px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--gam-border);
+    border-radius: 11px;
+    color: var(--gam-text);
+    font-size: 0.875rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+  }
+
+  #gamification-module .gam-search-input::placeholder { color: var(--gam-muted); }
+
+  #gamification-module .gam-search-input:focus {
+    background: rgba(0,212,142,0.04);
+    border-color: rgba(0,212,142,0.35);
+    box-shadow: 0 0 0 3px rgba(0,212,142,0.07);
+  }
+
+  #gamification-module .gam-search-icon {
+    position: absolute;
+    left: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gam-muted);
+    font-size: 0.82rem;
+    pointer-events: none;
+  }
+
+  #gamification-module .gam-search-status {
+    padding: 10px 14px;
+    color: var(--gam-muted);
+    font-size: 0.8rem;
+  }
+
+  #gamification-module .gam-search-status--err { color: #f87171; }
+
+  #gamification-module .gam-results {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  #gamification-module .result-card {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--gam-card);
+    border: 1px solid var(--gam-border);
+    border-radius: 11px;
+    gap: 12px;
+    transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  #gamification-module .result-card:hover {
+    border-color: rgba(0,212,142,0.22);
+    background: rgba(0,212,142,0.04);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+
+  #gamification-module .result-card-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #102040, #07162a);
+    border: 2px solid rgba(0,212,142,0.2);
+    color: var(--gam-green);
+    font-size: 0.68rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    letter-spacing: 0.02em;
+  }
+
+  #gamification-module .result-card-info { flex: 1; min-width: 0; }
+
+  #gamification-module .result-card-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--gam-text);
+    display: block;
+  }
+
+  #gamification-module .result-card-email {
+    font-size: 0.69rem;
+    color: var(--gam-text-sub);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 1px;
+  }
+
+  #gamification-module .gam-add-btn {
+    flex-shrink: 0;
+    padding: 7px 15px;
+    background: rgba(0,212,142,0.09);
+    border: 1px solid rgba(0,212,142,0.22);
+    border-radius: 8px;
+    color: var(--gam-green);
+    font-size: 0.73rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+
+  #gamification-module .gam-add-btn:hover {
+    background: rgba(0,212,142,0.18);
+    border-color: rgba(0,212,142,0.4);
+    box-shadow: 0 0 14px rgba(0,212,142,0.12);
+    transform: translateY(-1px);
+  }
+
+  /* ── Roster ───────────────────────────────────────────────── */
+  #gamification-module .gam-roster {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  #gamification-module .gam-empty-state {
+    padding: 28px 24px;
+    text-align: center;
+    color: var(--gam-muted);
+    font-size: 0.82rem;
+    background: rgba(255,255,255,0.015);
+    border: 1px dashed rgba(255,255,255,0.08);
+    border-radius: 12px;
+    line-height: 1.6;
+  }
+
+  #gamification-module .gam-pilot-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    background: var(--gam-card);
+    border: 1px solid var(--gam-border);
+    border-left: 3px solid rgba(0,212,142,0.3);
+    border-radius: 13px;
+    transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  #gamification-module .gam-pilot-card:hover {
+    border-color: rgba(245,158,11,0.3);
+    border-left-color: rgba(245,158,11,0.7);
+    background: rgba(245,158,11,0.03);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.4);
+  }
+
+  #gamification-module .gam-pilot-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #0d2a4a, #071d36);
+    border: 2px solid rgba(0,212,142,0.25);
+    color: var(--gam-green);
+    font-size: 0.78rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    letter-spacing: 0.03em;
+    box-shadow: 0 0 0 3px rgba(0,212,142,0.08);
+  }
+
+  #gamification-module .gam-pilot-info { flex: 1; min-width: 0; }
+
+  #gamification-module .gam-pilot-name {
+    font-size: 0.87rem;
+    font-weight: 600;
+    color: var(--gam-text);
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  #gamification-module .gam-pilot-email {
+    font-size: 0.69rem;
+    color: var(--gam-text-sub);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #gamification-module .gam-challenge-btn {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    background: rgba(245,158,11,0.09);
+    border: 1px solid rgba(245,158,11,0.22);
+    border-radius: 9px;
+    color: var(--gam-orange);
+    font-size: 0.73rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    user-select: none;
+    letter-spacing: 0.02em;
+  }
+
+  #gamification-module .gam-challenge-btn:hover {
+    background: rgba(245,158,11,0.18);
+    border-color: rgba(245,158,11,0.45);
+    box-shadow: 0 0 18px rgba(245,158,11,0.18);
+    transform: translateY(-1px);
+  }
+
+  /* ── Divider ──────────────────────────────────────────────── */
+  #gamification-module .gam-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gam-border) 20%, var(--gam-border) 80%, transparent);
+    margin: 0 -26px;
+  }
+
+  /* ── Modal overlay ────────────────────────────────────────── */
+  #gamification-module .gam-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  #gamification-module:has(.gam-chal-cb:checked) .gam-modal-overlay {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  #gamification-module .gam-modal {
+    width: min(430px, calc(100vw - 40px));
+    background: var(--gam-surface);
+    border: 1px solid var(--gam-border-hi);
+    border-radius: 22px;
+    box-shadow:
+      0 32px 100px rgba(0,0,0,0.75),
+      0 0 0 1px rgba(245,158,11,0.08),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+    overflow: hidden;
+    transform: scale(0.93) translateY(12px);
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  #gamification-module:has(.gam-chal-cb:checked) .gam-modal {
+    transform: scale(1) translateY(0);
+  }
+
+  #gamification-module .gam-modal-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 22px 26px 18px;
+    border-bottom: 1px solid var(--gam-border);
+    background: rgba(255,255,255,0.02);
+  }
+
+  #gamification-module .gam-modal-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--gam-text);
+  }
+
+  #gamification-module .gam-modal-eyebrow {
+    font-size: 0.63rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gam-orange);
+    margin-bottom: 4px;
+  }
+
+  #gamification-module .gam-modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--gam-border);
+    cursor: pointer;
+    color: var(--gam-muted);
+    font-size: 0.82rem;
+    transition: all 0.2s ease;
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  #gamification-module .gam-modal-close:hover {
+    background: rgba(239,68,68,0.12);
+    border-color: rgba(239,68,68,0.3);
+    color: #f87171;
+  }
+
+  #gamification-module .gam-modal-body {
+    padding: 22px 26px 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  #gamification-module .gam-field-label {
+    font-size: 0.63rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gam-muted);
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  #gamification-module .gam-select,
+  #gamification-module .gam-number-input {
+    width: 100%;
+    padding: 11px 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--gam-border);
+    border-radius: 10px;
+    color: var(--gam-text);
+    font-size: 0.875rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+
+  #gamification-module .gam-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 13px center;
+    background-color: rgba(255,255,255,0.04);
+    padding-right: 38px;
+    cursor: pointer;
+  }
+
+  #gamification-module .gam-select option {
+    background: #0b1625;
+    color: #dde6f0;
+  }
+
+  #gamification-module .gam-select:focus,
+  #gamification-module .gam-number-input:focus {
+    border-color: rgba(245,158,11,0.38);
+    box-shadow: 0 0 0 3px rgba(245,158,11,0.07);
+  }
+
+  #gamification-module .gam-number-input::placeholder { color: var(--gam-muted); }
+
+  #gamification-module .gam-send-btn {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, #d97706, #b45309);
+    border: none;
+    border-radius: 11px;
+    color: #fff;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    font-family: inherit;
+    transition: all 0.25s ease;
+    margin-top: 4px;
+    box-shadow: 0 4px 18px rgba(217,119,6,0.2);
+  }
+
+  #gamification-module .gam-send-btn:hover {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    box-shadow: 0 6px 28px rgba(245,158,11,0.38);
+    transform: translateY(-2px);
+  }
+
+  #gamification-module .gam-send-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 10px rgba(245,158,11,0.2);
+  }
+
+  /* ── Tab navigation ──────────────────────────────────────────── */
+  #gamification-module .gam-tab-nav {
+    display: flex;
+    gap: 8px;
+    padding: 12px 20px;
+    background: rgba(0,0,0,0.25);
+    border-bottom: 1px solid var(--gam-border);
+  }
+
+  #gamification-module .gam-tab {
+    flex: 1;
+    padding: 10px 16px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
+    color: var(--gam-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0.04em;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    text-align: center;
+  }
+
+  #gamification-module .gam-tab.active {
+    background: rgba(0,212,142,0.12);
+    border-color: rgba(0,212,142,0.3);
+    color: var(--gam-green);
+    box-shadow: 0 0 16px rgba(0,212,142,0.08);
+  }
+
+  #gamification-module .gam-tab:hover:not(.active) {
+    background: rgba(255,255,255,0.07);
+    color: var(--gam-text-sub);
+  }
+
+  /* ── Leaderboard ─────────────────────────────────────────────── */
+  #gamification-module .gam-lb-loading {
+    padding: 36px 24px;
+    text-align: center;
+    color: var(--gam-muted);
+    font-size: 0.82rem;
+  }
+
+  #gamification-module .gam-lb-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 11px;
+    transition: background 0.2s ease;
+    margin-bottom: 3px;
+  }
+
+  #gamification-module .gam-lb-row:hover {
+    background: rgba(255,255,255,0.03);
+  }
+
+  #gamification-module .gam-lb-row--me {
+    background: rgba(0,212,142,0.05);
+    border: 1px solid rgba(0,212,142,0.13);
+  }
+
+  #gamification-module .gam-lb-row--me:hover {
+    background: rgba(0,212,142,0.08);
+  }
+
+  #gamification-module .gam-lb-rank {
+    width: 26px;
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--gam-muted);
+    flex-shrink: 0;
+  }
+
+  #gamification-module .gam-lb-rank--1 { color: #ffd700; font-size: 1rem; }
+  #gamification-module .gam-lb-rank--2 { color: #c0c7d1; font-size: 1rem; }
+  #gamification-module .gam-lb-rank--3 { color: #cd7f32; font-size: 1rem; }
+
+  #gamification-module .gam-lb-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #102040, #07162a);
+    border: 2px solid rgba(0,212,142,0.18);
+    color: var(--gam-green);
+    font-size: 0.67rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    letter-spacing: 0.02em;
+  }
+
+  #gamification-module .gam-lb-avatar--1 { border-color: rgba(255,215,0,0.45);   box-shadow: 0 0 12px rgba(255,215,0,0.18); }
+  #gamification-module .gam-lb-avatar--2 { border-color: rgba(192,199,209,0.45); box-shadow: 0 0 12px rgba(192,199,209,0.12); }
+  #gamification-module .gam-lb-avatar--3 { border-color: rgba(205,127,50,0.45);  box-shadow: 0 0 12px rgba(205,127,50,0.12); }
+
+  #gamification-module .gam-lb-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  #gamification-module .gam-lb-name {
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--gam-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 5px;
+  }
+
+  #gamification-module .gam-lb-bar-wrap {
+    height: 3px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  #gamification-module .gam-lb-bar {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--gam-green), #00aaff);
+    transition: width 0.7s cubic-bezier(0.34,1,0.64,1);
+  }
+
+  #gamification-module .gam-lb-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  #gamification-module .gam-lb-score {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--gam-text);
+    letter-spacing: 0.01em;
+  }
+
+  #gamification-module .gam-lb-level {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--gam-muted);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--gam-border);
+    border-radius: 4px;
+    padding: 1px 6px;
+    letter-spacing: 0.04em;
+  }
+
+  #gamification-module .gam-lb-empty {
+    padding: 32px 24px;
+    text-align: center;
+    color: var(--gam-muted);
+    font-size: 0.84rem;
+    line-height: 1.6;
+  }
+
+  #gamification-module .gam-lb-refresh {
+    display: flex;
+    justify-content: center;
+    padding: 12px 0 6px;
+  }
+
+  #gamification-module .gam-lb-refresh-btn {
+    padding: 7px 20px;
+    background: transparent;
+    border: 1px solid var(--gam-border);
+    border-radius: 8px;
+    color: var(--gam-muted);
+    font-size: 0.73rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0.04em;
+    transition: all 0.2s ease;
+  }
+
+  #gamification-module .gam-lb-refresh-btn:hover {
+    border-color: rgba(0,212,142,0.35);
+    color: var(--gam-green);
+    background: rgba(0,212,142,0.05);
+  }
+
+  /* ── Tour medallions ─────────────────────────────────────────── */
+  #gamification-module .gam-medallions-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--gam-border);
+  }
+
+  #gamification-module .gam-med-label {
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gam-muted);
+    margin-right: 4px;
+    white-space: nowrap;
+  }
+
+  #gamification-module .gam-medallion {
+    position: relative;
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    border: 1.5px solid;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: default;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  #gamification-module .gam-medallion:hover {
+    transform: scale(1.35);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+    z-index: 10;
+  }
+
+  #gamification-module .gam-medallion.gam-med--missed { opacity: 0.2; }
+
+  #gamification-module .gam-medallion.gam-med--dxp {
+    box-shadow: 0 0 7px rgba(218,165,32,0.55);
+  }
+
+  #gamification-module .gam-medallion.gam-med--comeback {
+    box-shadow: 0 0 7px rgba(245,158,11,0.5);
+  }
+
+  #gamification-module .gam-med-icon {
+    font-size: 0.62rem;
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  /* ── Tier dividers ───────────────────────────────────────────── */
+  #gamification-module .gam-lb-tier-divider {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 8px;
+    margin-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+
+  #gamification-module .gam-lb-tier-divider--first {
+    margin-top: 0;
+    border-top: none;
+    padding-top: 8px;
+  }
+
+  #gamification-module .gam-lb-tier-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #gamification-module .gam-lb-tier-label {
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  #gamification-module .gam-lb-tier-count {
+    font-size: 0.62rem;
+    font-weight: 600;
+    color: var(--gam-muted);
+  }
+
+  /* ── Rank chips ──────────────────────────────────────────────── */
+  #gamification-module .gam-lb-chip {
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    border-radius: 4px;
+    padding: 2px 7px;
+    border: 1px solid;
+    flex-shrink: 0;
+  }
+</style>
+
+<!--
+  ╔══════════════════════════════════════════════════════════════╗
+  ║  GAMIFICATION MODULE  —  Squadron & Challenges               ║
+  ║  Include inside <div id="gamification-module"></div>         ║
+  ║  JS hooks: gamSearchInput (input), gamSearchResults (div),   ║
+  ║            gamRoster (div), .gam-add-btn, .gam-challenge-btn ║
+  ╚══════════════════════════════════════════════════════════════╝
+-->
+
+<!-- Challenge modal state checkbox (CSS-only open/close) -->
+<input type="checkbox" id="gam-chal-open" class="gam-chal-cb">
+
+<!-- ── Challenge Modal Overlay ──────────────────────────────── -->
+<div class="gam-modal-overlay">
+  <div class="gam-modal">
+    <div class="gam-modal-header">
+      <div>
+        <div class="gam-modal-eyebrow">Flight Duel</div>
+        <div class="gam-modal-title">Send a Challenge</div>
+      </div>
+      <label for="gam-chal-open" class="gam-modal-close" title="Close">✕</label>
+    </div>
+    <div class="gam-modal-body">
+      <div>
+        <label class="gam-field-label">Select Scenario</label>
+        <select id="gamChalScenario" class="gam-select">
+          <option value="engine_failure">Engine Failure After Takeoff</option>
+          <option value="crosswind">Crosswind Landing</option>
+          <option value="emergency_descent">Emergency Descent</option>
+          <option value="bird_strike">Bird Strike</option>
+          <option value="wind_shear">Wind Shear Encounter</option>
+          <option value="go_around">Missed Approach / Go-Around</option>
+          <option value="hydraulic">Hydraulic System Failure</option>
+          <option value="depressurization">Rapid Depressurization</option>
+        </select>
+      </div>
+      <div>
+        <label class="gam-field-label">Your Score to Beat</label>
+        <input id="gamChalScore" type="number" class="gam-number-input" min="0" max="100" placeholder="Enter your score (0 – 100)">
+      </div>
+      <button id="gamSendChallengeBtn" class="gam-send-btn">Send Challenge ✈</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Hero Header ───────────────────────────────────────────── -->
+<div class="gam-hero">
+  <div class="gam-hero-glow"></div>
+  <div class="gam-hero-content">
+    <div class="gam-hero-left">
+      <div class="gam-hero-emblem">&#9992;</div>
+      <div>
+        <div class="gam-hero-label">AEROCOMMS</div>
+        <div class="gam-hero-title">Crew Hub</div>
+        <div id="gamStreakChip" class="gam-streak-chip" style="display:none;"></div>
+      </div>
+    </div>
+    <div class="gam-header-actions">
+      <!-- Bell — Pending Squadron Requests -->
+      <div class="gam-icon-wrap">
+        <input type="checkbox" id="gam-bell-open" class="gam-icon-cb">
+        <label for="gam-bell-open" class="gam-icon-btn" title="Squadron requests">
+          🔔
+          <span id="gamBellBadge" class="gam-badge" style="display:none;">0</span>
+        </label>
+        <div class="gam-dropdown">
+          <div class="gam-dropdown-head">Pending Requests</div>
+          <div id="gamPendingList">
+            <div class="gam-notif-item" style="justify-content:center;">
+              <span style="color:var(--gam-muted);font-size:0.78rem;">No pending requests.</span>
+            </div>
+          </div>
+          <div class="gam-dd-footer">
+            <button class="gam-btn-sm gam-btn-sm--accept">✓ Accept All</button>
+            <button class="gam-btn-sm gam-btn-sm--decline">✕ Decline All</button>
+          </div>
+        </div>
+      </div>
+      <!-- Trophy — Incoming Challenges -->
+      <div class="gam-icon-wrap">
+        <input type="checkbox" id="gam-trophy-open" class="gam-icon-cb">
+        <label for="gam-trophy-open" class="gam-icon-btn" title="Incoming challenges">
+          🏆
+          <span id="gamTrophyBadge" class="gam-badge gam-badge--orange" style="display:none;">0</span>
+        </label>
+        <div class="gam-dropdown">
+          <div class="gam-dropdown-head">Incoming Challenges</div>
+          <div id="gamChallengeList">
+            <div class="gam-notif-item" style="justify-content:center;">
+              <span style="color:var(--gam-muted);font-size:0.78rem;">No incoming challenges.</span>
+            </div>
+          </div>
+          <div class="gam-notif-item" style="justify-content:center;border-top:1px solid var(--gam-border);">
+            <span id="gamChalCount" style="font-size:0.7rem;color:var(--gam-muted);">0 challenges pending</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="gamMedallions" class="gam-medallions-row" style="display:none;padding:0 24px 16px;"></div>
+</div>
+
+<!-- ── Tab navigation ──────────────────────────────────────── -->
+<div class="gam-tab-nav">
+  <button id="gamTabSquadron" class="gam-tab" onclick="window._gamSwitchTab && _gamSwitchTab('squadron')">&#9992; Crew</button>
+  <button id="gamTabRankings" class="gam-tab active" onclick="window._gamSwitchTab && _gamSwitchTab('rankings')">&#127942; Rankings</button>
+</div>
+
+<!-- ── Squadron pane ────────────────────────────────────────── -->
+<div id="gam-pane-squadron" class="gam-body" style="display:none;">
+
+  <!-- Recruit Pilots -->
+  <div class="gam-section">
+    <div class="gam-section-label">Recruit Pilots</div>
+    <div class="gam-search-wrap">
+      <span class="gam-search-icon">&#128269;</span>
+      <input id="gamSearchInput" type="text" class="gam-search-input"
+             placeholder="Search by name or email address…">
+    </div>
+    <div id="gamSearchResults" class="gam-results"></div>
+  </div>
+
+  <div class="gam-divider"></div>
+
+  <!-- Squadron Roster -->
+  <div class="gam-section" style="margin-top:22px;">
+    <div class="gam-section-label">Your Squadron</div>
+    <div id="gamRoster" class="gam-roster">
+      <div class="gam-empty-state">No pilots in your squadron yet.<br>Search for a pilot above to send an invitation.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Rankings pane ────────────────────────────────────────── -->
+<div id="gam-pane-rankings">
+
+  <!-- Tour banner (JS populates) -->
+  <div id="gamTourBanner" class="gam-tour-banner" style="display:none;"></div>
+
+  <!-- Weekly / Career sub-tabs -->
+  <div class="gam-lb-tabs">
+    <button id="gamLbTabWeekly" class="gam-lb-tab active"
+            onclick="window._gamSwitchLbTab && _gamSwitchLbTab('weekly')">This Week</button>
+    <button id="gamLbTabCareer" class="gam-lb-tab"
+            onclick="window._gamSwitchLbTab && _gamSwitchLbTab('career')">All Time</button>
+  </div>
+
+  <!-- Score legend -->
+  <div id="gamLbLegend" style="display:flex;gap:16px;padding:6px 20px 2px;font-size:0.7rem;letter-spacing:0.06em;">
+    <span id="gamLbLegendXp" style="color:#00d48e;font-weight:700;">XP <span style="color:#4a6280;font-weight:400;">— Experience Points</span></span>
+    <span id="gamLbLegendCp" style="color:#DAA520;font-weight:700;display:none;">CP <span style="color:#4a6280;font-weight:400;">— Career Points</span></span>
+  </div>
+
+  <!-- Leaderboard content -->
+  <div id="gamLeaderboard" class="gam-body" style="padding-bottom:12px;">
+    <div class="gam-lb-loading">Loading rankings…</div>
+  </div>
+
+  <div class="gam-lb-refresh">
+    <button class="gam-lb-refresh-btn"
+            onclick="window._gamRefreshLb && _gamRefreshLb()">&#8635; Refresh</button>
+  </div>
+</div>

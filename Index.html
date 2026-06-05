@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+
+  
+  <script>
+    window.APP_CONFIG = <?!= getClientConfigJson(); ?>;
+  </script>
+
+  <?!= include('Styles'); ?>
+</head>
+
+<body>
+  <div class="app-shell">
+
+    <section id="loginScreen" class="screen active">
+      <div class="login-card">
+        <img src="<?!= getLogoDataUrl() ?>" alt="AEROCOMMS" class="brand-logo-hero">
+
+        <p class="eyebrow" style="margin-bottom:18px;">Aviation Training Platform</p>
+        <p class="subtitle">
+          Practice ATC read-back, improve aviation communication skills,
+          and track your progress by level and country accent.
+        </p>
+
+        <div class="auth-mode-tabs">
+          <button id="loginModeBtn" class="btn primary" onclick="setAuthMode('login')">Sign in</button>
+          <button id="registerModeBtn" class="btn secondary" onclick="setAuthMode('register')">Register</button>
+        </div>
+
+        <div id="loginForm" class="login-form">
+          <input id="loginEmail" class="input" type="email" placeholder="Email address">
+
+          <button id="requestCodeBtn" class="btn primary full" onclick="requestLoginCode()">
+            Send access code
+          </button>
+
+          <div id="otpBox" class="otp-box hidden">
+            <input id="loginCode" class="input code-input" type="text" placeholder="6-digit code" maxlength="6">
+
+            <button class="btn primary full" onclick="verifyLoginCode()">
+              Verify and enter
+            </button>
+          </div>
+        </div>
+
+        <div id="registerForm" class="login-form hidden">
+          <input id="registerName" class="input" type="text" placeholder="Full name">
+          <input id="registerEmail" class="input" type="email" placeholder="Email address">
+          <select id="registerProfession" class="input">
+            <option value="">Select your profession</option>
+            <option value="PILOT">Pilot</option>
+            <option value="CONTROLLER">Air Traffic Controller</option>
+            <option value="AMT">Aircraft Maintenance Technician</option>
+            <option value="FIREFIGHTER">Firefighter</option>
+            <option value="DRIVER">Driver</option>
+          </select>
+
+          <button id="registerUserBtn" class="btn primary full" onclick="requestRegistration()">
+            Request account approval
+          </button>
+        </div>
+
+        <div id="loginMessage" class="message"></div>
+
+        <div class="login-footer">
+          Secure access with email verification.
+        </div>
+      </div>
+    </section>
+
+    <section id="pendingScreen" class="screen">
+      <div class="panel center-panel">
+        <h2>Account pending approval</h2>
+        <p>
+          Your account was created successfully, but an administrator must approve your access.
+        </p>
+        <button class="btn secondary" onclick="logout()">Sign out</button>
+      </div>
+    </section>
+
+    <section id="appScreen" class="screen">
+
+      <header class="app-topnav">
+        <div class="topnav-brand">
+          <img src="<?!= getLogoDataUrl() ?>" alt="AEROCOMMS" class="brand-logo-topnav">
+          <div>
+            <strong>AEROCOMMS</strong>
+            <span>ICAO Trainer</span>
+          </div>
+        </div>
+
+        <nav class="topnav-nav">
+          <button class="nav-item active" onclick="_navTo(renderHome)">Dashboard</button>
+          <button class="nav-item" onclick="_navTo(renderSimulatorPlaceholder)">Simulator</button>
+          <button class="nav-item" onclick="_navTo(renderProgress)">Progress</button>
+          <button class="nav-item" onclick="_navTo(renderCertificatesPlaceholder)">Certificates</button>
+          <button id="crewNavBtn" class="nav-item" onclick="_navTo(renderSquadron)">Crew <span id="gamNavBadge" class="gam-nav-badge" style="display:none;"></span></button>
+          <button id="planNavBtn" class="nav-item" onclick="openSubscriptionModal()">Plan</button>
+          <button id="adminNavButton" class="nav-item hidden" onclick="renderAdminUsers()">Admin</button>
+          <button id="analyticsNavButton" class="nav-item hidden" onclick="renderAdminAnalytics()">Analytics</button>
+        </nav>
+
+        <div class="topnav-actions">
+          <button id="demoReplayBtn" class="btn secondary topnav-btn" onclick="window.showDemo && window.showDemo()">? How it works</button>
+          <button class="btn secondary topnav-btn" onclick="logout()">Logout</button>
+        </div>
+      </header>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Welcome</p>
+            <div class="topbar-name-row">
+              <h2 id="userName">User</h2>
+              <span id="userRankPill" class="topbar-rank-pill" style="display:none;"></span>
+            </div>
+            <div id="userRankStripes" class="topbar-rank-stripes" style="display:none;"></div>
+            <div id="userRankProgress" class="topbar-rank-progress" style="display:none;">
+              <div class="topbar-rank-progress-bar">
+                <div id="userRankProgressFill" class="topbar-rank-progress-fill"></div>
+              </div>
+              <span id="userRankProgressLabel" class="topbar-rank-progress-label"></span>
+            </div>
+          </div>
+
+          <div class="user-chip">
+            <span id="userRole">ROLE</span>
+            <small id="userEmail"></small>
+          </div>
+        </header>
+
+        <section id="contentArea" class="content-grid"></section>
+
+        <div id="gamification-module" style="display:none;max-width:720px;margin:28px auto;">
+          <?!= include('GamificationUI'); ?>
+        </div>
+      </main>
+    </section>
+
+  </div>
+  <img id="appLogoHidden" src="<?!= getLogoDataUrl() ?>" alt="" style="display:none">
+  <?!= include('Scripts'); ?>
+</body>
+</html>
