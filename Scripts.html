@@ -226,7 +226,11 @@
     return pool[Math.floor(Math.random() * pool.length)];
   }
   function _pickRate() {
-    return Math.round((1.0 + Math.random() * 0.2) * 100) / 100;
+    var level = Number((window.AppState && AppState.training && AppState.training.selectedLevel) || 1);
+    // Min and max both scale up with level: L1=0.90–0.97, L5=0.96–1.03, L9+=1.02–1.20
+    var min = Math.min(0.90 + (level - 1) * 0.015, 1.02);
+    var max = Math.min(0.97 + (level - 1) * 0.026, 1.20);
+    return Math.round((min + Math.random() * (max - min)) * 100) / 100;
   }
 
   /* ── ICAO Comprehension Test ──────────────────────────── */
@@ -4771,8 +4775,8 @@
       var pool  = _voicePool[lang] || [];
       var voice = pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
 
-      // Rango ATC profesional: velocidad cómoda, variación perceptible pero no caricaturesca
-      var rate  = 0.90 + Math.random() * 0.15;  // 0.90 – 1.05
+      // Rate scales with level: slower at L1, realistic ATC speed at higher levels
+      var rate  = _pickRate();
       var pitch = 1.0;
       // Ligera variación de volumen simula distancia al micrófono
       var vol   = 0.88 + Math.random() * 0.12;  // 0.88 – 1.00
