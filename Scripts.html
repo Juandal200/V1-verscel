@@ -1,11 +1,12 @@
 <script>
 /* ── Global mic utility — used by live simulator, ICAO test, and exam ──────── */
 (function() {
-  var _gMicRec    = null;
-  var _gMicActive = false;
+  var _gMicRecorder = null;
+  var _gMicStream   = null;
+  var _gMicChunks   = [];
+  var _gMicActive   = false;
 
   // Base phonetic fixes for hard ATC terms the browser consistently mishears.
-  // Pairs are [wrong, correct]. Longer patterns must sort first — handled at apply time.
   var _BASE_FIXES = [
     ['queue and h',  'QNH'],  ['cue and h',  'QNH'],  ['q and h',  'QNH'],
     ['cue nh',       'QNH'],  ['q n h',      'QNH'],  ['key nh',   'QNH'],
@@ -24,31 +25,22 @@
     ['niner',        'NINER'],       ['liner',       'NINER'],     ['diner', 'NINER']
   ];
 
-  // Build scenario-specific fixes from the expectedReadback of the current exercise.
-  // Extracts the callsign and adds phonetic split variants so e.g. "nova air 11"
-  // corrects to "NOVAIR 11" without hardcoding every airline.
   function _scenarioFixes(expectedReadback) {
     if (!expectedReadback) return [];
     var fixes = [];
     var text = String(expectedReadback).toUpperCase().trim();
-
-    // Callsign: last occurrence of WORD(S) + NUMBER at end of string
     var csMatch = text.match(/\b([A-Z]{3,}(?:\s[A-Z]+)?)\s+(\d{1,4}[A-Z]?)\s*$/);
     if (csMatch) {
-      var csWord = csMatch[1];   // e.g. "NOVAIR"
-      var csNum  = csMatch[2];   // e.g. "11"
-      // Split CamelCase-style compound words: NOVAIR → nova air, FASTAIR → fast air
-      var split = csWord.replace(/([A-Z][a-z]*)([A-Z])/g, '$1 $2').toLowerCase();
-      if (split !== csWord.toLowerCase()) {
-        fixes.push([split + ' ' + csNum, csWord + ' ' + csNum]);
-      }
+      var csWord = csMatch[1];
+      var csNum  = csMatch[2];
+      var split  = csWord.replace(/([A-Z][a-z]*)([A-Z])/g, '$1 $2').toLowerCase();
+      if (split !== csWord.toLowerCase()) fixes.push([split + ' ' + csNum, csWord + ' ' + csNum]);
     }
     return fixes;
   }
 
   function _applyFixes(transcript, extra) {
     var all = _BASE_FIXES.concat(extra || []);
-    // Sort longest pattern first to avoid partial replacements
     all.sort(function(a, b) { return b[0].length - a[0].length; });
     var result = transcript;
     all.forEach(function(pair) {
@@ -58,58 +50,130 @@
     return result;
   }
 
-  // expectedReadback is optional — callers that know it pass it; others leave it out
-  // and only base fixes are applied.
-  window.startMicInput = function(textareaId, btnId, expectedReadback) {
+  function _resetBtn(btn) {
+    if (!btn) return;
+    btn.classList.remove('listening', 'processing');
+    btn.innerHTML = '&#127908; Tap to speak';
+    btn.disabled  = false;
+  }
+
+  // Fallback: browser SpeechRecognition when Whisper is unavailable (no API key).
+  function _fallbackSpeechRec(textareaId, btnId, expected) {
     var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     var btn = document.getElementById(btnId);
-
     if (!SpeechRec) {
       if (btn) { btn.textContent = 'Not supported — use Chrome or Edge'; btn.disabled = true; }
       return;
     }
-
-    if (_gMicActive) {
-      if (_gMicRec) _gMicRec.stop();
-      return;
-    }
-
-    // If caller didn't pass expectedReadback, try to pull it from the live simulator state
-    var expected = expectedReadback || (
-      window.AppState && AppState.training && AppState.training.scenarios
-        ? (AppState.training.scenarios[AppState.training.currentIndex || 0] || {}).expectedReadback
-        : ''
-    );
-
-    _gMicRec = new SpeechRec();
-    _gMicRec.lang            = 'en-US';
-    _gMicRec.interimResults  = false;
-    _gMicRec.maxAlternatives = 1;
-
-    _gMicRec.onstart = function() {
+    var rec = new SpeechRec();
+    rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 1;
+    rec.onstart = function() {
       _gMicActive = true;
       if (btn) { btn.classList.add('listening'); btn.innerHTML = '&#9679; Listening&hellip;'; }
     };
-
-    _gMicRec.onresult = function(e) {
-      var raw        = e.results[0][0].transcript;
-      var corrected  = _applyFixes(raw, _scenarioFixes(expected));
+    rec.onresult = function(e) {
+      var corrected = _applyFixes(e.results[0][0].transcript, _scenarioFixes(expected));
       var ta = document.getElementById(textareaId);
       if (ta) { ta.value = corrected; ta.focus(); ta.dispatchEvent(new Event('input')); }
     };
-
-    _gMicRec.onend = function() {
-      _gMicActive = false;
-      if (btn) { btn.classList.remove('listening'); btn.innerHTML = '&#127908; Tap to speak'; }
+    rec.onend  = function() { _gMicActive = false; _resetBtn(btn); };
+    rec.onerror = function(e) {
+      _gMicActive = false; _resetBtn(btn);
+      if (e.error === 'not-allowed') alert('Microphone access was denied. Please allow it in your browser settings.');
     };
+    rec.start();
+  }
 
-    _gMicRec.onerror = function(e) {
-      _gMicActive = false;
-      if (btn) { btn.classList.remove('listening'); btn.innerHTML = '&#127908; Tap to speak'; }
-      if (e.error === 'not-allowed') alert('Microphone access was denied. Please allow microphone access in your browser settings and try again.');
-    };
+  window.startMicInput = function(textareaId, btnId, expectedReadback) {
+    var btn = document.getElementById(btnId);
 
-    _gMicRec.start();
+    // Second tap while recording → stop
+    if (_gMicActive) {
+      if (_gMicRecorder && _gMicRecorder.state === 'recording') _gMicRecorder.stop();
+      return;
+    }
+
+    var expected = expectedReadback || (
+      window.AppState && AppState.training && AppState.training.scenarios
+        ? (AppState.training.scenarios[AppState.training.currentIndex || 0] || {}).expectedReadback : ''
+    );
+
+    // No MediaRecorder support → go straight to browser SR fallback
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+      _fallbackSpeechRec(textareaId, btnId, expected);
+      return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      .then(function(stream) {
+        _gMicStream = stream;
+        _gMicChunks = [];
+        _gMicActive = true;
+
+        var mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg']
+          .filter(function(t) { return MediaRecorder.isTypeSupported(t); })[0] || '';
+
+        _gMicRecorder = mimeType
+          ? new MediaRecorder(stream, { mimeType: mimeType })
+          : new MediaRecorder(stream);
+
+        _gMicRecorder.ondataavailable = function(e) {
+          if (e.data && e.data.size > 0) _gMicChunks.push(e.data);
+        };
+
+        _gMicRecorder.onstop = function() {
+          _gMicActive = false;
+          stream.getTracks().forEach(function(t) { t.stop(); });
+
+          if (btn) {
+            btn.classList.remove('listening');
+            btn.classList.add('processing');
+            btn.innerHTML = '&#8987; Processing&hellip;';
+            btn.disabled  = true;
+          }
+
+          var mime = _gMicRecorder.mimeType || 'audio/webm';
+          var blob = new Blob(_gMicChunks, { type: mime });
+
+          fetch('/api/whisper', {
+            method:  'POST',
+            headers: { 'Content-Type': mime },
+            body:    blob
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            _resetBtn(btn);
+            if (data.ok && data.transcript) {
+              var corrected = _applyFixes(data.transcript, _scenarioFixes(expected));
+              var ta = document.getElementById(textareaId);
+              if (ta) { ta.value = corrected; ta.focus(); ta.dispatchEvent(new Event('input')); }
+            } else if (data.noKey) {
+              // API key not set — fall back to browser SR silently
+              _fallbackSpeechRec(textareaId, btnId, expected);
+            } else {
+              if (btn) {
+                btn.innerHTML = '&#9888; Try again';
+                setTimeout(function() { _resetBtn(btn); }, 2500);
+              }
+            }
+          })
+          .catch(function() {
+            _resetBtn(btn);
+            _fallbackSpeechRec(textareaId, btnId, expected);
+          });
+        };
+
+        if (btn) { btn.classList.add('listening'); btn.innerHTML = '&#9679; Listening&hellip; tap to stop'; }
+        _gMicRecorder.start();
+      })
+      .catch(function(err) {
+        _gMicActive = false;
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          alert('Microphone access was denied. Please allow it in your browser settings.');
+        } else {
+          _fallbackSpeechRec(textareaId, btnId, expected);
+        }
+      });
   };
 }());
 </script>
@@ -14536,51 +14600,8 @@
   }
 
   /* ── Microphone ────────────────────────────────────────────────────────── */
-  var _micRec      = null;
-  var _micActive   = false;
-
   function _startMic() {
-    var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-    var btn = document.getElementById('demoMicBtn');
-
-    if (!SpeechRec) {
-      if (btn) { btn.textContent = 'Not supported in this browser'; btn.disabled = true; }
-      return;
-    }
-
-    if (_micActive) {
-      if (_micRec) _micRec.stop();
-      return;
-    }
-
-    _micRec = new SpeechRec();
-    _micRec.lang            = 'en-US';
-    _micRec.interimResults  = false;
-    _micRec.maxAlternatives = 1;
-
-    _micRec.onstart = function() {
-      _micActive = true;
-      if (btn) { btn.classList.add('listening'); btn.innerHTML = '&#9679; Listening&hellip;'; }
-    };
-
-    _micRec.onresult = function(e) {
-      var transcript = e.results[0][0].transcript;
-      var ta = document.getElementById('demoAnswerInput');
-      if (ta) { ta.value = transcript; ta.focus(); }
-    };
-
-    _micRec.onend = function() {
-      _micActive = false;
-      if (btn) { btn.classList.remove('listening'); btn.innerHTML = '&#127908; Tap to speak'; }
-    };
-
-    _micRec.onerror = function(e) {
-      _micActive = false;
-      if (btn) { btn.classList.remove('listening'); btn.innerHTML = '&#127908; Tap to speak'; }
-      if (e.error === 'not-allowed') alert('Microphone access was denied. Please allow microphone access in your browser settings and try again.');
-    };
-
-    _micRec.start();
+    window.startMicInput('demoAnswerInput', 'demoMicBtn');
   }
 
   /* ── Readback ──────────────────────────────────────────────────────────── */
