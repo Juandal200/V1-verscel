@@ -244,12 +244,14 @@ var TTSService = {
       };
     }
 
-    var ssml = this.buildAtcSsml_(textToRead, profile, speakingRate);
+    var ssml = this.buildAtcSsml_(textToRead, profile, speakingRate, voiceToUse);
 
+    // Journey voices don't support effectsProfileId — strip it for those voices
+    var isJourney = String(voiceToUse).indexOf('Journey') !== -1;
     // Put the chosen voice first; fall back to others if it fails.
     var orderedVoices  = [voiceToUse].concat(voices.filter(function(v) { return v !== voiceToUse; }));
-    var profileForCall = { languageCode: profile.languageCode, pitch: profile.pitch,
-                           effectsProfileId: profile.effectsProfileId, voiceNames: orderedVoices };
+    var profileForCall = { languageCode: profile.languageCode, pitch: isJourney ? 0 : profile.pitch,
+                           effectsProfileId: isJourney ? [] : profile.effectsProfileId, voiceNames: orderedVoices };
     var result = this.callGoogleTtsWithFallbackVoices_(ssml, profileForCall, speakingRate);
 
     this.storeTtsInCache_(cacheKey, result.audioBase64);
@@ -314,8 +316,9 @@ var TTSService = {
       var parts        = String(voiceName).split('-');
       var effectiveLang = (parts.length >= 2) ? (parts[0] + '-' + parts[1]) : profile.languageCode;
 
-      // Try v1 first, then v1beta1 for Neural2 voices (some locales are beta-only).
-      var apiVersions = (voiceName.indexOf('Neural2') !== -1) ? ['v1', 'v1beta1'] : ['v1'];
+      // Neural2 and Journey may need v1beta1 fallback on some locales
+      var apiVersions = (voiceName.indexOf('Neural2') !== -1 || voiceName.indexOf('Journey') !== -1)
+        ? ['v1', 'v1beta1'] : ['v1'];
 
       for (var v = 0; v < apiVersions.length; v++) {
         try {
@@ -392,11 +395,16 @@ var TTSService = {
     return data.audioContent;
   },
 
-  buildAtcSsml_: function(atcText, profile, speakingRate) {
+  buildAtcSsml_: function(atcText, profile, speakingRate, voiceName) {
     var clean = String(atcText || '').trim();
     clean = this.prepareAtcPronunciation_(clean);
     clean = this.escapeSsml_(clean);
     clean = this.addAtcPauses_(clean);
+    // Journey voices don't support <prosody rate> — rate is passed via audioConfig only
+    var isJourney = String(voiceName || '').indexOf('Journey') !== -1;
+    if (isJourney) {
+      return '<speak>' + clean + '</speak>';
+    }
     return (
       '<speak>' +
         '<prosody rate="' + Math.round(Number(speakingRate || profile.speakingRate || 0.86) * 100) + '%" pitch="' + Number(profile.pitch || 0) + 'st">' +
