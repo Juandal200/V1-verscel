@@ -68,10 +68,7 @@ var TTSService = {
     USA: {
       label: 'American ATC',
       languageCode: 'en-US',
-      voiceNames: CHIRP3_HD_VOICES['en-US'].concat([
-        'en-US-Neural2-D', 'en-US-Neural2-A',
-        'en-US-Wavenet-D', 'en-US-Standard-D'
-      ]),
+      voiceNames: CHIRP3_HD_VOICES['en-US'],
       speakingRate: 0.91,
       pitch: 0,
       effectsProfileId: []
@@ -80,10 +77,7 @@ var TTSService = {
     US: {
       label: 'American ATC',
       languageCode: 'en-US',
-      voiceNames: CHIRP3_HD_VOICES['en-US'].concat([
-        'en-US-Neural2-D', 'en-US-Neural2-A',
-        'en-US-Wavenet-D', 'en-US-Standard-D'
-      ]),
+      voiceNames: CHIRP3_HD_VOICES['en-US'],
       speakingRate: 0.91,
       pitch: 0,
       effectsProfileId: []
@@ -92,10 +86,7 @@ var TTSService = {
     UK: {
       label: 'British ATC',
       languageCode: 'en-GB',
-      voiceNames: CHIRP3_HD_VOICES['en-GB'].concat([
-        'en-GB-Neural2-B', 'en-GB-Neural2-A',
-        'en-GB-Wavenet-B', 'en-GB-Standard-B'
-      ]),
+      voiceNames: CHIRP3_HD_VOICES['en-GB'],
       speakingRate: 0.95,
       pitch: 0,
       effectsProfileId: []
@@ -104,10 +95,7 @@ var TTSService = {
     GB: {
       label: 'British ATC',
       languageCode: 'en-GB',
-      voiceNames: CHIRP3_HD_VOICES['en-GB'].concat([
-        'en-GB-Neural2-B', 'en-GB-Neural2-A',
-        'en-GB-Wavenet-B', 'en-GB-Standard-B'
-      ]),
+      voiceNames: CHIRP3_HD_VOICES['en-GB'],
       speakingRate: 0.95,
       pitch: 0,
       effectsProfileId: []
@@ -116,9 +104,7 @@ var TTSService = {
     AUSTRALIA: {
       label: 'Australian ATC',
       languageCode: 'en-AU',
-      voiceNames: CHIRP3_HD_VOICES['en-AU'].concat([
-        'en-AU-Neural2-B', 'en-AU-Wavenet-B', 'en-AU-Standard-B'
-      ]),
+      voiceNames: CHIRP3_HD_VOICES['en-AU'],
       speakingRate: 0.91,
       pitch: 0,
       effectsProfileId: []
@@ -127,9 +113,7 @@ var TTSService = {
     AU: {
       label: 'Australian ATC',
       languageCode: 'en-AU',
-      voiceNames: CHIRP3_HD_VOICES['en-AU'].concat([
-        'en-AU-Neural2-B', 'en-AU-Wavenet-B', 'en-AU-Standard-B'
-      ]),
+      voiceNames: CHIRP3_HD_VOICES['en-AU'],
       speakingRate: 0.91,
       pitch: 0,
       effectsProfileId: []
@@ -138,9 +122,7 @@ var TTSService = {
     INDIA: {
       label: 'Indian ATC',
       languageCode: 'en-IN',
-      voiceNames: CHIRP3_HD_VOICES['en-IN'].concat([
-        'en-IN-Neural2-C', 'en-IN-Wavenet-C', 'en-IN-Standard-C'
-      ]),
+      voiceNames: CHIRP3_HD_VOICES['en-IN'],
       speakingRate: 0.89,
       pitch: 0,
       effectsProfileId: []
@@ -149,9 +131,7 @@ var TTSService = {
     IN: {
       label: 'Indian ATC',
       languageCode: 'en-IN',
-      voiceNames: CHIRP3_HD_VOICES['en-IN'].concat([
-        'en-IN-Neural2-C', 'en-IN-Wavenet-C', 'en-IN-Standard-C'
-      ]),
+      voiceNames: CHIRP3_HD_VOICES['en-IN'],
       speakingRate: 0.89,
       pitch: 0,
       effectsProfileId: []
@@ -160,9 +140,7 @@ var TTSService = {
     CANADA: {
       label: 'Canadian ATC',
       languageCode: 'en-CA',
-      voiceNames: CHIRP3_HD_VOICES['en-CA'].concat([
-        'en-US-Neural2-D', 'en-US-Neural2-J', 'en-US-Wavenet-D'
-      ]),
+      voiceNames: CHIRP3_HD_VOICES['en-CA'],
       speakingRate: 0.91,
       pitch: 0,
       effectsProfileId: []
@@ -171,10 +149,7 @@ var TTSService = {
     CA: {
       label: 'Canadian ATC',
       languageCode: 'en-CA',
-      voiceNames: CHIRP3_HD_VOICES['en-CA'].concat([
-        'en-US-Neural2-D', 'en-US-Neural2-J', 'en-US-Wavenet-D',
-        'en-US-Standard-D'
-      ]),
+      voiceNames: CHIRP3_HD_VOICES['en-CA'],
       speakingRate: 0.91,
       pitch: 0,
       effectsProfileId: []
@@ -183,11 +158,7 @@ var TTSService = {
     COLOMBIA: {
       label: 'Colombian ATC English',
       languageCode: 'en-US',
-      voiceNames: [
-        'en-US-Neural2-D',
-        'en-US-Wavenet-D',
-        'en-US-Standard-D'
-      ],
+      voiceNames: CHIRP3_HD_VOICES['en-US'],
       speakingRate: 0.87,
       pitch: 0,
       effectsProfileId: []
@@ -196,11 +167,7 @@ var TTSService = {
     CO: {
       label: 'Colombian ATC English',
       languageCode: 'en-US',
-      voiceNames: [
-        'en-US-Neural2-D',
-        'en-US-Wavenet-D',
-        'en-US-Standard-D'
-      ],
+      voiceNames: CHIRP3_HD_VOICES['en-US'],
       speakingRate: 0.87,
       pitch: 0,
       effectsProfileId: []
