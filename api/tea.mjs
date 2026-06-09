@@ -75,7 +75,7 @@ export default async function handler(req, res) {
       };
     });
 
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-002:generateContent?key=' +
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=' +
       encodeURIComponent(apiKey);
 
     const body = JSON.stringify({
