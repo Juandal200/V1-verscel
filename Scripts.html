@@ -16562,10 +16562,12 @@
   ];
 
   // ── State ─────────────────────────────────────────────────────────────────
-  var _t = { history:[], audioIdx:0, imageIdx:0, audioCache:{}, audioEl:null, busy:false, timerIv:null };
+  var _t = { history:[], audioIdx:0, imageIdx:0, audioCache:{}, audioEl:null, busy:false,
+             timerIv:null, _pendingId:null, _pendingB64:null, _qaMode:false, _imageInjected:false };
 
   function _resetState() {
     _t.history=[]; _t.audioIdx=0; _t.imageIdx=0; _t.audioCache={}; _t.busy=false;
+    _t._pendingId=null; _t._pendingB64=null; _t._qaMode=false; _t._imageInjected=false;
     if (_t.timerIv) clearInterval(_t.timerIv);
     if (_t.audioEl) { _t.audioEl.pause(); _t.audioEl=null; }
   }
@@ -16729,63 +16731,142 @@
     .catch(function() { _browserSpeak(text, onDone); });
   }
 
+  // ── Audio item management ────────────────────────────────────────────────
+
+  // Step 1: prepare the card and inject AUDIO_READY — only called once per item
+  function _queueNextAudio() {
+    if (_t.audioIdx >= TEA_ORDER.length || _t._pendingId) return;
+    var id = TEA_ORDER[_t.audioIdx];
+    _t._pendingId  = id;
+    _t._pendingB64 = null;
+
+    // Pre-fetch audio silently while Gemini responds
+    _fetchAudio(id, function(err, b64) {
+      _t._pendingB64 = err ? null : b64;
+    });
+
+    // Tell Gemini audio is ready — it will respond "Please listen..."
+    _sendMsg('[AUDIO_READY: ' + id + ']');
+  }
+
+  // Step 2: activate the pending card — called ONLY when Gemini says "Please listen"
+  function _activatePendingAudio() {
+    var id  = _t._pendingId;
+    var sc  = TEA_AUDIO[id];
+    if (!id || !sc) { _setEnabled(true); return; }
+
+    var btn = _addAudioCard(id);
+
+    function _enable(b64) {
+      btn.disabled = false;
+      var st = document.getElementById('teaAudioSt_' + id);
+      if (st) st.textContent = 'Ready — press play';
+
+      btn.onclick = function() {
+        if (_t.audioEl) _t.audioEl.pause();
+        _t.audioEl = new Audio('data:audio/mp3;base64,' + b64);
+        btn.innerHTML = '&#9646;&#9646;';
+        if (st) st.textContent = 'Playing...';
+        _t.audioEl.onended = function() {
+          btn.innerHTML = '&#9654;';
+          if (st) st.textContent = 'Complete';
+          _t.audioIdx++;
+          _t._pendingId  = null;
+          _t._pendingB64 = null;
+          _t._qaMode     = true;
+          _setEnabled(false);
+          _sendMsg('[AUDIO_COMPLETE: ' + id + ' | transcript: "' + sc.transcript + '"]');
+        };
+        _t.audioEl.play();
+      };
+    }
+
+    if (_t._pendingB64) {
+      _enable(_t._pendingB64);
+    } else {
+      // Still fetching — poll until ready (max 15s)
+      var tries = 0;
+      var iv = setInterval(function() {
+        tries++;
+        if (_t._pendingB64) { clearInterval(iv); _enable(_t._pendingB64); return; }
+        if (tries > 50) {
+          clearInterval(iv);
+          // Audio unavailable — skip item
+          _t.audioIdx++; _t._pendingId = null; _t._pendingB64 = null;
+          _sendMsg('[AUDIO_COMPLETE: ' + id + ' | transcript: "' + sc.transcript + '"]');
+        }
+      }, 300);
+    }
+  }
+
+  // Step 3: after Q&A, show "Next Recording" button so user controls pacing
+  function _showNextAudioBtn() {
+    var cards = document.getElementById('teaCards'); if (!cards) return;
+    // Remove any existing next button
+    var old = document.getElementById('teaNextBtn'); if (old) old.remove();
+    var btn = document.createElement('button');
+    btn.id        = 'teaNextBtn';
+    btn.className = 'tea-send-btn';
+    btn.style     = 'margin:8px 16px;align-self:flex-start;';
+    btn.textContent = _t.audioIdx < TEA_ORDER.length
+      ? 'Next Recording →'
+      : 'Continue to Part 3 →';
+    btn.onclick = function() {
+      btn.remove();
+      if (_t.audioIdx < TEA_ORDER.length) {
+        _queueNextAudio();
+      } else if (_t.imageIdx < TEA_IMAGES.length) {
+        var img = TEA_IMAGES[_t.imageIdx++];
+        _addImageCard(img);
+        _sendMsg('[' + img.id.toUpperCase() + ': ' + img.desc + ']');
+      }
+    };
+    cards.appendChild(btn);
+    cards.scrollTop = cards.scrollHeight;
+  }
+
   // ── Exam flow ──────────────────────────────────────────────────────────────
   function _onExaminerMsg(msg) {
     _removeThinking(); _addMsg('examiner', msg);
 
-    // Speak the examiner's message, then handle logic after audio ends
     _speakExaminer(msg, function() {
       _t.busy = false;
-      _setEnabled(true);
 
-      // Audio cue detected — play next scenario recording
-      if (msg.indexOf('Please listen to the following recording') !== -1 &&
-          _t.audioIdx < TEA_ORDER.length) {
-        _setEnabled(false);
-        _playItem(TEA_ORDER[_t.audioIdx]);
+      // "Please listen" — activate the pending card (do NOT call _queueNextAudio again)
+      if (msg.indexOf('Please listen to the following recording') !== -1 && _t._pendingId) {
+        _activatePendingAudio();
         return;
       }
 
-      // Part 3 — inject next image if all audio items are done
-      if (_t.audioIdx >= TEA_ORDER.length && _t.imageIdx < TEA_IMAGES.length) {
+      // After Q&A for an audio item — enable input and show Next button
+      if (_t._qaMode) {
+        _t._qaMode = false;
+        _setEnabled(true);
+        _showNextAudioBtn();
+        return;
+      }
+
+      _setEnabled(true);
+
+      // Detect Part 2 start — Gemini mentions listening/Part 2 and no audio queued yet
+      if (_t.audioIdx === 0 && !_t._pendingId) {
+        var lower = msg.toLowerCase();
+        if (lower.indexOf('part 2') !== -1 || lower.indexOf('listening') !== -1 ||
+            lower.indexOf('first recording') !== -1) {
+          _queueNextAudio();
+          return;
+        }
+      }
+
+      // Part 3 — inject images once all audio done
+      if (_t.audioIdx >= TEA_ORDER.length && _t.imageIdx < TEA_IMAGES.length &&
+          !_t._imageInjected) {
+        _t._imageInjected = true;
         var img = TEA_IMAGES[_t.imageIdx++];
         _addImageCard(img);
         _sendMsg('[' + img.id.toUpperCase() + ': ' + img.desc + ']');
       }
     });
-  }
-
-  function _playItem(id) {
-    var sc = TEA_AUDIO[id];
-    var btn = _addAudioCard(id);
-
-    _fetchAudio(id, function(err, b64) {
-      var st = document.getElementById('teaAudioSt_'+id);
-      if (err) {
-        if(st) st.textContent='Audio unavailable — proceeding';
-        _t.audioIdx++;
-        _sendMsg('[AUDIO_COMPLETE: '+id+' | transcript: "'+sc.transcript+'"]');
-        return;
-      }
-      if(btn) btn.disabled=false;
-      if(st) st.textContent='Ready — press play';
-
-      btn.onclick = function() {
-        if(_t.audioEl) _t.audioEl.pause();
-        _t.audioEl = new Audio('data:audio/mp3;base64,'+b64);
-        btn.innerHTML='&#9646;&#9646;';
-        if(st) st.textContent='Playing...';
-        _t.audioEl.onended = function() {
-          btn.innerHTML='&#9654;'; if(st) st.textContent='Complete';
-          _t.audioIdx++;
-          _setEnabled(false);
-          _sendMsg('[AUDIO_COMPLETE: '+id+' | transcript: "'+sc.transcript+'"]');
-        };
-        _t.audioEl.play();
-      };
-    });
-
-    _sendMsg('[AUDIO_READY: '+id+']');
   }
 
   function _sendMsg(text) {
