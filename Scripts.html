@@ -16672,8 +16672,21 @@
   var EXAMINER_VOICE = 'en-GB-Chirp3-HD-Schedar';
   var EXAMINER_LANG  = 'en-GB';
 
+  // Browser TTS fallback — used when Chirp3-HD call fails for any reason
+  function _browserSpeak(text, onDone) {
+    if (!window.speechSynthesis) { onDone(); return; }
+    window.speechSynthesis.cancel();
+    var utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'en-GB';
+    utter.rate = 0.88;
+    utter.pitch = 0.95;
+    utter.onend   = onDone;
+    utter.onerror = onDone;
+    window.speechSynthesis.speak(utter);
+  }
+
   function _speakExaminer(text, onDone) {
-    // Show scoring as text, skip TTS for it
+    // Show scoring as text, read a short summary only
     if (text.indexOf('Pronunciation') !== -1 && text.indexOf('Score') !== -1) {
       var cards = document.getElementById('teaCards');
       if (cards) {
@@ -16683,8 +16696,13 @@
         cards.appendChild(box);
         _scrollChat();
       }
-      onDone(); return;
+      // Speak only the final ICAO level line rather than the full table
+      var levelMatch = text.match(/ICAO Level[^\.]*\./i);
+      var summary = levelMatch ? levelMatch[0] : 'The examination is now complete. Please review your results.';
+      _browserSpeak(summary, onDone);
+      return;
     }
+
     _setStatus('Examiner speaking...', 'speaking');
     fetch('/api/tea-audio', {
       method:  'POST',
@@ -16700,10 +16718,12 @@
         _t.audioEl.onerror = onDone;
         _t.audioEl.play();
       } else {
-        onDone();
+        // Chirp3-HD failed — fall back to browser TTS so exam always has voice
+        console.warn('[TEA] Chirp3-HD failed, using browser TTS:', d.error);
+        _browserSpeak(text, onDone);
       }
     })
-    .catch(function() { onDone(); });
+    .catch(function() { _browserSpeak(text, onDone); });
   }
 
   // ── Exam flow ──────────────────────────────────────────────────────────────
