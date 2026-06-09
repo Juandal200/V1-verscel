@@ -59,27 +59,33 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
   if (req.method !== 'POST') { res.status(405).json({ ok: false, error: 'Method not allowed' }); return; }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    res.status(200).json({ ok: false, error: 'ANTHROPIC_API_KEY not configured' });
+    res.status(200).json({ ok: false, error: 'GEMINI_API_KEY not configured' });
     return;
   }
 
   try {
     const { history } = req.body;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type':    'application/json',
-        'x-api-key':       apiKey,
-        'anthropic-version': '2023-06-01'
-      },
+    // Gemini uses "model" instead of "assistant" for the assistant role
+    const contents = history.map(function(m) {
+      return {
+        role:  m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: m.content }]
+      };
+    });
+
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' +
+      encodeURIComponent(apiKey);
+
+    const response = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model:      'claude-sonnet-4-6',
-        max_tokens: 2048,
-        system:     SYSTEM_PROMPT,
-        messages:   history
+        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents:           contents,
+        generationConfig:   { maxOutputTokens: 2048, temperature: 0.7 }
       })
     });
 
@@ -87,11 +93,17 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       console.error('[TEA]', JSON.stringify(data));
-      res.status(200).json({ ok: false, error: (data.error && data.error.message) || 'Claude API error' });
+      res.status(200).json({ ok: false, error: (data.error && data.error.message) || 'Gemini API error' });
       return;
     }
 
-    res.status(200).json({ ok: true, message: data.content[0].text });
+    const text = data.candidates &&
+      data.candidates[0] &&
+      data.candidates[0].content &&
+      data.candidates[0].content.parts &&
+      data.candidates[0].content.parts[0].text;
+
+    res.status(200).json({ ok: true, message: text || '' });
 
   } catch (err) {
     console.error('[TEA]', err.message);
