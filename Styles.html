@@ -9951,6 +9951,40 @@ p, li, td, th, .sim-atc-text, .feedback-text,
 .tea-score-table td { padding:8px 12px; border-bottom:1px solid #1a2230; color:#c8d8e8; vertical-align:top; }
 .tea-score-table tr:last-child td { border-bottom:none; }
 
+/* TEA JSON score card */
+.tea-score-json { display:flex; flex-direction:column; gap:16px; padding:4px 0; }
+.tea-score-band-header { display:flex; flex-direction:column; align-items:center; gap:4px; padding:20px; background:#0d1a26; border-radius:12px; border:1px solid #1e2a38; }
+.tea-score-band-label { font-size:0.65rem; font-weight:800; letter-spacing:3px; color:#4a6280; text-transform:uppercase; }
+.tea-score-band-value { font-size:3.5rem; font-weight:900; line-height:1; font-family:'Courier New',monospace; }
+.tea-score-band-sub { font-size:0.75rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; }
+.tea-score-descriptors { display:flex; flex-direction:column; gap:8px; }
+.tea-score-descriptor { background:#0d1a26; border:1px solid #1e2a38; border-radius:10px; padding:12px 14px; }
+.tea-score-descriptor-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.tea-score-descriptor-name { font-size:0.78rem; font-weight:700; letter-spacing:1px; color:#8fa3bb; text-transform:uppercase; }
+.tea-score-badge { display:inline-block; width:26px; height:26px; border-radius:50%; font-size:0.82rem; font-weight:900; color:#000; text-align:center; line-height:26px; flex-shrink:0; }
+.tea-score-descriptor-feedback { font-size:0.82rem; color:#c8d8e8; line-height:1.6; }
+.tea-admin-section { margin-top:4px; }
+.tea-admin-toggle { background:none; border:1px solid #2d3a4a; color:#4a6280; font-size:0.72rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:7px 14px; border-radius:6px; cursor:pointer; width:100%; text-align:left; transition:border-color .2s, color .2s; }
+.tea-admin-toggle:hover { border-color:#5b9bd5; color:#5b9bd5; }
+.tea-admin-view { margin-top:10px; display:flex; flex-direction:column; gap:14px; }
+.tea-admin-block { background:#080c10; border:1px solid #1a2230; border-radius:8px; padding:14px; }
+.tea-admin-block-title { font-size:0.62rem; font-weight:800; letter-spacing:3px; color:#4a6280; text-transform:uppercase; margin-bottom:10px; border-bottom:1px solid #1a2230; padding-bottom:8px; }
+.tea-admin-transcript { font-size:0.8rem; line-height:1.9; }
+.tea-tr-ex  { color:#4a6280; padding:1px 0; }
+.tea-tr-ca  { color:#c8d8e8; padding:1px 0; }
+.tea-tr-role { display:inline-block; font-size:0.6rem; font-weight:800; letter-spacing:1px; border-radius:3px; padding:1px 5px; margin-right:6px; vertical-align:middle; }
+.tea-tr-role-ex { background:#1a2230; color:#4a6280; }
+.tea-tr-role-ca { background:#1e3a5f; color:#5b9bd5; }
+.tea-admin-pin { display:inline-block; color:#000; font-size:0.65rem; font-weight:900; border-radius:3px; padding:1px 5px; margin:0 2px; cursor:default; vertical-align:middle; }
+.tea-admin-legend { margin-top:14px; display:flex; flex-direction:column; gap:6px; border-top:1px solid #1a2230; padding-top:12px; }
+.tea-admin-legend-row { display:flex; align-items:flex-start; gap:8px; font-size:0.78rem; }
+.tea-admin-legend-dim { font-weight:700; font-size:0.65rem; letter-spacing:0.5px; white-space:nowrap; margin-top:2px; }
+.tea-admin-legend-note { color:#8fa3bb; line-height:1.5; }
+.tea-admin-just { margin-bottom:12px; }
+.tea-admin-just:last-child { margin-bottom:0; }
+.tea-admin-just-label { font-size:0.65rem; font-weight:800; letter-spacing:2px; color:#5b9bd5; text-transform:uppercase; margin-bottom:5px; }
+.tea-admin-just-text { font-size:0.8rem; color:#8fa3bb; line-height:1.7; }
+
 /* TEA audio-centric stage */
 .tea-stage {
   display:flex; flex-direction:column; align-items:center; justify-content:center;

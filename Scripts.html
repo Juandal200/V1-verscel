@@ -16568,12 +16568,14 @@
   // ── State ─────────────────────────────────────────────────────────────────
   var _t = { history:[], audioIdx:0, imageIdx:0, audioCache:{}, audioEl:null, busy:false,
              timerIv:null, _pendingId:null, _pendingB64:null, _qaMode:false, _imageInjected:false,
-             _awaitingActivation:false, _finishShown:false, _examDone:false };
+             _awaitingActivation:false, _finishShown:false, _examDone:false,
+             segments:[] };
 
   function _resetState() {
     _t.history=[]; _t.audioIdx=0; _t.imageIdx=0; _t.audioCache={}; _t.busy=false;
     _t._pendingId=null; _t._pendingB64=null; _t._qaMode=false; _t._imageInjected=false;
     _t._awaitingActivation=false; _t._finishShown=false; _t._examDone=false;
+    _t.segments=[];
     if (_t.timerIv) clearInterval(_t.timerIv);
     if (_t.audioEl) { _t.audioEl.pause(); _t.audioEl=null; }
   }
@@ -16727,19 +16729,24 @@
   }
 
   function _speakExaminer(text, onDone) {
-    // Show scoring as rendered HTML table, lock UI
-    if (text.indexOf('Pronunciation') !== -1 && text.indexOf('Score') !== -1) {
+    // Detect final JSON evaluation payload
+    var jsonData = null;
+    var trimmed = text.trim();
+    if (trimmed.charAt(0) === '{') {
+      try { jsonData = JSON.parse(trimmed); } catch(e) { jsonData = null; }
+    }
+    if (jsonData && jsonData.student_view) {
       var cards = document.getElementById('teaCards');
       if (cards) {
         var box = document.createElement('div');
         box.className = 'tea-score-box';
-        box.innerHTML = _renderScoreTable(text);
+        box.innerHTML = _renderScoreJSON(jsonData);
         cards.appendChild(box);
         _scrollChat();
       }
       _lockExamUI();
-      var levelMatch = text.match(/ICAO Level[^\.]*\./i);
-      var summary = levelMatch ? levelMatch[0] : 'The examination is now complete. Please review your results.';
+      var band = jsonData.student_view.overall_band;
+      var summary = 'The examination is now complete. Your overall ICAO band is ' + band + '. Please review your results below.';
       _browserSpeak(summary, onDone);
       return;
     }
@@ -16875,6 +16882,143 @@
     cards.scrollTop = cards.scrollHeight;
   }
 
+  // Returns the current exam section label for a candidate audio segment
+  function _teaCurrentPartLabel() {
+    if (_t.audioIdx < TEA_ORDER.length) return TEA_PART_LABEL(_t.audioIdx);
+    if (_t.imageIdx > 0) return 'Part 3 — Picture Discussion';
+    return 'Part 1 — Interview';
+  }
+
+  // TEA-specific mic recorder — captures audio for pipeline AND runs live STT for the exam
+  var _teaRecActive = false;
+  var _teaRecorder  = null;
+
+  function _teaMicToggle() {
+    if (_t._examDone) return;
+
+    // Second tap → stop
+    if (_teaRecActive) {
+      if (_teaRecorder && _teaRecorder.state === 'recording') _teaRecorder.stop();
+      return;
+    }
+
+    var btn = document.getElementById('teaMic');
+    var ta  = document.getElementById('teaInput');
+
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+      startMicInput('teaInput', 'teaMic', '', window._teaSubmit);
+      return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      .then(function(stream) {
+        var chunks = [];
+        _teaRecActive = true;
+        var mimeType = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg']
+          .filter(function(t) { return MediaRecorder.isTypeSupported(t); })[0] || '';
+        _teaRecorder = mimeType
+          ? new MediaRecorder(stream, { mimeType: mimeType })
+          : new MediaRecorder(stream);
+
+        _teaRecorder.ondataavailable = function(e) {
+          if (e.data && e.data.size > 0) chunks.push(e.data);
+        };
+
+        _teaRecorder.onstop = function() {
+          _teaRecActive = false;
+          stream.getTracks().forEach(function(t) { t.stop(); });
+
+          if (btn) { btn.classList.remove('listening'); btn.innerHTML = '&#8987;'; btn.disabled = true; }
+
+          var mime = _teaRecorder.mimeType || 'audio/webm';
+          var blob = new Blob(chunks, { type: mime });
+
+          // Save base64 copy for the pipeline
+          var reader = new FileReader();
+          reader.onloadend = function() {
+            var b64 = reader.result.split(',')[1];
+            _t.segments.push({ id: 'seg_' + _t.segments.length, partLabel: _teaCurrentPartLabel(), audioBase64: b64 });
+          };
+          reader.readAsDataURL(blob);
+
+          // Also send to Whisper for live STT
+          fetch('/api/whisper', { method:'POST', headers:{'Content-Type': mime}, body: blob })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+              if (btn) { btn.classList.remove('processing'); btn.innerHTML = '&#127908;'; btn.disabled = false; }
+              if (d.ok && d.transcript) {
+                if (ta) { ta.value = d.transcript; ta.focus(); }
+                _submit();
+              } else {
+                startMicInput('teaInput', 'teaMic', '', window._teaSubmit);
+              }
+            })
+            .catch(function() {
+              if (btn) { btn.classList.remove('processing'); btn.innerHTML = '&#127908;'; btn.disabled = false; }
+              startMicInput('teaInput', 'teaMic', '', window._teaSubmit);
+            });
+        };
+
+        if (btn) { btn.classList.add('listening'); btn.innerHTML = '&#9679; Listening&hellip; tap to stop'; }
+        _teaRecorder.start();
+      })
+      .catch(function(err) {
+        _teaRecActive = false;
+        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+          alert('Microphone access was denied. Please allow it in your browser settings.');
+        } else {
+          startMicInput('teaInput', 'teaMic', '', window._teaSubmit);
+        }
+      });
+  }
+
+  // Called by the Finish button — uses pipeline if audio was recorded, else falls back to Gemini live grading
+  function _finishExam() {
+    _lockExamUI();
+
+    if (_t.segments.length > 0) {
+      _setStatus('Processing exam results — this may take a minute...', 'thinking');
+      var candidateId = (window.AppState && AppState.user && AppState.user.email) || 'anonymous';
+      fetch('/api/tea-pipeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          segments:    _t.segments,
+          history:     _t.history,
+          candidateId: candidateId,
+          examDate:    new Date().toISOString()
+        })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok && d.student_view) {
+          var cards = document.getElementById('teaCards');
+          if (cards) {
+            var box = document.createElement('div');
+            box.className = 'tea-score-box';
+            box.innerHTML = _renderScoreJSON(d);
+            cards.appendChild(box);
+            _scrollChat();
+          }
+          var band = d.student_view.overall_band;
+          _browserSpeak('The examination is now complete. Your overall ICAO band is ' + band + '. Please review your results below.', function() {});
+        } else {
+          // Pipeline failed — fall back to Gemini live grading via conversation
+          _t._examDone = false;
+          _sendMsg('[EXAM_COMPLETE]');
+        }
+      })
+      .catch(function() {
+        _t._examDone = false;
+        _sendMsg('[EXAM_COMPLETE]');
+      });
+    } else {
+      // No audio recorded — fall back to Gemini live grading
+      _t._examDone = false;
+      _sendMsg('[EXAM_COMPLETE]');
+    }
+  }
+
   function _showFinishBtn() {
     var cards = document.getElementById('teaCards'); if (!cards) return;
     var btn = document.createElement('button');
@@ -16884,34 +17028,130 @@
     btn.textContent = 'Finish Exam & Get Score →';
     btn.onclick = function() {
       btn.remove();
-      _sendMsg('[EXAM_COMPLETE]');
+      _finishExam();
     };
     cards.appendChild(btn);
     cards.scrollTop = cards.scrollHeight;
   }
 
-  // Render markdown score table as HTML
-  function _renderScoreTable(text) {
-    var lines = text.split('\n');
-    var html = '';
-    var inTable = false;
-    lines.forEach(function(line) {
-      var trimmed = line.trim();
-      if (trimmed.startsWith('|')) {
-        if (!inTable) { html += '<table class="tea-score-table">'; inTable = true; }
-        if (trimmed.replace(/[\|\-\s]/g, '') === '') return; // skip separator row
-        var cells = trimmed.split('|').filter(function(c,i,a){ return i>0 && i<a.length-1; });
-        var isHeader = html.indexOf('<thead>') === -1;
-        var tag = isHeader ? 'th' : 'td';
-        html += (isHeader ? '<thead><tr>' : '<tr>') +
-          cells.map(function(c){ return '<'+tag+'>'+c.trim()+'</'+tag+'>'; }).join('') +
-          (isHeader ? '</tr></thead><tbody>' : '</tr>');
-      } else {
-        if (inTable) { html += '</tbody></table>'; inTable = false; }
-        if (trimmed) html += '<p>' + trimmed + '</p>';
-      }
+  function _esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Render dual-view JSON score card
+  function _renderScoreJSON(json) {
+    var sv = json.student_view;
+    var av = json.admin_view;
+    var descriptors = ['pronunciation','structure','vocabulary','fluency','comprehension','interactions'];
+    var band = sv.overall_band;
+    var bandColor = band >= 5 ? '#00d48e' : band === 4 ? '#5b9bd5' : '#e05252';
+
+    var html = '<div class="tea-score-json">';
+
+    // Overall band banner
+    html += '<div class="tea-score-band-header">';
+    html += '<div class="tea-score-band-label">OVERALL ICAO BAND</div>';
+    html += '<div class="tea-score-band-value" style="color:' + bandColor + ';">' + band + '</div>';
+    html += '<div class="tea-score-band-sub" style="color:' + bandColor + ';">' +
+      (band >= 5 ? 'Extended' : band === 4 ? 'Operational' : band === 3 ? 'Pre-Operational' : 'Below Operational') + '</div>';
+    html += '</div>';
+
+    // 6 descriptor cards (student view)
+    html += '<div class="tea-score-descriptors">';
+    descriptors.forEach(function(d) {
+      var desc = sv[d];
+      var s = desc.score;
+      var sc = s >= 5 ? '#00d48e' : s === 4 ? '#5b9bd5' : '#e05252';
+      html += '<div class="tea-score-descriptor">';
+      html += '<div class="tea-score-descriptor-header">';
+      html += '<span class="tea-score-descriptor-name">' + d.charAt(0).toUpperCase() + d.slice(1) + '</span>';
+      html += '<span class="tea-score-badge" style="background:' + sc + ';">' + s + '</span>';
+      html += '</div>';
+      html += '<div class="tea-score-descriptor-feedback">' + desc.feedback + '</div>';
+      html += '</div>';
     });
-    if (inTable) html += '</tbody></table>';
+    html += '</div>';
+
+    // Admin view — collapsible
+    if (av) {
+      var adminId = 'teaAdminView_' + Date.now();
+      html += '<div class="tea-admin-section">';
+      html += '<button class="tea-admin-toggle" onclick="' +
+        'var p=document.getElementById(\'' + adminId + '\');' +
+        'var open=p.style.display!==\'none\';' +
+        'p.style.display=open?\'none\':\'block\';' +
+        'this.textContent=open?\'Show Admin Report ▼\':\'Hide Admin Report ▲\';">' +
+        'Show Admin Report ▼</button>';
+      html += '<div id="' + adminId + '" class="tea-admin-view" style="display:none;">';
+
+      // Annotated transcript
+      html += '<div class="tea-admin-block">';
+      html += '<div class="tea-admin-block-title">ANNOTATED TRANSCRIPT</div>';
+
+      // Build pin dimension lookup for colour coding
+      var dimColor = {
+        PRONUNCIATION:'#e05252', STRUCTURE:'#f0a500', VOCABULARY:'#5b9bd5',
+        FLUENCY:'#00d48e', COMPREHENSION:'#a78bfa', INTERACTIONS:'#f97316'
+      };
+      var pinMap = {};
+      if (Array.isArray(av.annotations)) {
+        av.annotations.forEach(function(a) { pinMap[a.id] = a; });
+      }
+
+      // Render transcript lines — Ex grey, Ca white with inline pins
+      var transcriptSrc = av.transcript || av.annotated_transcript || '';
+      var lines = transcriptSrc.split('\n');
+      html += '<div class="tea-admin-transcript">';
+      lines.forEach(function(line) {
+        var trimmed = line.trim(); if (!trimmed) return;
+        var isEx = trimmed.indexOf('Ex ') === 0;
+        var isCa = trimmed.indexOf('Ca ') === 0;
+        var cls  = isEx ? 'tea-tr-ex' : isCa ? 'tea-tr-ca' : 'tea-tr-ca';
+        var prefix = isEx ? '<span class="tea-tr-role tea-tr-role-ex">EX</span>'
+                         : '<span class="tea-tr-role tea-tr-role-ca">CA</span>';
+        var body = trimmed.replace(/^(Ex |Ca )/, '')
+          .replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/\[(P\d+)\]/g, function(m, pid) {
+            var ann = pinMap[pid];
+            var dc  = ann ? (dimColor[ann.dimension] || '#5b9bd5') : '#5b9bd5';
+            var tip = ann ? ann.dimension + ': ' + _esc(ann.note) : pid;
+            return '<span class="tea-admin-pin" style="background:' + dc + ';" title="' + tip + '">' + pid + '</span>';
+          });
+        html += '<div class="' + cls + '">' + prefix + ' ' + body + '</div>';
+      });
+      html += '</div>';
+
+      // Annotation legend
+      if (Array.isArray(av.annotations) && av.annotations.length) {
+        html += '<div class="tea-admin-legend">';
+        av.annotations.forEach(function(a) {
+          var dc = dimColor[a.dimension] || '#5b9bd5';
+          html += '<div class="tea-admin-legend-row">';
+          html += '<span class="tea-admin-pin" style="background:' + dc + ';">' + a.id + '</span>';
+          html += '<span class="tea-admin-legend-dim" style="color:' + dc + ';">' + a.dimension + '</span>';
+          html += '<span class="tea-admin-legend-note">' + _esc(a.note) + '</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+      }
+
+      html += '</div>';
+
+      // Technical justification per dimension
+      html += '<div class="tea-admin-block">';
+      html += '<div class="tea-admin-block-title">TECHNICAL JUSTIFICATION</div>';
+      descriptors.forEach(function(d) {
+        html += '<div class="tea-admin-just">';
+        html += '<div class="tea-admin-just-label">' + d.toUpperCase() + '</div>';
+        html += '<div class="tea-admin-just-text">' + _esc(av.technical_justification[d]) + '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+
+      html += '</div></div>';
+    }
+
+    html += '</div>';
     return html;
   }
 
@@ -17018,6 +17258,14 @@
     var content = document.getElementById('contentArea'); if(!content) return;
 
     // Show a "Begin" screen first — user must click to unlock autoplay
+    var _debugBtn = location.search.indexOf('tea_debug=1') !== -1
+      ? '<button onclick="window._teaRunTest()" ' +
+          'style="margin-top:4px;padding:8px 20px;background:transparent;border:1px solid #2a3a4a;' +
+          'color:#4a6280;border-radius:8px;font-size:0.8rem;cursor:pointer;">' +
+          '&#128295; Run pipeline test (no exam needed)' +
+        '</button>'
+      : '';
+
     content.innerHTML =
       '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 60px);background:#080c10;gap:24px;">' +
         '<div class="tea-part-badge" style="font-size:0.9rem;padding:6px 18px;">ICAO TEA</div>' +
@@ -17029,6 +17277,7 @@
           'style="padding:14px 40px;background:#00d48e;color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:8px;">' +
           'Begin Exam' +
         '</button>' +
+        _debugBtn +
       '</div>';
   }
 
@@ -17050,7 +17299,7 @@
         '<div id="teaCards" class="tea-cards"></div>' +
         '<div class="tea-input-bar">' +
           '<button id="teaMic" class="demo-mic-btn" style="flex:0 0 auto;width:auto;padding:10px 16px;margin:0;font-size:1.1rem;" ' +
-            'onclick="startMicInput(\'teaInput\',\'teaMic\',\'\',window._teaSubmit)">&#127908;</button>' +
+            'onclick="window._teaMicToggle()">&#127908;</button>' +
           '<textarea id="teaInput" class="tea-textarea" rows="1" ' +
             'placeholder="Speak via mic or type and press Enter..."></textarea>' +
         '</div>' +
@@ -17072,8 +17321,98 @@
     _startExam();     // starts immediately after
   };
 
-  window.renderTeaExam = renderTeaExam;
-  window._teaSubmit    = _submit;
+  // ── Debug pipeline test ──────────────────────────────────────────────────
+  // Visible only at ?tea_debug=1. Fires a hardcoded mock exam through the full
+  // pipeline (Gemini grading + GAS save) without Whisper or a real exam.
+
+  var _MOCK_TRANSCRIPT = [
+    '--- Part 1 — Interview (seg_0) ---',
+    '[Speech rate: 108 WPM] I am currently working as en route controller at Bogotá Area Control Centre. I have been working there approximately six years.',
+    '',
+    '--- Part 1 — Interview (seg_1) ---',
+    '[Speech rate: 94 WPM] The main [Pause: 1.1s] challenge for me is [um] when we have multiple non-standard situations at the same time. For example when aircraft [?declares](conf:0.41) emergency and [Pause: 0.9s] simultaneous there are other traffic conflicts in same sector.',
+    '',
+    '--- Part 1 — Interview (seg_2) ---',
+    '[Speech rate: 118 WPM] In my opinion safety is most important aspect of aviation. We have many procedures and checklist to ensure this. Communication between pilot and controller is [?cruicial](conf:0.34) for maintaining safety.',
+    '',
+    '--- Part 2A — Item 1 of 6 (seg_3) ---',
+    '[Speech rate: 113 WPM] The message was that the aircraft [?reported](conf:0.44) engine fire on left side and [um] they request immediate return to airport. The speaker was the pilot because he said his aircraft and use the word we.',
+    '',
+    '--- Part 2B — Item 1 of 3 (seg_4) ---',
+    '[Speech rate: 96 WPM] The problem is [Pause: 1.4s] the aircraft has hydraulic failure and [um] [Pause: 0.7s] cannot extend the landing gear. The speaker needs [um] assistance for emergency landing and [?coordination](conf:0.38) with emergency services on ground.',
+    '',
+    '--- Part 2C — Item 1 of 3 (seg_5) ---',
+    '[Speech rate: 107 WPM] I would ask [um] what is nature of the problem, how many [?passangers](conf:0.29) are on board, and [Pause: 0.9s] what fuel they have remaining. I would advise crew to follow emergency checklist and [um] maintain [?comunicacion](conf:0.22) with the centre. I would also coordinate with airport for emergency services.',
+    '',
+    '--- Part 3 — Picture Discussion (seg_6) ---',
+    '[Speech rate: 121 WPM] In this picture I can see air traffic control operations room. There are [um] several controllers sitting at their radar screens. Screens show [?trafic](conf:0.31) returns in green colour. The controllers wearing headsets and [Pause: 0.8s] concentrating on their work. There is also flight progress board on the wall.'
+  ].join('\n');
+
+  var _MOCK_HISTORY = [
+    { role:'assistant', content:'Good morning. I am Examiner Roberts. Let\'s begin Part 1. Could you please tell me about your current role and the aircraft types you work with?' },
+    { role:'user',      content:'I am currently working as en route controller at Bogotá Area Control Centre for about six years. I work with Boeing 737, Airbus 320, and regional turboprop aircraft.' },
+    { role:'assistant', content:'Thank you. What would you say is the main operational challenge in your current position?' },
+    { role:'user',      content:'The main challenge is when we have multiple non-standard situations at the same time. For example when aircraft declares emergency and simultaneous there are other traffic conflicts in same sector.' },
+    { role:'assistant', content:'I see. What is your view on the role of communication in aviation safety?' },
+    { role:'user',      content:'In my opinion safety is most important aspect. Communication between pilot and controller is cruicial for maintaining safety. We have many procedures but without good communication they are not so effective.' },
+    { role:'assistant', content:'Thank you. Now we move to Part 2. Please listen to the following recording.' },
+    { role:'user',      content:'The message was engine fire on left side and request immediate return. The speaker was the pilot because he said his aircraft.' },
+    { role:'assistant', content:'Correct. And who was speaking — pilot or controller, and why?' },
+    { role:'user',      content:'It was the pilot because he was talking about his aircraft and the emergency affecting them directly.' },
+    { role:'assistant', content:'Thank you. Let\'s move to the picture description. Please describe what you see in Image 1.' },
+    { role:'user',      content:'I can see an air traffic control operations room. Several controllers are sitting at radar screens with green traffic returns. They are wearing headsets and concentrating on their work. There is a flight progress board on the wall and the atmosphere looks professional and focused.' }
+  ];
+
+  window._teaRunTest = function() {
+    var content = document.getElementById('contentArea');
+    if (!content) return;
+
+    content.innerHTML =
+      '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+      'height:calc(100vh - 60px);background:#080c10;gap:16px;">' +
+        '<div class="tea-part-badge">PIPELINE TEST</div>' +
+        '<div style="font-size:1rem;color:#dde2e6;">Running full pipeline…</div>' +
+        '<div id="teaTestStatus" style="font-size:0.82rem;color:#4a6280;">Sending mock transcript to /api/tea-pipeline</div>' +
+      '</div>';
+
+    fetch('/api/tea-pipeline', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mockTranscript: _MOCK_TRANSCRIPT,
+        history:        _MOCK_HISTORY,
+        candidateId:    'test@aerocomms.dev',
+        examDate:       new Date().toISOString()
+      })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok && d.student_view) {
+        content.innerHTML =
+          '<div style="padding:16px;background:#080c10;min-height:100%;overflow-y:auto;">' +
+            '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
+              '<div class="tea-part-badge">PIPELINE TEST RESULT</div>' +
+              '<span style="font-size:0.78rem;color:#00d48e;">&#10003; Gemini graded • GAS saved</span>' +
+            '</div>' +
+            _renderScoreJSON(d) +
+            '<button onclick="renderTeaExam()" style="margin:20px 0;padding:10px 24px;' +
+            'background:transparent;border:1px solid #2a3a4a;color:#8fa3bb;border-radius:8px;cursor:pointer;">' +
+            '← Back to exam</button>' +
+          '</div>';
+      } else {
+        var st = document.getElementById('teaTestStatus');
+        if (st) st.textContent = 'Error: ' + _esc(d.error || 'unknown error');
+      }
+    })
+    .catch(function(err) {
+      var st = document.getElementById('teaTestStatus');
+      if (st) st.textContent = 'Network error: ' + _esc(err.message);
+    });
+  };
+
+  window.renderTeaExam   = renderTeaExam;
+  window._teaSubmit      = _submit;
+  window._teaMicToggle   = _teaMicToggle;
 
 }());
 </script>
