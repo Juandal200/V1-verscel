@@ -16534,9 +16534,6 @@
     part_2b_3: { voice:'en-AU-Chirp3-HD-Orus', lang:'en-AU',
       script:'Sydney departure, Jetstar two four one, we have had a bird strike on both engines immediately after takeoff. Engine one has significant vibration and we are shutting it down. Engine two appears normal. Declaring an emergency, full fuel, one hundred and eighty souls on board, need to return to Sydney, will require foam on the runway.',
       transcript:'Jetstar two four one, bird strike both engines, shutting down engine one, engine two appears normal, declaring emergency, full fuel, one hundred eighty souls, returning Sydney, require foam.' },
-    part_2b_4: { voice:'en-IN-Chirp3-HD-Enceladus', lang:'en-IN',
-      script:'Karachi control, Air India four five two, we have a complete navigation system failure. FMS, VOR, and ILS receivers are all indicating faults. We are in instrument meteorological conditions with cloud base at two hundred feet. We require radar vectors to the ILS approach and request you talk us down.',
-      transcript:'Air India four five two, complete navigation failure, FMS VOR and ILS faults, IMC conditions, cloud base two hundred feet, require radar vectors and ILS talk-down.' },
     part_2c_1: { voice:'en-US-Chirp3-HD-Puck', lang:'en-US',
       script:'Centre, we have smoke in the cockpit. Donning oxygen masks now. Visibility reducing. Declaring an emergency, requesting immediate descent and direct routing to nearest airport. Two hundred and forty souls on board, fuel three hours.',
       transcript:'Smoke in cockpit, donning oxygen masks, visibility reducing, declaring emergency, immediate descent required, direct nearest airport, two hundred forty souls, three hours fuel.' },
@@ -16550,9 +16547,16 @@
 
   var TEA_ORDER = [
     'part_2a_1','part_2a_2','part_2a_3','part_2a_4','part_2a_5','part_2a_6',
-    'part_2b_1','part_2b_2','part_2b_3','part_2b_4',
+    'part_2b_1','part_2b_2','part_2b_3',
     'part_2c_1','part_2c_2','part_2c_3'
   ];
+  // Part 2 structure: 2A = items 0-5 (6 short), 2B = items 6-8 (3 longer), 2C = items 9-11 (3 situations)
+  var TEA_PART_LABEL = function(idx) {
+    if (idx < 6)  return 'Part 2A — Item ' + (idx + 1) + ' of 6';
+    if (idx < 9)  return 'Part 2B — Item ' + (idx - 5) + ' of 3';
+    if (idx < 12) return 'Part 2C — Item ' + (idx - 8) + ' of 3';
+    return '';
+  };
 
   var TEA_IMAGES = [
     { id:'image_1', label:'IMAGE 1 — ATC Operations Room',
@@ -16563,11 +16567,13 @@
 
   // ── State ─────────────────────────────────────────────────────────────────
   var _t = { history:[], audioIdx:0, imageIdx:0, audioCache:{}, audioEl:null, busy:false,
-             timerIv:null, _pendingId:null, _pendingB64:null, _qaMode:false, _imageInjected:false };
+             timerIv:null, _pendingId:null, _pendingB64:null, _qaMode:false, _imageInjected:false,
+             _awaitingActivation:false };
 
   function _resetState() {
     _t.history=[]; _t.audioIdx=0; _t.imageIdx=0; _t.audioCache={}; _t.busy=false;
     _t._pendingId=null; _t._pendingB64=null; _t._qaMode=false; _t._imageInjected=false;
+    _t._awaitingActivation=false;
     if (_t.timerIv) clearInterval(_t.timerIv);
     if (_t.audioEl) { _t.audioEl.pause(); _t.audioEl=null; }
   }
@@ -16645,7 +16651,7 @@
     if (on) _setStatus('Your turn — speak or type', 'listening');
   }
 
-  function _addAudioCard(id) {
+  function _addAudioCard(id, partLabel) {
     var chat=document.getElementById('teaCards'); if(!chat) return null;
     var wrap=document.createElement('div'); wrap.className='tea-msg examiner';
     var av=document.createElement('div'); av.className='tea-avatar'; av.textContent='EX'; wrap.appendChild(av);
@@ -16653,7 +16659,8 @@
     var btn=document.createElement('button'); btn.className='tea-audio-play'; btn.id='teaPlay_'+id;
     btn.innerHTML='&#9654;'; btn.disabled=true; card.appendChild(btn);
     var info=document.createElement('div');
-    info.innerHTML='<div class="tea-audio-label">Recording — '+id.replace(/_/g,' ').toUpperCase()+'</div>'+
+    var label = partLabel || id.replace(/_/g,' ').toUpperCase();
+    info.innerHTML='<div class="tea-audio-label">'+label+'</div>'+
       '<div class="tea-audio-status" id="teaAudioSt_'+id+'">Loading...</div>';
     card.appendChild(info); wrap.appendChild(card); chat.appendChild(wrap); _scrollChat();
     return btn;
@@ -16667,6 +16674,34 @@
     card.innerHTML='<div class="tea-image-card-label">'+img.label+'</div>'+
       '<div class="tea-image-card-desc">'+img.desc+'</div>';
     wrap.appendChild(card); chat.appendChild(wrap); _scrollChat();
+  }
+
+  function _getPartKey(idx) {
+    if (idx < 6)  return '2A';
+    if (idx < 9)  return '2B';
+    if (idx < 12) return '2C';
+    return null;
+  }
+
+  var _PART_META = {
+    '2A': { title: 'Part 2A — Short Readbacks', sub: '6 short pilot/controller audio clips' },
+    '2B': { title: 'Part 2B — Extended Dialogues', sub: '3 longer aviation exchanges' },
+    '2C': { title: 'Part 2C — Situation Analysis', sub: '3 situations — questions & advice' }
+  };
+
+  function _addPartSeparator(key) {
+    var chat = document.getElementById('teaCards'); if (!chat) return;
+    var meta = _PART_META[key]; if (!meta) return;
+    var div = document.createElement('div');
+    div.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;margin:18px 0 10px;';
+    div.innerHTML =
+      '<div style="display:flex;align-items:center;gap:10px;width:100%;">' +
+        '<div style="flex:1;height:1px;background:rgba(255,255,255,0.08);"></div>' +
+        '<div class="tea-part-badge" style="font-size:0.75rem;padding:4px 14px;white-space:nowrap;">' + meta.title + '</div>' +
+        '<div style="flex:1;height:1px;background:rgba(255,255,255,0.08);"></div>' +
+      '</div>' +
+      '<div style="font-size:0.72rem;color:#4a6280;">' + meta.sub + '</div>';
+    chat.appendChild(div); _scrollChat();
   }
 
   // ── Examiner TTS ──────────────────────────────────────────────────────────
@@ -16737,6 +16772,12 @@
   function _queueNextAudio() {
     if (_t.audioIdx >= TEA_ORDER.length || _t._pendingId) return;
     var id = TEA_ORDER[_t.audioIdx];
+
+    // Show part separator when transitioning between 2A → 2B or 2B → 2C
+    var prevKey = _getPartKey(_t.audioIdx - 1);
+    var currKey = _getPartKey(_t.audioIdx);
+    if (currKey && currKey !== prevKey) _addPartSeparator(currKey);
+
     _t._pendingId  = id;
     _t._pendingB64 = null;
 
@@ -16745,19 +16786,33 @@
     _fetchAudio(id, function(err, b64) {
       _t._pendingB64 = err ? false : b64; // false = failed, b64 = ready
       // Only NOW tell Gemini — audio is confirmed ready or failed
+      _t._awaitingActivation = true;
       _sendMsg('[AUDIO_READY: ' + id + ']');
     });
   }
 
-  // Step 2: activate the card — called ONLY when Gemini says "Please listen"
-  // No polling needed because audio is already fetched before AUDIO_READY was sent
+  // Step 2: activate the card — called when AI responds to AUDIO_READY
   function _activatePendingAudio() {
     var id = _t._pendingId;
     var sc = TEA_AUDIO[id];
     if (!id || !sc) { _setEnabled(true); return; }
 
-    var btn = _addAudioCard(id);
+    var itemIdx = TEA_ORDER.indexOf(id);
+    var partLabel = TEA_PART_LABEL(itemIdx);
+
+    var btn = _addAudioCard(id, partLabel);
     var st  = document.getElementById('teaAudioSt_' + id);
+
+    // Build the AUDIO_COMPLETE message with type hint for the AI
+    function _completeMsg() {
+      var key = _getPartKey(itemIdx);
+      var note = key === '2C'
+        ? 'type:SITUATION — ask questions about the situation then give practical aviation advice'
+        : key === '2B'
+          ? 'type:EXTENDED_DIALOGUE — ask 2-3 detailed comprehension questions'
+          : 'type:SHORT_READBACK — ask 1-2 comprehension questions';
+      return '[AUDIO_COMPLETE: ' + id + ' | ' + note + ' | transcript: "' + sc.transcript + '"]';
+    }
 
     if (!_t._pendingB64) {
       // Fetch failed — skip this item cleanly
@@ -16765,7 +16820,7 @@
       _t.audioIdx++;
       _t._pendingId = null; _t._pendingB64 = null;
       _t._qaMode = true;
-      _sendMsg('[AUDIO_COMPLETE: ' + id + ' | transcript: "' + sc.transcript + '"]');
+      _sendMsg(_completeMsg());
       return;
     }
 
@@ -16786,7 +16841,7 @@
         _t._pendingId = null; _t._pendingB64 = null;
         _t._qaMode = true;
         _setEnabled(false);
-        _sendMsg('[AUDIO_COMPLETE: ' + id + ' | transcript: "' + sc.transcript + '"]');
+        _sendMsg(_completeMsg());
       };
       _t.audioEl.play();
     };
@@ -16801,9 +16856,11 @@
     btn.id        = 'teaNextBtn';
     btn.className = 'tea-send-btn';
     btn.style     = 'margin:8px 16px;align-self:flex-start;';
-    btn.textContent = _t.audioIdx < TEA_ORDER.length
-      ? 'Next Recording →'
-      : 'Continue to Part 3 →';
+    var _nextKey = _getPartKey(_t.audioIdx);
+    btn.textContent = _t.audioIdx >= TEA_ORDER.length
+      ? 'Continue to Part 3 →'
+      : _nextKey === '2C' ? 'Next Situation →'
+      : 'Next Recording →';
     btn.onclick = function() {
       btn.remove();
       if (_t.audioIdx < TEA_ORDER.length) {
@@ -16825,8 +16882,9 @@
     _speakExaminer(msg, function() {
       _t.busy = false;
 
-      // "Please listen" — activate the pending card (do NOT call _queueNextAudio again)
-      if (msg.indexOf('Please listen to the following recording') !== -1 && _t._pendingId) {
+      // Any response to AUDIO_READY — activate the pending card
+      if (_t._awaitingActivation && _t._pendingId) {
+        _t._awaitingActivation = false;
         _activatePendingAudio();
         return;
       }
@@ -16846,6 +16904,7 @@
         var lower = msg.toLowerCase();
         if (lower.indexOf('part 2') !== -1 || lower.indexOf('listening') !== -1 ||
             lower.indexOf('first recording') !== -1) {
+          _addPartSeparator('2A');
           _queueNextAudio();
           return;
         }
