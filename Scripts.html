@@ -16674,8 +16674,7 @@
 
   // Browser TTS fallback — used when Chirp3-HD call fails for any reason
   function _browserSpeak(text, onDone) {
-    console.log('[TEA] browserSpeak, length:', text.length);
-    if (!window.speechSynthesis) { console.warn('[TEA] speechSynthesis not available'); onDone(); return; }
+    if (!window.speechSynthesis) { onDone(); return; }
     window.speechSynthesis.cancel();
     var utter = new SpeechSynthesisUtterance(text);
     utter.lang  = 'en-GB';
@@ -16709,7 +16708,6 @@
     }
 
     _setStatus('Examiner speaking...', 'speaking');
-    console.log('[TEA] fetching TTS audio, voice:', EXAMINER_VOICE);
     fetch('/api/tea-audio', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -16718,19 +16716,17 @@
     .then(function(r) { return r.json(); })
     .then(function(d) {
       if (d.ok && d.audioBase64) {
-        console.log('[TEA] Chirp3-HD audio received, playing');
         if (_t.audioEl) _t.audioEl.pause();
         _t.audioEl = new Audio('data:audio/mp3;base64,' + d.audioBase64);
         _t.audioEl.onended = onDone;
-        _t.audioEl.onerror = function(e) { console.error('[TEA] audio play error', e); onDone(); };
+        _t.audioEl.onerror = function() { onDone(); };
         var p = _t.audioEl.play();
-        if (p && p.catch) p.catch(function(e) { console.error('[TEA] play() blocked:', e); _browserSpeak(text, onDone); });
+        if (p && p.catch) p.catch(function() { _browserSpeak(text, onDone); });
       } else {
-        console.warn('[TEA] Chirp3-HD failed:', d.error, '— using browser TTS');
         _browserSpeak(text, onDone);
       }
     })
-    .catch(function(e) { console.error('[TEA] fetch error:', e); _browserSpeak(text, onDone); });
+    .catch(function() { _browserSpeak(text, onDone); });
   }
 
   // ── Exam flow ──────────────────────────────────────────────────────────────
@@ -16794,15 +16790,12 @@
 
   function _sendMsg(text) {
     _t.busy=true; _setEnabled(false); _showThinking();
-    console.log('[TEA] sending to Gemini:', text.substring(0,60));
     _chat(text, function(err, msg) {
       if (err) {
-        console.error('[TEA] Gemini error:', err);
         _removeThinking();
         _setStatus('Error: ' + err, 'thinking');
         _setEnabled(true); _t.busy=false; return;
       }
-      console.log('[TEA] Gemini responded, calling _speakExaminer');
       _onExaminerMsg(msg);
     });
   }
