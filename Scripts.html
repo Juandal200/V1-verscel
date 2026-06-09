@@ -59,7 +59,7 @@
   }
 
   // Fallback: browser SpeechRecognition when Whisper is unavailable (no API key).
-  function _fallbackSpeechRec(textareaId, btnId, expected) {
+  function _fallbackSpeechRec(textareaId, btnId, expected, onTranscript) {
     var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     var btn = document.getElementById(btnId);
     if (!SpeechRec) {
@@ -76,6 +76,7 @@
       var corrected = _applyFixes(e.results[0][0].transcript, _scenarioFixes(expected));
       var ta = document.getElementById(textareaId);
       if (ta) { ta.value = corrected; ta.focus(); ta.dispatchEvent(new Event('input')); }
+      if (onTranscript) onTranscript(corrected);
     };
     rec.onend  = function() { _gMicActive = false; _resetBtn(btn); };
     rec.onerror = function(e) {
@@ -85,7 +86,7 @@
     rec.start();
   }
 
-  window.startMicInput = function(textareaId, btnId, expectedReadback) {
+  window.startMicInput = function(textareaId, btnId, expectedReadback, onTranscript) {
     var btn = document.getElementById(btnId);
 
     // Second tap while recording → stop
@@ -148,6 +149,7 @@
               var corrected = _applyFixes(data.transcript, _scenarioFixes(expected));
               var ta = document.getElementById(textareaId);
               if (ta) { ta.value = corrected; ta.focus(); ta.dispatchEvent(new Event('input')); }
+              if (onTranscript) onTranscript(corrected);
             } else if (data.noKey) {
               // API key not set — fall back to browser SR silently
               _fallbackSpeechRec(textareaId, btnId, expected);
@@ -16635,7 +16637,7 @@
   function _removeThinking() { /* status is updated by _addMsg */ }
 
   function _setEnabled(on) {
-    ['teaInput','teaSend','teaMic'].forEach(function(id){
+    ['teaInput','teaMic'].forEach(function(id){
       var el=document.getElementById(id); if(el) el.disabled=!on;
     });
     if (on) _setStatus('Your turn — speak or type', 'listening');
@@ -16809,10 +16811,9 @@
         // Input bar
         '<div class="tea-input-bar">' +
           '<button id="teaMic" class="demo-mic-btn" style="flex:0 0 auto;width:auto;padding:10px 16px;margin:0;font-size:1.1rem;" ' +
-            'onclick="startMicInput(\'teaInput\',\'teaMic\')">&#127908;</button>' +
+            'onclick="startMicInput(\'teaInput\',\'teaMic\',\'\',window._teaSubmit)">&#127908;</button>' +
           '<textarea id="teaInput" class="tea-textarea" rows="1" ' +
-            'placeholder="Speak via mic or type here..."></textarea>' +
-          '<button id="teaSend" class="tea-send-btn" onclick="window._teaSubmit()">Send</button>' +
+            'placeholder="Speak via mic or type and press Enter..."></textarea>' +
         '</div>' +
       '</div>';
 
