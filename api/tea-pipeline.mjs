@@ -290,7 +290,7 @@ async function gradeWithICAO(enrichedTranscript, history, apiKey) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents,
-        generationConfig: { maxOutputTokens: 4096, temperature: 0.3 },
+        generationConfig: { maxOutputTokens: 4096, temperature: 0.3, response_mime_type: 'application/json' },
       }),
     });
     data = await response.json();
