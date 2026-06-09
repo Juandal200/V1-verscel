@@ -304,9 +304,17 @@ async function gradeWithICAO(enrichedTranscript, history, apiKey) {
 
   const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 
-  // Walk the string counting braces to find the first complete top-level JSON object.
-  // More robust than indexOf/lastIndexOf when Gemini prepends reasoning text that
-  // itself contains { } characters.
+  // ── JSON extraction + repair ──────────────────────────────────────────────
+  //
+  // Gemini sometimes: (a) prepends reasoning text before the JSON object,
+  // (b) includes unescaped double quotes inside string values, or
+  // (c) includes raw newlines inside string values.
+  // We handle all three without an external library.
+
+  // Step 1: strip markdown fences
+  const stripped = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+
+  // Step 2: find the first complete top-level JSON object by brace depth
   function extractFirstObject(str) {
     let depth = 0, start = -1;
     for (let i = 0; i < str.length; i++) {
@@ -317,8 +325,39 @@ async function gradeWithICAO(enrichedTranscript, history, apiKey) {
     return str;
   }
 
-  const stripped = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-  const cleaned  = extractFirstObject(stripped);
+  // Step 3: fix unescaped quotes and bare newlines inside JSON string values.
+  // Heuristic: a " inside a string is the closing quote only when followed
+  // (after optional whitespace) by : , } ] or end-of-string.
+  function repairJSONStrings(str) {
+    let out = '', i = 0;
+    while (i < str.length) {
+      const ch = str[i];
+      if (ch !== '"') { out += ch; i++; continue; }
+      out += '"'; i++;                          // opening quote
+      while (i < str.length) {
+        const c = str[i];
+        if (c === '\\') { out += str[i] + (str[i + 1] || ''); i += 2; continue; }
+        if (c === '\n') { out += '\\n'; i++; continue; }
+        if (c === '\r') { out += '\\r'; i++; continue; }
+        if (c === '\t') { out += '\\t'; i++; continue; }
+        if (c === '"') {
+          // peek past whitespace to decide if this is a terminator
+          let j = i + 1;
+          while (j < str.length && ' \t\n\r'.includes(str[j])) j++;
+          const nx = str[j];
+          if (!nx || nx === ':' || nx === ',' || nx === '}' || nx === ']') {
+            out += '"'; i++; break;            // valid closing quote
+          }
+          out += '\\"'; i++; continue;         // bare quote inside string — escape it
+        }
+        out += c; i++;
+      }
+    }
+    return out;
+  }
+
+  const extracted = extractFirstObject(stripped);
+  const cleaned   = repairJSONStrings(extracted);
 
   let parsed;
   try {
