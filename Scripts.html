@@ -16666,24 +16666,60 @@
     wrap.appendChild(card); chat.appendChild(wrap); _scrollChat();
   }
 
+  // ── Examiner TTS ──────────────────────────────────────────────────────────
+  // Consistent British male voice for the examiner throughout the exam.
+  var EXAMINER_VOICE = 'en-GB-Chirp3-HD-Schedar';
+  var EXAMINER_LANG  = 'en-GB';
+
+  function _speakExaminer(text, onDone) {
+    // Skip TTS for final scoring (very long, better read as text)
+    if (text.indexOf('Pronunciation') !== -1 && text.indexOf('Score') !== -1) {
+      onDone(); return;
+    }
+    fetch('/api/tea-audio', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ text: text, voice: EXAMINER_VOICE, lang: EXAMINER_LANG, rate: 0.95 })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.ok && d.audioBase64) {
+        if (_t.audioEl) _t.audioEl.pause();
+        _t.audioEl = new Audio('data:audio/mp3;base64,' + d.audioBase64);
+        _t.audioEl.onended = onDone;
+        _t.audioEl.onerror = onDone;
+        _t.audioEl.play();
+      } else {
+        onDone();
+      }
+    })
+    .catch(function() { onDone(); });
+  }
+
   // ── Exam flow ──────────────────────────────────────────────────────────────
   function _onExaminerMsg(msg) {
-    _removeThinking(); _addMsg('examiner', msg); _setEnabled(true); _t.busy=false;
+    _removeThinking(); _addMsg('examiner', msg);
 
-    // Audio cue detected
-    if (msg.indexOf('Please listen to the following recording') !== -1 &&
-        _t.audioIdx < TEA_ORDER.length) {
-      _setEnabled(false);
-      _playItem(TEA_ORDER[_t.audioIdx]);
-      return;
-    }
+    // Speak the examiner's message, then handle logic after audio ends
+    _speakExaminer(msg, function() {
+      _t.busy = false;
+      _setEnabled(true);
 
-    // Part 3 — inject next image if audio is done
-    if (_t.audioIdx >= TEA_ORDER.length && _t.imageIdx < TEA_IMAGES.length) {
-      var img = TEA_IMAGES[_t.imageIdx++];
-      _addImageCard(img);
-      _sendMsg('[' + img.id.toUpperCase() + ': ' + img.desc + ']');
-    }
+      // Audio cue detected — play next scenario recording
+      if (msg.indexOf('Please listen to the following recording') !== -1 &&
+          _t.audioIdx < TEA_ORDER.length) {
+        _setEnabled(false);
+        _playItem(TEA_ORDER[_t.audioIdx]);
+        return;
+      }
+
+      // Part 3 — inject next image if all audio items are done
+      if (_t.audioIdx >= TEA_ORDER.length && _t.imageIdx < TEA_IMAGES.length) {
+        var img = TEA_IMAGES[_t.imageIdx++];
+        _addImageCard(img);
+        _sendMsg('[' + img.id.toUpperCase() + ': ' + img.desc + ']');
+      }
+    });
   }
 
   function _playItem(id) {
