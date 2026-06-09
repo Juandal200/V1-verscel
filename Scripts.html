@@ -16805,9 +16805,40 @@
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
+  // Unlock browser autoplay by playing a silent 0.1s audio on the user gesture
+  function _unlockAudio(cb) {
+    var silence = 'data:audio/mp3;base64,SUQzBAAAAAAA' +
+      'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==';
+    var a = new Audio(silence);
+    a.play().then(cb).catch(cb);
+    // Also prime speechSynthesis
+    if (window.speechSynthesis) {
+      var u = new SpeechSynthesisUtterance('');
+      window.speechSynthesis.speak(u);
+    }
+  }
+
   function renderTeaExam() {
     if (typeof setActiveNav==='function') setActiveNav('TEA Exam');
     _resetState();
+    var content = document.getElementById('contentArea'); if(!content) return;
+
+    // Show a "Begin" screen first — user must click to unlock autoplay
+    content.innerHTML =
+      '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 60px);background:#080c10;gap:24px;">' +
+        '<div class="tea-part-badge" style="font-size:0.9rem;padding:6px 18px;">ICAO TEA</div>' +
+        '<div style="font-size:1.4rem;font-weight:700;color:#dde2e6;">Test of English for Aviation</div>' +
+        '<div style="font-size:0.85rem;color:#4a6280;text-align:center;max-width:320px;line-height:1.6;">' +
+          'This is a full ICAO aviation English proficiency exam.<br>The examiner will speak. Respond via microphone.' +
+        '</div>' +
+        '<button id="teaBeginBtn" onclick="window._teaBegin()" ' +
+          'style="padding:14px 40px;background:#00d48e;color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:8px;">' +
+          'Begin Exam' +
+        '</button>' +
+      '</div>';
+  }
+
+  function _startExam() {
     var content = document.getElementById('contentArea'); if(!content) return;
     content.innerHTML =
       '<div style="display:flex;flex-direction:column;height:calc(100vh - 60px);background:#080c10;">' +
@@ -16816,19 +16847,13 @@
           '<div class="tea-header-title">Test of English for Aviation</div></div>' +
           '<div class="tea-header-meta">Elapsed&nbsp;<span id="teaTimer" class="tea-timer">00:00</span></div>' +
         '</div>' +
-
-        // Examiner avatar + status
         '<div class="tea-stage">' +
           '<div id="teaRing" class="tea-ring tea-ring--thinking">' +
             '<div class="tea-ring-inner">EX</div>' +
           '</div>' +
-          '<div id="teaStatusLabel" class="tea-status-label">Connecting...</div>' +
+          '<div id="teaStatusLabel" class="tea-status-label">Preparing exam...</div>' +
         '</div>' +
-
-        // Cards area — audio players and image cards only
         '<div id="teaCards" class="tea-cards"></div>' +
-
-        // Input bar
         '<div class="tea-input-bar">' +
           '<button id="teaMic" class="demo-mic-btn" style="flex:0 0 auto;width:auto;padding:10px 16px;margin:0;font-size:1.1rem;" ' +
             'onclick="startMicInput(\'teaInput\',\'teaMic\',\'\',window._teaSubmit)">&#127908;</button>' +
@@ -16839,7 +16864,6 @@
 
     _startTimer();
     _setEnabled(false);
-    _setStatus('Connecting...', 'thinking');
 
     var ta=document.getElementById('teaInput');
     if(ta) ta.addEventListener('keydown', function(e){
@@ -16848,6 +16872,10 @@
 
     _sendMsg('Begin the TEA examination now. Greet the candidate and start Part 1.');
   }
+
+  window._teaBegin = function() {
+    _unlockAudio(function() { _startExam(); });
+  };
 
   window.renderTeaExam = renderTeaExam;
   window._teaSubmit    = _submit;
