@@ -68,7 +68,6 @@ export default async function handler(req, res) {
   try {
     const { history } = req.body;
 
-    // Gemini uses "model" instead of "assistant" for the assistant role
     const contents = history.map(function(m) {
       return {
         role:  m.role === 'assistant' ? 'model' : 'user',
@@ -79,17 +78,36 @@ export default async function handler(req, res) {
     const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' +
       encodeURIComponent(apiKey);
 
-    const response = await fetch(url, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents:           contents,
-        generationConfig:   { maxOutputTokens: 2048, temperature: 0.7 }
-      })
+    const body = JSON.stringify({
+      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents:           contents,
+      generationConfig:   { maxOutputTokens: 2048, temperature: 0.7 }
     });
 
-    const data = await response.json();
+    // Retry up to 4 times on 503 / high-demand errors, with exponential backoff
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    let response, data, attempt = 0;
+
+    while (attempt < 4) {
+      response = await fetch(url, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body
+      });
+      data = await response.json();
+
+      if (response.ok) break;
+
+      const isOverload = response.status === 503 ||
+        (data.error && typeof data.error.message === 'string' &&
+         data.error.message.toLowerCase().indexOf('high demand') !== -1);
+
+      if (!isOverload) break;
+
+      attempt++;
+      if (attempt < 4) {
+        console.log('[TEA] overload retry ' + attempt + ' — waiting ' + (attempt * 2) + 's');
+        await sleep(attempt * 2000);
+      }
+    }
 
     if (!response.ok) {
       console.error('[TEA]', JSON.stringify(data));
