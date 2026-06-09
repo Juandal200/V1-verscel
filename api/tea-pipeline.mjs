@@ -251,18 +251,6 @@ function buildRichTranscript(result, partLabel) {
  * @returns {Promise<{ student_view: object, admin_view: object }>}
  */
 async function gradeWithICAO(enrichedTranscript, history, apiKey) {
-  // The model receives: system prompt (injected as first user/model pair),
-  // the full conversation history for context, then the annotated transcript
-  // as the final grading instruction.
-  const systemTurn = {
-    role: 'user',
-    parts: [{ text: 'SYSTEM: ' + GRADING_SYSTEM_PROMPT }],
-  };
-  const systemAck = {
-    role: 'model',
-    parts: [{ text: 'Understood. Provide the enriched transcript and I will return the evaluation JSON.' }],
-  };
-
   const historyContents = history.map((m) => ({
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }],
@@ -272,11 +260,11 @@ async function gradeWithICAO(enrichedTranscript, history, apiKey) {
     role: 'user',
     parts: [{
       text: 'ENRICHED TRANSCRIPT FOR GRADING:\n\n' + enrichedTranscript +
-            '\n\nPlease return the evaluation JSON now.',
+            '\n\nReturn the evaluation JSON now. No preamble, no explanation — JSON only.',
     }],
   };
 
-  const contents = [systemTurn, systemAck, ...historyContents, gradingTurn];
+  const contents = [...historyContents, gradingTurn];
 
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=' +
     encodeURIComponent(apiKey);
@@ -289,8 +277,9 @@ async function gradeWithICAO(enrichedTranscript, history, apiKey) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        system_instruction: { parts: [{ text: GRADING_SYSTEM_PROMPT }] },
         contents,
-        generationConfig: { maxOutputTokens: 4096, temperature: 0.3, response_mime_type: 'application/json' },
+        generationConfig: { maxOutputTokens: 4096, temperature: 0.3 },
       }),
     });
     data = await response.json();
@@ -315,15 +304,21 @@ async function gradeWithICAO(enrichedTranscript, history, apiKey) {
 
   const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 
-  // Strip markdown fences, then extract the outermost JSON object by brace position.
-  // This handles preamble text like "Here is the evaluation:\n\n{..." that the
-  // fence regex alone doesn't catch.
-  const fenced = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-  const jsonStart = fenced.indexOf('{');
-  const jsonEnd   = fenced.lastIndexOf('}');
-  const cleaned   = (jsonStart !== -1 && jsonEnd > jsonStart)
-    ? fenced.slice(jsonStart, jsonEnd + 1)
-    : fenced;
+  // Walk the string counting braces to find the first complete top-level JSON object.
+  // More robust than indexOf/lastIndexOf when Gemini prepends reasoning text that
+  // itself contains { } characters.
+  function extractFirstObject(str) {
+    let depth = 0, start = -1;
+    for (let i = 0; i < str.length; i++) {
+      const ch = str[i];
+      if (ch === '{') { if (depth === 0) start = i; depth++; }
+      else if (ch === '}') { depth--; if (depth === 0 && start !== -1) return str.slice(start, i + 1); }
+    }
+    return str;
+  }
+
+  const stripped = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  const cleaned  = extractFirstObject(stripped);
 
   let parsed;
   try {
