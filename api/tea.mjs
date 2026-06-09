@@ -68,20 +68,23 @@ export default async function handler(req, res) {
   try {
     const { history } = req.body;
 
-    const contents = history.map(function(m) {
+    // v1 doesn't support system_instruction — inject system prompt as first user message
+    const systemTurn = { role: 'user',  parts: [{ text: 'SYSTEM: ' + SYSTEM_PROMPT }] };
+    const systemAck  = { role: 'model', parts: [{ text: 'Understood. I am ready to conduct the TEA examination.' }] };
+
+    const contents = [systemTurn, systemAck].concat(history.map(function(m) {
       return {
         role:  m.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: m.content }]
       };
-    });
+    }));
 
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=' +
+    const url = 'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro:generateContent?key=' +
       encodeURIComponent(apiKey);
 
     const body = JSON.stringify({
-      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents:           contents,
-      generationConfig:   { maxOutputTokens: 2048, temperature: 0.7 }
+      contents:         contents,
+      generationConfig: { maxOutputTokens: 2048, temperature: 0.7 }
     });
 
     // Retry up to 4 times on 503 / high-demand errors, with exponential backoff
