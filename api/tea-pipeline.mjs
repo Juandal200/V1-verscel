@@ -279,7 +279,7 @@ async function gradeWithICAO(enrichedTranscript, history, apiKey) {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: GRADING_SYSTEM_PROMPT }] },
         contents,
-        generationConfig: { maxOutputTokens: 4096, temperature: 0.3 },
+        generationConfig: { maxOutputTokens: 8192, temperature: 0.3 },
       }),
     });
     data = await response.json();
