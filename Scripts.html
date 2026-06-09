@@ -16677,11 +16677,15 @@
     if (!window.speechSynthesis) { onDone(); return; }
     window.speechSynthesis.cancel();
     var utter = new SpeechSynthesisUtterance(text);
-    utter.lang = 'en-GB';
-    utter.rate = 0.88;
+    utter.lang  = 'en-GB';
+    utter.rate  = 0.88;
     utter.pitch = 0.95;
-    utter.onend   = onDone;
-    utter.onerror = onDone;
+    // Safety timeout — if speechSynthesis stalls, proceed after 20s
+    var guard = setTimeout(function() {
+      window.speechSynthesis.cancel(); onDone();
+    }, 20000);
+    utter.onend   = function() { clearTimeout(guard); onDone(); };
+    utter.onerror = function() { clearTimeout(guard); onDone(); };
     window.speechSynthesis.speak(utter);
   }
 
@@ -16805,16 +16809,16 @@
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
-  // Unlock browser autoplay by playing a silent 0.1s audio on the user gesture
-  function _unlockAudio(cb) {
-    var silence = 'data:audio/mp3;base64,SUQzBAAAAAAA' +
-      'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==';
-    var a = new Audio(silence);
-    a.play().then(cb).catch(cb);
-    // Also prime speechSynthesis
+  // Called SYNCHRONOUSLY inside the click handler — must happen before any async ops
+  function _unlockAudio() {
+    try {
+      var ac = new (window.AudioContext || window.webkitAudioContext)();
+      ac.resume(); _t._ac = ac;
+    } catch(e) {}
     if (window.speechSynthesis) {
-      var u = new SpeechSynthesisUtterance('');
-      window.speechSynthesis.speak(u);
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+      window.speechSynthesis.cancel();
     }
   }
 
@@ -16874,7 +16878,8 @@
   }
 
   window._teaBegin = function() {
-    _unlockAudio(function() { _startExam(); });
+    _unlockAudio();   // synchronous — unlocks audio in the click gesture
+    _startExam();     // starts immediately after
   };
 
   window.renderTeaExam = renderTeaExam;
