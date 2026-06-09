@@ -16612,38 +16612,37 @@
   }
 
   // ── UI helpers ────────────────────────────────────────────────────────────
-  function _scrollChat() { var c=document.getElementById('teaChat'); if(c) c.scrollTop=c.scrollHeight; }
+  function _scrollChat() { var c=document.getElementById('teaCards'); if(c) c.scrollTop=c.scrollHeight; }
 
-  function _addMsg(role, text) {
-    var chat = document.getElementById('teaChat'); if(!chat) return;
-    var wrap = document.createElement('div'); wrap.className='tea-msg '+role;
-    if (role !== 'system') {
-      var av = document.createElement('div'); av.className='tea-avatar';
-      av.textContent = role==='examiner'?'EX':'YOU'; wrap.appendChild(av);
+  function _setStatus(text, state) {
+    // state: 'thinking' | 'speaking' | 'listening' | 'idle'
+    var label = document.getElementById('teaStatusLabel');
+    var ring  = document.getElementById('teaRing');
+    if (label) label.textContent = text;
+    if (ring) {
+      ring.className = 'tea-ring';
+      if (state) ring.classList.add('tea-ring--' + state);
     }
-    var bub = document.createElement('div'); bub.className='tea-bubble'; bub.textContent=text;
-    wrap.appendChild(bub); chat.appendChild(wrap); _scrollChat(); return bub;
   }
 
-  function _showThinking() {
-    var chat=document.getElementById('teaChat'); if(!chat) return;
-    var w=document.createElement('div'); w.className='tea-msg examiner'; w.id='teaThinking';
-    var av=document.createElement('div'); av.className='tea-avatar'; av.textContent='EX'; w.appendChild(av);
-    var d=document.createElement('div'); d.className='tea-thinking';
-    d.innerHTML='<span></span><span></span><span></span>'; w.appendChild(d);
-    chat.appendChild(w); _scrollChat();
+  // Text bubbles are hidden — only update status display
+  function _addMsg(role, text) {
+    if (role === 'examiner') _setStatus('Examiner speaking...', 'speaking');
+    // No visible text bubbles
   }
 
-  function _removeThinking() { var e=document.getElementById('teaThinking'); if(e) e.remove(); }
+  function _showThinking() { _setStatus('Thinking...', 'thinking'); }
+  function _removeThinking() { /* status is updated by _addMsg */ }
 
   function _setEnabled(on) {
     ['teaInput','teaSend','teaMic'].forEach(function(id){
       var el=document.getElementById(id); if(el) el.disabled=!on;
     });
+    if (on) _setStatus('Your turn — speak or type', 'listening');
   }
 
   function _addAudioCard(id) {
-    var chat=document.getElementById('teaChat'); if(!chat) return null;
+    var chat=document.getElementById('teaCards'); if(!chat) return null;
     var wrap=document.createElement('div'); wrap.className='tea-msg examiner';
     var av=document.createElement('div'); av.className='tea-avatar'; av.textContent='EX'; wrap.appendChild(av);
     var card=document.createElement('div'); card.className='tea-audio-card';
@@ -16657,7 +16656,7 @@
   }
 
   function _addImageCard(img) {
-    var chat=document.getElementById('teaChat'); if(!chat) return;
+    var chat=document.getElementById('teaCards'); if(!chat) return;
     var wrap=document.createElement('div'); wrap.className='tea-msg examiner';
     var av=document.createElement('div'); av.className='tea-avatar'; av.textContent='EX'; wrap.appendChild(av);
     var card=document.createElement('div'); card.className='tea-image-card';
@@ -16672,10 +16671,19 @@
   var EXAMINER_LANG  = 'en-GB';
 
   function _speakExaminer(text, onDone) {
-    // Skip TTS for final scoring (very long, better read as text)
+    // Show scoring as text, skip TTS for it
     if (text.indexOf('Pronunciation') !== -1 && text.indexOf('Score') !== -1) {
+      var cards = document.getElementById('teaCards');
+      if (cards) {
+        var box = document.createElement('div');
+        box.className = 'tea-score-box';
+        box.textContent = text;
+        cards.appendChild(box);
+        _scrollChat();
+      }
       onDone(); return;
     }
+    _setStatus('Examiner speaking...', 'speaking');
     fetch('/api/tea-audio', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -16780,24 +16788,37 @@
     _resetState();
     var content = document.getElementById('contentArea'); if(!content) return;
     content.innerHTML =
-      '<div style="display:flex;flex-direction:column;height:calc(100vh - 60px);">' +
+      '<div style="display:flex;flex-direction:column;height:calc(100vh - 60px);background:#080c10;">' +
         '<div class="tea-header">' +
           '<div><div class="tea-part-badge">ICAO TEA</div>' +
           '<div class="tea-header-title">Test of English for Aviation</div></div>' +
           '<div class="tea-header-meta">Elapsed&nbsp;<span id="teaTimer" class="tea-timer">00:00</span></div>' +
         '</div>' +
-        '<div id="teaChat" class="tea-chat"></div>' +
+
+        // Examiner avatar + status
+        '<div class="tea-stage">' +
+          '<div id="teaRing" class="tea-ring tea-ring--thinking">' +
+            '<div class="tea-ring-inner">EX</div>' +
+          '</div>' +
+          '<div id="teaStatusLabel" class="tea-status-label">Connecting...</div>' +
+        '</div>' +
+
+        // Cards area — audio players and image cards only
+        '<div id="teaCards" class="tea-cards"></div>' +
+
+        // Input bar
         '<div class="tea-input-bar">' +
-          '<button id="teaMic" class="demo-mic-btn" style="flex:0 0 auto;width:auto;padding:10px 14px;margin:0;" ' +
+          '<button id="teaMic" class="demo-mic-btn" style="flex:0 0 auto;width:auto;padding:10px 16px;margin:0;font-size:1.1rem;" ' +
             'onclick="startMicInput(\'teaInput\',\'teaMic\')">&#127908;</button>' +
           '<textarea id="teaInput" class="tea-textarea" rows="1" ' +
-            'placeholder="Type your response or use the mic..."></textarea>' +
+            'placeholder="Speak via mic or type here..."></textarea>' +
           '<button id="teaSend" class="tea-send-btn" onclick="window._teaSubmit()">Send</button>' +
         '</div>' +
       '</div>';
 
     _startTimer();
     _setEnabled(false);
+    _setStatus('Connecting...', 'thinking');
 
     var ta=document.getElementById('teaInput');
     if(ta) ta.addEventListener('keydown', function(e){
