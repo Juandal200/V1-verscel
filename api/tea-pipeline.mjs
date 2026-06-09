@@ -315,8 +315,15 @@ async function gradeWithICAO(enrichedTranscript, history, apiKey) {
 
   const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 
-  // Strip any accidental markdown fences before parsing
-  const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  // Strip markdown fences, then extract the outermost JSON object by brace position.
+  // This handles preamble text like "Here is the evaluation:\n\n{..." that the
+  // fence regex alone doesn't catch.
+  const fenced = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+  const jsonStart = fenced.indexOf('{');
+  const jsonEnd   = fenced.lastIndexOf('}');
+  const cleaned   = (jsonStart !== -1 && jsonEnd > jsonStart)
+    ? fenced.slice(jsonStart, jsonEnd + 1)
+    : fenced;
 
   let parsed;
   try {

@@ -16732,8 +16732,9 @@
     // Detect final JSON evaluation payload
     var jsonData = null;
     var trimmed = text.trim();
-    if (trimmed.charAt(0) === '{') {
-      try { jsonData = JSON.parse(trimmed); } catch(e) { jsonData = null; }
+    var jStart = trimmed.indexOf('{'), jEnd = trimmed.lastIndexOf('}');
+    if (jStart !== -1 && jEnd > jStart) {
+      try { jsonData = JSON.parse(trimmed.slice(jStart, jEnd + 1)); } catch(e) { jsonData = null; }
     }
     if (jsonData && jsonData.student_view) {
       var cards = document.getElementById('teaCards');
