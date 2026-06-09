@@ -16497,5 +16497,282 @@
   window._placementClose = _placementClose;
 })();
 
+// =============================================================================
+//  TEA Exam — ICAO Test of English for Aviation
+// =============================================================================
+(function() {
+  'use strict';
 
+  // ── Pre-scripted audio scenarios ─────────────────────────────────────────
+  var TEA_AUDIO = {
+    part_2a_1: { voice:'en-US-Chirp3-HD-Fenrir', lang:'en-US',
+      script:'Mayday mayday mayday, Delta four seven heavy, we have an engine fire on number two, requesting immediate return to Atlanta, souls on board three hundred and twelve, fuel nine hours, mayday delta four seven heavy.',
+      transcript:'Mayday mayday mayday, Delta four seven heavy, engine fire on number two, requesting immediate return to Atlanta, souls on board three hundred and twelve, fuel nine hours.' },
+    part_2a_2: { voice:'en-GB-Chirp3-HD-Alnilam', lang:'en-GB',
+      script:'Speedbird two one seven, go around, I say again go around, runway occupied, climb straight ahead to three thousand feet, contact approach on one two four decimal four.',
+      transcript:'Speedbird two one seven, go around, runway occupied, climb straight ahead three thousand feet, contact approach one two four decimal four.' },
+    part_2a_3: { voice:'en-AU-Chirp3-HD-Algenib', lang:'en-AU',
+      script:'Pan pan pan pan pan pan, Qantas five eight nine, minimum fuel, we have approximately twenty minutes of fuel remaining, request direct to the field and expedite our approach.',
+      transcript:'Pan pan pan, Qantas five eight nine, minimum fuel, twenty minutes remaining, request direct and expedite approach.' },
+    part_2a_4: { voice:'en-IN-Chirp3-HD-Erinome', lang:'en-IN',
+      script:'Mumbai control, IndiGo seven seven two, we have a passenger with a suspected cardiac emergency on board, request priority handling and have emergency services standing by on arrival.',
+      transcript:'IndiGo seven seven two, passenger cardiac emergency, request priority handling, emergency services on arrival.' },
+    part_2a_5: { voice:'en-US-Chirp3-HD-Charon', lang:'en-US',
+      script:'Stop stop stop. United four four nine, stop immediately, traffic on the runway. I say again, stop immediately.',
+      transcript:'Stop stop stop, United four four nine, stop immediately, traffic on the runway.' },
+    part_2a_6: { voice:'en-GB-Chirp3-HD-Sulafat', lang:'en-GB',
+      script:'Speedbird four five one, be advised we have reports of a flock of birds at approximately two thousand feet on your approach path. Suggest you expedite through that altitude and report any bird strike on vacating the runway.',
+      transcript:'Speedbird four five one, birds reported two thousand feet on approach, expedite through that altitude, report bird strike vacating runway.' },
+    part_2b_1: { voice:'en-GB-Chirp3-HD-Iapetus', lang:'en-GB',
+      script:'London control, Ryanair four six zero, we have a hydraulic failure, system one is inoperative, we have limited braking capability and will require foam on the runway and emergency services standing by. We are maintaining normal flight at present but anticipate difficulties on landing. Request immediate diversion to the nearest suitable airport.',
+      transcript:'Ryanair four six zero, hydraulic failure, system one inoperative, limited braking, require foam and emergency services, normal flight maintained but landing difficulties anticipated, request diversion nearest suitable airport.' },
+    part_2b_2: { voice:'en-US-Chirp3-HD-Despina', lang:'en-US',
+      script:'Approach, American eight eight one, we are encountering severe turbulence and have indications of embedded thunderstorms on our route. We are unable to continue on our current track and request a forty mile deviation to the north. We also have two passengers with minor injuries from the turbulence. We do not require emergency assistance at this time but wanted you to be aware of the situation.',
+      transcript:'American eight eight one, severe turbulence, embedded thunderstorms on route, unable to continue current track, request forty mile deviation north, two passengers minor injuries, no emergency assistance required.' },
+    part_2b_3: { voice:'en-AU-Chirp3-HD-Orus', lang:'en-AU',
+      script:'Sydney departure, Jetstar two four one, we have had a bird strike on both engines immediately after takeoff. Engine one has significant vibration and we are shutting it down. Engine two appears normal. Declaring an emergency, full fuel, one hundred and eighty souls on board, need to return to Sydney, will require foam on the runway.',
+      transcript:'Jetstar two four one, bird strike both engines, shutting down engine one, engine two appears normal, declaring emergency, full fuel, one hundred eighty souls, returning Sydney, require foam.' },
+    part_2b_4: { voice:'en-IN-Chirp3-HD-Enceladus', lang:'en-IN',
+      script:'Karachi control, Air India four five two, we have a complete navigation system failure. FMS, VOR, and ILS receivers are all indicating faults. We are in instrument meteorological conditions with cloud base at two hundred feet. We require radar vectors to the ILS approach and request you talk us down.',
+      transcript:'Air India four five two, complete navigation failure, FMS VOR and ILS faults, IMC conditions, cloud base two hundred feet, require radar vectors and ILS talk-down.' },
+    part_2c_1: { voice:'en-US-Chirp3-HD-Puck', lang:'en-US',
+      script:'Centre, we have smoke in the cockpit. Donning oxygen masks now. Visibility reducing. Declaring an emergency, requesting immediate descent and direct routing to nearest airport. Two hundred and forty souls on board, fuel three hours.',
+      transcript:'Smoke in cockpit, donning oxygen masks, visibility reducing, declaring emergency, immediate descent required, direct nearest airport, two hundred forty souls, three hours fuel.' },
+    part_2c_2: { voice:'en-GB-Chirp3-HD-Aoede', lang:'en-GB',
+      script:'Mayday, we have an unruly passenger threatening crew members and attempting to access the flight deck. We have been unable to restrain this individual and are diverting immediately. Request police meet the aircraft on arrival. Approximately forty minutes from our alternate.',
+      transcript:'Mayday, unruly passenger threatening crew, attempting flight deck access, unable to restrain, diverting, request police on arrival, forty minutes from alternate.' },
+    part_2c_3: { voice:'en-AU-Chirp3-HD-Vindemiatrix', lang:'en-AU',
+      script:'Tower, Qantas one seven three, windshear alert, going around. Encountered significant windshear on final at five hundred feet, airspeed excursion forty knots. Climbing out, need to hold thirty minutes, advise other traffic of windshear.',
+      transcript:'Qantas one seven three, windshear alert going around, windshear at five hundred feet, forty knot airspeed excursion, holding thirty minutes, advise traffic.' }
+  };
+
+  var TEA_ORDER = [
+    'part_2a_1','part_2a_2','part_2a_3','part_2a_4','part_2a_5','part_2a_6',
+    'part_2b_1','part_2b_2','part_2b_3','part_2b_4',
+    'part_2c_1','part_2c_2','part_2c_3'
+  ];
+
+  var TEA_IMAGES = [
+    { id:'image_1', label:'IMAGE 1 — ATC Operations Room',
+      desc:'An air traffic control operations room. Controllers seated at radar screens displaying green returns on dark backgrounds. Headsets on, microphones active. Strip holders on desks. A large flight progress board on the far wall. Low lighting. The atmosphere is focused and quiet.' },
+    { id:'image_2', label:'IMAGE 2 — Runway Environment',
+      desc:'An airport runway seen from the control tower. A commercial aircraft on short final approach, undercarriage extended, full flap, aligned with centreline. Ground vehicles on the apron to the left. Windsock visible indicating crosswind. Threshold markings and PAPI lights visible. Overcast sky.' }
+  ];
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  var _t = { history:[], audioIdx:0, imageIdx:0, audioCache:{}, audioEl:null, busy:false, timerIv:null };
+
+  function _resetState() {
+    _t.history=[]; _t.audioIdx=0; _t.imageIdx=0; _t.audioCache={}; _t.busy=false;
+    if (_t.timerIv) clearInterval(_t.timerIv);
+    if (_t.audioEl) { _t.audioEl.pause(); _t.audioEl=null; }
+  }
+
+  // ── Timer ─────────────────────────────────────────────────────────────────
+  function _startTimer() {
+    var start = Date.now();
+    _t.timerIv = setInterval(function() {
+      var el = document.getElementById('teaTimer');
+      if (!el) { clearInterval(_t.timerIv); return; }
+      var s = Math.floor((Date.now() - start) / 1000);
+      var m = Math.floor(s / 60); s = s % 60;
+      el.textContent = (m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+    }, 1000);
+  }
+
+  // ── API ───────────────────────────────────────────────────────────────────
+  function _chat(userText, cb) {
+    if (userText !== null) _t.history.push({ role:'user', content:userText });
+    fetch('/api/tea', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ history: _t.history })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.ok && d.message) { _t.history.push({ role:'assistant', content:d.message }); cb(null,d.message); }
+      else cb(d.error||'API error');
+    })
+    .catch(function(e){ cb(e.message); });
+  }
+
+  function _fetchAudio(id, cb) {
+    if (_t.audioCache[id]) { cb(null, _t.audioCache[id]); return; }
+    var sc = TEA_AUDIO[id];
+    if (!sc) { cb('Unknown: '+id); return; }
+    fetch('/api/tea-audio', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ text:sc.script, voice:sc.voice, lang:sc.lang, rate:0.93 })
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.ok) { _t.audioCache[id]=d.audioBase64; cb(null,d.audioBase64); }
+      else cb(d.error||'Audio error');
+    })
+    .catch(function(e){ cb(e.message); });
+  }
+
+  // ── UI helpers ────────────────────────────────────────────────────────────
+  function _scrollChat() { var c=document.getElementById('teaChat'); if(c) c.scrollTop=c.scrollHeight; }
+
+  function _addMsg(role, text) {
+    var chat = document.getElementById('teaChat'); if(!chat) return;
+    var wrap = document.createElement('div'); wrap.className='tea-msg '+role;
+    if (role !== 'system') {
+      var av = document.createElement('div'); av.className='tea-avatar';
+      av.textContent = role==='examiner'?'EX':'YOU'; wrap.appendChild(av);
+    }
+    var bub = document.createElement('div'); bub.className='tea-bubble'; bub.textContent=text;
+    wrap.appendChild(bub); chat.appendChild(wrap); _scrollChat(); return bub;
+  }
+
+  function _showThinking() {
+    var chat=document.getElementById('teaChat'); if(!chat) return;
+    var w=document.createElement('div'); w.className='tea-msg examiner'; w.id='teaThinking';
+    var av=document.createElement('div'); av.className='tea-avatar'; av.textContent='EX'; w.appendChild(av);
+    var d=document.createElement('div'); d.className='tea-thinking';
+    d.innerHTML='<span></span><span></span><span></span>'; w.appendChild(d);
+    chat.appendChild(w); _scrollChat();
+  }
+
+  function _removeThinking() { var e=document.getElementById('teaThinking'); if(e) e.remove(); }
+
+  function _setEnabled(on) {
+    ['teaInput','teaSend','teaMic'].forEach(function(id){
+      var el=document.getElementById(id); if(el) el.disabled=!on;
+    });
+  }
+
+  function _addAudioCard(id) {
+    var chat=document.getElementById('teaChat'); if(!chat) return null;
+    var wrap=document.createElement('div'); wrap.className='tea-msg examiner';
+    var av=document.createElement('div'); av.className='tea-avatar'; av.textContent='EX'; wrap.appendChild(av);
+    var card=document.createElement('div'); card.className='tea-audio-card';
+    var btn=document.createElement('button'); btn.className='tea-audio-play'; btn.id='teaPlay_'+id;
+    btn.innerHTML='&#9654;'; btn.disabled=true; card.appendChild(btn);
+    var info=document.createElement('div');
+    info.innerHTML='<div class="tea-audio-label">Recording — '+id.replace(/_/g,' ').toUpperCase()+'</div>'+
+      '<div class="tea-audio-status" id="teaAudioSt_'+id+'">Loading...</div>';
+    card.appendChild(info); wrap.appendChild(card); chat.appendChild(wrap); _scrollChat();
+    return btn;
+  }
+
+  function _addImageCard(img) {
+    var chat=document.getElementById('teaChat'); if(!chat) return;
+    var wrap=document.createElement('div'); wrap.className='tea-msg examiner';
+    var av=document.createElement('div'); av.className='tea-avatar'; av.textContent='EX'; wrap.appendChild(av);
+    var card=document.createElement('div'); card.className='tea-image-card';
+    card.innerHTML='<div class="tea-image-card-label">'+img.label+'</div>'+
+      '<div class="tea-image-card-desc">'+img.desc+'</div>';
+    wrap.appendChild(card); chat.appendChild(wrap); _scrollChat();
+  }
+
+  // ── Exam flow ──────────────────────────────────────────────────────────────
+  function _onExaminerMsg(msg) {
+    _removeThinking(); _addMsg('examiner', msg); _setEnabled(true); _t.busy=false;
+
+    // Audio cue detected
+    if (msg.indexOf('Please listen to the following recording') !== -1 &&
+        _t.audioIdx < TEA_ORDER.length) {
+      _setEnabled(false);
+      _playItem(TEA_ORDER[_t.audioIdx]);
+      return;
+    }
+
+    // Part 3 — inject next image if audio is done
+    if (_t.audioIdx >= TEA_ORDER.length && _t.imageIdx < TEA_IMAGES.length) {
+      var img = TEA_IMAGES[_t.imageIdx++];
+      _addImageCard(img);
+      _sendMsg('[' + img.id.toUpperCase() + ': ' + img.desc + ']');
+    }
+  }
+
+  function _playItem(id) {
+    var sc = TEA_AUDIO[id];
+    var btn = _addAudioCard(id);
+
+    _fetchAudio(id, function(err, b64) {
+      var st = document.getElementById('teaAudioSt_'+id);
+      if (err) {
+        if(st) st.textContent='Audio unavailable — proceeding';
+        _t.audioIdx++;
+        _sendMsg('[AUDIO_COMPLETE: '+id+' | transcript: "'+sc.transcript+'"]');
+        return;
+      }
+      if(btn) btn.disabled=false;
+      if(st) st.textContent='Ready — press play';
+
+      btn.onclick = function() {
+        if(_t.audioEl) _t.audioEl.pause();
+        _t.audioEl = new Audio('data:audio/mp3;base64,'+b64);
+        btn.innerHTML='&#9646;&#9646;';
+        if(st) st.textContent='Playing...';
+        _t.audioEl.onended = function() {
+          btn.innerHTML='&#9654;'; if(st) st.textContent='Complete';
+          _t.audioIdx++;
+          _setEnabled(false);
+          _sendMsg('[AUDIO_COMPLETE: '+id+' | transcript: "'+sc.transcript+'"]');
+        };
+        _t.audioEl.play();
+      };
+    });
+
+    _sendMsg('[AUDIO_READY: '+id+']');
+  }
+
+  function _sendMsg(text) {
+    _t.busy=true; _setEnabled(false); _showThinking();
+    _chat(text, function(err, msg) {
+      if (err) {
+        _removeThinking(); _addMsg('system','Error: '+err); _setEnabled(true); _t.busy=false; return;
+      }
+      _onExaminerMsg(msg);
+    });
+  }
+
+  function _submit() {
+    if (_t.busy) return;
+    var ta=document.getElementById('teaInput'); var text=ta?ta.value.trim():'';
+    if (!text) return;
+    if(ta) ta.value='';
+    _addMsg('candidate', text);
+    _sendMsg(text);
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  function renderTeaExam() {
+    if (typeof setActiveNav==='function') setActiveNav('TEA Exam');
+    _resetState();
+    var content = document.getElementById('contentArea'); if(!content) return;
+    content.innerHTML =
+      '<div style="display:flex;flex-direction:column;height:calc(100vh - 60px);">' +
+        '<div class="tea-header">' +
+          '<div><div class="tea-part-badge">ICAO TEA</div>' +
+          '<div class="tea-header-title">Test of English for Aviation</div></div>' +
+          '<div class="tea-header-meta">Elapsed&nbsp;<span id="teaTimer" class="tea-timer">00:00</span></div>' +
+        '</div>' +
+        '<div id="teaChat" class="tea-chat"></div>' +
+        '<div class="tea-input-bar">' +
+          '<button id="teaMic" class="demo-mic-btn" style="flex:0 0 auto;width:auto;padding:10px 14px;margin:0;" ' +
+            'onclick="startMicInput(\'teaInput\',\'teaMic\')">&#127908;</button>' +
+          '<textarea id="teaInput" class="tea-textarea" rows="1" ' +
+            'placeholder="Type your response or use the mic..."></textarea>' +
+          '<button id="teaSend" class="tea-send-btn" onclick="window._teaSubmit()">Send</button>' +
+        '</div>' +
+      '</div>';
+
+    _startTimer();
+    _setEnabled(false);
+
+    var ta=document.getElementById('teaInput');
+    if(ta) ta.addEventListener('keydown', function(e){
+      if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();_submit();}
+    });
+
+    _sendMsg('Begin the TEA examination now. Greet the candidate and start Part 1.');
+  }
+
+  window.renderTeaExam = renderTeaExam;
+  window._teaSubmit    = _submit;
+
+}());
 </script>
