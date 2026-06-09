@@ -17259,7 +17259,8 @@
     var content = document.getElementById('contentArea'); if(!content) return;
 
     // Show a "Begin" screen first — user must click to unlock autoplay
-    var _debugBtn = location.search.indexOf('tea_debug=1') !== -1
+    var _isAdmin = window.AppState && AppState.user && AppState.user.role === 'ADMIN';
+    var _debugBtn = _isAdmin
       ? '<button onclick="window._teaRunTest()" ' +
           'style="margin-top:4px;padding:8px 20px;background:transparent;border:1px solid #2a3a4a;' +
           'color:#4a6280;border-radius:8px;font-size:0.8rem;cursor:pointer;">' +
