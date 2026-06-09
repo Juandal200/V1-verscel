@@ -16568,12 +16568,12 @@
   // ── State ─────────────────────────────────────────────────────────────────
   var _t = { history:[], audioIdx:0, imageIdx:0, audioCache:{}, audioEl:null, busy:false,
              timerIv:null, _pendingId:null, _pendingB64:null, _qaMode:false, _imageInjected:false,
-             _awaitingActivation:false };
+             _awaitingActivation:false, _finishShown:false, _examDone:false };
 
   function _resetState() {
     _t.history=[]; _t.audioIdx=0; _t.imageIdx=0; _t.audioCache={}; _t.busy=false;
     _t._pendingId=null; _t._pendingB64=null; _t._qaMode=false; _t._imageInjected=false;
-    _t._awaitingActivation=false;
+    _t._awaitingActivation=false; _t._finishShown=false; _t._examDone=false;
     if (_t.timerIv) clearInterval(_t.timerIv);
     if (_t.audioEl) { _t.audioEl.pause(); _t.audioEl=null; }
   }
@@ -16727,17 +16727,17 @@
   }
 
   function _speakExaminer(text, onDone) {
-    // Show scoring as text, read a short summary only
+    // Show scoring as rendered HTML table, lock UI
     if (text.indexOf('Pronunciation') !== -1 && text.indexOf('Score') !== -1) {
       var cards = document.getElementById('teaCards');
       if (cards) {
         var box = document.createElement('div');
         box.className = 'tea-score-box';
-        box.textContent = text;
+        box.innerHTML = _renderScoreTable(text);
         cards.appendChild(box);
         _scrollChat();
       }
-      // Speak only the final ICAO level line rather than the full table
+      _lockExamUI();
       var levelMatch = text.match(/ICAO Level[^\.]*\./i);
       var summary = levelMatch ? levelMatch[0] : 'The examination is now complete. Please review your results.';
       _browserSpeak(summary, onDone);
@@ -16875,6 +16875,55 @@
     cards.scrollTop = cards.scrollHeight;
   }
 
+  function _showFinishBtn() {
+    var cards = document.getElementById('teaCards'); if (!cards) return;
+    var btn = document.createElement('button');
+    btn.id        = 'teaFinishBtn';
+    btn.className = 'tea-send-btn';
+    btn.style     = 'margin:12px 16px;align-self:flex-start;background:#00d48e;color:#000;';
+    btn.textContent = 'Finish Exam & Get Score →';
+    btn.onclick = function() {
+      btn.remove();
+      _sendMsg('[EXAM_COMPLETE]');
+    };
+    cards.appendChild(btn);
+    cards.scrollTop = cards.scrollHeight;
+  }
+
+  // Render markdown score table as HTML
+  function _renderScoreTable(text) {
+    var lines = text.split('\n');
+    var html = '';
+    var inTable = false;
+    lines.forEach(function(line) {
+      var trimmed = line.trim();
+      if (trimmed.startsWith('|')) {
+        if (!inTable) { html += '<table class="tea-score-table">'; inTable = true; }
+        if (trimmed.replace(/[\|\-\s]/g, '') === '') return; // skip separator row
+        var cells = trimmed.split('|').filter(function(c,i,a){ return i>0 && i<a.length-1; });
+        var isHeader = html.indexOf('<thead>') === -1;
+        var tag = isHeader ? 'th' : 'td';
+        html += (isHeader ? '<thead><tr>' : '<tr>') +
+          cells.map(function(c){ return '<'+tag+'>'+c.trim()+'</'+tag+'>'; }).join('') +
+          (isHeader ? '</tr></thead><tbody>' : '</tr>');
+      } else {
+        if (inTable) { html += '</tbody></table>'; inTable = false; }
+        if (trimmed) html += '<p>' + trimmed + '</p>';
+      }
+    });
+    if (inTable) html += '</tbody></table>';
+    return html;
+  }
+
+  function _lockExamUI() {
+    _t._examDone = true;
+    if (_t.timerIv) clearInterval(_t.timerIv);
+    _setEnabled(false);
+    _setStatus('Exam complete', 'idle');
+    var bar = document.querySelector('.tea-input-bar');
+    if (bar) bar.style.display = 'none';
+  }
+
   // ── Exam flow ──────────────────────────────────────────────────────────────
   function _onExaminerMsg(msg) {
     _removeThinking(); _addMsg('examiner', msg);
@@ -16910,13 +16959,20 @@
         }
       }
 
-      // Part 3 — inject images once all audio done
+      // Part 3 — inject images once all audio done, one per examiner turn
       if (_t.audioIdx >= TEA_ORDER.length && _t.imageIdx < TEA_IMAGES.length &&
           !_t._imageInjected) {
-        _t._imageInjected = true;
         var img = TEA_IMAGES[_t.imageIdx++];
+        if (_t.imageIdx >= TEA_IMAGES.length) _t._imageInjected = true;
         _addImageCard(img);
         _sendMsg('[' + img.id.toUpperCase() + ': ' + img.desc + ']');
+        return;
+      }
+
+      // After both images have been discussed — show "Finish Exam" button
+      if (_t.audioIdx >= TEA_ORDER.length && _t._imageInjected && !_t._finishShown) {
+        _t._finishShown = true;
+        _showFinishBtn();
       }
     });
   }
