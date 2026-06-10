@@ -8159,7 +8159,6 @@ function apiGetWompiCheckoutData(sessionToken, plan) {
 
 function apiGetWompiPlans(sessionToken) {
   try {
-    AuthService.requireRole(sessionToken, ['STUDENT', 'ADMIN', 'INSTRUCTOR']);
     var props = PropertiesService.getScriptProperties();
     return {
       ok: true,
