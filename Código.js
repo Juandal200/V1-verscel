@@ -58,7 +58,13 @@ function doPost(e) {
     var allowed = action === 'getClientConfigJson' ||
                   /^api[A-Z]/.test(action) ||
                   action === 'getMyCompletedLevels' ||
-                  action === 'getTtsConfigStatus';
+                  action === 'getTtsConfigStatus' ||
+                  action === 'fetchLMSData' ||
+                  action === 'saveLMSScore' ||
+                  action === 'getLevelConfig' ||
+                  action === 'getPendingRequests' ||
+                  action === 'getIncomingChallenges' ||
+                  action === 'getNotificationCounts';
 
     var output = ContentService.createTextOutput();
     output.setMimeType(ContentService.MimeType.JSON);
