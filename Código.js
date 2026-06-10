@@ -67,7 +67,10 @@ function doPost(e) {
                   action === 'getNotificationCounts' ||
                   action === 'getSquadron' ||
                   action === 'sendRequest' ||
-                  action === 'sendChallenge';
+                  action === 'sendChallenge' ||
+                  action === 'acceptRequest' ||
+                  action === 'acceptChallenge' ||
+                  action === 'searchPilot';
 
     var output = ContentService.createTextOutput();
     output.setMimeType(ContentService.MimeType.JSON);
