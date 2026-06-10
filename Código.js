@@ -64,7 +64,10 @@ function doPost(e) {
                   action === 'getLevelConfig' ||
                   action === 'getPendingRequests' ||
                   action === 'getIncomingChallenges' ||
-                  action === 'getNotificationCounts';
+                  action === 'getNotificationCounts' ||
+                  action === 'getSquadron' ||
+                  action === 'sendRequest' ||
+                  action === 'sendChallenge';
 
     var output = ContentService.createTextOutput();
     output.setMimeType(ContentService.MimeType.JSON);
