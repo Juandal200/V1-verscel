@@ -8131,6 +8131,21 @@
       '</section>';
   }
 
+  function toggleTheme() {
+    var html    = document.documentElement;
+    var isLight = html.getAttribute('data-theme') === 'light';
+    var btn     = document.getElementById('themeToggleBtn');
+    if (isLight) {
+      html.removeAttribute('data-theme');
+      try { localStorage.setItem('aerocomms-theme', 'dark'); } catch(e) {}
+      if (btn) btn.textContent = '☀';
+    } else {
+      html.setAttribute('data-theme', 'light');
+      try { localStorage.setItem('aerocomms-theme', 'light'); } catch(e) {}
+      if (btn) btn.textContent = '🌙';
+    }
+  }
+
   function logout() {
     var token = AppState.sessionToken;
     localStorage.removeItem('icao_session_token');
@@ -10403,7 +10418,14 @@
   window.requestRegistration = requestRegistration;
   window.verifyLoginCode = verifyLoginCode;
   window.setAuthMode = setAuthMode;
-  window.logout = logout;
+  window.logout      = logout;
+  window.toggleTheme = toggleTheme;
+
+  // Sync icon on load in case theme was already active from localStorage
+  (function() {
+    var btn = document.getElementById('themeToggleBtn');
+    if (btn && document.documentElement.getAttribute('data-theme') === 'light') btn.textContent = '🌙';
+  })();
 
   window.renderHome = renderHome;
   window.renderSimulatorPlaceholder = renderSimulatorPlaceholder;

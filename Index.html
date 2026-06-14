@@ -4,7 +4,15 @@
   <base target="_top">
   <meta charset="UTF-8">
 
-  
+  <script>
+    (function() {
+      try {
+        if (localStorage.getItem('aerocomms-theme') === 'light')
+          document.documentElement.setAttribute('data-theme', 'light');
+      } catch(e) {}
+    })();
+  </script>
+
   <script>
     window.APP_CONFIG = <?!= getClientConfigJson(); ?>;
   </script>
@@ -105,6 +113,7 @@
         </nav>
 
         <div class="topnav-actions">
+          <button id="themeToggleBtn" class="btn secondary topnav-btn" onclick="toggleTheme()" title="Toggle light/dark mode">☀</button>
           <button id="demoReplayBtn" class="btn secondary topnav-btn" onclick="window.showDemo && window.showDemo()">? How it works</button>
           <button class="btn secondary topnav-btn" onclick="logout()">Logout</button>
         </div>
