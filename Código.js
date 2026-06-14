@@ -7378,22 +7378,66 @@ function apiAdminDeleteGroup(sessionToken, payload) {
 
 function apiAdminGetGroupStudents(sessionToken, groupId) {
   try {
-    AuthService.requireRole(sessionToken, ['ADMIN']);
-    var users = dbReadAll_('Users');
-    var members = [];
-    var available = [];
+    var caller = AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
+
+    if (String(caller.role || '').toUpperCase() === 'INSTRUCTOR') {
+      var group = dbFindOne_('Groups', 'groupId', String(groupId || ''));
+      if (!group || String(group.instructorId || '') !== String(caller.userId)) {
+        throw new Error('Unauthorized: not your group.');
+      }
+    }
+
+    var users       = dbReadAll_('Users');
+    var allAttempts = dbReadAll_('Attempts');
+    var members     = [];
+    var available   = [];
+
     users.forEach(function(u) {
       if (String(u.role || '').toUpperCase() !== 'STUDENT') return;
-      var entry = { userId: u.userId, name: u.name || '', email: u.email || '', status: u.status || '', assignedGroupId: u.assignedGroupId || '' };
+
+      var studentAttempts = allAttempts.filter(function(a) {
+        return String(a.userId || '') === String(u.userId);
+      });
+      var scored = studentAttempts.filter(function(a) { return Number(a.score || 0) > 0; });
+      var avgScore = scored.length
+        ? Math.round(scored.reduce(function(s, a) { return s + Number(a.score || 0); }, 0) / scored.length)
+        : 0;
+      var lastActivity = u.lastLoginAt ? String(u.lastLoginAt).substring(0, 10) : '—';
+
+      var entry = {
+        userId:          u.userId,
+        name:            u.name  || '',
+        email:           u.email || '',
+        status:          u.status || '',
+        assignedGroupId: u.assignedGroupId || '',
+        currentLevel:    Number(u.currentLevel || 1),
+        avgScore:        avgScore,
+        totalAttempts:   studentAttempts.length,
+        lastActivity:    lastActivity
+      };
+
       if (u.assignedGroupId === groupId) {
         members.push(entry);
       } else {
         available.push(entry);
       }
     });
+
     return { ok: true, members: members, available: available };
   } catch(err) {
     return apiError_('apiAdminGetGroupStudents', err);
+  }
+}
+
+function apiInstructorGetMyGroups(sessionToken) {
+  try {
+    var caller = AuthService.requireRole(sessionToken, ['INSTRUCTOR', 'ADMIN']);
+    var groups = dbReadAll_('Groups').filter(function(g) {
+      return String(g.instructorId || '') === String(caller.userId);
+    });
+    return { ok: true, groups: groups };
+  } catch(err) {
+    return apiError_('apiInstructorGetMyGroups', err);
   }
 }
 
