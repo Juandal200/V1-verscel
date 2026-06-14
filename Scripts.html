@@ -8728,14 +8728,14 @@
     overlay.className = 'sub-modal-overlay';
 
     overlay.innerHTML =
-      '<div class="sub-modal-card" style="max-width:680px;padding:32px 28px 24px;">' +
+      '<div class="sub-modal-card" style="max-width:780px;padding:32px 28px 24px;">' +
         '<button class="panel-close-btn" onclick="closeSubscriptionModal()" style="position:absolute;top:14px;right:16px;">&times;</button>' +
         '<p class="eyebrow" style="text-align:center;margin-bottom:6px;">ICAO Trainer Pro</p>' +
         '<h2 style="margin:0 0 8px;text-align:center;font-size:1.6rem;">Elige tu plan</h2>' +
         '<p style="margin:0 0 28px;color:#8fa3bb;font-size:0.84rem;line-height:1.6;text-align:center;max-width:480px;margin-left:auto;margin-right:auto;">' +
           'Simulador de entrenamiento ATC con vocabulario especializado de aviaci&oacute;n, diferentes acentos y situaciones rutinarias y de emergencia.' +
         '</p>' +
-        '<div id="subPlanCards" style="display:flex;gap:14px;align-items:stretch;flex-wrap:wrap;">' +
+        '<div id="subPlanCards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:stretch;">' +
           '<p style="color:#8fa3bb;font-size:0.85rem;margin:auto;">Cargando planes…</p>' +
         '</div>' +
         '<div id="subPayStatus" class="sub-pay-status" style="margin-top:16px;text-align:center;"></div>' +
@@ -8827,7 +8827,7 @@
               '<span title="India" style="font-size:1.3rem;">&#127470;&#127475;</span>' +
             '</div>';
 
-          return '<div style="flex:1;min-width:200px;background:' + cardBg + ';border:' + cardBorder + ';border-radius:16px;padding:24px 18px 18px;text-align:center;position:relative;display:flex;flex-direction:column;margin-top:14px;box-shadow:' + cardShadow + ';">' +
+          return '<div style="background:' + cardBg + ';border:' + cardBorder + ';border-radius:16px;padding:24px 18px 18px;text-align:center;position:relative;display:flex;flex-direction:column;margin-top:14px;box-shadow:' + cardShadow + ';">' +
             topBadge +
             '<div style="flex:1;">' +
               '<p style="margin:0 0 2px;font-size:0.7rem;font-weight:700;letter-spacing:0.12em;color:#8fa3bb;text-transform:uppercase;">' + m.name + '</p>' +
