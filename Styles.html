@@ -45,6 +45,20 @@
     background: rgba(210, 209, 204, 0.85);
   }
 
+  [data-theme="light"] #appScreen {
+    background:
+      radial-gradient(ellipse at 50% 0%, rgba(0,212,142,0.04) 0%, transparent 55%),
+      #f2f1ec;
+  }
+
+  [data-theme="light"] #appScreen::before {
+    background-image: radial-gradient(rgba(0,0,0,0.04) 1px, transparent 1px);
+  }
+
+  [data-theme="light"] #loginScreen {
+    background: #f2f1ec;
+  }
+
   [data-theme="light"] .login-card {
     box-shadow:
       0 24px 80px rgba(0,0,0,0.12),
