@@ -100,6 +100,12 @@ function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
+// Run this once in the Apps Script editor after deploying to create the 6 LMS sheets.
+function runSetupLMSModuleSheets() {
+  setupLMSModuleSheets();
+  Logger.log('LMS module sheets setup complete.');
+}
+
 function getClientConfigJson() {
   var props = PropertiesService.getScriptProperties();
 

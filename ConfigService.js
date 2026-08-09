@@ -274,6 +274,86 @@ var DB_SCHEMA = {
     'round1Score',
     'round2Score',
     'placedAtLevel'
+  ],
+
+  Modules: [
+    'moduleId',
+    'title',
+    'topic',
+    'description',
+    'moduleOrder',
+    'status',
+    'badgeImageUrl',
+    'createdAt',
+    'updatedAt'
+  ],
+
+  ModuleVideos: [
+    'videoId',
+    'moduleId',
+    'section',
+    'youtubeUrl',
+    'title',
+    'videoOrder',
+    'createdAt'
+  ],
+
+  ModuleQuiz: [
+    'questionId',
+    'moduleId',
+    'section',
+    'question',
+    'optionsJson',
+    'correctIndex',
+    'questionOrder',
+    'createdAt'
+  ],
+
+  ModuleScenarios: [
+    'linkId',
+    'moduleId',
+    'scenarioId',
+    'createdAt'
+  ],
+
+  ModuleForum: [
+    'postId',
+    'moduleId',
+    'userId',
+    'userName',
+    'parentPostId',
+    'body',
+    'editedAt',
+    'createdAt'
+  ],
+
+  ModuleProgress: [
+    'progressId',
+    'userId',
+    'moduleId',
+    'introVideoWatched',
+    'introForumPosted',
+    'introCompleted',
+    'explanationVideosWatched',
+    'quizScore',
+    'quizLastAttemptAt',
+    'quizAttempts',
+    'quizPassed',
+    'explanationCompleted',
+    'scenariosPassed',
+    'applicationCompleted',
+    'evalScore',
+    'evalLastAttemptAt',
+    'evalAttempts',
+    'evalPassed',
+    'badgeEarned',
+    'badgeEarnedAt',
+    'timeSpentIntroSec',
+    'timeSpentExplanationSec',
+    'timeSpentApplicationSec',
+    'timeSpentEvalSec',
+    'completedAt',
+    'updatedAt'
   ]
 };
 

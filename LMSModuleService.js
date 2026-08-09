@@ -1,0 +1,929 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// LMSModuleService.js
+// Backend for the structured LMS module system.
+// 4 sections per module (Intro → Explanation → Application → Evaluation).
+// Each section locks until the previous is completed.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function mergeObjects_(base, patch) {
+  var out = {};
+  Object.keys(base).forEach(function(k) { out[k] = base[k]; });
+  Object.keys(patch).forEach(function(k) { out[k] = patch[k]; });
+  return out;
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+var LMS_QUIZ_COOLDOWN_MS   = 15 * 60 * 1000; // 15-minute cooldown between quiz retries
+var LMS_MIN_PASS_SCORE     = 85;              // % required to pass quiz / evaluation
+var LMS_MIN_SCENARIOS      = 3;              // scenarios needed to unlock evaluation
+var LMS_FORUM_MIN_WORDS    = 3;              // minimum words in a forum post
+
+// ── Setup ─────────────────────────────────────────────────────────────────────
+
+function setupLMSModuleSheets() {
+  var ss = dbGetSpreadsheet_();
+  var sheets = [
+    'Modules', 'ModuleVideos', 'ModuleQuiz',
+    'ModuleScenarios', 'ModuleForum', 'ModuleProgress'
+  ];
+
+  sheets.forEach(function(name) {
+    if (!ss.getSheetByName(name)) {
+      var s = ss.insertSheet(name);
+      s.appendRow(DB_SCHEMA[name]);
+      var hdr = s.getRange(1, 1, 1, DB_SCHEMA[name].length);
+      hdr.setFontWeight('bold');
+      hdr.setBackground('#2d2d2d');
+      Logger.log('Created sheet: ' + name);
+    } else {
+      Logger.log('Sheet already exists: ' + name);
+    }
+  });
+}
+
+// ── Internal helpers ──────────────────────────────────────────────────────────
+
+function lmsGetProgress_(userId, moduleId) {
+  var rows = dbReadAll_('ModuleProgress').filter(function(r) {
+    return String(r.userId || '') === String(userId) &&
+           String(r.moduleId || '') === String(moduleId);
+  });
+  return rows[0] || null;
+}
+
+function lmsEnsureProgress_(userId, moduleId) {
+  var existing = lmsGetProgress_(userId, moduleId);
+  if (existing) return existing;
+
+  var rec = {
+    progressId:               uuid_('MP'),
+    userId:                   userId,
+    moduleId:                 moduleId,
+    introVideoWatched:        false,
+    introForumPosted:         false,
+    introCompleted:           false,
+    explanationVideosWatched: '[]',
+    quizScore:                0,
+    quizLastAttemptAt:        '',
+    quizAttempts:             0,
+    quizPassed:               false,
+    explanationCompleted:     false,
+    scenariosPassed:          0,
+    applicationCompleted:     false,
+    evalScore:                0,
+    evalLastAttemptAt:        '',
+    evalAttempts:             0,
+    evalPassed:               false,
+    badgeEarned:              false,
+    badgeEarnedAt:            '',
+    timeSpentIntroSec:        0,
+    timeSpentExplanationSec:  0,
+    timeSpentApplicationSec:  0,
+    timeSpentEvalSec:         0,
+    completedAt:              '',
+    updatedAt:                now_()
+  };
+
+  dbAppend_('ModuleProgress', rec);
+  return rec;
+}
+
+function lmsCheckCooldown_(lastAttemptAt) {
+  if (!lastAttemptAt) return null;
+  var last = new Date(lastAttemptAt).getTime();
+  var until = last + LMS_QUIZ_COOLDOWN_MS;
+  if (Date.now() < until) return new Date(until).toISOString();
+  return null;
+}
+
+function lmsSectionUnlocked_(progress, section) {
+  if (section === 'intro')        return true;
+  if (section === 'explanation')  return !!progress.introCompleted;
+  if (section === 'application')  return !!progress.explanationCompleted;
+  if (section === 'evaluation')   return !!progress.applicationCompleted;
+  return false;
+}
+
+function lmsScoreAnswers_(questionIds, answers, moduleId, section) {
+  var questions = dbReadAll_('ModuleQuiz').filter(function(q) {
+    return String(q.moduleId || '') === String(moduleId) &&
+           String(q.section  || '') === String(section);
+  });
+
+  if (!questions.length) return 0;
+
+  var answerMap = {};
+  (answers || []).forEach(function(a) { answerMap[a.questionId] = Number(a.selectedIndex); });
+
+  var correct = 0;
+  questions.forEach(function(q) {
+    if (answerMap[q.questionId] !== undefined &&
+        Number(answerMap[q.questionId]) === Number(q.correctIndex)) {
+      correct++;
+    }
+  });
+
+  return Math.round((correct / questions.length) * 100);
+}
+
+// ── ADMIN: Module CRUD ────────────────────────────────────────────────────────
+
+function apiAdminSaveModule(sessionToken, payload) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN']);
+    payload = payload || {};
+
+    var title = String(payload.title || '').trim();
+    if (!title) throw new Error('Module title is required.');
+
+    var result = dbWithScriptLock_(function() {
+      var now = now_();
+      if (payload.moduleId) {
+        var existing = dbFindOne_('Modules', 'moduleId', payload.moduleId);
+        if (!existing) throw new Error('Module not found.');
+        var patch = {
+          title:         title,
+          topic:         String(payload.topic       || existing.topic       || '').trim(),
+          description:   String(payload.description || existing.description || '').trim(),
+          moduleOrder:   payload.moduleOrder !== undefined ? Number(payload.moduleOrder) : Number(existing.moduleOrder || 0),
+          status:        String(payload.status       || existing.status      || 'DRAFT'),
+          badgeImageUrl: String(payload.badgeImageUrl || existing.badgeImageUrl || '').trim(),
+          updatedAt:     now
+        };
+        dbUpdateByRow_('Modules', existing.__rowNumber, patch);
+        return mergeObjects_(existing, patch);
+      } else {
+        var newModule = {
+          moduleId:      uuid_('MOD'),
+          title:         title,
+          topic:         String(payload.topic       || '').trim(),
+          description:   String(payload.description || '').trim(),
+          moduleOrder:   Number(payload.moduleOrder || 0),
+          status:        'DRAFT',
+          badgeImageUrl: String(payload.badgeImageUrl || '').trim(),
+          createdAt:     now,
+          updatedAt:     now
+        };
+        dbAppend_('Modules', newModule);
+        return newModule;
+      }
+    });
+
+    return { ok: true, module: result };
+  } catch(err) {
+    return apiError_('apiAdminSaveModule', err);
+  }
+}
+
+function apiAdminListModules(sessionToken) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
+    var modules  = dbReadAll_('Modules').sort(function(a, b) {
+      return Number(a.moduleOrder || 0) - Number(b.moduleOrder || 0);
+    });
+    var videos    = dbReadAll_('ModuleVideos');
+    var questions = dbReadAll_('ModuleQuiz');
+    var scenarios = dbReadAll_('ModuleScenarios');
+
+    var result = modules.map(function(m) {
+      return {
+        moduleId:      m.moduleId,
+        title:         m.title,
+        topic:         m.topic,
+        description:   m.description,
+        moduleOrder:   m.moduleOrder,
+        status:        m.status,
+        badgeImageUrl: m.badgeImageUrl,
+        createdAt:     m.createdAt,
+        videoCount:    videos.filter(function(v)    { return v.moduleId === m.moduleId; }).length,
+        questionCount: questions.filter(function(q)  { return q.moduleId === m.moduleId; }).length,
+        scenarioCount: scenarios.filter(function(s)  { return s.moduleId === m.moduleId; }).length
+      };
+    });
+
+    return { ok: true, modules: result };
+  } catch(err) {
+    return apiError_('apiAdminListModules', err);
+  }
+}
+
+function apiAdminDeleteModule(sessionToken, payload) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN']);
+    var moduleId = String((payload || {}).moduleId || '');
+    if (!moduleId) throw new Error('moduleId required.');
+
+    dbWithScriptLock_(function() {
+      var m = dbFindOne_('Modules', 'moduleId', moduleId);
+      if (!m) throw new Error('Module not found.');
+      dbDeleteByRow_('Modules', m.__rowNumber);
+
+      ['ModuleVideos','ModuleQuiz','ModuleScenarios','ModuleForum','ModuleProgress'].forEach(function(sheet) {
+        var rows = dbReadAll_(sheet).filter(function(r) { return String(r.moduleId || '') === moduleId; });
+        rows.slice().reverse().forEach(function(r) { dbDeleteByRow_(sheet, r.__rowNumber); });
+      });
+    });
+
+    return { ok: true };
+  } catch(err) {
+    return apiError_('apiAdminDeleteModule', err);
+  }
+}
+
+// ── ADMIN: Videos ─────────────────────────────────────────────────────────────
+
+function apiAdminSaveModuleVideo(sessionToken, payload) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN']);
+    payload = payload || {};
+
+    var youtubeUrl = String(payload.youtubeUrl || '').trim();
+    var title      = String(payload.title      || '').trim();
+    var section    = String(payload.section    || '').trim();
+    var moduleId   = String(payload.moduleId   || '').trim();
+
+    if (!youtubeUrl) throw new Error('youtubeUrl is required.');
+    if (!moduleId)   throw new Error('moduleId is required.');
+    if (section !== 'intro' && section !== 'explanation') throw new Error('section must be intro or explanation.');
+
+    var result = dbWithScriptLock_(function() {
+      var now = now_();
+      if (payload.videoId) {
+        var existing = dbFindOne_('ModuleVideos', 'videoId', payload.videoId);
+        if (!existing) throw new Error('Video not found.');
+        var patch = {
+          youtubeUrl:  youtubeUrl,
+          title:       title,
+          section:     section,
+          videoOrder:  payload.videoOrder !== undefined ? Number(payload.videoOrder) : Number(existing.videoOrder || 0)
+        };
+        dbUpdateByRow_('ModuleVideos', existing.__rowNumber, patch);
+        return mergeObjects_(existing, patch);
+      } else {
+        var newVid = {
+          videoId:    uuid_('VID'),
+          moduleId:   moduleId,
+          section:    section,
+          youtubeUrl: youtubeUrl,
+          title:      title,
+          videoOrder: Number(payload.videoOrder || 0),
+          createdAt:  now
+        };
+        dbAppend_('ModuleVideos', newVid);
+        return newVid;
+      }
+    });
+
+    return { ok: true, video: result };
+  } catch(err) {
+    return apiError_('apiAdminSaveModuleVideo', err);
+  }
+}
+
+function apiAdminDeleteModuleVideo(sessionToken, payload) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN']);
+    var videoId = String((payload || {}).videoId || '');
+    if (!videoId) throw new Error('videoId required.');
+
+    dbWithScriptLock_(function() {
+      var v = dbFindOne_('ModuleVideos', 'videoId', videoId);
+      if (!v) throw new Error('Video not found.');
+      dbDeleteByRow_('ModuleVideos', v.__rowNumber);
+    });
+
+    return { ok: true };
+  } catch(err) {
+    return apiError_('apiAdminDeleteModuleVideo', err);
+  }
+}
+
+function apiAdminListModuleVideos(sessionToken, moduleId) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN']);
+    moduleId = String(moduleId || '');
+    if (!moduleId) throw new Error('moduleId required.');
+
+    var videos = dbReadAll_('ModuleVideos')
+      .filter(function(v) { return String(v.moduleId || '') === moduleId; })
+      .sort(function(a, b) { return Number(a.videoOrder || 0) - Number(b.videoOrder || 0); });
+
+    return { ok: true, videos: videos };
+  } catch(err) {
+    return apiError_('apiAdminListModuleVideos', err);
+  }
+}
+
+// ── ADMIN: Quiz ───────────────────────────────────────────────────────────────
+
+function apiAdminSaveModuleQuestion(sessionToken, payload) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN']);
+    payload = payload || {};
+
+    var question  = String(payload.question  || '').trim();
+    var moduleId  = String(payload.moduleId  || '').trim();
+    var section   = String(payload.section   || '').trim();
+
+    if (!question)  throw new Error('question is required.');
+    if (!moduleId)  throw new Error('moduleId is required.');
+    if (section !== 'explanation' && section !== 'evaluation') {
+      throw new Error('section must be explanation or evaluation.');
+    }
+
+    var options = Array.isArray(payload.options) ? payload.options : [];
+    if (options.length < 2) throw new Error('At least 2 options required.');
+    var correctIndex = Number(payload.correctIndex || 0);
+    if (correctIndex < 0 || correctIndex >= options.length) throw new Error('Invalid correctIndex.');
+
+    var result = dbWithScriptLock_(function() {
+      var now = now_();
+      if (payload.questionId) {
+        var existing = dbFindOne_('ModuleQuiz', 'questionId', payload.questionId);
+        if (!existing) throw new Error('Question not found.');
+        var patch = {
+          question:      question,
+          section:       section,
+          optionsJson:   JSON.stringify(options),
+          correctIndex:  correctIndex,
+          questionOrder: payload.questionOrder !== undefined ? Number(payload.questionOrder) : Number(existing.questionOrder || 0)
+        };
+        dbUpdateByRow_('ModuleQuiz', existing.__rowNumber, patch);
+        return mergeObjects_(existing, patch);
+      } else {
+        var newQ = {
+          questionId:    uuid_('QST'),
+          moduleId:      moduleId,
+          section:       section,
+          question:      question,
+          optionsJson:   JSON.stringify(options),
+          correctIndex:  correctIndex,
+          questionOrder: Number(payload.questionOrder || 0),
+          createdAt:     now
+        };
+        dbAppend_('ModuleQuiz', newQ);
+        return newQ;
+      }
+    });
+
+    return { ok: true, question: result };
+  } catch(err) {
+    return apiError_('apiAdminSaveModuleQuestion', err);
+  }
+}
+
+function apiAdminDeleteModuleQuestion(sessionToken, payload) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN']);
+    var questionId = String((payload || {}).questionId || '');
+    if (!questionId) throw new Error('questionId required.');
+
+    dbWithScriptLock_(function() {
+      var q = dbFindOne_('ModuleQuiz', 'questionId', questionId);
+      if (!q) throw new Error('Question not found.');
+      dbDeleteByRow_('ModuleQuiz', q.__rowNumber);
+    });
+
+    return { ok: true };
+  } catch(err) {
+    return apiError_('apiAdminDeleteModuleQuestion', err);
+  }
+}
+
+function apiAdminListModuleQuestions(sessionToken, moduleId) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN']);
+    moduleId = String(moduleId || '');
+    if (!moduleId) throw new Error('moduleId required.');
+
+    var questions = dbReadAll_('ModuleQuiz')
+      .filter(function(q) { return String(q.moduleId || '') === moduleId; })
+      .sort(function(a, b) { return Number(a.questionOrder || 0) - Number(b.questionOrder || 0); })
+      .map(function(q) {
+        var opts = [];
+        try { opts = JSON.parse(q.optionsJson || '[]'); } catch(e) {}
+        return {
+          questionId:    q.questionId,
+          moduleId:      q.moduleId,
+          section:       q.section,
+          question:      q.question,
+          options:       opts,
+          correctIndex:  Number(q.correctIndex || 0),
+          questionOrder: Number(q.questionOrder || 0),
+          createdAt:     q.createdAt
+        };
+      });
+
+    return { ok: true, questions: questions };
+  } catch(err) {
+    return apiError_('apiAdminListModuleQuestions', err);
+  }
+}
+
+// ── ADMIN: Scenario Tagging ───────────────────────────────────────────────────
+
+function apiAdminLinkModuleScenario(sessionToken, payload) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN']);
+    var moduleId   = String((payload || {}).moduleId   || '');
+    var scenarioId = String((payload || {}).scenarioId || '');
+    if (!moduleId || !scenarioId) throw new Error('moduleId and scenarioId required.');
+
+    dbWithScriptLock_(function() {
+      var existing = dbReadAll_('ModuleScenarios').filter(function(r) {
+        return String(r.moduleId || '') === moduleId && String(r.scenarioId || '') === scenarioId;
+      });
+      if (existing.length) return; // already linked
+      dbAppend_('ModuleScenarios', {
+        linkId:     uuid_('LSC'),
+        moduleId:   moduleId,
+        scenarioId: scenarioId,
+        createdAt:  now_()
+      });
+    });
+
+    return { ok: true };
+  } catch(err) {
+    return apiError_('apiAdminLinkModuleScenario', err);
+  }
+}
+
+function apiAdminUnlinkModuleScenario(sessionToken, payload) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN']);
+    var moduleId   = String((payload || {}).moduleId   || '');
+    var scenarioId = String((payload || {}).scenarioId || '');
+    if (!moduleId || !scenarioId) throw new Error('moduleId and scenarioId required.');
+
+    dbWithScriptLock_(function() {
+      var rows = dbReadAll_('ModuleScenarios').filter(function(r) {
+        return String(r.moduleId || '') === moduleId && String(r.scenarioId || '') === scenarioId;
+      });
+      rows.forEach(function(r) { dbDeleteByRow_('ModuleScenarios', r.__rowNumber); });
+    });
+
+    return { ok: true };
+  } catch(err) {
+    return apiError_('apiAdminUnlinkModuleScenario', err);
+  }
+}
+
+function apiAdminGetModuleScenarios(sessionToken, moduleId) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN']);
+    moduleId = String(moduleId || '');
+    if (!moduleId) throw new Error('moduleId required.');
+
+    var links     = dbReadAll_('ModuleScenarios').filter(function(r) { return String(r.moduleId || '') === moduleId; });
+    var linkedIds = links.map(function(r) { return String(r.scenarioId); });
+    var allScenarios = dbReadAll_('Scenarios');
+
+    var linked    = allScenarios.filter(function(s) { return linkedIds.indexOf(String(s.scenarioId)) !== -1; });
+    var available = allScenarios.filter(function(s) { return linkedIds.indexOf(String(s.scenarioId)) === -1; });
+
+    return { ok: true, linked: linked, available: available };
+  } catch(err) {
+    return apiError_('apiAdminGetModuleScenarios', err);
+  }
+}
+
+// ── FORUM ─────────────────────────────────────────────────────────────────────
+
+function apiModuleForumGetPosts(sessionToken, moduleId) {
+  try {
+    AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    moduleId = String(moduleId || '');
+    if (!moduleId) throw new Error('moduleId required.');
+
+    var posts = dbReadAll_('ModuleForum')
+      .filter(function(p) { return String(p.moduleId || '') === moduleId; })
+      .sort(function(a, b) { return String(a.createdAt || '').localeCompare(String(b.createdAt || '')); });
+
+    return { ok: true, posts: posts };
+  } catch(err) {
+    return apiError_('apiModuleForumGetPosts', err);
+  }
+}
+
+function apiModuleForumSavePost(sessionToken, payload) {
+  try {
+    var caller = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    payload = payload || {};
+
+    var moduleId     = String(payload.moduleId     || '').trim();
+    var body         = String(payload.body         || '').trim();
+    var parentPostId = String(payload.parentPostId || '').trim();
+
+    if (!moduleId) throw new Error('moduleId required.');
+    if (!body)     throw new Error('Post body required.');
+
+    // Enforce 3-word minimum
+    if (body.split(/\s+/).filter(function(w) { return w.length > 0; }).length <= LMS_FORUM_MIN_WORDS) {
+      throw new Error('Post must be more than ' + LMS_FORUM_MIN_WORDS + ' words.');
+    }
+
+    var result = dbWithScriptLock_(function() {
+      var now = now_();
+      if (payload.postId) {
+        // Edit — only own post (admin can edit any)
+        var existing = dbFindOne_('ModuleForum', 'postId', payload.postId);
+        if (!existing) throw new Error('Post not found.');
+        if (String(caller.role).toUpperCase() !== 'ADMIN' &&
+            String(existing.userId) !== String(caller.userId)) {
+          throw new Error('You can only edit your own posts.');
+        }
+        var patch = { body: body, editedAt: now };
+        dbUpdateByRow_('ModuleForum', existing.__rowNumber, patch);
+        return mergeObjects_(existing, patch);
+      } else {
+        var newPost = {
+          postId:       uuid_('POS'),
+          moduleId:     moduleId,
+          userId:       caller.userId,
+          userName:     caller.name || caller.email || '',
+          parentPostId: parentPostId,
+          body:         body,
+          editedAt:     '',
+          createdAt:    now
+        };
+        dbAppend_('ModuleForum', newPost);
+
+        // Mark forum participation on progress if top-level post
+        if (!parentPostId) {
+          var prog = lmsGetProgress_(caller.userId, moduleId);
+          if (prog && !prog.introForumPosted) {
+            dbUpdateByRow_('ModuleProgress', prog.__rowNumber, { introForumPosted: true, updatedAt: now });
+            // Check if intro is now complete
+            if (prog.introVideoWatched) {
+              dbUpdateByRow_('ModuleProgress', prog.__rowNumber, { introCompleted: true, updatedAt: now });
+            }
+          }
+        }
+
+        return newPost;
+      }
+    });
+
+    return { ok: true, post: result };
+  } catch(err) {
+    return apiError_('apiModuleForumSavePost', err);
+  }
+}
+
+function apiModuleForumDeletePost(sessionToken, payload) {
+  try {
+    var caller = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    var postId = String((payload || {}).postId || '');
+    if (!postId) throw new Error('postId required.');
+
+    dbWithScriptLock_(function() {
+      var p = dbFindOne_('ModuleForum', 'postId', postId);
+      if (!p) throw new Error('Post not found.');
+      if (String(caller.role).toUpperCase() !== 'ADMIN' &&
+          String(p.userId) !== String(caller.userId)) {
+        throw new Error('You can only delete your own posts.');
+      }
+      dbDeleteByRow_('ModuleForum', p.__rowNumber);
+    });
+
+    return { ok: true };
+  } catch(err) {
+    return apiError_('apiModuleForumDeletePost', err);
+  }
+}
+
+// ── STUDENT: Module data ──────────────────────────────────────────────────────
+
+function apiModuleGetAll(sessionToken) {
+  try {
+    var caller  = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    var modules = dbReadAll_('Modules')
+      .filter(function(m) { return String(m.status || '') === 'ACTIVE'; })
+      .sort(function(a, b) { return Number(a.moduleOrder || 0) - Number(b.moduleOrder || 0); });
+
+    var allProgress = dbReadAll_('ModuleProgress').filter(function(r) {
+      return String(r.userId || '') === String(caller.userId);
+    });
+
+    var progressMap = {};
+    allProgress.forEach(function(p) { progressMap[p.moduleId] = p; });
+
+    var result = modules.map(function(m, idx) {
+      var prog = progressMap[m.moduleId] || null;
+      // Module is unlocked if it's first, or previous module is completed
+      var prevModule   = idx > 0 ? modules[idx - 1] : null;
+      var prevProgress = prevModule ? progressMap[prevModule.moduleId] : null;
+      var unlocked     = idx === 0 || !!(prevProgress && prevProgress.completedAt);
+
+      return {
+        moduleId:      m.moduleId,
+        title:         m.title,
+        topic:         m.topic,
+        description:   m.description,
+        moduleOrder:   Number(m.moduleOrder || 0),
+        badgeImageUrl: m.badgeImageUrl,
+        unlocked:      unlocked,
+        completed:     !!(prog && prog.completedAt),
+        badgeEarned:   !!(prog && prog.badgeEarned),
+        sections: {
+          intro:       { unlocked: unlocked,                                   completed: !!(prog && prog.introCompleted) },
+          explanation: { unlocked: !!(prog && prog.introCompleted),             completed: !!(prog && prog.explanationCompleted) },
+          application: { unlocked: !!(prog && prog.explanationCompleted),       completed: !!(prog && prog.applicationCompleted) },
+          evaluation:  { unlocked: !!(prog && prog.applicationCompleted),       completed: !!(prog && prog.evalPassed) }
+        }
+      };
+    });
+
+    return { ok: true, modules: result };
+  } catch(err) {
+    return apiError_('apiModuleGetAll', err);
+  }
+}
+
+function apiModuleGetDetail(sessionToken, moduleId) {
+  try {
+    var caller = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    moduleId = String(moduleId || '');
+    if (!moduleId) throw new Error('moduleId required.');
+
+    var module = dbFindOne_('Modules', 'moduleId', moduleId);
+    if (!module) throw new Error('Module not found.');
+
+    var videos = dbReadAll_('ModuleVideos')
+      .filter(function(v) { return String(v.moduleId || '') === moduleId; })
+      .sort(function(a, b) { return Number(a.videoOrder || 0) - Number(b.videoOrder || 0); });
+
+    var questions = dbReadAll_('ModuleQuiz')
+      .filter(function(q) { return String(q.moduleId || '') === moduleId; })
+      .sort(function(a, b) { return Number(a.questionOrder || 0) - Number(b.questionOrder || 0); })
+      .map(function(q) {
+        var opts = [];
+        try { opts = JSON.parse(q.optionsJson || '[]'); } catch(e) {}
+        return {
+          questionId:    q.questionId,
+          section:       q.section,
+          question:      q.question,
+          options:       opts,
+          questionOrder: Number(q.questionOrder || 0)
+          // correctIndex intentionally omitted for students
+        };
+      });
+
+    var linkedIds  = dbReadAll_('ModuleScenarios')
+      .filter(function(r) { return String(r.moduleId || '') === moduleId; })
+      .map(function(r) { return String(r.scenarioId); });
+
+    var scenarios = dbReadAll_('Scenarios').filter(function(s) {
+      return linkedIds.indexOf(String(s.scenarioId)) !== -1 && String(s.isActive) !== 'false';
+    });
+
+    var prog = lmsGetProgress_(caller.userId, moduleId);
+
+    var watchedIds = [];
+    if (prog) { try { watchedIds = JSON.parse(prog.explanationVideosWatched || '[]'); } catch(e) {} }
+
+    var cooldownUntil = prog ? lmsCheckCooldown_(prog.quizLastAttemptAt) : null;
+    var evalCooldown  = prog ? lmsCheckCooldown_(prog.evalLastAttemptAt)  : null;
+
+    return {
+      ok: true,
+      module: {
+        moduleId:      module.moduleId,
+        title:         module.title,
+        topic:         module.topic,
+        description:   module.description,
+        badgeImageUrl: module.badgeImageUrl
+      },
+      videos:    videos,
+      questions: questions,
+      scenarios: scenarios,
+      progress: prog ? {
+        introVideoWatched:       !!prog.introVideoWatched,
+        introForumPosted:        !!prog.introForumPosted,
+        introCompleted:          !!prog.introCompleted,
+        explanationVideosWatched: watchedIds,
+        quizScore:               Number(prog.quizScore   || 0),
+        quizAttempts:            Number(prog.quizAttempts || 0),
+        quizPassed:              !!prog.quizPassed,
+        quizCooldownUntil:       cooldownUntil,
+        explanationCompleted:    !!prog.explanationCompleted,
+        scenariosPassed:         Number(prog.scenariosPassed || 0),
+        applicationCompleted:    !!prog.applicationCompleted,
+        evalScore:               Number(prog.evalScore    || 0),
+        evalAttempts:            Number(prog.evalAttempts  || 0),
+        evalPassed:              !!prog.evalPassed,
+        evalCooldownUntil:       evalCooldown,
+        badgeEarned:             !!prog.badgeEarned
+      } : null
+    };
+  } catch(err) {
+    return apiError_('apiModuleGetDetail', err);
+  }
+}
+
+// ── STUDENT: Progress actions ─────────────────────────────────────────────────
+
+function apiModuleMarkVideoWatched(sessionToken, payload) {
+  try {
+    var caller   = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    var moduleId = String((payload || {}).moduleId || '');
+    var videoId  = String((payload || {}).videoId  || '');
+    if (!moduleId || !videoId) throw new Error('moduleId and videoId required.');
+
+    var video = dbFindOne_('ModuleVideos', 'videoId', videoId);
+    if (!video) throw new Error('Video not found.');
+
+    var updated = dbWithScriptLock_(function() {
+      var prog = lmsEnsureProgress_(caller.userId, moduleId);
+      var now  = now_();
+
+      if (video.section === 'intro') {
+        if (!prog.introVideoWatched) {
+          var patch = { introVideoWatched: true, updatedAt: now };
+          // Complete intro if also posted in forum
+          if (prog.introForumPosted) patch.introCompleted = true;
+          dbUpdateByRow_('ModuleProgress', prog.__rowNumber, patch);
+          return mergeObjects_(prog, patch);
+        }
+      } else if (video.section === 'explanation') {
+        var watched = [];
+        try { watched = JSON.parse(prog.explanationVideosWatched || '[]'); } catch(e) {}
+        if (watched.indexOf(videoId) === -1) watched.push(videoId);
+
+        // Check if ALL explanation videos are now watched
+        var allExpVideos = dbReadAll_('ModuleVideos').filter(function(v) {
+          return String(v.moduleId || '') === moduleId && v.section === 'explanation';
+        });
+        var allWatched = allExpVideos.every(function(v) { return watched.indexOf(String(v.videoId)) !== -1; });
+
+        var patch2 = { explanationVideosWatched: JSON.stringify(watched), updatedAt: now };
+        dbUpdateByRow_('ModuleProgress', prog.__rowNumber, patch2);
+        return mergeObjects_(prog, patch2);
+      }
+
+      return prog;
+    });
+
+    return { ok: true, progress: updated };
+  } catch(err) {
+    return apiError_('apiModuleMarkVideoWatched', err);
+  }
+}
+
+function apiModuleSubmitQuiz(sessionToken, payload) {
+  try {
+    var caller  = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    payload     = payload || {};
+    var moduleId = String(payload.moduleId || '');
+    var section  = String(payload.section  || ''); // 'explanation' or 'evaluation'
+    var answers  = Array.isArray(payload.answers) ? payload.answers : [];
+
+    if (!moduleId) throw new Error('moduleId required.');
+    if (section !== 'explanation' && section !== 'evaluation') throw new Error('Invalid section.');
+
+    var result = dbWithScriptLock_(function() {
+      var prog = lmsEnsureProgress_(caller.userId, moduleId);
+      var now  = now_();
+
+      // Check section is unlocked
+      if (!lmsSectionUnlocked_(prog, section)) throw new Error('Section not yet unlocked.');
+
+      // Enforce cooldown
+      var lastAt = section === 'explanation' ? prog.quizLastAttemptAt : prog.evalLastAttemptAt;
+      var cooldown = lmsCheckCooldown_(lastAt);
+      if (cooldown) return { cooldownUntil: cooldown, blocked: true };
+
+      var score  = lmsScoreAnswers_(answers.map(function(a){ return a.questionId; }), answers, moduleId, section);
+      var passed = score >= LMS_MIN_PASS_SCORE;
+      var patch  = { updatedAt: now };
+
+      if (section === 'explanation') {
+        patch.quizScore          = score;
+        patch.quizLastAttemptAt  = now;
+        patch.quizAttempts       = Number(prog.quizAttempts || 0) + 1;
+        if (passed) {
+          patch.quizPassed           = true;
+          patch.explanationCompleted = true;
+        }
+      } else {
+        patch.evalScore         = score;
+        patch.evalLastAttemptAt = now;
+        patch.evalAttempts      = Number(prog.evalAttempts || 0) + 1;
+        if (passed) {
+          patch.evalPassed  = true;
+          patch.badgeEarned = true;
+          patch.badgeEarnedAt = now;
+          patch.completedAt   = now;
+        }
+      }
+
+      dbUpdateByRow_('ModuleProgress', prog.__rowNumber, patch);
+      return { score: score, passed: passed, blocked: false };
+    });
+
+    return { ok: true, score: result.score, passed: result.passed, cooldownUntil: result.cooldownUntil || null };
+  } catch(err) {
+    return apiError_('apiModuleSubmitQuiz', err);
+  }
+}
+
+function apiModuleRecordScenarioPassed(sessionToken, payload) {
+  try {
+    var caller   = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    var moduleId = String((payload || {}).moduleId || '');
+    if (!moduleId) throw new Error('moduleId required.');
+
+    var updated = dbWithScriptLock_(function() {
+      var prog = lmsEnsureProgress_(caller.userId, moduleId);
+      var now  = now_();
+
+      if (!lmsSectionUnlocked_(prog, 'application')) throw new Error('Application section not yet unlocked.');
+
+      var count = Number(prog.scenariosPassed || 0) + 1;
+      var patch = { scenariosPassed: count, updatedAt: now };
+      if (count >= LMS_MIN_SCENARIOS) patch.applicationCompleted = true;
+
+      dbUpdateByRow_('ModuleProgress', prog.__rowNumber, patch);
+      return mergeObjects_(prog, patch);
+    });
+
+    return { ok: true, scenariosPassed: Number(updated.scenariosPassed), applicationCompleted: !!updated.applicationCompleted };
+  } catch(err) {
+    return apiError_('apiModuleRecordScenarioPassed', err);
+  }
+}
+
+function apiModuleLogTime(sessionToken, payload) {
+  try {
+    var caller   = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    var moduleId = String((payload || {}).moduleId || '');
+    var section  = String((payload || {}).section  || '');
+    var seconds  = Number((payload || {}).seconds  || 0);
+
+    if (!moduleId || !section || seconds <= 0) return { ok: true }; // silently ignore
+
+    dbWithScriptLock_(function() {
+      var prog = lmsEnsureProgress_(caller.userId, moduleId);
+      var field = {
+        intro:       'timeSpentIntroSec',
+        explanation: 'timeSpentExplanationSec',
+        application: 'timeSpentApplicationSec',
+        evaluation:  'timeSpentEvalSec'
+      }[section];
+      if (!field) return;
+      var patch = { updatedAt: now_() };
+      patch[field] = Number(prog[field] || 0) + seconds;
+      dbUpdateByRow_('ModuleProgress', prog.__rowNumber, patch);
+    });
+
+    return { ok: true };
+  } catch(err) {
+    return apiError_('apiModuleLogTime', err);
+  }
+}
+
+// ── ADMIN: Progress overview ──────────────────────────────────────────────────
+
+function apiAdminGetModuleProgress(sessionToken, moduleId) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
+    moduleId = String(moduleId || '');
+    if (!moduleId) throw new Error('moduleId required.');
+
+    var allProgress = dbReadAll_('ModuleProgress').filter(function(r) {
+      return String(r.moduleId || '') === moduleId;
+    });
+
+    var users = dbReadAll_('Users');
+    var userMap = {};
+    users.forEach(function(u) { userMap[u.userId] = u; });
+
+    var result = allProgress.map(function(p) {
+      var u = userMap[p.userId] || {};
+      return {
+        userId:                  p.userId,
+        name:                    u.name  || u.email || '',
+        email:                   u.email || '',
+        introCompleted:          !!p.introCompleted,
+        explanationCompleted:    !!p.explanationCompleted,
+        quizScore:               Number(p.quizScore   || 0),
+        quizAttempts:            Number(p.quizAttempts || 0),
+        applicationCompleted:    !!p.applicationCompleted,
+        scenariosPassed:         Number(p.scenariosPassed || 0),
+        evalScore:               Number(p.evalScore    || 0),
+        evalAttempts:            Number(p.evalAttempts  || 0),
+        badgeEarned:             !!p.badgeEarned,
+        timeSpentTotalSec:       Number(p.timeSpentIntroSec || 0) + Number(p.timeSpentExplanationSec || 0) +
+                                 Number(p.timeSpentApplicationSec || 0) + Number(p.timeSpentEvalSec || 0),
+        completedAt:             p.completedAt || ''
+      };
+    });
+
+    return { ok: true, progress: result };
+  } catch(err) {
+    return apiError_('apiAdminGetModuleProgress', err);
+  }
+}
