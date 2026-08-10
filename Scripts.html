@@ -1117,6 +1117,7 @@
         '<button class="btn ' + (activeTab === 'invites'      ? 'primary' : 'secondary') + '" onclick="renderAdminInvites()">✉ Invites</button>' +
         '<button class="btn ' + (activeTab === 'subscriptions'? 'primary' : 'secondary') + '" onclick="renderAdminSubscriptions()">💳 Subscriptions</button>' +
         '<button class="btn secondary" onclick="window.renderFirstFlight && window.renderFirstFlight()" title="Preview the First Flight onboarding screen">🛫 Preview First Flight</button>' +
+        '<button class="btn ' + (activeTab === 'modules' ? 'primary' : 'secondary') + '" onclick="renderAdminModules()">📚 Modules</button>' +
       '</div>';
   }
 
@@ -17492,6 +17493,556 @@
   window.renderTeaExam   = renderTeaExam;
   window._teaSubmit      = _submit;
   window._teaMicToggle   = _teaMicToggle;
+
+  /***********************
+   * LMS MODULES ADMIN
+   ***********************/
+
+  // ── Module list ──────────────────────────────────────────────────────────────
+
+  function renderAdminModules() {
+    setActiveNav('Admin');
+    var _tok = _navToken;
+    byId('contentArea').innerHTML =
+      '<div class="panel">' + renderAdminTabs('modules') + _spinnerHtml('Loading modules...') + '</div>';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (_navToken !== _tok) return;
+        if (!res || !res.ok) { showContentError(res && res.error ? res.error : 'Could not load modules.'); return; }
+        _renderModuleList(res.modules || []);
+      })
+      .withFailureHandler(function(err) { if (_navToken !== _tok) return; handleServerError(err); })
+      .apiAdminListModules(AppState.sessionToken);
+  }
+
+  function _renderModuleList(modules) {
+    var rows = modules.map(function(m, i) {
+      var statusBadge = m.status === 'ACTIVE'
+        ? '<span style="color:var(--green);font-weight:600;">ACTIVE</span>'
+        : '<span style="color:var(--muted);">DRAFT</span>';
+      return '<tr>' +
+        '<td style="font-weight:600;">' + esc(m.title) + '</td>' +
+        '<td>' + esc(m.topic || '') + '</td>' +
+        '<td style="text-align:center;">' + m.moduleOrder + '</td>' +
+        '<td style="text-align:center;">' + statusBadge + '</td>' +
+        '<td style="text-align:center;">' + (m.videoCount || 0) + ' videos</td>' +
+        '<td style="text-align:center;">' + (m.questionCount || 0) + ' questions</td>' +
+        '<td style="text-align:center;">' + (m.scenarioCount || 0) + ' scenarios</td>' +
+        '<td style="text-align:center;">' +
+          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleEdit(\'' + esc(m.moduleId) + '\')">Edit</button>' +
+          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleVideos(\'' + esc(m.moduleId) + '\',\'' + esc(m.title) + '\')">Videos</button>' +
+          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleQuiz(\'' + esc(m.moduleId) + '\',\'' + esc(m.title) + '\')">Quiz</button>' +
+          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;" onclick="renderAdminModuleScenarios(\'' + esc(m.moduleId) + '\',\'' + esc(m.title) + '\')">Scenarios</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+
+    byId('contentArea').innerHTML =
+      '<div class="panel">' +
+        renderAdminTabs('modules') +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+          '<h3 style="margin:0;">Modules <span style="color:var(--muted);font-size:0.85rem;">(' + modules.length + ')</span></h3>' +
+          '<button class="btn primary" onclick="renderAdminModuleEdit(null)">+ New Module</button>' +
+        '</div>' +
+        '<div style="overflow-x:auto;">' +
+          '<table style="width:100%;border-collapse:collapse;">' +
+            '<thead><tr style="text-align:left;border-bottom:1px solid var(--line);">' +
+              '<th style="padding:8px 12px;">Title</th>' +
+              '<th style="padding:8px 12px;">Topic</th>' +
+              '<th style="padding:8px 12px;text-align:center;">Order</th>' +
+              '<th style="padding:8px 12px;text-align:center;">Status</th>' +
+              '<th style="padding:8px 12px;text-align:center;">Videos</th>' +
+              '<th style="padding:8px 12px;text-align:center;">Questions</th>' +
+              '<th style="padding:8px 12px;text-align:center;">Scenarios</th>' +
+              '<th style="padding:8px 12px;text-align:center;">Actions</th>' +
+            '</tr></thead>' +
+            '<tbody>' + (rows || '<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--muted);">No modules yet. Create your first one.</td></tr>') + '</tbody>' +
+          '</table>' +
+        '</div>' +
+      '</div>';
+  }
+
+  // ── Module create / edit form ─────────────────────────────────────────────
+
+  function renderAdminModuleEdit(moduleId) {
+    var _tok = _navToken;
+
+    if (!moduleId) {
+      _showModuleEditForm(null);
+      return;
+    }
+
+    byId('contentArea').innerHTML =
+      '<div class="panel">' + renderAdminTabs('modules') + _spinnerHtml('Loading module...') + '</div>';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (_navToken !== _tok) return;
+        if (!res || !res.ok) { showContentError(res && res.error ? res.error : 'Could not load module.'); return; }
+        var m = (res.modules || []).find(function(x) { return x.moduleId === moduleId; });
+        _showModuleEditForm(m || null);
+      })
+      .withFailureHandler(function(err) { if (_navToken !== _tok) return; handleServerError(err); })
+      .apiAdminListModules(AppState.sessionToken);
+  }
+
+  function _showModuleEditForm(m) {
+    var isNew = !m;
+    byId('contentArea').innerHTML =
+      '<div class="panel">' +
+        renderAdminTabs('modules') +
+        '<h3>' + (isNew ? 'New Module' : 'Edit Module') + '</h3>' +
+        '<div style="display:grid;gap:12px;max-width:520px;">' +
+          '<label style="font-size:0.8rem;color:var(--muted);">Title *</label>' +
+          '<input id="mfTitle" class="input" value="' + esc(m ? m.title : '') + '" placeholder="e.g. Weather Communication">' +
+          '<label style="font-size:0.8rem;color:var(--muted);">Topic</label>' +
+          '<input id="mfTopic" class="input" value="' + esc(m ? m.topic || '' : '') + '" placeholder="e.g. weather">' +
+          '<label style="font-size:0.8rem;color:var(--muted);">Description</label>' +
+          '<textarea id="mfDesc" class="input" rows="3" placeholder="Short description...">' + esc(m ? m.description || '' : '') + '</textarea>' +
+          '<label style="font-size:0.8rem;color:var(--muted);">Order (number)</label>' +
+          '<input id="mfOrder" class="input" type="number" value="' + (m ? m.moduleOrder : 0) + '">' +
+          '<label style="font-size:0.8rem;color:var(--muted);">Status</label>' +
+          '<select id="mfStatus" class="input">' +
+            '<option value="DRAFT"'  + ((!m || m.status === 'DRAFT')  ? ' selected' : '') + '>DRAFT</option>' +
+            '<option value="ACTIVE"' + ((m && m.status === 'ACTIVE')  ? ' selected' : '') + '>ACTIVE</option>' +
+          '</select>' +
+          '<label style="font-size:0.8rem;color:var(--muted);">Badge Image URL</label>' +
+          '<input id="mfBadge" class="input" value="' + esc(m ? m.badgeImageUrl || '' : '') + '" placeholder="https://...">' +
+        '</div>' +
+        '<div style="margin-top:20px;display:flex;gap:10px;">' +
+          '<button class="btn primary" onclick="adminSaveModule(' + (m ? '\'' + m.moduleId + '\'' : 'null') + ')">Save Module</button>' +
+          (m ? '<button class="btn secondary" style="color:var(--red);" onclick="adminDeleteModule(\'' + m.moduleId + '\',\'' + esc(m.title) + '\')">Delete</button>' : '') +
+          '<button class="btn secondary" onclick="renderAdminModules()">Cancel</button>' +
+        '</div>' +
+        '<div id="mfMsg" style="margin-top:12px;"></div>' +
+      '</div>';
+  }
+
+  function adminSaveModule(moduleId) {
+    var payload = {
+      title:        byId('mfTitle').value.trim(),
+      topic:        byId('mfTopic').value.trim(),
+      description:  byId('mfDesc').value.trim(),
+      moduleOrder:  Number(byId('mfOrder').value) || 0,
+      status:       byId('mfStatus').value,
+      badgeImageUrl: byId('mfBadge').value.trim()
+    };
+    if (moduleId) payload.moduleId = moduleId;
+
+    byId('mfMsg').innerHTML = _spinnerHtml('Saving...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { byId('mfMsg').innerHTML = '<span style="color:var(--red);">' + esc(res && res.error ? res.error : 'Error saving.') + '</span>'; return; }
+        renderAdminModules();
+      })
+      .withFailureHandler(function(err) { byId('mfMsg').innerHTML = '<span style="color:var(--red);">' + esc(String(err)) + '</span>'; })
+      .apiAdminSaveModule(AppState.sessionToken, payload);
+  }
+
+  function adminDeleteModule(moduleId, title) {
+    if (!confirm('Delete module "' + title + '" and ALL its videos, questions, scenarios, forum posts and progress? This cannot be undone.')) return;
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Error deleting module.'); return; }
+        renderAdminModules();
+      })
+      .withFailureHandler(handleServerError)
+      .apiAdminDeleteModule(AppState.sessionToken, { moduleId: moduleId });
+  }
+
+  // ── Video manager ─────────────────────────────────────────────────────────
+
+  function renderAdminModuleVideos(moduleId, moduleTitle) {
+    var _tok = _navToken;
+    byId('contentArea').innerHTML =
+      '<div class="panel">' + renderAdminTabs('modules') + _spinnerHtml('Loading videos...') + '</div>';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (_navToken !== _tok) return;
+        if (!res || !res.ok) { showContentError(res && res.error ? res.error : 'Could not load videos.'); return; }
+        _renderVideoManager(moduleId, moduleTitle, res.videos || []);
+      })
+      .withFailureHandler(function(err) { if (_navToken !== _tok) return; handleServerError(err); })
+      .apiAdminListModuleVideos(AppState.sessionToken, moduleId);
+  }
+
+  function _renderVideoManager(moduleId, moduleTitle, videos) {
+    var introVideos = videos.filter(function(v) { return v.section === 'intro'; });
+    var expVideos   = videos.filter(function(v) { return v.section === 'explanation'; });
+
+    function videoRow(v) {
+      return '<tr>' +
+        '<td style="padding:8px 12px;">' + esc(v.title || '') + '</td>' +
+        '<td style="padding:8px 12px;">' + esc(v.section) + '</td>' +
+        '<td style="padding:8px 12px;text-align:center;">' + v.videoOrder + '</td>' +
+        '<td style="padding:8px 12px;">' +
+          '<a href="' + esc(v.youtubeUrl) + '" target="_blank" style="color:var(--cyan);font-size:0.8rem;">' + esc(v.youtubeUrl.replace('https://','')) + '</a>' +
+        '</td>' +
+        '<td style="padding:8px 12px;text-align:center;">' +
+          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;margin-right:4px;" onclick="adminShowVideoForm(\'' + moduleId + '\',\'' + esc(moduleTitle) + '\',\'' + v.videoId + '\',\'' + esc(v.title||'') + '\',\'' + v.section + '\',\'' + esc(v.youtubeUrl) + '\',' + v.videoOrder + ')">Edit</button>' +
+          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;color:var(--red);" onclick="adminDeleteVideo(\'' + v.videoId + '\',\'' + moduleId + '\',\'' + esc(moduleTitle) + '\')">Del</button>' +
+        '</td>' +
+      '</tr>';
+    }
+
+    byId('contentArea').innerHTML =
+      '<div class="panel">' +
+        renderAdminTabs('modules') +
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
+          '<button class="btn secondary" onclick="renderAdminModules()">← Modules</button>' +
+          '<h3 style="margin:0;">Videos — ' + esc(moduleTitle) + '</h3>' +
+        '</div>' +
+
+        '<h4 style="color:var(--muted);font-size:0.8rem;letter-spacing:.06em;margin-bottom:8px;">INTRODUCTION (1 video)</h4>' +
+        '<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">' +
+          '<thead><tr style="border-bottom:1px solid var(--line);">' +
+            '<th style="padding:8px 12px;text-align:left;">Title</th><th style="padding:8px 12px;text-align:left;">Section</th>' +
+            '<th style="padding:8px 12px;text-align:center;">Order</th><th style="padding:8px 12px;text-align:left;">URL</th><th style="padding:8px 12px;"></th>' +
+          '</tr></thead>' +
+          '<tbody>' + (introVideos.map(videoRow).join('') || '<tr><td colspan="5" style="padding:12px;color:var(--muted);">No intro video yet.</td></tr>') + '</tbody>' +
+        '</table>' +
+
+        '<h4 style="color:var(--muted);font-size:0.8rem;letter-spacing:.06em;margin-bottom:8px;">EXPLANATION (2-3 videos)</h4>' +
+        '<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">' +
+          '<thead><tr style="border-bottom:1px solid var(--line);">' +
+            '<th style="padding:8px 12px;text-align:left;">Title</th><th style="padding:8px 12px;text-align:left;">Section</th>' +
+            '<th style="padding:8px 12px;text-align:center;">Order</th><th style="padding:8px 12px;text-align:left;">URL</th><th style="padding:8px 12px;"></th>' +
+          '</tr></thead>' +
+          '<tbody>' + (expVideos.map(videoRow).join('') || '<tr><td colspan="5" style="padding:12px;color:var(--muted);">No explanation videos yet.</td></tr>') + '</tbody>' +
+        '</table>' +
+
+        '<button class="btn primary" onclick="adminShowVideoForm(\'' + moduleId + '\',\'' + esc(moduleTitle) + '\',null,\'\',\'intro\',\'\',0)">+ Add Video</button>' +
+        '<div id="videoFormArea" style="margin-top:16px;"></div>' +
+      '</div>';
+  }
+
+  function adminShowVideoForm(moduleId, moduleTitle, videoId, title, section, youtubeUrl, videoOrder) {
+    byId('videoFormArea').innerHTML =
+      '<div style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:16px;max-width:480px;">' +
+        '<h4 style="margin-top:0;">' + (videoId ? 'Edit Video' : 'New Video') + '</h4>' +
+        '<div style="display:grid;gap:10px;">' +
+          '<input id="vfTitle" class="input" value="' + esc(title) + '" placeholder="Video title">' +
+          '<select id="vfSection" class="input">' +
+            '<option value="intro"'        + (section === 'intro'       ? ' selected' : '') + '>Introduction</option>' +
+            '<option value="explanation"'  + (section === 'explanation' ? ' selected' : '') + '>Explanation</option>' +
+          '</select>' +
+          '<input id="vfUrl" class="input" value="' + esc(youtubeUrl) + '" placeholder="https://youtube.com/watch?v=...">' +
+          '<input id="vfOrder" class="input" type="number" value="' + (videoOrder || 0) + '" placeholder="Order">' +
+        '</div>' +
+        '<div style="margin-top:12px;display:flex;gap:8px;">' +
+          '<button class="btn primary" onclick="adminSaveVideo(\'' + moduleId + '\',\'' + esc(moduleTitle) + '\',' + (videoId ? '\'' + videoId + '\'' : 'null') + ')">Save</button>' +
+          '<button class="btn secondary" onclick="byId(\'videoFormArea\').innerHTML=\'\'">Cancel</button>' +
+        '</div>' +
+        '<div id="vfMsg" style="margin-top:8px;"></div>' +
+      '</div>';
+  }
+
+  function adminSaveVideo(moduleId, moduleTitle, videoId) {
+    var payload = {
+      moduleId:   moduleId,
+      title:      byId('vfTitle').value.trim(),
+      section:    byId('vfSection').value,
+      youtubeUrl: byId('vfUrl').value.trim(),
+      videoOrder: Number(byId('vfOrder').value) || 0
+    };
+    if (videoId) payload.videoId = videoId;
+
+    byId('vfMsg').innerHTML = _spinnerHtml('Saving...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { byId('vfMsg').innerHTML = '<span style="color:var(--red);">' + esc(res && res.error ? res.error : 'Error.') + '</span>'; return; }
+        renderAdminModuleVideos(moduleId, moduleTitle);
+      })
+      .withFailureHandler(function(err) { byId('vfMsg').innerHTML = '<span style="color:var(--red);">' + esc(String(err)) + '</span>'; })
+      .apiAdminSaveModuleVideo(AppState.sessionToken, payload);
+  }
+
+  function adminDeleteVideo(videoId, moduleId, moduleTitle) {
+    if (!confirm('Delete this video?')) return;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Error deleting video.'); return; }
+        renderAdminModuleVideos(moduleId, moduleTitle);
+      })
+      .withFailureHandler(handleServerError)
+      .apiAdminDeleteModuleVideo(AppState.sessionToken, { videoId: videoId });
+  }
+
+  // ── Quiz builder ──────────────────────────────────────────────────────────
+
+  function renderAdminModuleQuiz(moduleId, moduleTitle) {
+    var _tok = _navToken;
+    byId('contentArea').innerHTML =
+      '<div class="panel">' + renderAdminTabs('modules') + _spinnerHtml('Loading questions...') + '</div>';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (_navToken !== _tok) return;
+        if (!res || !res.ok) { showContentError(res && res.error ? res.error : 'Could not load questions.'); return; }
+        _renderQuizBuilder(moduleId, moduleTitle, res.questions || []);
+      })
+      .withFailureHandler(function(err) { if (_navToken !== _tok) return; handleServerError(err); })
+      .apiAdminListModuleQuestions(AppState.sessionToken, moduleId);
+  }
+
+  function _renderQuizBuilder(moduleId, moduleTitle, questions) {
+    var expQs = questions.filter(function(q) { return q.section === 'explanation'; });
+    var evalQs = questions.filter(function(q) { return q.section === 'evaluation'; });
+
+    function qRow(q) {
+      return '<tr>' +
+        '<td style="padding:8px 12px;">' + esc(q.question) + '</td>' +
+        '<td style="padding:8px 12px;color:var(--muted);font-size:0.8rem;">' + esc(q.section) + '</td>' +
+        '<td style="padding:8px 12px;text-align:center;">' + q.questionOrder + '</td>' +
+        '<td style="padding:8px 12px;font-size:0.8rem;">' +
+          (q.options || []).map(function(o, i) {
+            return '<span style="' + (i === q.correctIndex ? 'color:var(--green);font-weight:600;' : '') + '">' + esc(o) + '</span>';
+          }).join(' / ') +
+        '</td>' +
+        '<td style="padding:8px 12px;text-align:center;">' +
+          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;margin-right:4px;" onclick="adminShowQuestionForm(\'' + moduleId + '\',\'' + esc(moduleTitle) + '\',\'' + q.questionId + '\')">Edit</button>' +
+          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;color:var(--red);" onclick="adminDeleteQuestion(\'' + q.questionId + '\',\'' + moduleId + '\',\'' + esc(moduleTitle) + '\')">Del</button>' +
+        '</td>' +
+      '</tr>';
+    }
+
+    function section(label, qs) {
+      return '<h4 style="color:var(--muted);font-size:0.8rem;letter-spacing:.06em;margin-bottom:8px;">' + label + '</h4>' +
+        '<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">' +
+          '<thead><tr style="border-bottom:1px solid var(--line);">' +
+            '<th style="padding:8px 12px;text-align:left;">Question</th><th style="padding:8px 12px;text-align:left;">Section</th>' +
+            '<th style="padding:8px 12px;text-align:center;">Order</th><th style="padding:8px 12px;text-align:left;">Options (correct in green)</th><th></th>' +
+          '</tr></thead>' +
+          '<tbody>' + (qs.map(qRow).join('') || '<tr><td colspan="5" style="padding:12px;color:var(--muted);">No questions yet.</td></tr>') + '</tbody>' +
+        '</table>';
+    }
+
+    byId('contentArea').innerHTML =
+      '<div class="panel">' +
+        renderAdminTabs('modules') +
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
+          '<button class="btn secondary" onclick="renderAdminModules()">← Modules</button>' +
+          '<h3 style="margin:0;">Quiz — ' + esc(moduleTitle) + '</h3>' +
+        '</div>' +
+        section('EXPLANATION QUIZ', expQs) +
+        section('EVALUATION QUIZ', evalQs) +
+        '<button class="btn primary" onclick="adminShowQuestionForm(\'' + moduleId + '\',\'' + esc(moduleTitle) + '\',null)">+ Add Question</button>' +
+        '<div id="quizFormArea" style="margin-top:16px;"></div>' +
+      '</div>';
+  }
+
+  function adminShowQuestionForm(moduleId, moduleTitle, questionId) {
+    var _tok = _navToken;
+
+    if (!questionId) {
+      _buildQuestionForm(moduleId, moduleTitle, null);
+      return;
+    }
+
+    byId('quizFormArea').innerHTML = _spinnerHtml('Loading...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (_navToken !== _tok) return;
+        var q = (res.questions || []).find(function(x) { return x.questionId === questionId; });
+        _buildQuestionForm(moduleId, moduleTitle, q || null);
+      })
+      .withFailureHandler(function(err) { byId('quizFormArea').innerHTML = '<span style="color:var(--red);">' + esc(String(err)) + '</span>'; })
+      .apiAdminListModuleQuestions(AppState.sessionToken, moduleId);
+  }
+
+  function _buildQuestionForm(moduleId, moduleTitle, q) {
+    var opts = q ? q.options : ['', '', '', ''];
+    var correctIdx = q ? q.correctIndex : 0;
+
+    byId('quizFormArea').innerHTML =
+      '<div style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:16px;max-width:520px;">' +
+        '<h4 style="margin-top:0;">' + (q ? 'Edit Question' : 'New Question') + '</h4>' +
+        '<div style="display:grid;gap:10px;">' +
+          '<textarea id="qfQuestion" class="input" rows="2" placeholder="Question text...">' + esc(q ? q.question : '') + '</textarea>' +
+          '<select id="qfSection" class="input">' +
+            '<option value="explanation"' + ((!q || q.section==='explanation') ? ' selected' : '') + '>Explanation Quiz</option>' +
+            '<option value="evaluation"'  + ((q && q.section==='evaluation')   ? ' selected' : '') + '>Evaluation Quiz</option>' +
+          '</select>' +
+          '<label style="font-size:0.78rem;color:var(--muted);">Options (select the correct answer)</label>' +
+          opts.map(function(opt, i) {
+            return '<div style="display:flex;gap:8px;align-items:center;">' +
+              '<input type="radio" name="qfCorrect" value="' + i + '"' + (i === correctIdx ? ' checked' : '') + '>' +
+              '<input id="qfOpt' + i + '" class="input" style="flex:1;" value="' + esc(opt) + '" placeholder="Option ' + (i+1) + '">' +
+            '</div>';
+          }).join('') +
+          '<input id="qfOrder" class="input" type="number" value="' + (q ? q.questionOrder : 0) + '" placeholder="Order">' +
+        '</div>' +
+        '<div style="margin-top:12px;display:flex;gap:8px;">' +
+          '<button class="btn primary" onclick="adminSaveQuestion(\'' + moduleId + '\',\'' + esc(moduleTitle) + '\',' + (q ? '\'' + q.questionId + '\'' : 'null') + ')">Save</button>' +
+          '<button class="btn secondary" onclick="byId(\'quizFormArea\').innerHTML=\'\'">Cancel</button>' +
+        '</div>' +
+        '<div id="qfMsg" style="margin-top:8px;"></div>' +
+      '</div>';
+  }
+
+  function adminSaveQuestion(moduleId, moduleTitle, questionId) {
+    var opts = [0,1,2,3].map(function(i) { return (byId('qfOpt' + i) ? byId('qfOpt' + i).value.trim() : ''); }).filter(function(o) { return o.length > 0; });
+    var correctRadio = document.querySelector('input[name="qfCorrect"]:checked');
+    var correctIdx   = correctRadio ? Number(correctRadio.value) : 0;
+
+    var payload = {
+      moduleId:      moduleId,
+      question:      byId('qfQuestion').value.trim(),
+      section:       byId('qfSection').value,
+      options:       opts,
+      correctIndex:  correctIdx,
+      questionOrder: Number(byId('qfOrder').value) || 0
+    };
+    if (questionId) payload.questionId = questionId;
+
+    byId('qfMsg').innerHTML = _spinnerHtml('Saving...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { byId('qfMsg').innerHTML = '<span style="color:var(--red);">' + esc(res && res.error ? res.error : 'Error.') + '</span>'; return; }
+        renderAdminModuleQuiz(moduleId, moduleTitle);
+      })
+      .withFailureHandler(function(err) { byId('qfMsg').innerHTML = '<span style="color:var(--red);">' + esc(String(err)) + '</span>'; })
+      .apiAdminSaveModuleQuestion(AppState.sessionToken, payload);
+  }
+
+  function adminDeleteQuestion(questionId, moduleId, moduleTitle) {
+    if (!confirm('Delete this question?')) return;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Error deleting question.'); return; }
+        renderAdminModuleQuiz(moduleId, moduleTitle);
+      })
+      .withFailureHandler(handleServerError)
+      .apiAdminDeleteModuleQuestion(AppState.sessionToken, { questionId: questionId });
+  }
+
+  // ── Scenario tagging ──────────────────────────────────────────────────────
+
+  function renderAdminModuleScenarios(moduleId, moduleTitle) {
+    var _tok = _navToken;
+    byId('contentArea').innerHTML =
+      '<div class="panel">' + renderAdminTabs('modules') + _spinnerHtml('Loading scenarios...') + '</div>';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (_navToken !== _tok) return;
+        if (!res || !res.ok) { showContentError(res && res.error ? res.error : 'Could not load scenarios.'); return; }
+        _renderScenarioTagger(moduleId, moduleTitle, res.linked || [], res.available || []);
+      })
+      .withFailureHandler(function(err) { if (_navToken !== _tok) return; handleServerError(err); })
+      .apiAdminGetModuleScenarios(AppState.sessionToken, moduleId);
+  }
+
+  function _renderScenarioTagger(moduleId, moduleTitle, linked, available) {
+    function linkedRow(s) {
+      return '<tr>' +
+        '<td style="padding:8px 12px;">' + esc(s.title || s.scenarioId || '') + '</td>' +
+        '<td style="padding:8px 12px;color:var(--muted);font-size:0.8rem;">' + esc(s.level || '') + '</td>' +
+        '<td style="padding:8px 12px;text-align:center;">' +
+          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;color:var(--red);" onclick="adminUnlinkScenario(\'' + moduleId + '\',\'' + esc(moduleTitle) + '\',\'' + s.scenarioId + '\')">Remove</button>' +
+        '</td>' +
+      '</tr>';
+    }
+
+    function availRow(s) {
+      return '<tr>' +
+        '<td style="padding:8px 12px;">' + esc(s.title || s.scenarioId || '') + '</td>' +
+        '<td style="padding:8px 12px;color:var(--muted);font-size:0.8rem;">' + esc(s.level || '') + '</td>' +
+        '<td style="padding:8px 12px;text-align:center;">' +
+          '<button class="btn primary" style="padding:3px 8px;font-size:0.73rem;" onclick="adminLinkScenario(\'' + moduleId + '\',\'' + esc(moduleTitle) + '\',\'' + s.scenarioId + '\')">+ Link</button>' +
+        '</td>' +
+      '</tr>';
+    }
+
+    byId('contentArea').innerHTML =
+      '<div class="panel">' +
+        renderAdminTabs('modules') +
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
+          '<button class="btn secondary" onclick="renderAdminModules()">← Modules</button>' +
+          '<h3 style="margin:0;">Scenarios — ' + esc(moduleTitle) + '</h3>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">' +
+
+          '<div>' +
+            '<h4 style="color:var(--muted);font-size:0.8rem;letter-spacing:.06em;margin-bottom:8px;">LINKED (' + linked.length + ' / need 3+)</h4>' +
+            '<table style="width:100%;border-collapse:collapse;">' +
+              '<thead><tr style="border-bottom:1px solid var(--line);">' +
+                '<th style="padding:8px 12px;text-align:left;">Scenario</th><th style="padding:8px 12px;text-align:left;">Level</th><th></th>' +
+              '</tr></thead>' +
+              '<tbody>' + (linked.map(linkedRow).join('') || '<tr><td colspan="3" style="padding:12px;color:var(--muted);">None linked yet.</td></tr>') + '</tbody>' +
+            '</table>' +
+          '</div>' +
+
+          '<div>' +
+            '<h4 style="color:var(--muted);font-size:0.8rem;letter-spacing:.06em;margin-bottom:8px;">AVAILABLE</h4>' +
+            '<input class="input" style="margin-bottom:8px;width:100%;" placeholder="Filter..." oninput="filterScenarioTable(this.value)">' +
+            '<table id="availScenariosTable" style="width:100%;border-collapse:collapse;">' +
+              '<thead><tr style="border-bottom:1px solid var(--line);">' +
+                '<th style="padding:8px 12px;text-align:left;">Scenario</th><th style="padding:8px 12px;text-align:left;">Level</th><th></th>' +
+              '</tr></thead>' +
+              '<tbody>' + (available.map(availRow).join('') || '<tr><td colspan="3" style="padding:12px;color:var(--muted);">All scenarios already linked.</td></tr>') + '</tbody>' +
+            '</table>' +
+          '</div>' +
+
+        '</div>' +
+      '</div>';
+  }
+
+  function filterScenarioTable(query) {
+    var tbl = byId('availScenariosTable');
+    if (!tbl) return;
+    var q = query.toLowerCase();
+    Array.prototype.forEach.call(tbl.querySelectorAll('tbody tr'), function(row) {
+      row.style.display = row.textContent.toLowerCase().indexOf(q) !== -1 ? '' : 'none';
+    });
+  }
+
+  function adminLinkScenario(moduleId, moduleTitle, scenarioId) {
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Error linking scenario.'); return; }
+        renderAdminModuleScenarios(moduleId, moduleTitle);
+      })
+      .withFailureHandler(handleServerError)
+      .apiAdminLinkModuleScenario(AppState.sessionToken, { moduleId: moduleId, scenarioId: scenarioId });
+  }
+
+  function adminUnlinkScenario(moduleId, moduleTitle, scenarioId) {
+    if (!confirm('Remove this scenario from the module?')) return;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Error unlinking.'); return; }
+        renderAdminModuleScenarios(moduleId, moduleTitle);
+      })
+      .withFailureHandler(handleServerError)
+      .apiAdminUnlinkModuleScenario(AppState.sessionToken, { moduleId: moduleId, scenarioId: scenarioId });
+  }
+
+  // ── Exports ───────────────────────────────────────────────────────────────
+
+  window.renderAdminModules        = renderAdminModules;
+  window.renderAdminModuleEdit     = renderAdminModuleEdit;
+  window.adminSaveModule           = adminSaveModule;
+  window.adminDeleteModule         = adminDeleteModule;
+  window.renderAdminModuleVideos   = renderAdminModuleVideos;
+  window.adminShowVideoForm        = adminShowVideoForm;
+  window.adminSaveVideo            = adminSaveVideo;
+  window.adminDeleteVideo          = adminDeleteVideo;
+  window.renderAdminModuleQuiz     = renderAdminModuleQuiz;
+  window.adminShowQuestionForm     = adminShowQuestionForm;
+  window.adminSaveQuestion         = adminSaveQuestion;
+  window.adminDeleteQuestion       = adminDeleteQuestion;
+  window.renderAdminModuleScenarios = renderAdminModuleScenarios;
+  window.filterScenarioTable       = filterScenarioTable;
+  window.adminLinkScenario         = adminLinkScenario;
+  window.adminUnlinkScenario       = adminUnlinkScenario;
 
 }());
 </script>
