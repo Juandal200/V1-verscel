@@ -764,6 +764,15 @@ function apiModuleMarkVideoWatched(sessionToken, payload) {
         var allWatched = allExpVideos.every(function(v) { return watched.indexOf(String(v.videoId)) !== -1; });
 
         var patch2 = { explanationVideosWatched: JSON.stringify(watched), updatedAt: now };
+        // If all videos watched, auto-complete explanation when no quiz exists
+        if (allWatched && !lmsBool_(prog.explanationCompleted)) {
+          var hasQuiz = dbReadAll_('ModuleQuiz').some(function(q) {
+            return String(q.moduleId || '') === moduleId && String(q.section || '') === 'explanation';
+          });
+          if (!hasQuiz) {
+            patch2.explanationCompleted = true;
+          }
+        }
         dbUpdateByRow_('ModuleProgress', prog.__rowNumber, patch2);
         return mergeObjects_(prog, patch2);
       }
