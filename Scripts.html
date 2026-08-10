@@ -17522,18 +17522,18 @@
         ? '<span style="color:var(--green);font-weight:600;">ACTIVE</span>'
         : '<span style="color:var(--muted);">DRAFT</span>';
       return '<tr>' +
-        '<td style="font-weight:600;">' + esc(m.title) + '</td>' +
-        '<td>' + esc(m.topic || '') + '</td>' +
+        '<td style="font-weight:600;">' + safeText(m.title) + '</td>' +
+        '<td>' + safeText(m.topic || '') + '</td>' +
         '<td style="text-align:center;">' + m.moduleOrder + '</td>' +
         '<td style="text-align:center;">' + statusBadge + '</td>' +
         '<td style="text-align:center;">' + (m.videoCount || 0) + ' videos</td>' +
         '<td style="text-align:center;">' + (m.questionCount || 0) + ' questions</td>' +
         '<td style="text-align:center;">' + (m.scenarioCount || 0) + ' scenarios</td>' +
         '<td style="text-align:center;">' +
-          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleEdit(\'' + esc(m.moduleId) + '\')">Edit</button>' +
-          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleVideos(\'' + esc(m.moduleId) + '\',\'' + esc(m.title) + '\')">Videos</button>' +
-          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleQuiz(\'' + esc(m.moduleId) + '\',\'' + esc(m.title) + '\')">Quiz</button>' +
-          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;" onclick="renderAdminModuleScenarios(\'' + esc(m.moduleId) + '\',\'' + esc(m.title) + '\')">Scenarios</button>' +
+          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleEdit(\'' + safeText(m.moduleId) + '\')">Edit</button>' +
+          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleVideos(\'' + safeText(m.moduleId) + '\',\'' + safeText(m.title) + '\')">Videos</button>' +
+          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleQuiz(\'' + safeText(m.moduleId) + '\',\'' + safeText(m.title) + '\')">Quiz</button>' +
+          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;" onclick="renderAdminModuleScenarios(\'' + safeText(m.moduleId) + '\',\'' + safeText(m.title) + '\')">Scenarios</button>' +
         '</td>' +
       '</tr>';
     }).join('');
@@ -17595,11 +17595,11 @@
         '<h3>' + (isNew ? 'New Module' : 'Edit Module') + '</h3>' +
         '<div style="display:grid;gap:12px;max-width:520px;">' +
           '<label style="font-size:0.8rem;color:var(--muted);">Title *</label>' +
-          '<input id="mfTitle" class="input" value="' + esc(m ? m.title : '') + '" placeholder="e.g. Weather Communication">' +
+          '<input id="mfTitle" class="input" value="' + safeText(m ? m.title : '') + '" placeholder="e.g. Weather Communication">' +
           '<label style="font-size:0.8rem;color:var(--muted);">Topic</label>' +
-          '<input id="mfTopic" class="input" value="' + esc(m ? m.topic || '' : '') + '" placeholder="e.g. weather">' +
+          '<input id="mfTopic" class="input" value="' + safeText(m ? m.topic || '' : '') + '" placeholder="e.g. weather">' +
           '<label style="font-size:0.8rem;color:var(--muted);">Description</label>' +
-          '<textarea id="mfDesc" class="input" rows="3" placeholder="Short description...">' + esc(m ? m.description || '' : '') + '</textarea>' +
+          '<textarea id="mfDesc" class="input" rows="3" placeholder="Short description...">' + safeText(m ? m.description || '' : '') + '</textarea>' +
           '<label style="font-size:0.8rem;color:var(--muted);">Order (number)</label>' +
           '<input id="mfOrder" class="input" type="number" value="' + (m ? m.moduleOrder : 0) + '">' +
           '<label style="font-size:0.8rem;color:var(--muted);">Status</label>' +
@@ -17608,11 +17608,11 @@
             '<option value="ACTIVE"' + ((m && m.status === 'ACTIVE')  ? ' selected' : '') + '>ACTIVE</option>' +
           '</select>' +
           '<label style="font-size:0.8rem;color:var(--muted);">Badge Image URL</label>' +
-          '<input id="mfBadge" class="input" value="' + esc(m ? m.badgeImageUrl || '' : '') + '" placeholder="https://...">' +
+          '<input id="mfBadge" class="input" value="' + safeText(m ? m.badgeImageUrl || '' : '') + '" placeholder="https://...">' +
         '</div>' +
         '<div style="margin-top:20px;display:flex;gap:10px;">' +
           '<button class="btn primary" onclick="adminSaveModule(' + (m ? '\'' + m.moduleId + '\'' : 'null') + ')">Save Module</button>' +
-          (m ? '<button class="btn secondary" style="color:var(--red);" onclick="adminDeleteModule(\'' + m.moduleId + '\',\'' + esc(m.title) + '\')">Delete</button>' : '') +
+          (m ? '<button class="btn secondary" style="color:var(--red);" onclick="adminDeleteModule(\'' + m.moduleId + '\',\'' + safeText(m.title) + '\')">Delete</button>' : '') +
           '<button class="btn secondary" onclick="renderAdminModules()">Cancel</button>' +
         '</div>' +
         '<div id="mfMsg" style="margin-top:12px;"></div>' +
@@ -17634,10 +17634,10 @@
 
     google.script.run
       .withSuccessHandler(function(res) {
-        if (!res || !res.ok) { byId('mfMsg').innerHTML = '<span style="color:var(--red);">' + esc(res && res.error ? res.error : 'Error saving.') + '</span>'; return; }
+        if (!res || !res.ok) { byId('mfMsg').innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error saving.') + '</span>'; return; }
         renderAdminModules();
       })
-      .withFailureHandler(function(err) { byId('mfMsg').innerHTML = '<span style="color:var(--red);">' + esc(String(err)) + '</span>'; })
+      .withFailureHandler(function(err) { byId('mfMsg').innerHTML = '<span style="color:var(--red);">' + safeText(String(err)) + '</span>'; })
       .apiAdminSaveModule(AppState.sessionToken, payload);
   }
 
@@ -17676,15 +17676,15 @@
 
     function videoRow(v) {
       return '<tr>' +
-        '<td style="padding:8px 12px;">' + esc(v.title || '') + '</td>' +
-        '<td style="padding:8px 12px;">' + esc(v.section) + '</td>' +
+        '<td style="padding:8px 12px;">' + safeText(v.title || '') + '</td>' +
+        '<td style="padding:8px 12px;">' + safeText(v.section) + '</td>' +
         '<td style="padding:8px 12px;text-align:center;">' + v.videoOrder + '</td>' +
         '<td style="padding:8px 12px;">' +
-          '<a href="' + esc(v.youtubeUrl) + '" target="_blank" style="color:var(--cyan);font-size:0.8rem;">' + esc(v.youtubeUrl.replace('https://','')) + '</a>' +
+          '<a href="' + safeText(v.youtubeUrl) + '" target="_blank" style="color:var(--cyan);font-size:0.8rem;">' + safeText(v.youtubeUrl.replace('https://','')) + '</a>' +
         '</td>' +
         '<td style="padding:8px 12px;text-align:center;">' +
-          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;margin-right:4px;" onclick="adminShowVideoForm(\'' + moduleId + '\',\'' + esc(moduleTitle) + '\',\'' + v.videoId + '\',\'' + esc(v.title||'') + '\',\'' + v.section + '\',\'' + esc(v.youtubeUrl) + '\',' + v.videoOrder + ')">Edit</button>' +
-          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;color:var(--red);" onclick="adminDeleteVideo(\'' + v.videoId + '\',\'' + moduleId + '\',\'' + esc(moduleTitle) + '\')">Del</button>' +
+          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;margin-right:4px;" onclick="adminShowVideoForm(\'' + moduleId + '\',\'' + safeText(moduleTitle) + '\',\'' + v.videoId + '\',\'' + safeText(v.title||'') + '\',\'' + v.section + '\',\'' + safeText(v.youtubeUrl) + '\',' + v.videoOrder + ')">Edit</button>' +
+          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;color:var(--red);" onclick="adminDeleteVideo(\'' + v.videoId + '\',\'' + moduleId + '\',\'' + safeText(moduleTitle) + '\')">Del</button>' +
         '</td>' +
       '</tr>';
     }
@@ -17694,7 +17694,7 @@
         renderAdminTabs('modules') +
         '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
           '<button class="btn secondary" onclick="renderAdminModules()">← Modules</button>' +
-          '<h3 style="margin:0;">Videos — ' + esc(moduleTitle) + '</h3>' +
+          '<h3 style="margin:0;">Videos — ' + safeText(moduleTitle) + '</h3>' +
         '</div>' +
 
         '<h4 style="color:var(--muted);font-size:0.8rem;letter-spacing:.06em;margin-bottom:8px;">INTRODUCTION (1 video)</h4>' +
@@ -17715,7 +17715,7 @@
           '<tbody>' + (expVideos.map(videoRow).join('') || '<tr><td colspan="5" style="padding:12px;color:var(--muted);">No explanation videos yet.</td></tr>') + '</tbody>' +
         '</table>' +
 
-        '<button class="btn primary" onclick="adminShowVideoForm(\'' + moduleId + '\',\'' + esc(moduleTitle) + '\',null,\'\',\'intro\',\'\',0)">+ Add Video</button>' +
+        '<button class="btn primary" onclick="adminShowVideoForm(\'' + moduleId + '\',\'' + safeText(moduleTitle) + '\',null,\'\',\'intro\',\'\',0)">+ Add Video</button>' +
         '<div id="videoFormArea" style="margin-top:16px;"></div>' +
       '</div>';
   }
@@ -17725,16 +17725,16 @@
       '<div style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:16px;max-width:480px;">' +
         '<h4 style="margin-top:0;">' + (videoId ? 'Edit Video' : 'New Video') + '</h4>' +
         '<div style="display:grid;gap:10px;">' +
-          '<input id="vfTitle" class="input" value="' + esc(title) + '" placeholder="Video title">' +
+          '<input id="vfTitle" class="input" value="' + safeText(title) + '" placeholder="Video title">' +
           '<select id="vfSection" class="input">' +
             '<option value="intro"'        + (section === 'intro'       ? ' selected' : '') + '>Introduction</option>' +
             '<option value="explanation"'  + (section === 'explanation' ? ' selected' : '') + '>Explanation</option>' +
           '</select>' +
-          '<input id="vfUrl" class="input" value="' + esc(youtubeUrl) + '" placeholder="https://youtube.com/watch?v=...">' +
+          '<input id="vfUrl" class="input" value="' + safeText(youtubeUrl) + '" placeholder="https://youtube.com/watch?v=...">' +
           '<input id="vfOrder" class="input" type="number" value="' + (videoOrder || 0) + '" placeholder="Order">' +
         '</div>' +
         '<div style="margin-top:12px;display:flex;gap:8px;">' +
-          '<button class="btn primary" onclick="adminSaveVideo(\'' + moduleId + '\',\'' + esc(moduleTitle) + '\',' + (videoId ? '\'' + videoId + '\'' : 'null') + ')">Save</button>' +
+          '<button class="btn primary" onclick="adminSaveVideo(\'' + moduleId + '\',\'' + safeText(moduleTitle) + '\',' + (videoId ? '\'' + videoId + '\'' : 'null') + ')">Save</button>' +
           '<button class="btn secondary" onclick="byId(\'videoFormArea\').innerHTML=\'\'">Cancel</button>' +
         '</div>' +
         '<div id="vfMsg" style="margin-top:8px;"></div>' +
@@ -17755,10 +17755,10 @@
 
     google.script.run
       .withSuccessHandler(function(res) {
-        if (!res || !res.ok) { byId('vfMsg').innerHTML = '<span style="color:var(--red);">' + esc(res && res.error ? res.error : 'Error.') + '</span>'; return; }
+        if (!res || !res.ok) { byId('vfMsg').innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error.') + '</span>'; return; }
         renderAdminModuleVideos(moduleId, moduleTitle);
       })
-      .withFailureHandler(function(err) { byId('vfMsg').innerHTML = '<span style="color:var(--red);">' + esc(String(err)) + '</span>'; })
+      .withFailureHandler(function(err) { byId('vfMsg').innerHTML = '<span style="color:var(--red);">' + safeText(String(err)) + '</span>'; })
       .apiAdminSaveModuleVideo(AppState.sessionToken, payload);
   }
 
@@ -17796,17 +17796,17 @@
 
     function qRow(q) {
       return '<tr>' +
-        '<td style="padding:8px 12px;">' + esc(q.question) + '</td>' +
-        '<td style="padding:8px 12px;color:var(--muted);font-size:0.8rem;">' + esc(q.section) + '</td>' +
+        '<td style="padding:8px 12px;">' + safeText(q.question) + '</td>' +
+        '<td style="padding:8px 12px;color:var(--muted);font-size:0.8rem;">' + safeText(q.section) + '</td>' +
         '<td style="padding:8px 12px;text-align:center;">' + q.questionOrder + '</td>' +
         '<td style="padding:8px 12px;font-size:0.8rem;">' +
           (q.options || []).map(function(o, i) {
-            return '<span style="' + (i === q.correctIndex ? 'color:var(--green);font-weight:600;' : '') + '">' + esc(o) + '</span>';
+            return '<span style="' + (i === q.correctIndex ? 'color:var(--green);font-weight:600;' : '') + '">' + safeText(o) + '</span>';
           }).join(' / ') +
         '</td>' +
         '<td style="padding:8px 12px;text-align:center;">' +
-          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;margin-right:4px;" onclick="adminShowQuestionForm(\'' + moduleId + '\',\'' + esc(moduleTitle) + '\',\'' + q.questionId + '\')">Edit</button>' +
-          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;color:var(--red);" onclick="adminDeleteQuestion(\'' + q.questionId + '\',\'' + moduleId + '\',\'' + esc(moduleTitle) + '\')">Del</button>' +
+          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;margin-right:4px;" onclick="adminShowQuestionForm(\'' + moduleId + '\',\'' + safeText(moduleTitle) + '\',\'' + q.questionId + '\')">Edit</button>' +
+          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;color:var(--red);" onclick="adminDeleteQuestion(\'' + q.questionId + '\',\'' + moduleId + '\',\'' + safeText(moduleTitle) + '\')">Del</button>' +
         '</td>' +
       '</tr>';
     }
@@ -17827,11 +17827,11 @@
         renderAdminTabs('modules') +
         '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
           '<button class="btn secondary" onclick="renderAdminModules()">← Modules</button>' +
-          '<h3 style="margin:0;">Quiz — ' + esc(moduleTitle) + '</h3>' +
+          '<h3 style="margin:0;">Quiz — ' + safeText(moduleTitle) + '</h3>' +
         '</div>' +
         section('EXPLANATION QUIZ', expQs) +
         section('EVALUATION QUIZ', evalQs) +
-        '<button class="btn primary" onclick="adminShowQuestionForm(\'' + moduleId + '\',\'' + esc(moduleTitle) + '\',null)">+ Add Question</button>' +
+        '<button class="btn primary" onclick="adminShowQuestionForm(\'' + moduleId + '\',\'' + safeText(moduleTitle) + '\',null)">+ Add Question</button>' +
         '<div id="quizFormArea" style="margin-top:16px;"></div>' +
       '</div>';
   }
@@ -17852,7 +17852,7 @@
         var q = (res.questions || []).find(function(x) { return x.questionId === questionId; });
         _buildQuestionForm(moduleId, moduleTitle, q || null);
       })
-      .withFailureHandler(function(err) { byId('quizFormArea').innerHTML = '<span style="color:var(--red);">' + esc(String(err)) + '</span>'; })
+      .withFailureHandler(function(err) { byId('quizFormArea').innerHTML = '<span style="color:var(--red);">' + safeText(String(err)) + '</span>'; })
       .apiAdminListModuleQuestions(AppState.sessionToken, moduleId);
   }
 
@@ -17864,7 +17864,7 @@
       '<div style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:16px;max-width:520px;">' +
         '<h4 style="margin-top:0;">' + (q ? 'Edit Question' : 'New Question') + '</h4>' +
         '<div style="display:grid;gap:10px;">' +
-          '<textarea id="qfQuestion" class="input" rows="2" placeholder="Question text...">' + esc(q ? q.question : '') + '</textarea>' +
+          '<textarea id="qfQuestion" class="input" rows="2" placeholder="Question text...">' + safeText(q ? q.question : '') + '</textarea>' +
           '<select id="qfSection" class="input">' +
             '<option value="explanation"' + ((!q || q.section==='explanation') ? ' selected' : '') + '>Explanation Quiz</option>' +
             '<option value="evaluation"'  + ((q && q.section==='evaluation')   ? ' selected' : '') + '>Evaluation Quiz</option>' +
@@ -17873,13 +17873,13 @@
           opts.map(function(opt, i) {
             return '<div style="display:flex;gap:8px;align-items:center;">' +
               '<input type="radio" name="qfCorrect" value="' + i + '"' + (i === correctIdx ? ' checked' : '') + '>' +
-              '<input id="qfOpt' + i + '" class="input" style="flex:1;" value="' + esc(opt) + '" placeholder="Option ' + (i+1) + '">' +
+              '<input id="qfOpt' + i + '" class="input" style="flex:1;" value="' + safeText(opt) + '" placeholder="Option ' + (i+1) + '">' +
             '</div>';
           }).join('') +
           '<input id="qfOrder" class="input" type="number" value="' + (q ? q.questionOrder : 0) + '" placeholder="Order">' +
         '</div>' +
         '<div style="margin-top:12px;display:flex;gap:8px;">' +
-          '<button class="btn primary" onclick="adminSaveQuestion(\'' + moduleId + '\',\'' + esc(moduleTitle) + '\',' + (q ? '\'' + q.questionId + '\'' : 'null') + ')">Save</button>' +
+          '<button class="btn primary" onclick="adminSaveQuestion(\'' + moduleId + '\',\'' + safeText(moduleTitle) + '\',' + (q ? '\'' + q.questionId + '\'' : 'null') + ')">Save</button>' +
           '<button class="btn secondary" onclick="byId(\'quizFormArea\').innerHTML=\'\'">Cancel</button>' +
         '</div>' +
         '<div id="qfMsg" style="margin-top:8px;"></div>' +
@@ -17905,10 +17905,10 @@
 
     google.script.run
       .withSuccessHandler(function(res) {
-        if (!res || !res.ok) { byId('qfMsg').innerHTML = '<span style="color:var(--red);">' + esc(res && res.error ? res.error : 'Error.') + '</span>'; return; }
+        if (!res || !res.ok) { byId('qfMsg').innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error.') + '</span>'; return; }
         renderAdminModuleQuiz(moduleId, moduleTitle);
       })
-      .withFailureHandler(function(err) { byId('qfMsg').innerHTML = '<span style="color:var(--red);">' + esc(String(err)) + '</span>'; })
+      .withFailureHandler(function(err) { byId('qfMsg').innerHTML = '<span style="color:var(--red);">' + safeText(String(err)) + '</span>'; })
       .apiAdminSaveModuleQuestion(AppState.sessionToken, payload);
   }
 
@@ -17943,20 +17943,20 @@
   function _renderScenarioTagger(moduleId, moduleTitle, linked, available) {
     function linkedRow(s) {
       return '<tr>' +
-        '<td style="padding:8px 12px;">' + esc(s.title || s.scenarioId || '') + '</td>' +
-        '<td style="padding:8px 12px;color:var(--muted);font-size:0.8rem;">' + esc(s.level || '') + '</td>' +
+        '<td style="padding:8px 12px;">' + safeText(s.title || s.scenarioId || '') + '</td>' +
+        '<td style="padding:8px 12px;color:var(--muted);font-size:0.8rem;">' + safeText(s.level || '') + '</td>' +
         '<td style="padding:8px 12px;text-align:center;">' +
-          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;color:var(--red);" onclick="adminUnlinkScenario(\'' + moduleId + '\',\'' + esc(moduleTitle) + '\',\'' + s.scenarioId + '\')">Remove</button>' +
+          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;color:var(--red);" onclick="adminUnlinkScenario(\'' + moduleId + '\',\'' + safeText(moduleTitle) + '\',\'' + s.scenarioId + '\')">Remove</button>' +
         '</td>' +
       '</tr>';
     }
 
     function availRow(s) {
       return '<tr>' +
-        '<td style="padding:8px 12px;">' + esc(s.title || s.scenarioId || '') + '</td>' +
-        '<td style="padding:8px 12px;color:var(--muted);font-size:0.8rem;">' + esc(s.level || '') + '</td>' +
+        '<td style="padding:8px 12px;">' + safeText(s.title || s.scenarioId || '') + '</td>' +
+        '<td style="padding:8px 12px;color:var(--muted);font-size:0.8rem;">' + safeText(s.level || '') + '</td>' +
         '<td style="padding:8px 12px;text-align:center;">' +
-          '<button class="btn primary" style="padding:3px 8px;font-size:0.73rem;" onclick="adminLinkScenario(\'' + moduleId + '\',\'' + esc(moduleTitle) + '\',\'' + s.scenarioId + '\')">+ Link</button>' +
+          '<button class="btn primary" style="padding:3px 8px;font-size:0.73rem;" onclick="adminLinkScenario(\'' + moduleId + '\',\'' + safeText(moduleTitle) + '\',\'' + s.scenarioId + '\')">+ Link</button>' +
         '</td>' +
       '</tr>';
     }
@@ -17966,7 +17966,7 @@
         renderAdminTabs('modules') +
         '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
           '<button class="btn secondary" onclick="renderAdminModules()">← Modules</button>' +
-          '<h3 style="margin:0;">Scenarios — ' + esc(moduleTitle) + '</h3>' +
+          '<h3 style="margin:0;">Scenarios — ' + safeText(moduleTitle) + '</h3>' +
         '</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">' +
 
