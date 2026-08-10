@@ -111,50 +111,50 @@
 
         <div class="topnav-actions">
           <button id="themeToggleBtn" class="btn secondary topnav-btn" onclick="toggleTheme()" title="Toggle light/dark mode">☀</button>
-          <button id="demoReplayBtn" class="btn secondary topnav-btn" onclick="window.showDemo && window.showDemo()">? How it works</button>
-          <button class="btn secondary topnav-btn" onclick="logout()">Logout</button>
+          <div class="topnav-pilot-wrap">
+            <div class="topnav-rank-meta" id="topnavRankMeta">
+              <div id="userRankStripes" class="topbar-rank-stripes" style="display:none;"></div>
+              <small id="topnavLevelsLabel" class="topnav-levels-lbl" style="display:none;"></small>
+            </div>
+            <div class="topbar-avatar" id="topbarAvatar">
+              <svg class="topbar-avatar-svg" viewBox="0 0 60 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- peaked cap dome -->
+                <path d="M17 20 Q16 9 30 9 Q44 9 43 20" fill="currentColor"/>
+                <!-- wide flat visor (key identifier) -->
+                <path d="M7 23 Q7 27 30 27 Q53 27 53 23 L43 20.5 L17 20.5 Z" fill="currentColor"/>
+                <!-- cap band -->
+                <rect x="17" y="20" width="26" height="1.5" rx="0" fill="rgba(255,255,255,0.18)"/>
+                <!-- cap front badge -->
+                <rect x="24" y="14" width="12" height="3.5" rx="1.75" fill="currentColor" opacity="0.45"/>
+                <!-- uniform body -->
+                <path d="M12 60 L12 44 Q12 34 30 32 Q48 34 48 44 L48 60 Z" fill="currentColor" opacity="0.83"/>
+                <!-- left wing -->
+                <path d="M11 40 Q14 37.5 20 38.5 L26.5 40 Q20 42.5 14 42.5 Q11 41.5 11 40 Z" fill="currentColor"/>
+                <!-- wings centre badge -->
+                <circle cx="30" cy="40" r="3" fill="currentColor"/>
+                <!-- right wing -->
+                <path d="M33.5 40 L40 38.5 Q46 37.5 49 40 Q49 41.5 46 42.5 Q40 42.5 33.5 40 Z" fill="currentColor"/>
+                <!-- left epaulette -->
+                <rect x="12" y="38.5" width="10" height="3.5" rx="1.75" fill="currentColor"/>
+                <rect x="13" y="39.3" width="8" height="0.9" fill="rgba(255,255,255,0.45)"/>
+                <rect x="13" y="40.6" width="8" height="0.9" fill="rgba(255,255,255,0.45)"/>
+                <!-- right epaulette -->
+                <rect x="38" y="38.5" width="10" height="3.5" rx="1.75" fill="currentColor"/>
+                <rect x="39" y="39.3" width="8" height="0.9" fill="rgba(255,255,255,0.45)"/>
+                <rect x="39" y="40.6" width="8" height="0.9" fill="rgba(255,255,255,0.45)"/>
+                <!-- tie -->
+                <path d="M27 32 L30 38 L33 32" fill="currentColor" opacity="0.5"/>
+              </svg>
+              <span class="topbar-avatar-rank" id="topbarAvatarRank" style="display:none;"></span>
+            </div>
+            <button class="btn secondary topnav-btn" onclick="logout()">Sign out</button>
+          </div>
         </div>
       </header>
 
       <main class="main">
-        <header class="topbar">
-          <div>
-            <p class="eyebrow">Welcome</p>
-            <div class="topbar-name-row">
-              <h2 id="userName">User</h2>
-              <span id="userRankPill" class="topbar-rank-pill" style="display:none;"></span>
-            </div>
-            <div id="userRankStripes" class="topbar-rank-stripes" style="display:none;"></div>
-            <div id="userRankProgress" class="topbar-rank-progress" style="display:none;">
-              <div class="topbar-rank-progress-bar">
-                <div id="userRankProgressFill" class="topbar-rank-progress-fill"></div>
-              </div>
-              <span id="userRankProgressLabel" class="topbar-rank-progress-label"></span>
-            </div>
-          </div>
-
-          <div class="topbar-avatar" id="topbarAvatar">
-            <svg class="topbar-avatar-svg" viewBox="0 0 60 66" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <!-- Captain's cap dome -->
-              <path d="M18 21 Q18 9 30 9 Q42 9 42 21" fill="currentColor" opacity="0.82"/>
-              <!-- Cap visor band -->
-              <rect x="13" y="21" width="34" height="4.5" rx="2.2" fill="currentColor"/>
-              <!-- Cap badge stripe -->
-              <rect x="21" y="16" width="18" height="2.5" rx="1.2" fill="currentColor" opacity="0.35"/>
-              <!-- Uniform body (shoulders + chest) -->
-              <path d="M12 62 L12 46 Q12 34 30 32 Q48 34 48 46 L48 62 Z" fill="currentColor" opacity="0.78"/>
-              <!-- Left epaulette -->
-              <rect x="12" y="40" width="10" height="4" rx="2" fill="currentColor"/>
-              <rect x="13.5" y="41.2" width="7" height="1.2" rx="0.6" fill="rgba(255,255,255,0.45)"/>
-              <!-- Right epaulette -->
-              <rect x="38" y="40" width="10" height="4" rx="2" fill="currentColor"/>
-              <rect x="39.5" y="41.2" width="7" height="1.2" rx="0.6" fill="rgba(255,255,255,0.45)"/>
-              <!-- Collar / tie -->
-              <path d="M26 32 L30 39 L34 32" fill="currentColor" opacity="0.55"/>
-            </svg>
-            <span class="topbar-avatar-rank" id="topbarAvatarRank" style="display:none;"></span>
-          </div>
-        </header>
+        <!-- topbar: admin VIEW AS controls are injected here by JS -->
+        <header class="topbar topbar-slim" id="topbarAdminZone"></header>
 
         <section id="contentArea" class="content-grid"></section>
 

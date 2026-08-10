@@ -764,22 +764,11 @@
     var tier = window._gamTierOf ? _gamTierOf(completedLevels, profession) : null;
     if (!tier) return;
 
-    // ── Rank pill ──
-    var pill = byId('userRankPill');
-    if (pill) {
-      pill.textContent       = tier.abbr;
-      pill.style.color       = tier.color;
-      pill.style.background  = tier.color + '18';
-      pill.style.borderColor = tier.color + '40';
-      pill.style.boxShadow   = '0 0 8px ' + tier.glow;
-      pill.style.display     = '';
-    }
-
     // ── Captain avatar ring + rank badge ──
     var avatar = byId('topbarAvatar');
     if (avatar) {
       avatar.style.borderColor = tier.color;
-      avatar.style.boxShadow   = '0 0 0 3px ' + tier.glow + ', 0 0 18px ' + tier.glow;
+      avatar.style.boxShadow   = '0 0 0 3px ' + tier.glow + ', 0 0 20px ' + tier.glow;
       var svgEl = avatar.querySelector('.topbar-avatar-svg');
       if (svgEl) svgEl.style.color = tier.color;
     }
@@ -799,60 +788,59 @@
       crewBtn.style.transition = 'box-shadow 0.4s ease';
     }
 
-    // ── Stripe badges + label ──
+    // ── Rank label + stripes (now in topnav) ──
     var strips = byId('userRankStripes');
     if (strips && window._gamStripesSvg) {
       strips.innerHTML =
         _gamStripesSvg(tier.stripes, tier.color) +
-        '<span style="font-size:0.67rem;font-weight:600;color:' + tier.color +
-        ';margin-left:5px;letter-spacing:0.04em;opacity:0.85;">' + tier.label + '</span>';
+        '<span style="font-size:0.75rem;font-weight:700;color:' + tier.color +
+        ';margin-left:6px;letter-spacing:0.03em;">' + tier.label + '</span>';
       strips.style.display = '';
     }
 
-    // ── Progress to next rank ──
-    var prog      = byId('userRankProgress');
-    var fill      = byId('userRankProgressFill');
-    var lbl       = byId('userRankProgressLabel');
-    if (!prog || !fill || !lbl) return;
-
+    // ── Progress to next rank (topnav label, no bar) ──
     var cfg = null;
     for (var i = 0; i < _TIER_PROGRESS.length; i++) {
       if (_TIER_PROGRESS[i].key === tier.key) { cfg = _TIER_PROGRESS[i]; break; }
     }
-    if (!cfg) return;
-
-    if (!cfg.nextKey) {
-      // Chief rank — peak rank
-      fill.style.width      = '100%';
-      fill.style.background = tier.color;
-      lbl.textContent       = 'Peak rank achieved';
-      lbl.style.color       = tier.color;
-    } else {
-      var span      = cfg.end - cfg.start + 1;
-      var done      = Math.max(0, completedLevels - cfg.start);
-      var pct       = Math.min(100, Math.round((done / span) * 100));
-      var left      = cfg.nextAt - completedLevels;
-      var nextLabel = _gamTierLabel(cfg.nextKey, profession);
-      fill.style.width      = pct + '%';
-      fill.style.background = tier.color;
-      lbl.textContent       = left + ' level' + (left === 1 ? '' : 's') + ' to ' + nextLabel;
-      lbl.style.color       = tier.color + 'cc';
+    var levelsLbl = byId('topnavLevelsLabel');
+    var rankMeta  = byId('topnavRankMeta');
+    if (cfg && levelsLbl) {
+      if (!cfg.nextKey) {
+        levelsLbl.textContent = 'Peak rank achieved';
+        levelsLbl.style.color = tier.color;
+      } else {
+        var left      = cfg.nextAt - completedLevels;
+        var nextLabel = _gamTierLabel(cfg.nextKey, profession);
+        levelsLbl.textContent = left + ' level' + (left === 1 ? '' : 's') + ' to ' + nextLabel;
+        levelsLbl.style.color = tier.color + 'cc';
+      }
+      levelsLbl.style.display = '';
     }
-    prog.style.display = '';
+    if (rankMeta) rankMeta.style.opacity = '1';
   }
 
   function enterApplication() {
     if (window.LoginAudio) LoginAudio.stop();
     showScreen('appScreen');
 
-    byId('userName').textContent = AppState.user.name || 'User';
     // role/email removed from topbar (avatar used instead)
+
+    // Show rank instantly from cache, then update from server in background
+    try {
+      var _cachedLvl = localStorage.getItem('_aero_lvl_' + (AppState.user.userId || ''));
+      if (_cachedLvl !== null) _renderTopbarRank(parseInt(_cachedLvl, 10) || 0);
+    } catch(e) {}
 
     if (window._gamStartPoll) setTimeout(_gamStartPoll, 2000);
 
     google.script.run
       .withSuccessHandler(function(res) {
-        if (res && res.ok) _renderTopbarRank(res.completedLevels || 0);
+        if (res && res.ok) {
+          var lvl = res.completedLevels || 0;
+          _renderTopbarRank(lvl);
+          try { localStorage.setItem('_aero_lvl_' + (AppState.user.userId || ''), lvl); } catch(e) {}
+        }
       })
       .withFailureHandler(function() {})
       .getMyCompletedLevels(AppState.sessionToken);

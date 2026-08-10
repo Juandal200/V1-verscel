@@ -741,68 +741,43 @@
     margin-bottom: 24px;
   }
 
-  /* ── Topbar rank display ──────────────────────────────────────── */
-  .topbar-name-row {
+  .topbar:empty { display: none; margin: 0; }
+
+
+  /* ── Topnav pilot block ────────────────────────────────────────── */
+  .topnav-pilot-wrap {
     display: flex;
     align-items: center;
     gap: 10px;
-    flex-wrap: wrap;
   }
 
-  .topbar-rank-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 3px 9px;
-    border-radius: 6px;
-    font-size: 0.63rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    border: 1px solid;
-    line-height: 1;
-    white-space: nowrap;
-    margin-bottom: 2px;
+  .topnav-rank-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    opacity: 0;
+    transition: opacity 0.4s ease;
   }
 
   .topbar-rank-stripes {
     display: flex;
     align-items: center;
     gap: 3px;
-    margin-top: 5px;
   }
 
-  .topbar-rank-progress {
-    margin-top: 7px;
-    min-width: 160px;
-    max-width: 220px;
-  }
-
-  .topbar-rank-progress-bar {
-    height: 3px;
-    background: rgba(255,255,255,0.08);
-    border-radius: 2px;
-    overflow: hidden;
-    margin-bottom: 4px;
-  }
-
-  .topbar-rank-progress-fill {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.8s ease;
-  }
-
-  .topbar-rank-progress-label {
-    font-size: 0.62rem;
+  .topnav-levels-lbl {
+    font-size: 0.63rem;
     font-weight: 600;
-    letter-spacing: 0.03em;
-    opacity: 0.85;
+    letter-spacing: 0.02em;
+    opacity: 0.9;
   }
 
-  /* ── Captain avatar (replaces user-chip) ──────────────────────── */
+  /* ── Captain avatar ─────────────────────────────────────────────── */
   .topbar-avatar {
     position: relative;
-    width: 72px;
-    height: 72px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
     border: 2px solid rgba(255,255,255,0.12);
     background: rgba(255,255,255,0.04);
@@ -814,8 +789,8 @@
   }
 
   .topbar-avatar-svg {
-    width: 50px;
-    height: 50px;
+    width: 40px;
+    height: 40px;
     color: rgba(255,255,255,0.2);
     transition: color 0.5s ease;
   }
@@ -834,13 +809,24 @@
     bottom: -8px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 0.56rem;
+    font-size: 0.54rem;
     font-weight: 800;
     letter-spacing: 0.1em;
-    padding: 2px 7px;
-    border-radius: 5px;
+    padding: 2px 6px;
+    border-radius: 4px;
     border: 1px solid;
     white-space: nowrap;
+  }
+
+  /* ── Slim topbar (only shows admin VIEW AS when present) ────────── */
+  .topbar-slim {
+    margin-bottom: 0;
+    padding: 0;
+    min-height: 0;
+  }
+
+  .topbar-slim:empty {
+    display: none;
   }
 
   .content-grid {
