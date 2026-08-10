@@ -11192,35 +11192,116 @@
     if (!el) return;
     if (!posts.length) {
       el.innerHTML =
-        '<div style="padding:20px 0;text-align:center;">' +
-          '<p style="margin:0;font-size:0.88rem;color:var(--muted);">No replies yet — be the first to contribute.</p>' +
+        '<div style="padding:24px 0;text-align:center;">' +
+          '<div style="font-size:2rem;margin-bottom:8px;">💬</div>' +
+          '<p style="margin:0;font-size:0.88rem;color:var(--muted);">No posts yet — be the first to share your thoughts.</p>' +
         '</div>';
       return;
     }
+
     var avatarColors = ['#1d4ed8','#7c3aed','#16a34a','#d97706','#dc2626','#0891b2','#0f766e'];
     function avatarColor(name) { return avatarColors[(name || 'P').charCodeAt(0) % avatarColors.length]; }
 
+    // Derive rank badge HTML from post's user data
+    function rankBadge(p) {
+      if (!window._gamTierOf) return '';
+      var lvl  = Number(p.userCurrentLevel || 1);
+      var prof = p.userProfession || 'PILOT';
+      var tier = _gamTierOf(Math.max(0, lvl - 1), prof);
+      return '<span style="font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:8px;border:1px solid ' + tier.color + '40;background:' + tier.color + '15;color:' + tier.color + ';white-space:nowrap;">' + safeText(tier.label) + '</span>';
+    }
+
+    // Build postId map for reply rendering
+    var postIds = {};
+    posts.forEach(function(p) { postIds[String(p.postId)] = true; });
+
+    // Suffix for IDs (each container has unique suffix)
+    var sfx = containerId.indexOf('Exp') !== -1 ? 'Exp' : '';
+
     el.innerHTML = posts.map(function(p) {
       var isMe    = AppState.user && String(p.userId) === String(AppState.user.userId);
-      var isReply = !!p.parentPostId;
+      var isReply = p.parentPostId && postIds[String(p.parentPostId)];
       var initials = (p.userName || 'P').split(' ').map(function(w) { return w.charAt(0); }).slice(0,2).join('').toUpperCase();
       var dateStr = p.createdAt ? new Date(p.createdAt).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' }) : '';
-      return '<div style="' + (isReply ? 'margin-left:52px;' : '') + 'padding:14px 0;border-bottom:1px solid var(--line);">' +
-        '<div style="display:flex;gap:12px;">' +
-          '<div style="width:36px;height:36px;border-radius:50%;background:' + avatarColor(p.userName) + ';display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:800;color:#fff;flex-shrink:0;">' + initials + '</div>' +
+      var likeCount = Number(p.likeCount || 0);
+      var likedByMe = !!p.likedByMe;
+      var likeColor = likedByMe ? '#e11d48' : 'var(--muted)';
+      var likeIcon  = likedByMe ? '❤️' : '🤍';
+      var replyFormId = 'replyForm_' + safeJs(p.postId) + '_' + sfx;
+
+      return '<div id="post_' + safeJs(p.postId) + '_' + sfx + '" style="' + (isReply ? 'margin-left:44px;border-left:2px solid var(--line);padding-left:12px;' : '') + 'padding:14px 0;border-bottom:1px solid var(--line);">' +
+        '<div style="display:flex;gap:10px;">' +
+          '<div style="width:34px;height:34px;border-radius:50%;background:' + avatarColor(p.userName) + ';display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:800;color:#fff;flex-shrink:0;">' + initials + '</div>' +
           '<div style="flex:1;min-width:0;">' +
-            '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;">' +
-              '<strong style="font-size:0.88rem;">' + safeText(p.userName || 'Pilot') + '</strong>' +
-              '<span style="font-size:0.75rem;color:var(--muted);">' + dateStr + '</span>' +
-              (isMe ? '<span style="font-size:0.68rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:1px 6px;border-radius:10px;">You</span>' : '') +
+            // Author row
+            '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:5px;">' +
+              '<strong style="font-size:0.87rem;">' + safeText(p.userName || 'Pilot') + '</strong>' +
+              rankBadge(p) +
+              (isMe ? '<span style="font-size:0.65rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:1px 6px;border-radius:10px;">You</span>' : '') +
+              '<span style="font-size:0.72rem;color:var(--muted);margin-left:auto;">' + dateStr + (p.editedAt ? ' · edited' : '') + '</span>' +
             '</div>' +
-            '<p style="margin:0 0 8px;font-size:0.9rem;line-height:1.55;color:var(--text);">' + safeText(p.body) + '</p>' +
-            (isMe ? '<button style="background:none;border:none;font-size:0.75rem;color:var(--red);cursor:pointer;padding:0;font-family:inherit;" onclick="moduleForumDelete(\'' + p.postId + '\',\'' + moduleId + '\')">Delete</button>' : '') +
+            // Body
+            '<p style="margin:0 0 10px;font-size:0.9rem;line-height:1.6;color:var(--text);">' + safeText(p.body) + '</p>' +
+            // Actions row
+            '<div style="display:flex;align-items:center;gap:14px;">' +
+              // Like button
+              '<button onclick="moduleForumLike(\'' + safeJs(p.postId) + '\',\'' + safeJs(moduleId) + '\',\'' + containerId + '\')" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:0.78rem;color:' + likeColor + ';font-family:inherit;padding:0;">' +
+                likeIcon + ' ' + (likeCount > 0 ? likeCount : '') +
+              '</button>' +
+              // Reply button (only on top-level posts)
+              (!isReply ? '<button onclick="moduleForumToggleReply(\'' + safeJs(p.postId) + '\',\'' + sfx + '\')" style="background:none;border:none;cursor:pointer;font-size:0.78rem;color:var(--muted);font-family:inherit;padding:0;">↩ Reply</button>' : '') +
+              // Delete button
+              (isMe ? '<button onclick="moduleForumDelete(\'' + safeJs(p.postId) + '\',\'' + safeJs(moduleId) + '\')" style="background:none;border:none;font-size:0.75rem;color:var(--red);cursor:pointer;padding:0;font-family:inherit;margin-left:auto;">Delete</button>' : '') +
+            '</div>' +
+            // Inline reply form (hidden by default)
+            (!isReply ? '<div id="' + replyFormId + '" style="display:none;margin-top:10px;">' +
+              '<div style="display:flex;gap:8px;align-items:flex-start;">' +
+                '<textarea id="replyInput_' + safeJs(p.postId) + '_' + sfx + '" rows="2" style="flex:1;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-family:inherit;font-size:0.82rem;color:var(--text);resize:none;" placeholder="Write a reply (min 4 words)..."></textarea>' +
+                '<button class="btn primary" style="font-size:0.78rem;padding:5px 12px;flex-shrink:0;" onclick="moduleForumReply(\'' + safeJs(moduleId) + '\',\'' + safeJs(p.postId) + '\',\'' + sfx + '\')">Post</button>' +
+              '</div>' +
+              '<div id="replyMsg_' + safeJs(p.postId) + '_' + sfx + '" style="font-size:0.76rem;margin-top:4px;"></div>' +
+            '</div>' : '') +
           '</div>' +
         '</div>' +
       '</div>';
     }).join('');
   }
+
+  window.moduleForumToggleReply = function(postId, sfx) {
+    var id = 'replyForm_' + postId + '_' + sfx;
+    var el = document.getElementById(id);
+    if (!el) return;
+    var visible = el.style.display !== 'none';
+    el.style.display = visible ? 'none' : 'block';
+    if (!visible) {
+      var inp = document.getElementById('replyInput_' + postId + '_' + sfx);
+      if (inp) inp.focus();
+    }
+  };
+
+  window.moduleForumReply = function(moduleId, parentPostId, sfx) {
+    var input = document.getElementById('replyInput_' + parentPostId + '_' + sfx);
+    var msg   = document.getElementById('replyMsg_'   + parentPostId + '_' + sfx);
+    if (!input || !msg) return;
+    msg.innerHTML = _spinnerHtml('Posting...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error posting.') + '</span>'; return; }
+        input.value = '';
+        msg.innerHTML = '';
+        renderModuleDetail(moduleId);
+      })
+      .withFailureHandler(function(err) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(String(err)) + '</span>'; })
+      .apiModuleForumSavePost(AppState.sessionToken, { moduleId: moduleId, body: input.value.trim(), parentPostId: parentPostId });
+  };
+
+  window.moduleForumLike = function(postId, moduleId, containerId) {
+    google.script.run
+      .withSuccessHandler(function() { _loadForumPosts(moduleId); })
+      .withFailureHandler(function() {})
+      .apiModuleForumLikePost(AppState.sessionToken, { postId: postId, moduleId: moduleId });
+  };
 
   function _loadForumPosts(moduleId) {
     var hasMain = !!byId('moduleForumPosts');
@@ -11240,7 +11321,7 @@
       .apiModuleForumGetPosts(AppState.sessionToken, moduleId);
   }
 
-  function moduleForumPost(moduleId, suffix) {
+  window.moduleForumPost = function(moduleId, suffix) {
     var sfx   = suffix || '';
     var input = byId('moduleForumInput' + sfx);
     var msg   = byId('moduleForumMsg' + sfx);
@@ -11256,9 +11337,9 @@
       })
       .withFailureHandler(function(err) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(String(err)) + '</span>'; })
       .apiModuleForumSavePost(AppState.sessionToken, { moduleId: moduleId, body: input.value.trim() });
-  }
+  };
 
-  function moduleForumDelete(postId, moduleId) {
+  window.moduleForumDelete = function(postId, moduleId) {
     if (!confirm('Delete this post?')) return;
     google.script.run
       .withSuccessHandler(function(res) {
@@ -11267,7 +11348,7 @@
       })
       .withFailureHandler(handleServerError)
       .apiModuleForumDeletePost(AppState.sessionToken, { postId: postId });
-  }
+  };
 
   function moduleMarkVideoWatched(moduleId, videoId) {
     google.script.run

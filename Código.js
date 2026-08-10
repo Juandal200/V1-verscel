@@ -70,7 +70,8 @@ function doPost(e) {
                   action === 'sendChallenge' ||
                   action === 'acceptRequest' ||
                   action === 'acceptChallenge' ||
-                  action === 'searchPilot';
+                  action === 'searchPilot' ||
+                  action === 'apiModuleForumLikePost';
 
     var output = ContentService.createTextOutput();
     output.setMimeType(ContentService.MimeType.JSON);

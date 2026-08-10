@@ -34,7 +34,7 @@ function setupLMSModuleSheets() {
   var ss = dbGetSpreadsheet_();
   var sheets = [
     'Modules', 'ModuleVideos', 'ModuleQuiz',
-    'ModuleScenarios', 'ModuleForum', 'ModuleProgress'
+    'ModuleScenarios', 'ModuleForum', 'ModuleForumLikes', 'ModuleProgress'
   ];
 
   sheets.forEach(function(name) {
@@ -501,7 +501,7 @@ function apiAdminGetModuleScenarios(sessionToken, moduleId) {
 
 function apiModuleForumGetPosts(sessionToken, moduleId) {
   try {
-    AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    var caller = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
     moduleId = String(moduleId || '');
     if (!moduleId) throw new Error('moduleId required.');
 
@@ -509,9 +509,73 @@ function apiModuleForumGetPosts(sessionToken, moduleId) {
       .filter(function(p) { return String(p.moduleId || '') === moduleId; })
       .sort(function(a, b) { return String(a.createdAt || '').localeCompare(String(b.createdAt || '')); });
 
-    return { ok: true, posts: posts };
+    // Build userId → {profession, currentLevel} map from Users sheet
+    var users = dbReadAll_('Users');
+    var userMap = {};
+    users.forEach(function(u) {
+      userMap[String(u.userId || '')] = {
+        profession:   String(u.profession || 'PILOT').toUpperCase(),
+        currentLevel: Number(u.currentLevel || 1)
+      };
+    });
+
+    // Build postId → {likeCount, likedByMe} map from ModuleForumLikes
+    var allLikes = dbReadAll_('ModuleForumLikes').filter(function(l) { return String(l.moduleId || '') === moduleId; });
+    var likeMap = {};
+    allLikes.forEach(function(l) {
+      var pid = String(l.postId || '');
+      if (!likeMap[pid]) likeMap[pid] = { count: 0, likedByMe: false };
+      likeMap[pid].count++;
+      if (String(l.userId || '') === String(caller.userId)) likeMap[pid].likedByMe = true;
+    });
+
+    var enriched = posts.map(function(p) {
+      var uid  = String(p.userId || '');
+      var info = userMap[uid] || { profession: 'PILOT', currentLevel: 1 };
+      var lk   = likeMap[String(p.postId || '')] || { count: 0, likedByMe: false };
+      return {
+        postId:       p.postId,
+        moduleId:     p.moduleId,
+        userId:       p.userId,
+        userName:     p.userName,
+        parentPostId: p.parentPostId,
+        body:         p.body,
+        editedAt:     p.editedAt,
+        createdAt:    p.createdAt,
+        userProfession:   info.profession,
+        userCurrentLevel: info.currentLevel,
+        likeCount:    lk.count,
+        likedByMe:    lk.likedByMe
+      };
+    });
+
+    return { ok: true, posts: enriched };
   } catch(err) {
     return apiError_('apiModuleForumGetPosts', err);
+  }
+}
+
+function apiModuleForumLikePost(sessionToken, payload) {
+  try {
+    var caller = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    var postId   = String((payload || {}).postId   || '');
+    var moduleId = String((payload || {}).moduleId || '');
+    if (!postId || !moduleId) throw new Error('postId and moduleId required.');
+
+    dbWithScriptLock_(function() {
+      var existing = dbReadAll_('ModuleForumLikes').filter(function(l) {
+        return String(l.postId || '') === postId && String(l.userId || '') === String(caller.userId);
+      });
+      if (existing.length) {
+        dbDeleteByRow_('ModuleForumLikes', existing[0].__rowNumber);
+      } else {
+        dbAppend_('ModuleForumLikes', { likeId: uuid_('LKE'), postId: postId, moduleId: moduleId, userId: caller.userId, createdAt: now_() });
+      }
+    });
+
+    return { ok: true };
+  } catch(err) {
+    return apiError_('apiModuleForumLikePost', err);
   }
 }
 

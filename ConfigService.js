@@ -327,6 +327,14 @@ var DB_SCHEMA = {
     'createdAt'
   ],
 
+  ModuleForumLikes: [
+    'likeId',
+    'postId',
+    'moduleId',
+    'userId',
+    'createdAt'
+  ],
+
   ModuleProgress: [
     'progressId',
     'userId',
