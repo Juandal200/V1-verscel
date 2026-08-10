@@ -10613,6 +10613,14 @@
 
     var sects = ['intro','explanation','application','evaluation'];
     var stepLabels = ['Intro','Explain','Apply','Evaluate'];
+    var gradients = [
+      'linear-gradient(145deg,#0f2744,#1d4ed8)',
+      'linear-gradient(145deg,#1a1a3e,#7c3aed)',
+      'linear-gradient(145deg,#0f3322,#16a34a)',
+      'linear-gradient(145deg,#3b1a00,#d97706)',
+      'linear-gradient(145deg,#200a2a,#9333ea)',
+      'linear-gradient(145deg,#001a2e,#0284c7)'
+    ];
 
     var cards = modules.map(function(m, idx) {
       var locked     = !m.unlocked;
@@ -10621,126 +10629,104 @@
       var sectionsDone = 0;
       if (m.sections) sects.forEach(function(k) { if (m.sections[k] && m.sections[k].completed) sectionsDone++; });
       var pct = Math.round((sectionsDone / 4) * 100);
-
-      // Left image panel — badge image or a styled gradient placeholder
       var accentColor = completed ? '#16a34a' : locked ? '#6b7280' : '#0ea5e9';
-      var imgPanel;
-      if (m.badgeImageUrl) {
-        imgPanel =
-          '<div style="position:relative;width:200px;min-width:200px;background:linear-gradient(145deg,#0f172a,#1e3a5f);flex-shrink:0;overflow:hidden;">' +
-            '<img src="' + safeText(m.badgeImageUrl) + '" style="width:100%;height:100%;object-fit:cover;' + (locked?'filter:grayscale(1) brightness(.55);':'filter:brightness(.7);') + '">' +
-            '<div style="position:absolute;inset:0;background:linear-gradient(to right,transparent 60%,rgba(0,0,0,.5));"></div>' +
-            '<div style="position:absolute;bottom:12px;left:12px;">' +
-              '<p style="margin:0;font-size:0.6rem;font-weight:800;letter-spacing:.14em;color:rgba(255,255,255,.65);text-transform:uppercase;">Module</p>' +
-              '<div style="width:36px;height:36px;border-radius:50%;background:' + accentColor + ';border:2px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1rem;color:#fff;margin-top:4px;">' +
-                (completed ? '✓' : String(idx+1)) +
-              '</div>' +
-            '</div>' +
-            (locked ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.8rem;">🔒</div>' : '') +
-          '</div>';
-      } else {
-        var gradients = [
-          'linear-gradient(145deg,#0f2744,#1d4ed8)',
-          'linear-gradient(145deg,#1a1a3e,#7c3aed)',
-          'linear-gradient(145deg,#0f3322,#16a34a)',
-          'linear-gradient(145deg,#3b1a00,#d97706)',
-          'linear-gradient(145deg,#200a2a,#9333ea)',
-          'linear-gradient(145deg,#001a2e,#0284c7)'
-        ];
-        var grad = gradients[idx % gradients.length];
-        imgPanel =
-          '<div style="position:relative;width:200px;min-width:200px;' + (locked?'filter:grayscale(.7) brightness(.7);':'') + 'background:' + grad + ';flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;">' +
-            '<p style="margin:0;font-size:0.58rem;font-weight:800;letter-spacing:.16em;color:rgba(255,255,255,.5);text-transform:uppercase;">Module</p>' +
-            '<div style="width:52px;height:52px;border-radius:50%;border:3px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.5rem;color:#fff;">' +
+
+      // 16:9 thumbnail — top of card
+      var thumbInner = m.badgeImageUrl
+        ? '<img src="' + safeText(m.badgeImageUrl) + '" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;' + (locked ? 'filter:grayscale(1) brightness(.5);' : 'filter:brightness(.75);') + '">'
+        : '';
+      var thumbBg = m.badgeImageUrl ? 'background:#0f172a;' : 'background:' + gradients[idx % gradients.length] + ';';
+
+      var thumb =
+        '<div style="position:relative;padding-bottom:56.25%;' + thumbBg + 'overflow:hidden;">' +
+          thumbInner +
+          // Gradient overlay bottom-to-top
+          '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.65) 0%,transparent 50%);"></div>' +
+          // Module number badge — bottom-left
+          '<div style="position:absolute;bottom:10px;left:12px;display:flex;align-items:center;gap:8px;">' +
+            '<div style="width:34px;height:34px;border-radius:50%;background:' + accentColor + ';border:2px solid rgba(255,255,255,.45);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.95rem;color:#fff;">' +
               (completed ? '✓' : String(idx+1)) +
             '</div>' +
-            (locked ? '<span style="font-size:1.2rem;margin-top:4px;">🔒</span>' : '') +
-          '</div>';
-      }
+            '<span style="font-size:0.62rem;font-weight:800;letter-spacing:.13em;color:rgba(255,255,255,.7);text-transform:uppercase;">Module</span>' +
+          '</div>' +
+          // Lock overlay
+          (locked ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2rem;background:rgba(0,0,0,.25);">🔒</div>' : '') +
+          // Completed ribbon
+          (completed ? '<div style="position:absolute;top:10px;right:10px;background:#16a34a;border-radius:20px;padding:2px 10px;font-size:0.65rem;font-weight:800;letter-spacing:.07em;color:#fff;">✓ DONE</div>' : '') +
+        '</div>';
 
       // Status chip
       var chip = completed
-        ? '<span style="font-size:0.68rem;font-weight:700;letter-spacing:.06em;color:var(--green);background:rgba(22,163,74,.12);border:1px solid rgba(22,163,74,.2);padding:2px 9px;border-radius:20px;">✓ COMPLETED</span>'
+        ? '<span style="font-size:0.67rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.12);border:1px solid rgba(22,163,74,.25);padding:2px 8px;border-radius:20px;letter-spacing:.05em;">✓ COMPLETED</span>'
         : locked
-          ? '<span style="font-size:0.68rem;letter-spacing:.05em;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:2px 9px;border-radius:20px;">LOCKED</span>'
+          ? '<span style="font-size:0.67rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:2px 8px;border-radius:20px;">LOCKED</span>'
           : sectionsDone > 0
-            ? '<span style="font-size:0.68rem;font-weight:700;letter-spacing:.05em;color:var(--cyan);background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.25);padding:2px 9px;border-radius:20px;">▶ IN PROGRESS</span>'
-            : '<span style="font-size:0.68rem;letter-spacing:.05em;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:2px 9px;border-radius:20px;">NOT STARTED</span>';
+            ? '<span style="font-size:0.67rem;font-weight:700;color:var(--cyan);background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.25);padding:2px 8px;border-radius:20px;">▶ IN PROGRESS</span>'
+            : '<span style="font-size:0.67rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:2px 8px;border-radius:20px;">NOT STARTED</span>';
 
-      // Section mini-steps
+      // Mini step indicators
       var miniSteps = sects.map(function(k, i) {
         var s    = m.sections && m.sections[k];
         var done = s && s.completed;
         var avail = s && s.unlocked;
         return '<div style="display:flex;flex-direction:column;align-items:center;gap:3px;">' +
-          '<div style="width:24px;height:24px;border-radius:50%;font-size:0.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;' +
-            (done  ? 'background:var(--green);color:#fff;border:none;'
-                   : avail ? 'background:rgba(14,165,233,.12);color:var(--cyan);border:1px solid rgba(14,165,233,.3);'
+          '<div style="width:22px;height:22px;border-radius:50%;font-size:0.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;' +
+            (done  ? 'background:var(--green);color:#fff;'
+                   : avail ? 'background:rgba(14,165,233,.15);color:var(--cyan);border:1px solid rgba(14,165,233,.35);'
                            : 'background:var(--panel-soft);color:var(--muted);border:1px solid var(--line);') + '">' +
             (done ? '✓' : String(i+1)) +
           '</div>' +
-          '<span style="font-size:0.58rem;color:' + (done?'var(--green)':avail?'var(--text)':'var(--muted)') + ';letter-spacing:.02em;white-space:nowrap;">' + stepLabels[i] + '</span>' +
+          '<span style="font-size:0.56rem;color:' + (done ? 'var(--green)' : avail ? 'var(--text)' : 'var(--muted)') + ';white-space:nowrap;">' + stepLabels[i] + '</span>' +
         '</div>';
       });
-      var stepsRow = '<div style="display:flex;align-items:flex-start;gap:0;">';
+      var stepsRow = '<div style="display:flex;align-items:flex-start;gap:0;margin-bottom:12px;">';
       miniSteps.forEach(function(s, i) {
         stepsRow += s;
-        if (i < 3) {
-          stepsRow += '<div style="flex:1;height:1px;background:var(--line);margin-top:12px;"></div>';
-        }
+        if (i < 3) stepsRow += '<div style="flex:1;height:1px;background:var(--line);margin-top:11px;"></div>';
       });
       stepsRow += '</div>';
 
       var cta = !locked
-        ? '<button class="btn ' + (completed?'secondary':'primary') + '" style="font-size:0.82rem;padding:8px 18px;white-space:nowrap;" onclick="event.stopPropagation();renderModuleDetail(\'' + m.moduleId + '\')">' +
-            (completed ? 'Review' : sectionsDone > 0 ? 'Continue →' : 'Start →') +
+        ? '<button class="btn ' + (completed ? 'secondary' : 'primary') + '" style="font-size:0.8rem;padding:7px 16px;width:100%;" onclick="event.stopPropagation();renderModuleDetail(\'' + m.moduleId + '\')">' +
+            (completed ? 'Review Module' : sectionsDone > 0 ? 'Continue →' : 'Start Module →') +
           '</button>'
-        : '';
+        : '<button class="btn secondary" style="font-size:0.8rem;padding:7px 16px;width:100%;opacity:0.5;cursor:not-allowed;" disabled>🔒 Locked</button>';
 
-      var borderColor = completed ? 'var(--green)' : inProgress ? 'var(--cyan)' : 'var(--line)';
+      return '<div style="' + (!locked ? 'cursor:pointer;' : 'opacity:0.65;') + '"' +
+        (!locked ? ' onclick="renderModuleDetail(\'' + m.moduleId + '\')" onmouseenter="this.querySelector(\'div\').style.boxShadow=\'0 6px 28px rgba(0,0,0,.25)\'" onmouseleave="this.querySelector(\'div\').style.boxShadow=\'\'"' : '') + '>' +
+        '<div style="border:1px solid ' + (completed ? 'rgba(22,163,74,.3)' : inProgress ? 'rgba(14,165,233,.2)' : 'var(--line)') + ';border-radius:14px;overflow:hidden;background:var(--panel);transition:box-shadow .2s;">' +
 
-      return '<div style="max-width:860px;margin:0 auto 14px;">' +
-        '<div style="display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;min-height:140px;' +
-          (completed?'border-color:rgba(22,163,74,.3);':inProgress?'border-color:rgba(14,165,233,.25);':'') +
-          (!locked?'cursor:pointer;transition:box-shadow .2s;':'opacity:0.62;') + '" ' +
-          (!locked?'onclick="renderModuleDetail(\'' + m.moduleId + '\')" onmouseenter="this.style.boxShadow=\'0 4px 20px rgba(0,0,0,.2)\'" onmouseleave="this.style.boxShadow=\'\'"':'') + '>' +
+          thumb +
 
-          imgPanel +
-
-          '<div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:18px 20px;background:var(--panel);">' +
-            '<div>' +
-              '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px;">' +
-                '<h3 style="margin:0;font-size:1.05rem;line-height:1.3;">' + safeText(m.title) + '</h3>' +
-                chip +
-              '</div>' +
-              (m.topic ? '<p style="margin:0 0 8px;font-size:0.75rem;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;font-weight:600;">' + safeText(m.topic) + '</p>' : '') +
-              (m.description ? '<p style="margin:0 0 10px;font-size:0.82rem;color:var(--muted);line-height:1.45;">' + safeText(m.description) + '</p>' : '') +
+          '<div style="padding:14px 16px;">' +
+            '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;">' +
+              '<h3 style="margin:0;font-size:0.97rem;line-height:1.3;font-weight:700;">' + safeText(m.title) + '</h3>' +
+              chip +
             '</div>' +
-
-            '<div>' +
-              stepsRow +
-              (inProgress && pct > 0
-                ? '<div style="margin-top:10px;">' +
-                    '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
-                      '<span style="font-size:0.68rem;color:var(--muted);letter-spacing:.04em;">PROGRESS</span>' +
-                      '<span style="font-size:0.68rem;font-weight:700;color:var(--cyan);">' + pct + '%</span>' +
-                    '</div>' +
-                    '<div style="background:var(--line);border-radius:4px;height:4px;">' +
-                      '<div style="background:var(--cyan);width:' + pct + '%;height:4px;border-radius:4px;"></div>' +
-                    '</div>' +
-                  '</div>'
-                : '') +
-              (cta
-                ? '<div style="margin-top:12px;display:flex;justify-content:flex-end;">' + cta + '</div>'
-                : '') +
-            '</div>' +
+            (m.topic ? '<p style="margin:0 0 10px;font-size:0.7rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;font-weight:600;">' + safeText(m.topic) + '</p>' : '<div style="margin-bottom:10px;"></div>') +
+            stepsRow +
+            (inProgress && pct > 0
+              ? '<div style="margin-bottom:12px;">' +
+                  '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
+                    '<span style="font-size:0.65rem;color:var(--muted);">Progress</span>' +
+                    '<span style="font-size:0.65rem;font-weight:700;color:var(--cyan);">' + pct + '%</span>' +
+                  '</div>' +
+                  '<div style="background:var(--line);border-radius:4px;height:4px;overflow:hidden;">' +
+                    '<div style="background:var(--cyan);width:' + pct + '%;height:4px;border-radius:4px;"></div>' +
+                  '</div>' +
+                '</div>'
+              : '') +
+            cta +
           '</div>' +
-
         '</div>' +
       '</div>';
     }).join('');
 
-    byId('contentArea').innerHTML = header + cards;
+    byId('contentArea').innerHTML =
+      header +
+      '<div style="max-width:860px;margin:0 auto;display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">' +
+        cards +
+      '</div>';
   }
 
   // ── Module detail ─────────────────────────────────────────────────────────────
