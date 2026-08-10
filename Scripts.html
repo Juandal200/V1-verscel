@@ -770,15 +770,6 @@
       avatar.style.borderColor = tier.color;
       avatar.style.boxShadow   = '0 0 0 3px ' + tier.glow + ', 0 0 20px ' + tier.glow;
     }
-    var avatarRank = byId('topbarAvatarRank');
-    if (avatarRank) {
-      avatarRank.textContent       = tier.abbr;
-      avatarRank.style.color       = tier.color;
-      avatarRank.style.borderColor = tier.color + '55';
-      avatarRank.style.background  = tier.color + '18';
-      avatarRank.style.display     = '';
-    }
-
     // ── Crew nav tab rank border ──
     var crewBtn = byId('crewNavBtn');
     if (crewBtn) {
@@ -801,6 +792,14 @@
     for (var i = 0; i < _TIER_PROGRESS.length; i++) {
       if (_TIER_PROGRESS[i].key === tier.key) { cfg = _TIER_PROGRESS[i]; break; }
     }
+    // ── XP / completed levels count ──
+    var xpLbl = byId('topnavXpLabel');
+    if (xpLbl) {
+      xpLbl.textContent = completedLevels + ' XP';
+      xpLbl.style.color = tier.color;
+      xpLbl.style.display = '';
+    }
+
     var levelsLbl = byId('topnavLevelsLabel');
     var rankMeta  = byId('topnavRankMeta');
     if (cfg && levelsLbl) {
