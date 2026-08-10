@@ -762,6 +762,23 @@ function apiModuleGetDetail(sessionToken, moduleId) {
     var watchedIds = [];
     if (prog) { try { watchedIds = JSON.parse(prog.explanationVideosWatched || '[]'); } catch(e) {} }
 
+    // ── Auto-heal: set explanationCompleted if conditions are already met ──
+    if (prog && !lmsBool_(prog.explanationCompleted)) {
+      var expVideos  = videos.filter(function(v) { return String(v.section || '') === 'explanation'; });
+      var hasExpQuiz = questions.some(function(q) { return String(q.section || '') === 'explanation'; });
+      var allExpWatched = expVideos.length === 0 ||
+        expVideos.every(function(v) { return watchedIds.indexOf(String(v.videoId)) !== -1; });
+
+      if (allExpWatched && !hasExpQuiz) {
+        dbUpdateByRow_('ModuleProgress', prog.__rowNumber, { explanationCompleted: true, updatedAt: now_() });
+        prog.explanationCompleted = true;
+      } else if (lmsBool_(prog.quizPassed)) {
+        // Quiz passed but explanationCompleted wasn't set — heal it
+        dbUpdateByRow_('ModuleProgress', prog.__rowNumber, { explanationCompleted: true, updatedAt: now_() });
+        prog.explanationCompleted = true;
+      }
+    }
+
     var cooldownUntil = prog ? lmsCheckCooldown_(prog.quizLastAttemptAt) : null;
     var evalCooldown  = prog ? lmsCheckCooldown_(prog.evalLastAttemptAt)  : null;
 
@@ -778,22 +795,22 @@ function apiModuleGetDetail(sessionToken, moduleId) {
       questions: questions,
       scenarios: scenarios,
       progress: prog ? {
-        introVideoWatched:       !!prog.introVideoWatched,
-        introForumPosted:        !!prog.introForumPosted,
-        introCompleted:          !!prog.introCompleted,
+        introVideoWatched:       lmsBool_(prog.introVideoWatched),
+        introForumPosted:        lmsBool_(prog.introForumPosted),
+        introCompleted:          lmsBool_(prog.introCompleted),
         explanationVideosWatched: watchedIds,
         quizScore:               Number(prog.quizScore   || 0),
         quizAttempts:            Number(prog.quizAttempts || 0),
-        quizPassed:              !!prog.quizPassed,
+        quizPassed:              lmsBool_(prog.quizPassed),
         quizCooldownUntil:       cooldownUntil,
-        explanationCompleted:    !!prog.explanationCompleted,
+        explanationCompleted:    lmsBool_(prog.explanationCompleted),
         scenariosPassed:         Number(prog.scenariosPassed || 0),
-        applicationCompleted:    !!prog.applicationCompleted,
+        applicationCompleted:    lmsBool_(prog.applicationCompleted),
         evalScore:               Number(prog.evalScore    || 0),
         evalAttempts:            Number(prog.evalAttempts  || 0),
-        evalPassed:              !!prog.evalPassed,
+        evalPassed:              lmsBool_(prog.evalPassed),
         evalCooldownUntil:       evalCooldown,
-        badgeEarned:             !!prog.badgeEarned
+        badgeEarned:             lmsBool_(prog.badgeEarned)
       } : null
     };
   } catch(err) {
