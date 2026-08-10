@@ -11154,14 +11154,14 @@
     var forumPanel =
       '<div style="width:280px;min-width:280px;flex-shrink:0;border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;">' +
 
-        // Toggle tabs — Progress LEFT (default), Forum RIGHT
+        // Toggle tabs — Forum LEFT (default), Progress RIGHT
         '<div style="display:flex;border-bottom:1px solid var(--line);flex-shrink:0;">' +
-          '<button id="rpBtnOutline" onclick="_lmsToggleRightPanel(\'outline\')" style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid var(--cyan);background:none;font-family:inherit;font-size:0.8rem;font-weight:700;color:var(--text);cursor:pointer;">📋 Progress</button>' +
-          '<button id="rpBtnForum"   onclick="_lmsToggleRightPanel(\'forum\')"   style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid transparent;background:none;font-family:inherit;font-size:0.8rem;font-weight:400;color:var(--muted);cursor:pointer;">💬 Forum</button>' +
+          '<button id="rpBtnForum"   onclick="_lmsToggleRightPanel(\'forum\')"   style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid var(--cyan);background:none;font-family:inherit;font-size:0.8rem;font-weight:700;color:var(--text);cursor:pointer;">💬 Forum</button>' +
+          '<button id="rpBtnOutline" onclick="_lmsToggleRightPanel(\'outline\')" style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid transparent;background:none;font-family:inherit;font-size:0.8rem;font-weight:400;color:var(--muted);cursor:pointer;">📋 Progress</button>' +
         '</div>' +
 
-        // ── Outline / progress view (default) ──
-        '<div id="rpOutlineView" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">' +
+        // ── Outline / progress view (hidden by default) ──
+        '<div id="rpOutlineView" style="flex:1;overflow:hidden;display:none;flex-direction:column;">' +
           '<div style="padding:12px 14px;border-bottom:1px solid var(--line);flex-shrink:0;">' +
             '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
               '<span style="font-size:0.75rem;font-weight:700;">Module Progress</span>' +
@@ -11174,8 +11174,8 @@
           '<div style="flex:1;overflow-y:auto;">' + outlineHtml + '</div>' +
         '</div>' +
 
-        // ── Forum view (hidden by default) ──
-        '<div id="rpForumView" style="flex:1;overflow:hidden;display:none;flex-direction:column;">' +
+        // ── Forum view (default) ──
+        '<div id="rpForumView" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">' +
           // Title
           '<div style="padding:10px 14px;border-bottom:1px solid var(--line);flex-shrink:0;">' +
             '<span id="rpForumTitle" style="font-size:0.85rem;font-weight:700;">Introduction Forum</span>' +
@@ -11230,9 +11230,9 @@
         forumPanel +
       '</div>';
 
-    // Ensure Progress tab is active (not Forum) and scroll to current section
+    // Ensure Forum tab is active (default) and scroll to current section
     setTimeout(function() {
-      if (window._lmsToggleRightPanel) _lmsToggleRightPanel('outline');
+      if (window._lmsToggleRightPanel) _lmsToggleRightPanel('forum');
       var panel = document.getElementById('lmsPanel-' + (defaultSection || 'intro'));
       if (panel) panel.scrollIntoView({ behavior: 'instant', block: 'start' });
     }, 0);
