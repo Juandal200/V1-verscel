@@ -10903,24 +10903,6 @@
       expBody += _lmsItem('📝', 'Quiz', 'Section Assessment', quizStatusHtml, quizBody, false);
     }
 
-    // Forum in Explanation (discussion only, not required for completion)
-    expBody += _lmsItem('💬', 'Discussion', 'Section Forum',
-      '<span style="font-size:0.75rem;color:var(--muted);background:var(--panel-soft);padding:2px 8px;border-radius:10px;border:1px solid var(--line);">Optional</span>',
-      '<div id="moduleForumPostsExp" style="margin-bottom:14px;">' + _spinnerHtml('Loading...') + '</div>' +
-      '<div style="border:1px solid var(--line);border-radius:10px;overflow:hidden;">' +
-        '<div style="display:flex;gap:10px;padding:12px 14px;">' +
-          '<div style="width:32px;height:32px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#fff;flex-shrink:0;">' +
-            safeText(((AppState.user && AppState.user.name) || 'U').charAt(0).toUpperCase()) +
-          '</div>' +
-          '<textarea id="moduleForumInputExp" rows="2" style="flex:1;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:0.85rem;color:var(--text);resize:none;" placeholder="Discuss the lesson content (min 4 words)..."></textarea>' +
-        '</div>' +
-        '<div style="display:flex;justify-content:flex-end;padding:8px 14px 10px;border-top:1px solid var(--line);background:var(--panel-soft);">' +
-          '<button class="btn primary" style="font-size:0.82rem;" onclick="moduleForumPost(\'' + m.moduleId + '\',\'Exp\')">Post Reply</button>' +
-        '</div>' +
-      '</div>' +
-      '<div id="moduleForumMsgExp" style="margin-top:6px;font-size:0.82rem;"></div>',
-      true);
-
     // ── APPLICATION BODY ──
     var passedCount = prog.scenariosPassed || 0;
     var appBody =
@@ -11216,10 +11198,8 @@
         forumPanel +
       '</div>';
 
-    // Load inline section forums with their respective sections
-    _loadForumPosts(m.moduleId, 'intro',       'moduleForumPosts');
-    _loadForumPosts(m.moduleId, 'explanation', 'moduleForumPostsExp');
-    // Load right panel forum for the initial (intro) section
+    // Load inline intro forum and right panel forum
+    _loadForumPosts(m.moduleId, 'intro', 'moduleForumPosts');
     if (window._lmsLoadRightPanelForum) _lmsLoadRightPanelForum('intro');
   }
 
