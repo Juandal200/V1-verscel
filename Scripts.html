@@ -1151,7 +1151,6 @@
       // ── Modules section ──
       var modulesSection =
         '<div style="margin-bottom:8px;">' +
-          '<h3 style="margin:0 0 16px;font-size:1rem;font-weight:700;">Training Modules</h3>' +
           '<div id="homeModulesArea"><div style="text-align:center;padding:32px;color:var(--muted);">Loading modules…</div></div>' +
         '</div>';
 
@@ -10673,24 +10672,7 @@
     var totalCompleted = modules.filter(function(m) { return m.completed; }).length;
     var overallPct = modules.length ? Math.round((totalCompleted / modules.length) * 100) : 0;
 
-    var header =
-      '<div style="margin-bottom:24px;">' +
-        '<p class="eyebrow" style="margin-bottom:4px;">Aviation English Training</p>' +
-        '<h2 style="margin:0 0 6px;">Course Roadmap</h2>' +
-        '<p style="color:var(--muted);margin:0 0 16px;font-size:0.9rem;">Complete each module in sequence to advance your ICAO proficiency.</p>' +
-        '<div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 20px;display:flex;align-items:center;gap:20px;">' +
-          '<div style="font-size:1.8rem;line-height:1;">✈</div>' +
-          '<div style="flex:1;">' +
-            '<div style="display:flex;justify-content:space-between;margin-bottom:7px;">' +
-              '<span style="font-size:0.75rem;color:var(--muted);letter-spacing:.07em;font-weight:600;">OVERALL PROGRESS</span>' +
-              '<span style="font-size:0.75rem;font-weight:700;color:' + (overallPct===100?'var(--green)':'var(--cyan)') + ';">' + totalCompleted + ' / ' + modules.length + ' completed</span>' +
-            '</div>' +
-            '<div style="background:var(--line);border-radius:6px;height:10px;overflow:hidden;">' +
-              '<div style="background:' + (overallPct===100?'var(--green)':'var(--cyan)') + ';width:' + overallPct + '%;height:10px;border-radius:6px;transition:width .5s;"></div>' +
-            '</div>' +
-          '</div>' +
-        '</div>' +
-      '</div>';
+    var header = '';
 
     var sects = ['intro','explanation','application','evaluation'];
     var stepLabels = ['Intro','Explain','Apply','Evaluate'];
