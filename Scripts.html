@@ -10773,110 +10773,91 @@
       .filter(Boolean).length;
     var overallPct = Math.round((sectionsDone / 4) * 100);
 
-    // ── Breadcrumb + course header ──
-    var progressColor = overallPct === 100 ? '#16a34a' : '#0ea5e9';
+    // ── Breadcrumb + compact module header ──
     var courseHeader =
-      '<div style="max-width:860px;margin:0 auto 0;">' +
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;font-size:0.82rem;color:var(--muted);">' +
+      '<div style="max-width:860px;margin:0 auto 16px;">' +
+        // Breadcrumb
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:0.82rem;">' +
           '<button class="btn secondary" onclick="renderModules()" style="padding:5px 12px;font-size:0.78rem;">← All Modules</button>' +
-          '<span>›</span>' +
+          '<span style="color:var(--muted);">›</span>' +
           '<span style="color:var(--text);font-weight:600;">' + safeText(m.title) + '</span>' +
-        '</div>' +
-
-        // Module header card — hero style
-        '<div style="display:flex;border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:20px;background:var(--panel);min-height:120px;">' +
-          // Left hero band
-          '<div style="width:220px;min-width:220px;flex-shrink:0;position:relative;background:linear-gradient(145deg,#0f172a,#1e3a5f);overflow:hidden;">' +
-            (m.badgeImageUrl
-              ? '<img src="' + safeText(m.badgeImageUrl) + '" style="width:100%;height:100%;object-fit:cover;' + (prog.badgeEarned?'':'filter:grayscale(.4) brightness(.6);') + '">' +
-                '<div style="position:absolute;inset:0;background:linear-gradient(to right,transparent 40%,rgba(0,0,0,.55));"></div>'
-              : '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:3rem;opacity:0.25;">✈</div>') +
-            '<div style="position:absolute;bottom:12px;left:14px;">' +
-              (m.topic ? '<p style="margin:0 0 2px;font-size:0.58rem;font-weight:800;letter-spacing:.14em;color:rgba(255,255,255,.6);text-transform:uppercase;">' + safeText(m.topic) + '</p>' : '') +
-              '<p style="margin:0;font-size:0.88rem;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);">' + safeText(m.title) + '</p>' +
-            '</div>' +
-            (prog.badgeEarned
-              ? '<div style="position:absolute;top:10px;right:10px;background:rgba(22,163,74,.85);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:1rem;">🏆</div>'
-              : '') +
-          '</div>' +
-
-          // Right content
-          '<div style="flex:1;padding:20px 24px;display:flex;flex-direction:column;justify-content:space-between;">' +
-            '<div>' +
-              '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">' +
-                '<h2 style="margin:0;font-size:1.15rem;">' + safeText(m.title) + '</h2>' +
-                (overallPct === 100
-                  ? '<span style="font-size:0.7rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:3px 10px;border-radius:20px;">✓ COMPLETE</span>'
-                  : '') +
-              '</div>' +
-              (m.description ? '<p style="margin:0 0 14px;color:var(--muted);font-size:0.85rem;line-height:1.45;">' + safeText(m.description) + '</p>' : '') +
-            '</div>' +
-
-            '<div>' +
-              '<div style="display:flex;justify-content:space-between;margin-bottom:5px;">' +
-                '<span style="font-size:0.7rem;color:var(--muted);letter-spacing:.07em;font-weight:600;">MODULE PROGRESS</span>' +
-                '<span style="font-size:0.7rem;font-weight:800;color:' + progressColor + ';">' + overallPct + '%</span>' +
-              '</div>' +
-              '<div style="background:var(--line);border-radius:6px;height:8px;overflow:hidden;">' +
-                '<div style="background:' + progressColor + ';width:' + overallPct + '%;height:8px;border-radius:6px;transition:width .5s;"></div>' +
-              '</div>' +
-
-              // Stepper
-              '<div style="display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;align-items:center;gap:0;margin-top:16px;">' +
-                _stepperItem('01', 'Introduction', !!prog.introCompleted, introUnlocked) +
-                _stepperLine(expUnlocked) +
-                _stepperItem('02', 'Explanation', !!prog.explanationCompleted, expUnlocked) +
-                _stepperLine(appUnlocked) +
-                _stepperItem('03', 'Application', !!prog.applicationCompleted, appUnlocked) +
-                _stepperLine(evalUnlocked) +
-                _stepperItem('04', 'Evaluation', !!prog.evalPassed, evalUnlocked) +
-              '</div>' +
-            '</div>' +
-          '</div>' +
         '</div>' +
       '</div>';
 
-    // ── Canvas-style section card ──
-    var sectionAccents = { '01':'#1d4ed8', '02':'#7c3aed', '03':'#16a34a', '04':'#d97706' };
+    // ── Sidebar + panel layout helpers ──
+    var sectionAccents = { 'intro':'#1d4ed8', 'explanation':'#7c3aed', 'application':'#16a34a', 'evaluation':'#d97706' };
 
-    function sectionCard(num, label, icon, unlocked, completed, bodyHtml) {
-      var accent  = sectionAccents[num] || '#1d4ed8';
-      var lockMsg = num==='02' ? 'Complete the Introduction section to unlock'
-                  : num==='03' ? 'Complete the Explanation section to unlock'
-                  : 'Complete the Application section to unlock';
-      var leftBorder = completed ? '#16a34a' : unlocked ? accent : 'var(--line)';
-      var statusBadge = completed
-        ? '<span style="display:inline-flex;align-items:center;gap:5px;font-size:0.7rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:3px 11px;border-radius:20px;">✓ Complete</span>'
-        : !unlocked
-          ? '<span style="font-size:0.7rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:3px 11px;border-radius:20px;">🔒 Locked</span>'
-          : '<span style="font-size:0.7rem;font-weight:600;color:' + accent + ';background:var(--panel-soft);border:1px solid rgba(0,0,0,.1);padding:3px 11px;border-radius:20px;">In Progress</span>';
+    // Determine default active section (first unlocked incomplete, or last)
+    var defaultSection = 'intro';
+    if (prog.introCompleted && !prog.explanationCompleted && expUnlocked)   defaultSection = 'explanation';
+    else if (prog.explanationCompleted && !prog.applicationCompleted && appUnlocked) defaultSection = 'application';
+    else if (prog.applicationCompleted && !prog.evalPassed && evalUnlocked) defaultSection = 'evaluation';
+    else if (prog.evalPassed) defaultSection = 'evaluation';
 
-      return '<div style="max-width:860px;margin:0 auto 12px;">' +
-        '<div style="border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel);">' +
+    // Expose section switcher globally for onclick
+    window._lmsShowSection = function(key) {
+      var keys = ['intro','explanation','application','evaluation'];
+      keys.forEach(function(k) {
+        var panel = document.getElementById('lmsPanel-' + k);
+        var tab   = document.getElementById('lmsSideTab-' + k);
+        if (!panel || !tab) return;
+        var isActive = k === key;
+        panel.style.display = isActive ? 'block' : 'none';
+        var accent = sectionAccents[k] || '#0ea5e9';
+        tab.style.borderLeftColor  = isActive ? accent : 'transparent';
+        tab.style.background       = isActive ? 'rgba(14,165,233,.07)' : '';
+      });
+    };
 
-          // Section header
-          '<div style="display:flex;align-items:center;gap:14px;padding:14px 20px;background:var(--panel-soft);border-left:5px solid ' + leftBorder + ';' + (unlocked ? 'border-bottom:1px solid var(--line);' : '') + '">' +
-            '<div style="width:38px;height:38px;border-radius:50%;background:' + (completed ? 'rgba(22,163,74,.12)' : unlocked ? 'rgba(0,0,0,.06)' : 'var(--panel)') + ';border:1.5px solid ' + leftBorder + ';display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">' +
-              (completed ? '<span style="color:#16a34a;font-weight:700;font-size:0.85rem;">✓</span>' : icon) +
-            '</div>' +
-            '<div style="flex:1;">' +
-              '<p style="margin:0;font-size:0.62rem;color:var(--muted);letter-spacing:.1em;font-weight:700;text-transform:uppercase;">Section ' + num + '</p>' +
-              '<h4 style="margin:1px 0 0;font-size:1rem;font-weight:700;">' + label + '</h4>' +
-            '</div>' +
-            statusBadge +
+    function sidebarItem(key, num, label, icon, unlocked, completed) {
+      var accent  = sectionAccents[key] || '#0ea5e9';
+      var isActive = key === defaultSection;
+      var dotColor = completed ? '#16a34a' : unlocked ? accent : 'var(--muted)';
+      var lockMsg  = key==='explanation' ? 'Complete Introduction first'
+                   : key==='application' ? 'Complete Explanation first'
+                   : key==='evaluation'  ? 'Complete Application first' : '';
+
+      return '<div id="lmsSideTab-' + key + '" ' +
+        (unlocked ? 'onclick="_lmsShowSection(\'' + key + '\')" style="cursor:pointer;"' : 'style="cursor:default;opacity:0.5;"') + '>' +
+        '<div style="display:flex;align-items:center;gap:12px;padding:13px 16px;border-left:3px solid ' + (isActive ? accent : 'transparent') + ';background:' + (isActive ? 'rgba(14,165,233,.07)' : '') + ';transition:background .15s;"' +
+          (unlocked ? ' onmouseenter="this.style.background=\'rgba(0,0,0,.04)\'" onmouseleave="this.style.background=\'' + (isActive ? 'rgba(14,165,233,.07)' : '') + '\'"' : '') + '>' +
+          // Status circle
+          '<div style="width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.9rem;' +
+            (completed ? 'background:#16a34a;color:#fff;'
+                       : unlocked ? 'background:var(--panel-soft);border:2px solid ' + accent + ';color:' + accent + ';'
+                                  : 'background:var(--panel-soft);border:2px solid var(--line);color:var(--muted);') + '">' +
+            (completed ? '✓' : icon) +
           '</div>' +
-
-          // Body
-          (unlocked
-            ? bodyHtml
-            : '<div style="padding:18px 22px;display:flex;align-items:center;gap:12px;color:var(--muted);">' +
-                '<span style="font-size:1.3rem;">🔒</span>' +
-                '<div>' +
-                  '<p style="margin:0;font-size:0.88rem;font-weight:600;color:var(--muted);">' + lockMsg + '</p>' +
-                '</div>' +
-              '</div>') +
-
+          '<div style="flex:1;min-width:0;">' +
+            '<p style="margin:0;font-size:0.6rem;color:var(--muted);letter-spacing:.09em;font-weight:700;text-transform:uppercase;">Section ' + num + '</p>' +
+            '<p style="margin:0;font-size:0.88rem;font-weight:' + (isActive ? '700' : '600') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + label + '</p>' +
+            (!unlocked && lockMsg ? '<p style="margin:0;font-size:0.68rem;color:var(--muted);">' + lockMsg + '</p>' : '') +
+          '</div>' +
+          // Right status
+          (completed
+            ? '<span style="font-size:0.68rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.2);padding:2px 7px;border-radius:20px;flex-shrink:0;">Done</span>'
+            : !unlocked
+              ? '<span style="font-size:1rem;">🔒</span>'
+              : '<span style="width:8px;height:8px;border-radius:50%;background:' + accent + ';flex-shrink:0;' + (isActive ? '' : 'opacity:0;') + '"></span>') +
         '</div>' +
+      '</div>';
+    }
+
+    function sectionPanel(key, unlocked, completed, bodyHtml) {
+      var isActive = key === defaultSection;
+      var accent   = sectionAccents[key] || '#0ea5e9';
+      var lockMsgs = {
+        explanation: 'Complete the Introduction section to access Explanation.',
+        application: 'Complete the Explanation section (watch all videos and pass the quiz) to access Application.',
+        evaluation:  'Complete the Application section (pass 3 ATC scenarios) to access Evaluation.'
+      };
+      return '<div id="lmsPanel-' + key + '" style="display:' + (isActive ? 'block' : 'none') + ';padding:0;">' +
+        (unlocked
+          ? bodyHtml
+          : '<div style="padding:48px 32px;text-align:center;">' +
+              '<div style="font-size:2.5rem;margin-bottom:14px;">🔒</div>' +
+              '<p style="margin:0;font-size:0.95rem;font-weight:600;color:var(--muted);">' + (lockMsgs[key] || 'Locked') + '</p>' +
+            '</div>') +
       '</div>';
     }
 
@@ -11031,12 +11012,46 @@
       evalBody = _lmsItem('📝', 'Final Exam', 'Module Evaluation', evalStatusHtml, evalBody2, true);
     }
 
+    var sidebar =
+      '<div style="width:220px;min-width:220px;flex-shrink:0;border-right:1px solid var(--line);background:var(--panel-soft);">' +
+
+        // Module mini-header in sidebar
+        '<div style="padding:16px;border-bottom:1px solid var(--line);">' +
+          '<p style="margin:0 0 2px;font-size:0.62rem;color:var(--muted);letter-spacing:.09em;font-weight:700;text-transform:uppercase;">' + safeText(m.topic || 'Module') + '</p>' +
+          '<p style="margin:0 0 10px;font-size:0.9rem;font-weight:700;line-height:1.3;">' + safeText(m.title) + '</p>' +
+          '<div style="display:flex;justify-content:space-between;margin-bottom:5px;">' +
+            '<span style="font-size:0.65rem;color:var(--muted);">Progress</span>' +
+            '<span style="font-size:0.65rem;font-weight:700;color:' + (overallPct===100?'var(--green)':'var(--cyan)') + ';">' + overallPct + '%</span>' +
+          '</div>' +
+          '<div style="background:var(--line);border-radius:4px;height:5px;overflow:hidden;">' +
+            '<div style="background:' + (overallPct===100?'var(--green)':'var(--cyan)') + ';width:' + overallPct + '%;height:5px;border-radius:4px;transition:width .4s;"></div>' +
+          '</div>' +
+        '</div>' +
+
+        // Section nav items
+        sidebarItem('intro',       '01', 'Introduction',  '📖', introUnlocked, !!prog.introCompleted) +
+        sidebarItem('explanation', '02', 'Explanation',   '🎓', expUnlocked,   !!prog.explanationCompleted) +
+        sidebarItem('application', '03', 'Application',   '🛫', appUnlocked,   !!prog.applicationCompleted) +
+        sidebarItem('evaluation',  '04', 'Evaluation',    '🏆', evalUnlocked,  !!prog.evalPassed) +
+
+      '</div>';
+
+    var contentPanels =
+      '<div style="flex:1;overflow-y:auto;min-width:0;">' +
+        sectionPanel('intro',       introUnlocked, !!prog.introCompleted,       introBody) +
+        sectionPanel('explanation', expUnlocked,   !!prog.explanationCompleted, expBody) +
+        sectionPanel('application', appUnlocked,   !!prog.applicationCompleted, appBody) +
+        sectionPanel('evaluation',  evalUnlocked,  !!prog.evalPassed,           evalBody) +
+      '</div>';
+
     byId('contentArea').innerHTML =
       courseHeader +
-      sectionCard('01', 'Introduction',   '📖', introUnlocked, !!prog.introCompleted,        introBody) +
-      sectionCard('02', 'Explanation',     '🎓', expUnlocked,   !!prog.explanationCompleted,  expBody) +
-      sectionCard('03', 'Application',     '🛫', appUnlocked,   !!prog.applicationCompleted,  appBody) +
-      sectionCard('04', 'Evaluation',      '🏆', evalUnlocked,  !!prog.evalPassed,            evalBody);
+      '<div style="max-width:860px;margin:0 auto;">' +
+        '<div style="display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel);min-height:420px;">' +
+          sidebar +
+          contentPanels +
+        '</div>' +
+      '</div>';
 
     _loadForumPosts(m.moduleId);
   }
