@@ -1126,15 +1126,15 @@
         onClick:    '_navTo(renderSimulatorPlaceholder)'
       });
 
-      var teaStatusHtml = '<span style="position:absolute;top:10px;right:12px;font-size:0.65rem;font-weight:800;background:rgba(139,92,246,.25);border:1px solid rgba(139,92,246,.5);color:#c4b5fd;padding:2px 10px;border-radius:20px;letter-spacing:.06em;">ICAO EXAM</span>';
+      var teaStatusHtml = '<span style="position:absolute;top:10px;right:12px;font-size:0.65rem;font-weight:800;background:rgba(139,92,246,.25);border:1px solid rgba(139,92,246,.5);color:#c4b5fd;padding:2px 10px;border-radius:20px;letter-spacing:.06em;">ICAO TEST</span>';
       var teaBodyHtml =
         '<p style="margin:0;font-size:0.85rem;color:var(--muted);line-height:1.55;">Evaluate your reading, listening and comprehension skills for ICAO Level 4+.</p>';
 
       var teaCard = _homeCard({
-        gradient:   'linear-gradient(145deg,#160a2e,#3b1a6e,#7c3aed)',
+        gradient:   'linear-gradient(to top,rgba(0,0,0,.75) 0%,rgba(0,0,0,.25) 60%,rgba(0,0,0,.1) 100%),url(https://lh3.googleusercontent.com/d/1W8q6e41NLKftE1uKrnQU-l_6y3PCkXue) center/cover no-repeat',
         icon:       { bg: '#8b5cf6', emoji: '📋' },
-        badge:      'TEA Exam',
-        title:      'Test of English for Aviation',
+        badge:      'ICAO Test',
+        title:      'ICAO Test of English for Aviation',
         subtitle:   'ICAO Language Proficiency',
         statusHtml: teaStatusHtml,
         bodyHtml:   teaBodyHtml,
@@ -18913,7 +18913,7 @@
   }
 
   function renderTeaExam() {
-    if (typeof setActiveNav==='function') setActiveNav('TEA Exam');
+    if (typeof setActiveNav==='function') setActiveNav('ICAO Test');
     _resetState();
     var content = document.getElementById('contentArea'); if(!content) return;
 
