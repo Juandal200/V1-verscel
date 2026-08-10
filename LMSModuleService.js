@@ -499,14 +499,19 @@ function apiAdminGetModuleScenarios(sessionToken, moduleId) {
 
 // ── FORUM ─────────────────────────────────────────────────────────────────────
 
-function apiModuleForumGetPosts(sessionToken, moduleId) {
+function apiModuleForumGetPosts(sessionToken, moduleId, section) {
   try {
     var caller = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
     moduleId = String(moduleId || '');
+    section  = String(section  || '');
     if (!moduleId) throw new Error('moduleId required.');
 
     var posts = dbReadAll_('ModuleForum')
-      .filter(function(p) { return String(p.moduleId || '') === moduleId; })
+      .filter(function(p) {
+        if (String(p.moduleId || '') !== moduleId) return false;
+        if (section && String(p.section || '') !== section) return false;
+        return true;
+      })
       .sort(function(a, b) { return String(a.createdAt || '').localeCompare(String(b.createdAt || '')); });
 
     // Build userId → {profession, currentLevel} map from Users sheet
@@ -536,6 +541,7 @@ function apiModuleForumGetPosts(sessionToken, moduleId) {
       return {
         postId:       p.postId,
         moduleId:     p.moduleId,
+        section:      p.section || '',
         userId:       p.userId,
         userName:     p.userName,
         parentPostId: p.parentPostId,
@@ -585,6 +591,7 @@ function apiModuleForumSavePost(sessionToken, payload) {
     payload = payload || {};
 
     var moduleId     = String(payload.moduleId     || '').trim();
+    var section      = String(payload.section      || '').trim();
     var body         = String(payload.body         || '').trim();
     var parentPostId = String(payload.parentPostId || '').trim();
 
@@ -613,6 +620,7 @@ function apiModuleForumSavePost(sessionToken, payload) {
         var newPost = {
           postId:       uuid_('POS'),
           moduleId:     moduleId,
+          section:      section || 'intro',
           userId:       caller.userId,
           userName:     caller.name || caller.email || '',
           parentPostId: parentPostId,
@@ -622,8 +630,8 @@ function apiModuleForumSavePost(sessionToken, payload) {
         };
         dbAppend_('ModuleForum', newPost);
 
-        // Mark forum participation on progress if top-level post
-        if (!parentPostId) {
+        // Mark forum participation on progress if top-level intro post
+        if (!parentPostId && (!section || section === 'intro')) {
           var prog = lmsGetProgress_(caller.userId, moduleId);
           if (prog && !lmsBool_(prog.introForumPosted)) {
             var forumPatch = { introForumPosted: true, updatedAt: now };

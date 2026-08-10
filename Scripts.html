@@ -10783,7 +10783,10 @@
     else if (lmsBool_(prog.applicationCompleted) && !lmsBool_(prog.evalPassed) && evalUnlocked) defaultSection = 'evaluation';
     else if (lmsBool_(prog.evalPassed)) defaultSection = 'evaluation';
 
+    window._lmsCurrentSection = 'intro';
+
     window._lmsShowSection = function(key) {
+      window._lmsCurrentSection = key;
       sectionKeys.forEach(function(k) {
         var panel = document.getElementById('lmsPanel-' + k);
         var tab   = document.getElementById('lmsTab-' + k);
@@ -10795,6 +10798,8 @@
         tab.style.color             = active ? accent : '';
         tab.style.fontWeight        = active ? '700' : '500';
       });
+      // Update right panel forum context when switching sections
+      if (window._lmsUpdateRightPanelForum) _lmsUpdateRightPanelForum(key);
     };
 
     // Canvas-style content item row (video, quiz, etc.)
@@ -11062,22 +11067,118 @@
       outlineSectionHead('evaluation', '4', 'Evaluation', evalUnlocked, lmsBool_(prog.evalPassed)) +
       (evalQs.length ? outlineItem('evaluation', '📝', null, 'Final Exam', lmsBool_(prog.evalPassed), evalUnlocked) : outlineItem('evaluation', '🏆', null, 'Final Evaluation', lmsBool_(prog.evalPassed), evalUnlocked));
 
-    var forumPanel =
-      '<div style="width:260px;min-width:260px;flex-shrink:0;border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;">' +
+    // Right-panel toggle logic (defined here so it closes over moduleId + outlineHtml)
+    var _rpModuleId = m.moduleId;
 
-        // Progress header
-        '<div style="padding:12px 14px;border-bottom:1px solid var(--line);flex-shrink:0;">' +
-          '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
-            '<span style="font-size:0.75rem;font-weight:700;">Module Progress</span>' +
-            '<span style="font-size:0.75rem;font-weight:800;color:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';">' + overallPct + '%</span>' +
-          '</div>' +
-          '<div style="background:var(--line);border-radius:4px;height:5px;overflow:hidden;">' +
-            '<div style="background:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';width:' + overallPct + '%;height:5px;border-radius:4px;"></div>' +
-          '</div>' +
+    window._lmsToggleRightPanel = function(view) {
+      var forumView   = document.getElementById('rpForumView');
+      var outlineView = document.getElementById('rpOutlineView');
+      var btnForum    = document.getElementById('rpBtnForum');
+      var btnOutline  = document.getElementById('rpBtnOutline');
+      if (!forumView || !outlineView) return;
+      forumView.style.display   = view === 'forum'   ? 'flex' : 'none';
+      outlineView.style.display = view === 'outline' ? 'flex' : 'none';
+      [['forum', btnForum], ['outline', btnOutline]].forEach(function(pair) {
+        var btn = pair[1]; var active = view === pair[0];
+        if (!btn) return;
+        btn.style.fontWeight        = active ? '700' : '400';
+        btn.style.borderBottomColor = active ? 'var(--cyan)' : 'transparent';
+        btn.style.color             = active ? 'var(--text)' : 'var(--muted)';
+      });
+      // Load forum posts when switching to forum view
+      if (view === 'forum') _lmsLoadRightPanelForum(window._lmsCurrentSection);
+    };
+
+    window._lmsUpdateRightPanelForum = function(sectionKey) {
+      // Only intro and explanation have forums
+      var forumView = document.getElementById('rpForumView');
+      if (!forumView || forumView.style.display === 'none') return;
+      _lmsLoadRightPanelForum(sectionKey);
+    };
+
+    window._lmsLoadRightPanelForum = function(sectionKey) {
+      var hasForumSections = sectionKey === 'intro' || sectionKey === 'explanation';
+      var noForumEl  = document.getElementById('rpNoForum');
+      var forumEl    = document.getElementById('rpForumPosts');
+      var composerEl = document.getElementById('rpForumComposer');
+      var titleEl    = document.getElementById('rpForumTitle');
+
+      if (noForumEl)  noForumEl.style.display  = hasForumSections ? 'none'  : 'flex';
+      if (forumEl)    forumEl.style.display     = hasForumSections ? 'block' : 'none';
+      if (composerEl) composerEl.style.display  = hasForumSections ? 'block' : 'none';
+      if (titleEl) {
+        titleEl.textContent = sectionKey === 'intro' ? 'Introduction Forum'
+                            : sectionKey === 'explanation' ? 'Explanation Forum'
+                            : 'Forum';
+      }
+      // Store section on the input so moduleForumPost knows which section to post to
+      var inp = document.getElementById('rpForumInput');
+      if (inp) inp.dataset.section = sectionKey;
+
+      if (hasForumSections && forumEl) {
+        forumEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:0.82rem;">Loading...</div>';
+        google.script.run
+          .withSuccessHandler(function(res) {
+            var posts = (res && res.ok) ? (res.posts || []) : [];
+            _renderForumPosts(posts, 'rpForumPosts', _rpModuleId);
+          })
+          .withFailureHandler(function() {
+            if (forumEl) forumEl.innerHTML = '<p style="padding:12px;color:var(--muted);font-size:0.82rem;">Could not load posts.</p>';
+          })
+          .apiModuleForumGetPosts(AppState.sessionToken, _rpModuleId, sectionKey);
+      }
+    };
+
+    var forumPanel =
+      '<div style="width:280px;min-width:280px;flex-shrink:0;border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;">' +
+
+        // Toggle tabs
+        '<div style="display:flex;border-bottom:1px solid var(--line);flex-shrink:0;">' +
+          '<button id="rpBtnForum"   onclick="_lmsToggleRightPanel(\'forum\')"   style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid var(--cyan);background:none;font-family:inherit;font-size:0.8rem;font-weight:700;color:var(--text);cursor:pointer;">💬 Forum</button>' +
+          '<button id="rpBtnOutline" onclick="_lmsToggleRightPanel(\'outline\')" style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid transparent;background:none;font-family:inherit;font-size:0.8rem;font-weight:400;color:var(--muted);cursor:pointer;">📋 Progress</button>' +
         '</div>' +
 
-        // Outline list
-        '<div style="flex:1;overflow-y:auto;">' + outlineHtml + '</div>' +
+        // ── Forum view (default) ──
+        '<div id="rpForumView" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">' +
+          // Title
+          '<div style="padding:10px 14px;border-bottom:1px solid var(--line);flex-shrink:0;">' +
+            '<span id="rpForumTitle" style="font-size:0.85rem;font-weight:700;">Introduction Forum</span>' +
+          '</div>' +
+          // Composer
+          '<div id="rpForumComposer" style="padding:10px 12px;border-bottom:1px solid var(--line);flex-shrink:0;">' +
+            '<div style="display:flex;gap:8px;">' +
+              '<div style="width:28px;height:28px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:800;color:#fff;flex-shrink:0;">' +
+                safeText(((AppState.user && AppState.user.name) || 'U').charAt(0).toUpperCase()) +
+              '</div>' +
+              '<textarea id="rpForumInput" rows="2" data-section="intro" style="flex:1;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:0.8rem;color:var(--text);resize:none;" placeholder="Share your thoughts (min 4 words)..."></textarea>' +
+            '</div>' +
+            '<div style="display:flex;justify-content:flex-end;margin-top:6px;">' +
+              '<button class="btn primary" style="font-size:0.76rem;padding:4px 12px;" onclick="moduleForumPostRP(\'' + m.moduleId + '\')">Post</button>' +
+            '</div>' +
+            '<div id="rpForumMsg" style="font-size:0.76rem;margin-top:3px;"></div>' +
+          '</div>' +
+          // No-forum placeholder (shown for Application/Evaluation)
+          '<div id="rpNoForum" style="display:none;flex:1;align-items:center;justify-content:center;text-align:center;padding:20px;flex-direction:column;gap:8px;">' +
+            '<span style="font-size:2rem;">🛫</span>' +
+            '<p style="margin:0;font-size:0.82rem;color:var(--muted);">No forum for this section.</p>' +
+          '</div>' +
+          // Posts list
+          '<div id="rpForumPosts" style="flex:1;overflow-y:auto;padding:0 4px;"></div>' +
+        '</div>' +
+
+        // ── Outline / progress view (hidden by default) ──
+        '<div id="rpOutlineView" style="flex:1;overflow:hidden;display:none;flex-direction:column;">' +
+          '<div style="padding:12px 14px;border-bottom:1px solid var(--line);flex-shrink:0;">' +
+            '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
+              '<span style="font-size:0.75rem;font-weight:700;">Module Progress</span>' +
+              '<span style="font-size:0.75rem;font-weight:800;color:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';">' + overallPct + '%</span>' +
+            '</div>' +
+            '<div style="background:var(--line);border-radius:4px;height:5px;overflow:hidden;">' +
+              '<div style="background:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';width:' + overallPct + '%;height:5px;border-radius:4px;"></div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="flex:1;overflow-y:auto;">' + outlineHtml + '</div>' +
+        '</div>' +
 
       '</div>';
 
@@ -11115,7 +11216,11 @@
         forumPanel +
       '</div>';
 
-    _loadForumPosts(m.moduleId);
+    // Load inline section forums with their respective sections
+    _loadForumPosts(m.moduleId, 'intro',       'moduleForumPosts');
+    _loadForumPosts(m.moduleId, 'explanation', 'moduleForumPostsExp');
+    // Load right panel forum for the initial (intro) section
+    if (window._lmsLoadRightPanelForum) _lmsLoadRightPanelForum('intro');
   }
 
   // ── Small UI helpers ──────────────────────────────────────────────────────────
@@ -11293,38 +11398,43 @@
         renderModuleDetail(moduleId);
       })
       .withFailureHandler(function(err) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(String(err)) + '</span>'; })
-      .apiModuleForumSavePost(AppState.sessionToken, { moduleId: moduleId, body: input.value.trim(), parentPostId: parentPostId });
+      .apiModuleForumSavePost(AppState.sessionToken, { moduleId: moduleId, section: (sfx === 'Exp' ? 'explanation' : sfx === 'RP' ? (window._lmsCurrentSection || 'intro') : 'intro'), body: input.value.trim(), parentPostId: parentPostId });
   };
 
   window.moduleForumLike = function(postId, moduleId, containerId) {
     google.script.run
-      .withSuccessHandler(function() { _loadForumPosts(moduleId); })
+      .withSuccessHandler(function() {
+        // Reload only the container that was clicked (and the right panel if it's the same section)
+        var sec = window._lmsCurrentSection || 'intro';
+        if (containerId === 'moduleForumPosts')    _loadForumPosts(moduleId, 'intro',       'moduleForumPosts');
+        if (containerId === 'moduleForumPostsExp') _loadForumPosts(moduleId, 'explanation', 'moduleForumPostsExp');
+        if (containerId === 'rpForumPosts')        _loadForumPosts(moduleId, sec,            'rpForumPosts');
+      })
       .withFailureHandler(function() {})
       .apiModuleForumLikePost(AppState.sessionToken, { postId: postId, moduleId: moduleId });
   };
 
-  function _loadForumPosts(moduleId) {
-    var hasMain = !!byId('moduleForumPosts');
-    var hasExp  = !!byId('moduleForumPostsExp');
-    if (!hasMain && !hasExp) return;
+  function _loadForumPosts(moduleId, section, containerId) {
+    var el = containerId ? byId(containerId) : null;
+    if (!el) return;
 
     google.script.run
       .withSuccessHandler(function(res) {
         var posts = (res && res.ok) ? (res.posts || []) : [];
-        if (hasMain) _renderForumPosts(posts, 'moduleForumPosts', moduleId);
-        if (hasExp)  _renderForumPosts(posts, 'moduleForumPostsExp', moduleId);
+        _renderForumPosts(posts, containerId, moduleId);
       })
       .withFailureHandler(function() {
-        if (hasMain) { var e = byId('moduleForumPosts'); if (e) e.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;padding:12px 0;">Could not load posts.</p>'; }
-        if (hasExp)  { var e2 = byId('moduleForumPostsExp'); if (e2) e2.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;padding:12px 0;">Could not load posts.</p>'; }
+        var e2 = byId(containerId); if (e2) e2.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;padding:12px 0;">Could not load posts.</p>';
       })
-      .apiModuleForumGetPosts(AppState.sessionToken, moduleId);
+      .apiModuleForumGetPosts(AppState.sessionToken, moduleId, section || '');
   }
 
+  // Inline section forum post (suffix '' = intro, 'Exp' = explanation)
   window.moduleForumPost = function(moduleId, suffix) {
-    var sfx   = suffix || '';
-    var input = byId('moduleForumInput' + sfx);
-    var msg   = byId('moduleForumMsg' + sfx);
+    var sfx     = suffix || '';
+    var section = sfx === 'Exp' ? 'explanation' : 'intro';
+    var input   = byId('moduleForumInput' + sfx);
+    var msg     = byId('moduleForumMsg'   + sfx);
     if (!input || !msg) return;
     msg.innerHTML = _spinnerHtml('Posting...');
 
@@ -11336,7 +11446,26 @@
         renderModuleDetail(moduleId);
       })
       .withFailureHandler(function(err) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(String(err)) + '</span>'; })
-      .apiModuleForumSavePost(AppState.sessionToken, { moduleId: moduleId, body: input.value.trim() });
+      .apiModuleForumSavePost(AppState.sessionToken, { moduleId: moduleId, section: section, body: input.value.trim() });
+  };
+
+  // Right-panel forum post (reads section from data-section attribute)
+  window.moduleForumPostRP = function(moduleId) {
+    var input   = byId('rpForumInput');
+    var msg     = byId('rpForumMsg');
+    if (!input || !msg) return;
+    var section = input.dataset.section || 'intro';
+    msg.innerHTML = _spinnerHtml('Posting...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error posting.') + '</span>'; return; }
+        input.value = '';
+        msg.innerHTML = '';
+        renderModuleDetail(moduleId);
+      })
+      .withFailureHandler(function(err) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(String(err)) + '</span>'; })
+      .apiModuleForumSavePost(AppState.sessionToken, { moduleId: moduleId, section: section, body: input.value.trim() });
   };
 
   window.moduleForumDelete = function(postId, moduleId) {
@@ -11344,7 +11473,11 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (!res || !res.ok) { alert(res && res.error ? res.error : 'Error.'); return; }
-        _loadForumPosts(moduleId);
+        // Reload all forum containers
+        var sec = window._lmsCurrentSection || 'intro';
+        _loadForumPosts(moduleId, 'intro',       'moduleForumPosts');
+        _loadForumPosts(moduleId, 'explanation', 'moduleForumPostsExp');
+        if (window._lmsLoadRightPanelForum) _lmsLoadRightPanelForum(sec);
       })
       .withFailureHandler(handleServerError)
       .apiModuleForumDeletePost(AppState.sessionToken, { postId: postId });

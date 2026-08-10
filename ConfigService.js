@@ -319,6 +319,7 @@ var DB_SCHEMA = {
   ModuleForum: [
     'postId',
     'moduleId',
+    'section',
     'userId',
     'userName',
     'parentPostId',
