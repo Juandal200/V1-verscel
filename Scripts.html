@@ -769,8 +769,6 @@
     if (avatar) {
       avatar.style.borderColor = tier.color;
       avatar.style.boxShadow   = '0 0 0 3px ' + tier.glow + ', 0 0 20px ' + tier.glow;
-      var svgEl = avatar.querySelector('.topbar-avatar-svg');
-      if (svgEl) svgEl.style.color = tier.color;
     }
     var avatarRank = byId('topbarAvatarRank');
     if (avatarRank) {

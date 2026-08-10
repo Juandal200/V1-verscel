@@ -35,7 +35,14 @@ function resolveIncludes(html) {
 // Extract the base64 data URL from getLogoDataUrl() in ConfigService.js
 function getLogoDataUrl() {
   const config = read('ConfigService.js');
-  const match  = config.match(/return\s+"(data:image\/[^"]+)"/);
+  const match  = config.match(/function getLogoDataUrl[\s\S]*?return\s+"(data:image\/[^"]+)"/);
+  return match ? match[1] : '';
+}
+
+// Extract the pilot avatar data URL from getPilotAvatarUrl() in ConfigService.js
+function getPilotAvatarUrl() {
+  const config = read('ConfigService.js');
+  const match  = config.match(/function getPilotAvatarUrl[\s\S]*?return\s+"(data:image\/[^"]+)"/);
   return match ? match[1] : '';
 }
 
@@ -53,9 +60,11 @@ html = html.replace(
   '/* APP_CONFIG loaded by shim.js */'
 );
 
-// 3. Replace logo data URL calls
-const logoUrl = getLogoDataUrl();
+// 3. Replace logo and pilot avatar data URL calls
+const logoUrl   = getLogoDataUrl();
+const avatarUrl = getPilotAvatarUrl();
 html = html.replace(/<\?!=\s*getLogoDataUrl\(\)\s*\?>/g, logoUrl);
+html = html.replace(/<\?!=\s*getPilotAvatarUrl\(\)\s*\?>/g, avatarUrl);
 
 // 4. Resolve all <?!= include('X') ?> tags
 html = resolveIncludes(html);

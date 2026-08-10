@@ -117,34 +117,7 @@
               <small id="topnavLevelsLabel" class="topnav-levels-lbl" style="display:none;"></small>
             </div>
             <div class="topbar-avatar" id="topbarAvatar">
-              <svg class="topbar-avatar-svg" viewBox="0 0 60 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <!-- peaked cap dome -->
-                <path d="M17 20 Q16 9 30 9 Q44 9 43 20" fill="currentColor"/>
-                <!-- wide flat visor (key identifier) -->
-                <path d="M7 23 Q7 27 30 27 Q53 27 53 23 L43 20.5 L17 20.5 Z" fill="currentColor"/>
-                <!-- cap band -->
-                <rect x="17" y="20" width="26" height="1.5" rx="0" fill="rgba(255,255,255,0.18)"/>
-                <!-- cap front badge -->
-                <rect x="24" y="14" width="12" height="3.5" rx="1.75" fill="currentColor" opacity="0.45"/>
-                <!-- uniform body -->
-                <path d="M12 60 L12 44 Q12 34 30 32 Q48 34 48 44 L48 60 Z" fill="currentColor" opacity="0.83"/>
-                <!-- left wing -->
-                <path d="M11 40 Q14 37.5 20 38.5 L26.5 40 Q20 42.5 14 42.5 Q11 41.5 11 40 Z" fill="currentColor"/>
-                <!-- wings centre badge -->
-                <circle cx="30" cy="40" r="3" fill="currentColor"/>
-                <!-- right wing -->
-                <path d="M33.5 40 L40 38.5 Q46 37.5 49 40 Q49 41.5 46 42.5 Q40 42.5 33.5 40 Z" fill="currentColor"/>
-                <!-- left epaulette -->
-                <rect x="12" y="38.5" width="10" height="3.5" rx="1.75" fill="currentColor"/>
-                <rect x="13" y="39.3" width="8" height="0.9" fill="rgba(255,255,255,0.45)"/>
-                <rect x="13" y="40.6" width="8" height="0.9" fill="rgba(255,255,255,0.45)"/>
-                <!-- right epaulette -->
-                <rect x="38" y="38.5" width="10" height="3.5" rx="1.75" fill="currentColor"/>
-                <rect x="39" y="39.3" width="8" height="0.9" fill="rgba(255,255,255,0.45)"/>
-                <rect x="39" y="40.6" width="8" height="0.9" fill="rgba(255,255,255,0.45)"/>
-                <!-- tie -->
-                <path d="M27 32 L30 38 L33 32" fill="currentColor" opacity="0.5"/>
-              </svg>
+              <img src="<?!= getPilotAvatarUrl() ?>" class="topbar-avatar-img" alt="Pilot" draggable="false">
               <span class="topbar-avatar-rank" id="topbarAvatarRank" style="display:none;"></span>
             </div>
             <button class="btn secondary topnav-btn" onclick="logout()">Sign out</button>
