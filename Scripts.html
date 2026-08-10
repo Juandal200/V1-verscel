@@ -10566,9 +10566,7 @@
   function renderModules() {
     setActiveNav('Modules');
     var _tok = _navToken;
-
-    byId('contentArea').innerHTML =
-      '<div class="panel">' + _spinnerHtml('Loading modules...') + '</div>';
+    byId('contentArea').innerHTML = '<div class="panel">' + _spinnerHtml('Loading modules...') + '</div>';
 
     google.script.run
       .withSuccessHandler(function(res) {
@@ -10583,84 +10581,142 @@
   function _renderModuleRoadmap(modules) {
     if (!modules.length) {
       byId('contentArea').innerHTML =
-        '<div class="panel" style="text-align:center;padding:48px;">' +
-          '<p style="color:var(--muted);font-size:1.1rem;">No modules available yet. Check back soon.</p>' +
+        '<div style="max-width:760px;margin:0 auto;padding:60px 0;text-align:center;">' +
+          '<div style="font-size:3rem;margin-bottom:16px;">📡</div>' +
+          '<h3 style="color:var(--muted);font-weight:400;">No modules available yet.</h3>' +
+          '<p style="color:var(--muted);">Check back soon — training content is being prepared.</p>' +
         '</div>';
       return;
     }
 
+    var totalCompleted = modules.filter(function(m) { return m.completed; }).length;
+
+    // Header
+    var header =
+      '<div style="max-width:760px;margin:0 auto 32px;">' +
+        '<p class="eyebrow" style="margin-bottom:4px;">Aviation English Training</p>' +
+        '<h2 style="margin:0 0 6px;">Course Roadmap</h2>' +
+        '<p style="color:var(--muted);margin:0 0 20px;">Complete each module in sequence to advance your ICAO proficiency.</p>' +
+        '<div style="display:flex;align-items:center;gap:16px;background:var(--panel-soft);border:1px solid var(--line);border-radius:10px;padding:14px 18px;">' +
+          '<div style="flex:1;">' +
+            '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
+              '<span style="font-size:0.8rem;color:var(--muted);letter-spacing:.05em;">OVERALL PROGRESS</span>' +
+              '<span style="font-size:0.8rem;font-weight:600;">' + totalCompleted + ' / ' + modules.length + ' modules</span>' +
+            '</div>' +
+            '<div style="background:var(--line);border-radius:4px;height:8px;">' +
+              '<div style="background:var(--green);width:' + Math.round((totalCompleted/modules.length)*100) + '%;height:8px;border-radius:4px;transition:width .4s;"></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
     var cards = modules.map(function(m, idx) {
       var locked    = !m.unlocked;
       var completed = !!m.completed;
+      var inProgress = !locked && !completed;
 
-      var pct = 0;
-      if (m.sections) {
-        var done = [m.sections.intro, m.sections.explanation, m.sections.application, m.sections.evaluation]
-          .filter(function(s) { return s && s.completed; }).length;
-        pct = Math.round((done / 4) * 100);
+      var sectionsDone = 0;
+      var sects = ['intro','explanation','application','evaluation'];
+      if (m.sections) sects.forEach(function(k) { if (m.sections[k] && m.sections[k].completed) sectionsDone++; });
+
+      var pct = Math.round((sectionsDone / 4) * 100);
+
+      // Status chip
+      var chip = completed
+        ? '<span style="display:inline-flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:700;letter-spacing:.06em;color:var(--green);background:rgba(22,163,74,.12);padding:3px 10px;border-radius:20px;">✓ COMPLETED</span>'
+        : locked
+          ? '<span style="display:inline-flex;align-items:center;gap:5px;font-size:0.72rem;letter-spacing:.06em;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:3px 10px;border-radius:20px;">🔒 LOCKED</span>'
+          : sectionsDone > 0
+            ? '<span style="display:inline-flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:700;letter-spacing:.06em;color:var(--cyan);background:rgba(100,200,255,.08);border:1px solid rgba(100,200,255,.2);padding:3px 10px;border-radius:20px;">▶ IN PROGRESS</span>'
+            : '<span style="display:inline-flex;align-items:center;gap:5px;font-size:0.72rem;letter-spacing:.06em;color:var(--silver);background:var(--panel-soft);border:1px solid var(--line);padding:3px 10px;border-radius:20px;">○ NOT STARTED</span>';
+
+      // Section steps
+      var stepLabels = ['Intro','Explain','Apply','Evaluate'];
+      var stepIcons  = ['📖','🎓','🛫','🏆'];
+      var steps = sects.map(function(k, i) {
+        var s = m.sections && m.sections[k];
+        var done = s && s.completed;
+        var avail = s && s.unlocked;
+        var color = done ? 'var(--green)' : avail ? 'var(--cyan)' : 'var(--line)';
+        var textColor = done ? 'var(--green)' : avail ? 'var(--text)' : 'var(--muted)';
+        return '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
+          '<div style="width:32px;height:32px;border-radius:50%;background:' + (done ? 'var(--green)' : avail ? 'rgba(100,200,255,.15)' : 'var(--panel-soft)') + ';border:2px solid ' + color + ';display:flex;align-items:center;justify-content:center;font-size:0.85rem;">' +
+            (done ? '✓' : stepIcons[i]) +
+          '</div>' +
+          '<span style="font-size:0.65rem;color:' + textColor + ';letter-spacing:.03em;">' + stepLabels[i] + '</span>' +
+        '</div>';
+      });
+      // Connectors between steps
+      var stepRow = '<div style="display:flex;align-items:flex-start;gap:0;">';
+      steps.forEach(function(s, i) {
+        stepRow += s;
+        if (i < 3) {
+          var nextDone = m.sections && m.sections[sects[i+1]] && m.sections[sects[i+1]].unlocked;
+          stepRow += '<div style="flex:1;height:2px;background:' + (nextDone ? 'var(--cyan)' : 'var(--line)') + ';margin-top:16px;"></div>';
+        }
+      });
+      stepRow += '</div>';
+
+      // Badge
+      var badgeHtml = '';
+      if (m.badgeImageUrl) {
+        badgeHtml = '<img src="' + safeText(m.badgeImageUrl) + '" style="width:52px;height:52px;object-fit:contain;border-radius:8px;' + (m.badgeEarned ? '' : 'filter:grayscale(1);opacity:0.4;') + '" title="' + (m.badgeEarned ? 'Badge earned!' : 'Complete module to earn badge') + '">';
       }
 
-      var statusLabel = completed
-        ? '<span style="color:var(--green);font-weight:700;">✓ Completed</span>'
-        : locked
-          ? '<span style="color:var(--muted);">🔒 Locked</span>'
-          : pct > 0
-            ? '<span style="color:var(--cyan);font-weight:600;">In Progress</span>'
-            : '<span style="color:var(--silver);">Not started</span>';
-
-      var progressBar = !locked
-        ? '<div style="background:var(--line);border-radius:4px;height:6px;margin-top:10px;">' +
-            '<div style="background:' + (completed ? 'var(--green)' : 'var(--cyan)') + ';width:' + pct + '%;height:6px;border-radius:4px;transition:width .3s;"></div>' +
-          '</div>'
+      // CTA
+      var cta = !locked
+        ? '<button class="btn ' + (completed ? 'secondary' : 'primary') + '" onclick="event.stopPropagation();renderModuleDetail(\'' + m.moduleId + '\')" style="white-space:nowrap;">' +
+            (completed ? 'Review' : sectionsDone > 0 ? 'Continue →' : 'Start →') +
+          '</button>'
         : '';
 
-      var sectionPips = m.sections
-        ? ['intro','explanation','application','evaluation'].map(function(k) {
-            var s = m.sections[k];
-            var color = (!s || !s.unlocked) ? 'var(--line)' : s.completed ? 'var(--green)' : 'var(--cyan)';
-            var label = { intro: 'Intro', explanation: 'Explain', application: 'Apply', evaluation: 'Evaluate' }[k];
-            return '<div style="text-align:center;">' +
-              '<div style="width:10px;height:10px;border-radius:50%;background:' + color + ';margin:0 auto 4px;"></div>' +
-              '<span style="font-size:0.65rem;color:var(--muted);">' + label + '</span>' +
-            '</div>';
-          }).join('')
-        : '';
+      // Left border color
+      var borderColor = completed ? 'var(--green)' : inProgress ? 'var(--cyan)' : 'var(--line)';
 
-      var badgeHtml = (m.badgeImageUrl && m.badgeEarned)
-        ? '<img src="' + safeText(m.badgeImageUrl) + '" style="width:48px;height:48px;object-fit:contain;border-radius:6px;margin-bottom:8px;" title="Badge earned!">'
-        : (m.badgeImageUrl
-          ? '<img src="' + safeText(m.badgeImageUrl) + '" style="width:48px;height:48px;object-fit:contain;border-radius:6px;margin-bottom:8px;opacity:' + (locked ? '0.2' : '0.35') + ';" title="Complete module to earn this badge">'
-          : '');
+      return '<div style="max-width:760px;margin:0 auto 14px;">' +
+        '<div style="background:var(--panel);border:1px solid var(--line);border-left:4px solid ' + borderColor + ';border-radius:10px;padding:0;overflow:hidden;' + (!locked ? 'cursor:pointer;transition:border-color .2s,box-shadow .2s;' : 'opacity:0.6;') + '" ' +
+          (!locked ? 'onclick="renderModuleDetail(\'' + m.moduleId + '\')" onmouseenter="this.style.boxShadow=\'0 2px 16px rgba(0,0,0,.18)\'" onmouseleave="this.style.boxShadow=\'\'"' : '') + '>' +
 
-      return '<div class="panel" style="opacity:' + (locked ? '0.55' : '1') + ';cursor:' + (locked ? 'default' : 'pointer') + ';transition:box-shadow .2s;' + (!locked ? 'hover-box-shadow:0 0 0 2px var(--cyan);' : '') + '" ' +
-        (!locked ? 'onclick="renderModuleDetail(\'' + m.moduleId + '\')" onmouseenter="this.style.boxShadow=\'0 0 0 2px var(--cyan)\'" onmouseleave="this.style.boxShadow=\'\'"' : '') + '>' +
-        '<div style="display:flex;gap:16px;align-items:flex-start;">' +
-          '<div style="min-width:36px;height:36px;border-radius:50%;background:var(--panel-soft);border:2px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--muted);font-size:0.9rem;">' + (idx + 1) + '</div>' +
-          '<div style="flex:1;">' +
-            (badgeHtml ? '<div>' + badgeHtml + '</div>' : '') +
-            '<h3 style="margin:0 0 4px;">' + safeText(m.title) + '</h3>' +
-            (m.topic ? '<p style="margin:0 0 6px;color:var(--muted);font-size:0.8rem;text-transform:uppercase;letter-spacing:.05em;">' + safeText(m.topic) + '</p>' : '') +
-            (m.description ? '<p style="margin:0 0 10px;color:var(--muted);font-size:0.88rem;">' + safeText(m.description) + '</p>' : '') +
-            '<div style="display:flex;justify-content:space-between;align-items:center;">' +
-              statusLabel +
-              (!locked ? '<button class="btn ' + (completed ? 'secondary' : 'primary') + '" onclick="event.stopPropagation();renderModuleDetail(\'' + m.moduleId + '\')">' + (completed ? 'Review' : pct > 0 ? 'Continue →' : 'Start →') + '</button>' : '') +
+          // Top row
+          '<div style="display:flex;align-items:center;gap:16px;padding:18px 20px;">' +
+            // Number badge
+            '<div style="min-width:44px;height:44px;border-radius:50%;background:' + (completed ? 'var(--green)' : locked ? 'var(--panel-soft)' : 'rgba(100,200,255,.1)') + ';border:2px solid ' + borderColor + ';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;color:' + (completed ? '#fff' : 'var(--muted)') + ';">' +
+              (completed ? '✓' : String(idx + 1)) +
             '</div>' +
-            progressBar +
-            (sectionPips ? '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:12px;">' + sectionPips + '</div>' : '') +
+
+            '<div style="flex:1;min-width:0;">' +
+              '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;">' +
+                '<h3 style="margin:0;font-size:1rem;">' + safeText(m.title) + '</h3>' +
+                chip +
+              '</div>' +
+              (m.topic ? '<p style="margin:0;font-size:0.78rem;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;">' + safeText(m.topic) + '</p>' : '') +
+            '</div>' +
+
+            (badgeHtml ? '<div style="flex-shrink:0;">' + badgeHtml + '</div>' : '') +
+            (cta ? '<div style="flex-shrink:0;">' + cta + '</div>' : '') +
           '</div>' +
+
+          // Description + steps
+          (!locked ? '<div style="border-top:1px solid var(--line);padding:14px 20px;background:var(--panel-soft);">' +
+            (m.description ? '<p style="margin:0 0 14px;font-size:0.85rem;color:var(--muted);">' + safeText(m.description) + '</p>' : '') +
+            stepRow +
+            (inProgress && pct > 0
+              ? '<div style="margin-top:12px;">' +
+                  '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
+                    '<span style="font-size:0.72rem;color:var(--muted);">Progress</span>' +
+                    '<span style="font-size:0.72rem;font-weight:600;color:var(--cyan);">' + pct + '%</span>' +
+                  '</div>' +
+                  '<div style="background:var(--line);border-radius:4px;height:4px;">' +
+                    '<div style="background:var(--cyan);width:' + pct + '%;height:4px;border-radius:4px;"></div>' +
+                  '</div>' +
+                '</div>'
+              : '') +
+          '</div>' : '') +
         '</div>' +
       '</div>';
     }).join('');
 
-    byId('contentArea').innerHTML =
-      '<div style="max-width:680px;margin:0 auto;">' +
-        '<div style="margin-bottom:24px;">' +
-          '<p class="eyebrow">Learning Path</p>' +
-          '<h2 style="margin:0;">Aviation English Modules</h2>' +
-          '<p style="color:var(--muted);margin-top:4px;">Complete each module in order to unlock the next.</p>' +
-        '</div>' +
-        cards +
-      '</div>';
+    byId('contentArea').innerHTML = header + cards;
   }
 
   // ── Module detail ─────────────────────────────────────────────────────────────
@@ -10668,9 +10724,7 @@
   function renderModuleDetail(moduleId) {
     setActiveNav('Modules');
     var _tok = _navToken;
-
-    byId('contentArea').innerHTML =
-      '<div class="panel">' + _spinnerHtml('Loading module...') + '</div>';
+    byId('contentArea').innerHTML = '<div class="panel">' + _spinnerHtml('Loading module...') + '</div>';
 
     google.script.run
       .withSuccessHandler(function(res) {
@@ -10689,210 +10743,306 @@
     var qs   = data.questions || [];
     var scns = data.scenarios || [];
 
-    var introVid    = vids.filter(function(v) { return v.section === 'intro'; })[0];
-    var expVids     = vids.filter(function(v) { return v.section === 'explanation'; });
-    var watchedIds  = prog.explanationVideosWatched || [];
-    var expQs       = qs.filter(function(q) { return q.section === 'explanation'; });
-    var evalQs      = qs.filter(function(q) { return q.section === 'evaluation'; });
+    var introVid   = vids.filter(function(v) { return v.section === 'intro'; })[0];
+    var expVids    = vids.filter(function(v) { return v.section === 'explanation'; });
+    var watchedIds = prog.explanationVideosWatched || [];
+    var expQs      = qs.filter(function(q) { return q.section === 'explanation'; });
+    var evalQs     = qs.filter(function(q) { return q.section === 'evaluation'; });
 
-    // Section unlock states
-    var introUnlocked  = true;
-    var expUnlocked    = !!prog.introCompleted;
-    var appUnlocked    = !!prog.explanationCompleted;
-    var evalUnlocked   = !!prog.applicationCompleted;
+    var introUnlocked = true;
+    var expUnlocked   = !!prog.introCompleted;
+    var appUnlocked   = !!prog.explanationCompleted;
+    var evalUnlocked  = !!prog.applicationCompleted;
 
-    function sectionHeader(label, unlocked, completed) {
-      var icon = completed ? '✓' : unlocked ? '▶' : '🔒';
-      var color = completed ? 'var(--green)' : unlocked ? 'var(--cyan)' : 'var(--muted)';
-      return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">' +
-        '<span style="font-size:1.2rem;color:' + color + ';">' + icon + '</span>' +
-        '<h3 style="margin:0;color:' + (unlocked ? 'var(--text)' : 'var(--muted)') + ';">' + label + '</h3>' +
-        (completed ? '<span style="font-size:0.75rem;background:var(--green);color:#fff;padding:2px 8px;border-radius:10px;">Done</span>' : '') +
-      '</div>';
-    }
+    // Overall progress
+    var sectionsDone = [!!prog.introCompleted, !!prog.explanationCompleted, !!prog.applicationCompleted, !!prog.evalPassed]
+      .filter(Boolean).length;
+    var overallPct = Math.round((sectionsDone / 4) * 100);
 
-    function lockedOverlay(msg) {
-      return '<div style="background:var(--panel-soft);border:1px dashed var(--line);border-radius:8px;padding:20px;text-align:center;color:var(--muted);">' +
-        '🔒 ' + msg +
-      '</div>';
-    }
+    // ── Breadcrumb + course header ──
+    var courseHeader =
+      '<div style="max-width:800px;margin:0 auto 0;">' +
+        // Breadcrumb
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:0.82rem;color:var(--muted);">' +
+          '<button class="btn secondary" onclick="renderModules()" style="padding:5px 12px;font-size:0.78rem;">← Course</button>' +
+          '<span>›</span>' +
+          '<span style="color:var(--text);">' + safeText(m.title) + '</span>' +
+        '</div>' +
 
-    // ── INTRO ──
-    var introHtml = '';
-    if (introUnlocked) {
-      introHtml += introVid
-        ? '<div style="margin-bottom:16px;">' +
-            '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;">' +
-              '<iframe src="https://www.youtube.com/embed/' + _ytId(introVid.youtubeUrl) + '" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:8px;"></iframe>' +
+        // Module header card
+        '<div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px;margin-bottom:24px;">' +
+          '<div style="display:flex;align-items:flex-start;gap:20px;">' +
+            (m.badgeImageUrl
+              ? '<div style="flex-shrink:0;"><img src="' + safeText(m.badgeImageUrl) + '" style="width:64px;height:64px;object-fit:contain;border-radius:10px;' + (prog.badgeEarned ? '' : 'filter:grayscale(1);opacity:0.35;') + '" title="' + (prog.badgeEarned ? 'Badge earned!' : 'Complete module to earn') + '"></div>'
+              : '') +
+            '<div style="flex:1;">' +
+              (m.topic ? '<p class="eyebrow" style="margin:0 0 4px;">' + safeText(m.topic) + '</p>' : '') +
+              '<h2 style="margin:0 0 6px;">' + safeText(m.title) + '</h2>' +
+              (m.description ? '<p style="margin:0 0 16px;color:var(--muted);font-size:0.88rem;">' + safeText(m.description) + '</p>' : '') +
+
+              // Progress bar
+              '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
+                '<span style="font-size:0.75rem;color:var(--muted);letter-spacing:.05em;">MODULE PROGRESS</span>' +
+                '<span style="font-size:0.75rem;font-weight:700;color:' + (overallPct === 100 ? 'var(--green)' : 'var(--cyan)') + ';">' + overallPct + '%</span>' +
+              '</div>' +
+              '<div style="background:var(--line);border-radius:6px;height:8px;">' +
+                '<div style="background:' + (overallPct === 100 ? 'var(--green)' : 'var(--cyan)') + ';width:' + overallPct + '%;height:8px;border-radius:6px;transition:width .4s;"></div>' +
+              '</div>' +
             '</div>' +
-            (!prog.introVideoWatched
-              ? '<button class="btn primary" style="margin-top:10px;" onclick="moduleMarkVideoWatched(\'' + m.moduleId + '\',\'' + introVid.videoId + '\')">✓ Mark as watched</button>'
-              : '<p style="color:var(--green);margin-top:8px;">✓ Video watched</p>') +
-          '</div>'
-        : '<p style="color:var(--muted);">No intro video added yet.</p>';
+          '</div>' +
 
-      // Forum
-      introHtml += '<div style="margin-top:20px;">' +
-        '<h4 style="margin-bottom:12px;">Discussion</h4>' +
-        (!prog.introForumPosted
-          ? '<p style="color:var(--muted);font-size:0.88rem;margin-bottom:10px;">Write a post to complete the Introduction section (more than 3 words).</p>'
-          : '<p style="color:var(--green);font-size:0.88rem;margin-bottom:10px;">✓ You\'ve posted in this discussion.</p>') +
-        '<div id="moduleForumPosts" style="margin-bottom:16px;">' + _spinnerHtml('Loading posts...') + '</div>' +
-        '<div style="display:flex;gap:8px;">' +
-          '<textarea id="moduleForumInput" class="input" rows="2" style="flex:1;" placeholder="Share your thoughts (min 4 words)..."></textarea>' +
-          '<button class="btn primary" onclick="moduleForumPost(\'' + m.moduleId + '\')">Post</button>' +
+          // Section stepper
+          '<div style="display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;align-items:center;gap:0;margin-top:24px;">' +
+            _stepperItem('01', 'Introduction', !!prog.introCompleted, introUnlocked) +
+            _stepperLine(expUnlocked) +
+            _stepperItem('02', 'Explanation', !!prog.explanationCompleted, expUnlocked) +
+            _stepperLine(appUnlocked) +
+            _stepperItem('03', 'Application', !!prog.applicationCompleted, appUnlocked) +
+            _stepperLine(evalUnlocked) +
+            _stepperItem('04', 'Evaluation', !!prog.evalPassed, evalUnlocked) +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    // ── Section builder ──
+    function sectionCard(num, label, icon, unlocked, completed, bodyHtml) {
+      var borderColor = completed ? 'var(--green)' : unlocked ? 'var(--cyan)' : 'var(--line)';
+      var headBg      = completed ? 'rgba(22,163,74,.07)' : unlocked ? 'rgba(100,200,255,.05)' : 'transparent';
+      var statusChip  = completed
+        ? '<span style="font-size:0.7rem;font-weight:700;color:var(--green);background:rgba(22,163,74,.12);padding:2px 8px;border-radius:20px;letter-spacing:.05em;">✓ COMPLETE</span>'
+        : !unlocked
+          ? '<span style="font-size:0.7rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:2px 8px;border-radius:20px;">🔒 LOCKED</span>'
+          : '<span style="font-size:0.7rem;font-weight:600;color:var(--cyan);background:rgba(100,200,255,.08);border:1px solid rgba(100,200,255,.2);padding:2px 8px;border-radius:20px;">▶ ACTIVE</span>';
+
+      return '<div style="max-width:800px;margin:0 auto 16px;">' +
+        '<div style="border:1px solid var(--line);border-left:4px solid ' + borderColor + ';border-radius:10px;overflow:hidden;">' +
+
+          // Section header
+          '<div style="display:flex;align-items:center;gap:14px;padding:16px 20px;background:' + headBg + ';">' +
+            '<div style="width:40px;height:40px;border-radius:8px;background:' + (completed ? 'var(--green)' : unlocked ? 'rgba(100,200,255,.15)' : 'var(--panel-soft)') + ';display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;">' +
+              '<span style="font-size:1rem;">' + icon + '</span>' +
+            '</div>' +
+            '<div style="flex:1;">' +
+              '<div style="display:flex;align-items:center;gap:8px;">' +
+                '<span style="font-size:0.65rem;color:var(--muted);letter-spacing:.08em;">SECTION ' + num + '</span>' +
+                statusChip +
+              '</div>' +
+              '<h4 style="margin:2px 0 0;font-size:0.95rem;">' + label + '</h4>' +
+            '</div>' +
+          '</div>' +
+
+          // Body
+          (unlocked
+            ? '<div style="padding:20px;">' + bodyHtml + '</div>'
+            : '<div style="padding:16px 20px;background:var(--panel-soft);color:var(--muted);font-size:0.85rem;display:flex;align-items:center;gap:8px;">' +
+                '<span>🔒</span><span>' +
+                (num === '02' ? 'Complete Introduction to unlock.' :
+                 num === '03' ? 'Complete Explanation to unlock.' :
+                 'Complete Application to unlock.') + '</span>' +
+              '</div>') +
+        '</div>' +
+      '</div>';
+    }
+
+    // ── INTRO BODY ──
+    var introBody = '';
+    if (introVid) {
+      introBody +=
+        '<div style="margin-bottom:20px;">' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
+            '<span style="font-size:0.75rem;color:var(--muted);letter-spacing:.05em;border:1px solid var(--line);padding:2px 8px;border-radius:4px;">VIDEO</span>' +
+            '<span style="font-size:0.88rem;">' + safeText(introVid.title || 'Introduction Video') + '</span>' +
+            (prog.introVideoWatched ? '<span style="color:var(--green);font-size:0.8rem;">✓ Watched</span>' : '') +
+          '</div>' +
+          '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;background:#000;">' +
+            '<iframe src="https://www.youtube.com/embed/' + _ytId(introVid.youtubeUrl) + '?rel=0" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;"></iframe>' +
+          '</div>' +
+          (!prog.introVideoWatched
+            ? '<button class="btn secondary" style="margin-top:10px;" onclick="moduleMarkVideoWatched(\'' + m.moduleId + '\',\'' + introVid.videoId + '\')">✓ Mark video as watched</button>'
+            : '') +
+        '</div>';
+    }
+
+    // Completion checklist
+    introBody +=
+      '<div style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:20px;">' +
+        '<p style="margin:0 0 10px;font-size:0.75rem;color:var(--muted);letter-spacing:.06em;">COMPLETION REQUIREMENTS</p>' +
+        _checklistItem('Watch the introduction video', !!prog.introVideoWatched) +
+        _checklistItem('Post in the discussion forum', !!prog.introForumPosted) +
+      '</div>';
+
+    // Forum
+    introBody +=
+      '<div>' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">' +
+          '<span style="font-size:0.75rem;color:var(--muted);letter-spacing:.05em;border:1px solid var(--line);padding:2px 8px;border-radius:4px;">FORUM</span>' +
+          '<span style="font-size:0.88rem;font-weight:600;">Discussion</span>' +
+        '</div>' +
+        '<div id="moduleForumPosts" style="margin-bottom:16px;max-height:320px;overflow-y:auto;">' + _spinnerHtml('Loading...') + '</div>' +
+        '<div style="border:1px solid var(--line);border-radius:8px;overflow:hidden;">' +
+          '<textarea id="moduleForumInput" class="input" rows="3" style="border:none;border-radius:0;resize:vertical;" placeholder="Share your thoughts or ask a question (minimum 4 words)..."></textarea>' +
+          '<div style="display:flex;justify-content:flex-end;padding:8px 10px;background:var(--panel-soft);border-top:1px solid var(--line);">' +
+            '<button class="btn primary" onclick="moduleForumPost(\'' + m.moduleId + '\')">Post →</button>' +
+          '</div>' +
         '</div>' +
         '<div id="moduleForumMsg" style="margin-top:6px;font-size:0.82rem;"></div>' +
       '</div>';
-    } else {
-      introHtml = lockedOverlay('Introduction not yet unlocked.');
-    }
 
-    // ── EXPLANATION ──
-    var expHtml = '';
-    if (expUnlocked) {
-      if (expVids.length) {
-        expHtml += '<div style="display:flex;flex-direction:column;gap:20px;margin-bottom:20px;">';
-        expVids.forEach(function(v, idx) {
-          var watched = watchedIds.indexOf(v.videoId) !== -1;
-          expHtml +=
-            '<div>' +
-              '<p style="margin:0 0 6px;font-size:0.85rem;color:var(--muted);">Video ' + (idx+1) + (v.title ? ' — ' + safeText(v.title) : '') + (watched ? ' <span style="color:var(--green);">✓</span>' : '') + '</p>' +
-              '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;">' +
-                '<iframe src="https://www.youtube.com/embed/' + _ytId(v.youtubeUrl) + '" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:8px;"></iframe>' +
-              '</div>' +
-              (!watched ? '<button class="btn secondary" style="margin-top:8px;" onclick="moduleMarkVideoWatched(\'' + m.moduleId + '\',\'' + v.videoId + '\')">✓ Mark as watched</button>' : '') +
-            '</div>';
-        });
-        expHtml += '</div>';
-      } else {
-        expHtml += '<p style="color:var(--muted);">No explanation videos added yet.</p>';
-      }
-
-      // Quiz
-      if (expQs.length) {
-        expHtml += '<div style="margin-top:8px;">' +
-          '<h4 style="margin-bottom:12px;">Section Quiz</h4>';
-        if (prog.quizPassed) {
-          expHtml += '<p style="color:var(--green);font-weight:600;">✓ Quiz passed (' + prog.quizScore + '%) — section complete!</p>';
-        } else {
-          if (prog.quizCooldownUntil) {
-            expHtml += '<p style="color:var(--yellow);">⏱ Cooldown active. Try again after ' + _fmtTime(prog.quizCooldownUntil) + '</p>';
-          } else {
-            expHtml += _renderQuizForm('expQuiz', expQs, m.moduleId, 'explanation');
-          }
-          if (prog.quizAttempts > 0) {
-            expHtml += '<p style="color:var(--muted);font-size:0.82rem;margin-top:6px;">Last score: ' + prog.quizScore + '% — need 85% to pass. Attempt ' + prog.quizAttempts + '</p>';
-          }
-        }
-        expHtml += '</div>';
-      }
-    } else {
-      expHtml = lockedOverlay('Complete Introduction first.');
-    }
-
-    // ── APPLICATION ──
-    var appHtml = '';
-    if (appUnlocked) {
-      var passedCount = prog.scenariosPassed || 0;
-      appHtml +=
-        '<p style="color:var(--muted);margin-bottom:16px;">Complete at least <strong>3 ATC scenarios</strong> with 85%+ to unlock the Evaluation. Progress: <strong>' + passedCount + ' / 3</strong></p>';
-
-      if (scns.length) {
-        appHtml += '<div style="display:flex;flex-direction:column;gap:10px;">';
-        scns.forEach(function(s) {
-          appHtml +=
-            '<div class="panel" style="display:flex;justify-content:space-between;align-items:center;">' +
-              '<div>' +
-                '<strong>' + safeText(s.title || s.scenarioId) + '</strong>' +
-                (s.level ? '<span style="margin-left:8px;font-size:0.78rem;color:var(--muted);">Level ' + s.level + '</span>' : '') +
-              '</div>' +
-              '<button class="btn primary" onclick="moduleStartScenario(\'' + m.moduleId + '\',\'' + s.scenarioId + '\')">Practice →</button>' +
-            '</div>';
-        });
-        appHtml += '</div>';
-      } else {
-        appHtml += '<p style="color:var(--muted);">No scenarios linked to this module yet.</p>';
-      }
-
-      if (prog.applicationCompleted) {
-        appHtml = '<p style="color:var(--green);font-weight:600;margin-bottom:12px;">✓ Application complete (' + passedCount + ' scenarios passed)</p>' + appHtml;
-      }
-    } else {
-      appHtml = lockedOverlay('Complete Explanation first.');
-    }
-
-    // ── EVALUATION ──
-    var evalHtml = '';
-    if (evalUnlocked) {
-      if (prog.evalPassed) {
-        evalHtml =
-          '<div style="text-align:center;padding:24px;">' +
-            (m.badgeImageUrl ? '<img src="' + safeText(m.badgeImageUrl) + '" style="width:80px;height:80px;object-fit:contain;border-radius:10px;margin-bottom:12px;">' : '') +
-            '<h3 style="color:var(--green);">🎉 Module Complete!</h3>' +
-            '<p style="color:var(--muted);">You scored <strong>' + prog.evalScore + '%</strong> and earned the badge for this module.</p>' +
+    // ── EXPLANATION BODY ──
+    var expBody = '';
+    if (expVids.length) {
+      expBody += '<div style="display:flex;flex-direction:column;gap:20px;margin-bottom:24px;">';
+      expVids.forEach(function(v, idx) {
+        var watched = watchedIds.indexOf(v.videoId) !== -1;
+        expBody +=
+          '<div>' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
+              '<span style="font-size:0.75rem;color:var(--muted);letter-spacing:.05em;border:1px solid var(--line);padding:2px 8px;border-radius:4px;">VIDEO ' + (idx+1) + '</span>' +
+              '<span style="font-size:0.88rem;">' + safeText(v.title || 'Lesson ' + (idx+1)) + '</span>' +
+              (watched ? '<span style="color:var(--green);font-size:0.8rem;">✓</span>' : '') +
+            '</div>' +
+            '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;background:#000;">' +
+              '<iframe src="https://www.youtube.com/embed/' + _ytId(v.youtubeUrl) + '?rel=0" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;"></iframe>' +
+            '</div>' +
+            (!watched ? '<button class="btn secondary" style="margin-top:8px;" onclick="moduleMarkVideoWatched(\'' + m.moduleId + '\',\'' + v.videoId + '\')">✓ Mark as watched</button>' : '') +
           '</div>';
-      } else if (evalQs.length) {
-        if (prog.evalCooldownUntil) {
-          evalHtml = '<p style="color:var(--yellow);">⏱ Cooldown active. Try again after ' + _fmtTime(prog.evalCooldownUntil) + '</p>';
-        } else {
-          evalHtml = _renderQuizForm('evalQuiz', evalQs, m.moduleId, 'evaluation');
-        }
-        if (prog.evalAttempts > 0) {
-          evalHtml += '<p style="color:var(--muted);font-size:0.82rem;margin-top:6px;">Last score: ' + prog.evalScore + '% — need 85% to pass. Attempt ' + prog.evalAttempts + '</p>';
-        }
+      });
+      expBody += '</div>';
+    }
+
+    if (expQs.length) {
+      expBody +=
+        '<div style="border-top:1px solid var(--line);padding-top:20px;">' +
+          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">' +
+            '<span style="font-size:0.75rem;color:var(--muted);letter-spacing:.05em;border:1px solid var(--line);padding:2px 8px;border-radius:4px;">QUIZ</span>' +
+            '<span style="font-size:0.88rem;font-weight:600;">Section Assessment</span>' +
+            (prog.quizPassed ? '<span style="color:var(--green);font-size:0.8rem;background:rgba(22,163,74,.1);padding:2px 8px;border-radius:10px;">✓ ' + prog.quizScore + '%</span>' : '') +
+          '</div>';
+      if (prog.quizPassed) {
+        expBody += '<div style="background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.2);border-radius:8px;padding:14px;color:var(--green);">✓ Quiz passed with ' + prog.quizScore + '%. Section unlocked.</div>';
+      } else if (prog.quizCooldownUntil) {
+        expBody += '<div style="background:rgba(180,83,9,.08);border:1px solid rgba(180,83,9,.2);border-radius:8px;padding:14px;color:var(--yellow);">⏱ Cooldown active — retry available at ' + _fmtTime(prog.quizCooldownUntil) + '</div>';
       } else {
-        evalHtml = '<p style="color:var(--muted);">No evaluation questions added yet.</p>';
+        expBody += _renderQuizForm('expQuiz', expQs, m.moduleId, 'explanation', prog.quizAttempts, prog.quizScore);
+      }
+      expBody += '</div>';
+    }
+
+    // ── APPLICATION BODY ──
+    var passedCount = prog.scenariosPassed || 0;
+    var appBody =
+      '<div style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:20px;">' +
+        '<p style="margin:0 0 10px;font-size:0.75rem;color:var(--muted);letter-spacing:.06em;">COMPLETION REQUIREMENTS</p>' +
+        _checklistItem('Complete 3 ATC scenarios with 85%+ score', prog.applicationCompleted) +
+        '<p style="margin:8px 0 0;font-size:0.82rem;color:var(--muted);">Progress: <strong style="color:var(--text);">' + passedCount + ' / 3</strong> scenarios passed</p>' +
+      '</div>';
+
+    if (scns.length) {
+      appBody += '<div style="display:flex;flex-direction:column;gap:10px;">';
+      scns.forEach(function(s) {
+        appBody +=
+          '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;">' +
+            '<div>' +
+              '<div style="display:flex;align-items:center;gap:8px;">' +
+                '<span style="font-size:0.75rem;color:var(--muted);letter-spacing:.05em;border:1px solid var(--line);padding:2px 6px;border-radius:4px;">SCENARIO</span>' +
+                '<strong style="font-size:0.9rem;">' + safeText(s.title || s.scenarioId) + '</strong>' +
+              '</div>' +
+              (s.level ? '<p style="margin:4px 0 0;font-size:0.78rem;color:var(--muted);">Level ' + safeText(s.level) + ' — Target: 85%+</p>' : '') +
+            '</div>' +
+            '<button class="btn primary" onclick="moduleStartScenario(\'' + m.moduleId + '\',\'' + s.scenarioId + '\')">Fly →</button>' +
+          '</div>';
+      });
+      appBody += '</div>';
+    } else {
+      appBody += '<div style="color:var(--muted);font-size:0.88rem;padding:16px;text-align:center;border:1px dashed var(--line);border-radius:8px;">No scenarios linked to this module yet.</div>';
+    }
+
+    // ── EVALUATION BODY ──
+    var evalBody = '';
+    if (prog.evalPassed) {
+      evalBody =
+        '<div style="text-align:center;padding:32px 20px;">' +
+          (m.badgeImageUrl ? '<img src="' + safeText(m.badgeImageUrl) + '" style="width:80px;height:80px;object-fit:contain;border-radius:12px;margin-bottom:16px;box-shadow:0 4px 24px rgba(0,0,0,.3);">' : '<div style="font-size:3rem;margin-bottom:16px;">🏆</div>') +
+          '<h3 style="color:var(--green);margin:0 0 8px;">Module Complete!</h3>' +
+          '<p style="color:var(--muted);margin:0;">Final score: <strong style="color:var(--text);">' + prog.evalScore + '%</strong> — Badge awarded.</p>' +
+        '</div>';
+    } else if (evalQs.length) {
+      evalBody +=
+        '<div style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:20px;">' +
+          '<p style="margin:0 0 6px;font-size:0.75rem;color:var(--muted);letter-spacing:.06em;">EVALUATION</p>' +
+          '<p style="margin:0;font-size:0.85rem;color:var(--muted);">Score 85%+ to complete this module and earn the badge. 15-minute cooldown between attempts.</p>' +
+        '</div>';
+      if (prog.evalCooldownUntil) {
+        evalBody += '<div style="background:rgba(180,83,9,.08);border:1px solid rgba(180,83,9,.2);border-radius:8px;padding:14px;color:var(--yellow);">⏱ Cooldown active — retry available at ' + _fmtTime(prog.evalCooldownUntil) + '</div>';
+      } else {
+        evalBody += _renderQuizForm('evalQuiz', evalQs, m.moduleId, 'evaluation', prog.evalAttempts, prog.evalScore);
       }
     } else {
-      evalHtml = lockedOverlay('Complete Application first.');
+      evalBody = '<div style="color:var(--muted);font-size:0.88rem;padding:16px;text-align:center;border:1px dashed var(--line);border-radius:8px;">Evaluation questions not yet available.</div>';
     }
 
     byId('contentArea').innerHTML =
-      '<div style="max-width:720px;margin:0 auto;">' +
-        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">' +
-          '<button class="btn secondary" onclick="renderModules()">← Modules</button>' +
-          '<div>' +
-            (m.topic ? '<p class="eyebrow" style="margin:0;">' + safeText(m.topic) + '</p>' : '') +
-            '<h2 style="margin:0;">' + safeText(m.title) + '</h2>' +
-          '</div>' +
-        '</div>' +
+      courseHeader +
+      sectionCard('01', 'Introduction',   '📖', introUnlocked, !!prog.introCompleted,        introBody) +
+      sectionCard('02', 'Explanation',     '🎓', expUnlocked,   !!prog.explanationCompleted,  expBody) +
+      sectionCard('03', 'Application',     '🛫', appUnlocked,   !!prog.applicationCompleted,  appBody) +
+      sectionCard('04', 'Evaluation',      '🏆', evalUnlocked,  !!prog.evalPassed,            evalBody);
 
-        '<div class="panel">' + sectionHeader('Introduction', introUnlocked, !!prog.introCompleted) + introHtml + '</div>' +
-        '<div class="panel" style="margin-top:16px;">' + sectionHeader('Explanation', expUnlocked, !!prog.explanationCompleted) + expHtml + '</div>' +
-        '<div class="panel" style="margin-top:16px;">' + sectionHeader('Application', appUnlocked, !!prog.applicationCompleted) + appHtml + '</div>' +
-        '<div class="panel" style="margin-top:16px;">' + sectionHeader('Evaluation', evalUnlocked, !!prog.evalPassed) + evalHtml + '</div>' +
-      '</div>';
-
-    // Load forum posts
     _loadForumPosts(m.moduleId);
   }
 
-  // ── Quiz form renderer ────────────────────────────────────────────────────────
+  // ── Small UI helpers ──────────────────────────────────────────────────────────
 
-  function _renderQuizForm(formId, questions, moduleId, section) {
+  function _stepperItem(num, label, completed, unlocked) {
+    var color = completed ? 'var(--green)' : unlocked ? 'var(--cyan)' : 'var(--line)';
+    var bg    = completed ? 'var(--green)' : unlocked ? 'rgba(100,200,255,.15)' : 'var(--panel-soft)';
+    return '<div style="text-align:center;">' +
+      '<div style="width:36px;height:36px;border-radius:50%;background:' + bg + ';border:2px solid ' + color + ';display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:' + (completed ? '#fff' : 'var(--muted)') + ';margin:0 auto 6px;">' +
+        (completed ? '✓' : num) +
+      '</div>' +
+      '<span style="font-size:0.65rem;color:' + (unlocked ? 'var(--text)' : 'var(--muted)') + ';letter-spacing:.03em;">' + label + '</span>' +
+    '</div>';
+  }
+
+  function _stepperLine(active) {
+    return '<div style="height:2px;background:' + (active ? 'var(--cyan)' : 'var(--line)') + ';margin-bottom:18px;"></div>';
+  }
+
+  function _checklistItem(label, done) {
+    return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);">' +
+      '<div style="width:18px;height:18px;border-radius:4px;background:' + (done ? 'var(--green)' : 'var(--panel)') + ';border:1px solid ' + (done ? 'var(--green)' : 'var(--line)') + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.7rem;color:#fff;">' +
+        (done ? '✓' : '') +
+      '</div>' +
+      '<span style="font-size:0.85rem;color:' + (done ? 'var(--green)' : 'var(--text)') + ';">' + safeText(label) + '</span>' +
+    '</div>';
+  }
+
+  function _renderQuizForm(formId, questions, moduleId, section, attempts, lastScore) {
+    var attemptsNote = (attempts > 0)
+      ? '<p style="margin:0 0 16px;font-size:0.82rem;color:var(--muted);">Previous attempt: <strong>' + lastScore + '%</strong> — Need 85%. Attempt #' + (attempts + 1) + '</p>'
+      : '';
+
     var inputs = questions.map(function(q, i) {
       var opts = (q.options || []).map(function(opt, j) {
-        return '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;padding:6px 0;">' +
-          '<input type="radio" name="' + formId + '_q' + i + '" value="' + j + '" style="margin-top:3px;">' +
-          '<span>' + safeText(opt) + '</span>' +
+        return '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;border-radius:6px;border:1px solid var(--line);margin-bottom:6px;transition:border-color .15s;" onmouseenter="this.style.borderColor=\'var(--cyan)\'" onmouseleave="this.style.borderColor=\'var(--line)\'">' +
+          '<input type="radio" name="' + formId + '_q' + i + '" value="' + j + '" style="margin-top:2px;accent-color:var(--cyan);">' +
+          '<span style="font-size:0.88rem;">' + safeText(opt) + '</span>' +
         '</label>';
       }).join('');
-      return '<div style="margin-bottom:16px;">' +
-        '<p style="font-weight:600;margin:0 0 8px;">' + (i+1) + '. ' + safeText(q.question) + '</p>' +
+      return '<div style="margin-bottom:20px;">' +
+        '<p style="font-weight:600;margin:0 0 10px;font-size:0.9rem;">' + (i+1) + '. ' + safeText(q.question) + '</p>' +
         '<input type="hidden" class="qid-field" value="' + q.questionId + '">' +
         opts +
       '</div>';
     }).join('');
 
     return '<div id="' + formId + '">' +
+      attemptsNote +
       inputs +
-      '<button class="btn primary" onclick="moduleSubmitQuiz(\'' + moduleId + '\',\'' + section + '\',\'' + formId + '\')">Submit Quiz</button>' +
-      '<div id="' + formId + 'Msg" style="margin-top:8px;"></div>' +
+      '<button class="btn primary" onclick="moduleSubmitQuiz(\'' + moduleId + '\',\'' + section + '\',\'' + formId + '\')">Submit →</button>' +
+      '<div id="' + formId + 'Msg" style="margin-top:10px;font-size:0.85rem;"></div>' +
     '</div>';
   }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────────
 
   function _ytId(url) {
     if (!url) return '';
@@ -10916,18 +11066,26 @@
       .withSuccessHandler(function(res) {
         var posts = (res && res.ok) ? (res.posts || []) : [];
         if (!posts.length) {
-          el.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;">No posts yet. Be the first!</p>';
+          el.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;padding:12px 0;">No posts yet. Start the discussion below.</p>';
           return;
         }
         el.innerHTML = posts.map(function(p) {
           var isMe = AppState.user && p.userId === AppState.user.userId;
-          return '<div style="border-left:3px solid var(--line);padding:8px 12px;margin-bottom:10px;">' +
-            '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
-              '<strong style="font-size:0.85rem;">' + safeText(p.userName || 'Pilot') + '</strong>' +
-              '<span style="font-size:0.75rem;color:var(--muted);">' + (p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '') + '</span>' +
+          var isReply = !!p.parentPostId;
+          return '<div style="' + (isReply ? 'margin-left:20px;border-left:3px solid var(--line);' : 'border-bottom:1px solid var(--line);') + 'padding:12px ' + (isReply ? '12px' : '0') + ';margin-bottom:' + (isReply ? '6px' : '0') + ';">' +
+            '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">' +
+              '<div style="display:flex;align-items:center;gap:8px;">' +
+                '<div style="width:28px;height:28px;border-radius:50%;background:var(--panel-soft);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:var(--muted);">' +
+                  safeText((p.userName || 'P').charAt(0).toUpperCase()) +
+                '</div>' +
+                '<div>' +
+                  '<strong style="font-size:0.83rem;">' + safeText(p.userName || 'Pilot') + '</strong>' +
+                  '<span style="margin-left:8px;font-size:0.72rem;color:var(--muted);">' + (p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '') + '</span>' +
+                '</div>' +
+              '</div>' +
+              (isMe ? '<button class="btn secondary" style="padding:2px 8px;font-size:0.7rem;color:var(--red);" onclick="moduleForumDelete(\'' + p.postId + '\',\'' + moduleId + '\')">Delete</button>' : '') +
             '</div>' +
-            '<p style="margin:0;font-size:0.9rem;">' + safeText(p.body) + '</p>' +
-            (isMe ? '<button class="btn secondary" style="padding:2px 8px;font-size:0.72rem;margin-top:6px;color:var(--red);" onclick="moduleForumDelete(\'' + p.postId + '\',\'' + moduleId + '\')">Delete</button>' : '') +
+            '<p style="margin:0;font-size:0.88rem;line-height:1.5;">' + safeText(p.body) + '</p>' +
           '</div>';
         }).join('');
       })
@@ -10942,7 +11100,6 @@
     var input = byId('moduleForumInput');
     var msg   = byId('moduleForumMsg');
     if (!input || !msg) return;
-    var body = input.value.trim();
     msg.innerHTML = _spinnerHtml('Posting...');
 
     google.script.run
@@ -10950,53 +11107,48 @@
         if (!res || !res.ok) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error posting.') + '</span>'; return; }
         input.value = '';
         msg.innerHTML = '';
-        _loadForumPosts(moduleId);
-        // Refresh module detail to update intro completion state
         renderModuleDetail(moduleId);
       })
       .withFailureHandler(function(err) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(String(err)) + '</span>'; })
-      .apiModuleForumSavePost(AppState.sessionToken, { moduleId: moduleId, body: body });
+      .apiModuleForumSavePost(AppState.sessionToken, { moduleId: moduleId, body: input.value.trim() });
   }
 
   function moduleForumDelete(postId, moduleId) {
     if (!confirm('Delete this post?')) return;
     google.script.run
       .withSuccessHandler(function(res) {
-        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Error deleting post.'); return; }
+        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Error.'); return; }
         _loadForumPosts(moduleId);
       })
       .withFailureHandler(handleServerError)
       .apiModuleForumDeletePost(AppState.sessionToken, { postId: postId });
   }
 
-  // ── Student actions ───────────────────────────────────────────────────────────
-
   function moduleMarkVideoWatched(moduleId, videoId) {
     google.script.run
       .withSuccessHandler(function(res) {
-        if (!res || !res.ok) return;
-        renderModuleDetail(moduleId);
+        if (res && res.ok) renderModuleDetail(moduleId);
       })
       .withFailureHandler(function() {})
       .apiModuleMarkVideoWatched(AppState.sessionToken, { moduleId: moduleId, videoId: videoId });
   }
 
   function moduleSubmitQuiz(moduleId, section, formId) {
-    var form = byId(formId);
+    var form  = byId(formId);
     var msgEl = byId(formId + 'Msg');
     if (!form || !msgEl) return;
 
-    var qids = form.querySelectorAll('.qid-field');
-    var answers = [];
-    var incomplete = false;
+    var qids     = form.querySelectorAll('.qid-field');
+    var answers  = [];
+    var missing  = false;
 
-    qids.forEach(function(hiddenInput, i) {
-      var selected = form.querySelector('input[name="' + formId + '_q' + i + '"]:checked');
-      if (!selected) { incomplete = true; return; }
-      answers.push({ questionId: hiddenInput.value, selectedIndex: Number(selected.value) });
+    qids.forEach(function(h, i) {
+      var sel = form.querySelector('input[name="' + formId + '_q' + i + '"]:checked');
+      if (!sel) { missing = true; return; }
+      answers.push({ questionId: h.value, selectedIndex: Number(sel.value) });
     });
 
-    if (incomplete) {
+    if (missing) {
       msgEl.innerHTML = '<span style="color:var(--yellow);">Please answer all questions before submitting.</span>';
       return;
     }
@@ -11007,45 +11159,40 @@
       .withSuccessHandler(function(res) {
         if (!res || !res.ok) { msgEl.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error.') + '</span>'; return; }
         if (res.cooldownUntil) {
-          msgEl.innerHTML = '<span style="color:var(--yellow);">⏱ Cooldown active. Try again after ' + _fmtTime(res.cooldownUntil) + '</span>';
+          msgEl.innerHTML = '<span style="color:var(--yellow);">⏱ Cooldown active — retry at ' + _fmtTime(res.cooldownUntil) + '</span>';
           return;
         }
         if (res.passed) {
           msgEl.innerHTML = '<span style="color:var(--green);font-weight:600;">✓ Passed! Score: ' + res.score + '%</span>';
-          setTimeout(function() { renderModuleDetail(moduleId); }, 1200);
         } else {
-          msgEl.innerHTML = '<span style="color:var(--red);">Score: ' + res.score + '% — need 85%. You can retry in 15 minutes.</span>';
-          setTimeout(function() { renderModuleDetail(moduleId); }, 2000);
+          msgEl.innerHTML = '<span style="color:var(--red);">Score: ' + res.score + '% — need 85%. Retry in 15 min.</span>';
         }
+        setTimeout(function() { renderModuleDetail(moduleId); }, 1500);
       })
       .withFailureHandler(function(err) { msgEl.innerHTML = '<span style="color:var(--red);">' + safeText(String(err)) + '</span>'; })
       .apiModuleSubmitQuiz(AppState.sessionToken, { moduleId: moduleId, section: section, answers: answers });
   }
 
   function moduleStartScenario(moduleId, scenarioId) {
-    // Store the module context so after the scenario we can record the pass
     AppState.pendingModuleScenario = { moduleId: moduleId, scenarioId: scenarioId };
-    // Navigate to the simulator with this scenario pre-selected
     _navTo(function() {
       renderSimulatorPlaceholder();
-      // Give the simulator a moment to render, then auto-select the scenario
       setTimeout(function() {
-        if (typeof window._simSelectScenario === 'function') {
-          window._simSelectScenario(scenarioId, moduleId);
-        }
+        if (typeof window._simSelectScenario === 'function') window._simSelectScenario(scenarioId, moduleId);
       }, 800);
     });
   }
 
-  window.renderModules       = renderModules;
-  window.renderModuleDetail  = renderModuleDetail;
+  window.renderModules          = renderModules;
+  window.renderModuleDetail     = renderModuleDetail;
   window.moduleMarkVideoWatched = moduleMarkVideoWatched;
-  window.moduleSubmitQuiz    = moduleSubmitQuiz;
-  window.moduleForumPost     = moduleForumPost;
-  window.moduleForumDelete   = moduleForumDelete;
-  window.moduleStartScenario = moduleStartScenario;
+  window.moduleSubmitQuiz       = moduleSubmitQuiz;
+  window.moduleForumPost        = moduleForumPost;
+  window.moduleForumDelete      = moduleForumDelete;
+  window.moduleStartScenario    = moduleStartScenario;
 
-  /***********************
+
+    /***********************
    * LMS MODULES ADMIN
    ***********************/
 
