@@ -10851,17 +10851,22 @@
         '</div>';
     }
 
-    // Forum item — lives in right panel; show a prompt here to direct user there
+    // Forum item — inline in Introduction
     introBody += _lmsItem('💬', 'Discussion', 'Module Forum',
       forumOk ? _doneChip() : _todoChip('Post to unlock'),
-      '<div style="padding:10px 14px;background:var(--panel-soft);border-radius:8px;display:flex;align-items:center;gap:10px;">' +
-        '<span style="font-size:1.4rem;">💬</span>' +
-        '<div>' +
-          '<div style="font-size:0.87rem;font-weight:600;margin-bottom:2px;">Forum is in the right panel</div>' +
-          '<div style="font-size:0.78rem;color:var(--muted);">Post a reply there to complete this step.</div>' +
+      '<div id="moduleForumPosts" style="margin-bottom:14px;">' + _spinnerHtml('Loading...') + '</div>' +
+      '<div style="border:1px solid var(--line);border-radius:10px;overflow:hidden;">' +
+        '<div style="display:flex;gap:10px;padding:12px 14px;">' +
+          '<div style="width:32px;height:32px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#fff;flex-shrink:0;">' +
+            safeText(((AppState.user && AppState.user.name) || 'U').charAt(0).toUpperCase()) +
+          '</div>' +
+          '<textarea id="moduleForumInput" rows="2" style="flex:1;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:0.85rem;color:var(--text);resize:none;" placeholder="Write a reply or share your thoughts (min 4 words)..."></textarea>' +
         '</div>' +
-        '<button class="btn secondary" style="margin-left:auto;font-size:0.78rem;padding:5px 12px;flex-shrink:0;" onclick="_lmsToggleRightPanel(\'forum\')">Open Forum</button>' +
-      '</div>',
+        '<div style="display:flex;justify-content:flex-end;padding:8px 14px 10px;border-top:1px solid var(--line);background:var(--panel-soft);">' +
+          '<button class="btn primary" style="font-size:0.82rem;" onclick="moduleForumPost(\'' + m.moduleId + '\',\'\')">Post Reply</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="moduleForumMsg" style="margin-top:6px;font-size:0.82rem;"></div>',
       true);
 
     // ── EXPLANATION BODY ──
@@ -10890,8 +10895,26 @@
         quizBody = (prog.quizAttempts > 0 ? '<p style="margin:0 0 14px;font-size:0.82rem;color:var(--muted);">Last attempt: <strong>' + prog.quizScore + '%</strong> — Need 85%. Attempt #' + (prog.quizAttempts+1) + '</p>' : '') +
           _renderQuizForm('expQuiz', expQs, m.moduleId, 'explanation', prog.quizAttempts, prog.quizScore);
       }
-      expBody += _lmsItem('📝', 'Quiz', 'Section Assessment', quizStatusHtml, quizBody, true);
+      expBody += _lmsItem('📝', 'Quiz', 'Section Assessment', quizStatusHtml, quizBody, false);
     }
+
+    // Forum in Explanation (discussion only, not required for completion)
+    expBody += _lmsItem('💬', 'Discussion', 'Section Forum',
+      '<span style="font-size:0.75rem;color:var(--muted);background:var(--panel-soft);padding:2px 8px;border-radius:10px;border:1px solid var(--line);">Optional</span>',
+      '<div id="moduleForumPostsExp" style="margin-bottom:14px;">' + _spinnerHtml('Loading...') + '</div>' +
+      '<div style="border:1px solid var(--line);border-radius:10px;overflow:hidden;">' +
+        '<div style="display:flex;gap:10px;padding:12px 14px;">' +
+          '<div style="width:32px;height:32px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#fff;flex-shrink:0;">' +
+            safeText(((AppState.user && AppState.user.name) || 'U').charAt(0).toUpperCase()) +
+          '</div>' +
+          '<textarea id="moduleForumInputExp" rows="2" style="flex:1;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:0.85rem;color:var(--text);resize:none;" placeholder="Discuss the lesson content (min 4 words)..."></textarea>' +
+        '</div>' +
+        '<div style="display:flex;justify-content:flex-end;padding:8px 14px 10px;border-top:1px solid var(--line);background:var(--panel-soft);">' +
+          '<button class="btn primary" style="font-size:0.82rem;" onclick="moduleForumPost(\'' + m.moduleId + '\',\'Exp\')">Post Reply</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="moduleForumMsgExp" style="margin-top:6px;font-size:0.82rem;"></div>',
+      true);
 
     // ── APPLICATION BODY ──
     var passedCount = prog.scenariosPassed || 0;
@@ -11039,62 +11062,22 @@
       outlineSectionHead('evaluation', '4', 'Evaluation', evalUnlocked, lmsBool_(prog.evalPassed)) +
       (evalQs.length ? outlineItem('evaluation', '📝', null, 'Final Exam', lmsBool_(prog.evalPassed), evalUnlocked) : outlineItem('evaluation', '🏆', null, 'Final Evaluation', lmsBool_(prog.evalPassed), evalUnlocked));
 
-    // Toggle function between outline and forum views
-    window._lmsToggleRightPanel = function(view) {
-      var outline = document.getElementById('lmsRightOutline');
-      var forum   = document.getElementById('lmsRightForum');
-      var btnO    = document.getElementById('lmsBtnOutline');
-      var btnF    = document.getElementById('lmsBtnForum');
-      if (!outline || !forum) return;
-      outline.style.display = view === 'outline' ? 'flex' : 'none';
-      forum.style.display   = view === 'forum'   ? 'flex' : 'none';
-      if (btnO) { btnO.style.fontWeight = view==='outline'?'700':'400'; btnO.style.borderBottomColor = view==='outline'?'var(--cyan)':'transparent'; btnO.style.color = view==='outline'?'var(--text)':'var(--muted)'; }
-      if (btnF) { btnF.style.fontWeight = view==='forum'?'700':'400';   btnF.style.borderBottomColor = view==='forum'?'var(--cyan)':'transparent';   btnF.style.color = view==='forum'?'var(--text)':'var(--muted)'; }
-    };
-
     var forumPanel =
-      '<div style="width:290px;min-width:290px;flex-shrink:0;border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;">' +
+      '<div style="width:260px;min-width:260px;flex-shrink:0;border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;">' +
 
-        // Toggle header
-        '<div style="display:flex;border-bottom:1px solid var(--line);flex-shrink:0;">' +
-          '<button id="lmsBtnForum"   onclick="_lmsToggleRightPanel(\'forum\')"   style="flex:1;padding:12px 8px;border:none;border-bottom:2px solid var(--cyan);background:none;font-family:inherit;font-size:0.82rem;font-weight:700;color:var(--text);cursor:pointer;">💬 Forum</button>' +
-          '<button id="lmsBtnOutline" onclick="_lmsToggleRightPanel(\'outline\')" style="flex:1;padding:12px 8px;border:none;border-bottom:2px solid transparent;background:none;font-family:inherit;font-size:0.82rem;font-weight:400;color:var(--muted);cursor:pointer;">📋 Progress</button>' +
+        // Progress header
+        '<div style="padding:12px 14px;border-bottom:1px solid var(--line);flex-shrink:0;">' +
+          '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
+            '<span style="font-size:0.75rem;font-weight:700;">Module Progress</span>' +
+            '<span style="font-size:0.75rem;font-weight:800;color:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';">' + overallPct + '%</span>' +
+          '</div>' +
+          '<div style="background:var(--line);border-radius:4px;height:5px;overflow:hidden;">' +
+            '<div style="background:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';width:' + overallPct + '%;height:5px;border-radius:4px;"></div>' +
+          '</div>' +
         '</div>' +
 
-        // Outline view (hidden by default — forum is default)
-        '<div id="lmsRightOutline" style="flex:1;overflow-y:auto;display:none;flex-direction:column;">' +
-          '<div style="padding:12px 14px;border-bottom:1px solid var(--line);flex-shrink:0;">' +
-            '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
-              '<span style="font-size:0.75rem;font-weight:700;">Module Progress</span>' +
-              '<span style="font-size:0.75rem;font-weight:800;color:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';">' + overallPct + '%</span>' +
-            '</div>' +
-            '<div style="background:var(--line);border-radius:4px;height:5px;overflow:hidden;">' +
-              '<div style="background:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';width:' + overallPct + '%;height:5px;border-radius:4px;"></div>' +
-            '</div>' +
-          '</div>' +
-          outlineHtml +
-        '</div>' +
-
-        // Forum view (shown by default)
-        '<div id="lmsRightForum" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">' +
-          '<div style="padding:12px 14px;border-bottom:1px solid var(--line);flex-shrink:0;">' +
-            '<h4 style="margin:0;font-size:0.9rem;font-weight:700;">Module Discussion</h4>' +
-            '<p style="margin:4px 0 0;font-size:0.75rem;color:var(--muted);">Posting here counts toward Introduction completion.</p>' +
-          '</div>' +
-          '<div style="padding:10px 12px;border-bottom:1px solid var(--line);flex-shrink:0;">' +
-            '<div style="display:flex;gap:8px;">' +
-              '<div style="width:30px;height:30px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:800;color:#fff;flex-shrink:0;">' +
-                safeText(((AppState.user && AppState.user.name) || 'U').charAt(0).toUpperCase()) +
-              '</div>' +
-              '<textarea id="moduleForumInput" rows="2" style="flex:1;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-family:inherit;font-size:0.82rem;color:var(--text);resize:none;" placeholder="Share your thoughts (min 4 words)..."></textarea>' +
-            '</div>' +
-            '<div style="display:flex;justify-content:flex-end;margin-top:6px;">' +
-              '<button class="btn primary" style="font-size:0.78rem;padding:5px 14px;" onclick="moduleForumPost(\'' + m.moduleId + '\')">Post reply</button>' +
-            '</div>' +
-            '<div id="moduleForumMsg" style="font-size:0.78rem;margin-top:4px;"></div>' +
-          '</div>' +
-          '<div id="moduleForumPosts" style="flex:1;overflow-y:auto;padding:0;">' + _spinnerHtml('Loading...') + '</div>' +
-        '</div>' +
+        // Outline list
+        '<div style="flex:1;overflow-y:auto;">' + outlineHtml + '</div>' +
 
       '</div>';
 
@@ -11204,68 +11187,63 @@
 
   // ── Forum ─────────────────────────────────────────────────────────────────────
 
-  function _loadForumPosts(moduleId) {
-    var el = byId('moduleForumPosts');
+  function _renderForumPosts(posts, containerId, moduleId) {
+    var el = byId(containerId);
     if (!el) return;
+    if (!posts.length) {
+      el.innerHTML =
+        '<div style="padding:20px 0;text-align:center;">' +
+          '<p style="margin:0;font-size:0.88rem;color:var(--muted);">No replies yet — be the first to contribute.</p>' +
+        '</div>';
+      return;
+    }
+    var avatarColors = ['#1d4ed8','#7c3aed','#16a34a','#d97706','#dc2626','#0891b2','#0f766e'];
+    function avatarColor(name) { return avatarColors[(name || 'P').charCodeAt(0) % avatarColors.length]; }
+
+    el.innerHTML = posts.map(function(p) {
+      var isMe    = AppState.user && String(p.userId) === String(AppState.user.userId);
+      var isReply = !!p.parentPostId;
+      var initials = (p.userName || 'P').split(' ').map(function(w) { return w.charAt(0); }).slice(0,2).join('').toUpperCase();
+      var dateStr = p.createdAt ? new Date(p.createdAt).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' }) : '';
+      return '<div style="' + (isReply ? 'margin-left:52px;' : '') + 'padding:14px 0;border-bottom:1px solid var(--line);">' +
+        '<div style="display:flex;gap:12px;">' +
+          '<div style="width:36px;height:36px;border-radius:50%;background:' + avatarColor(p.userName) + ';display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:800;color:#fff;flex-shrink:0;">' + initials + '</div>' +
+          '<div style="flex:1;min-width:0;">' +
+            '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;">' +
+              '<strong style="font-size:0.88rem;">' + safeText(p.userName || 'Pilot') + '</strong>' +
+              '<span style="font-size:0.75rem;color:var(--muted);">' + dateStr + '</span>' +
+              (isMe ? '<span style="font-size:0.68rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:1px 6px;border-radius:10px;">You</span>' : '') +
+            '</div>' +
+            '<p style="margin:0 0 8px;font-size:0.9rem;line-height:1.55;color:var(--text);">' + safeText(p.body) + '</p>' +
+            (isMe ? '<button style="background:none;border:none;font-size:0.75rem;color:var(--red);cursor:pointer;padding:0;font-family:inherit;" onclick="moduleForumDelete(\'' + p.postId + '\',\'' + moduleId + '\')">Delete</button>' : '') +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }
+
+  function _loadForumPosts(moduleId) {
+    var hasMain = !!byId('moduleForumPosts');
+    var hasExp  = !!byId('moduleForumPostsExp');
+    if (!hasMain && !hasExp) return;
 
     google.script.run
       .withSuccessHandler(function(res) {
         var posts = (res && res.ok) ? (res.posts || []) : [];
-        if (!posts.length) {
-          el.innerHTML =
-            '<div style="padding:20px 0;text-align:center;">' +
-              '<p style="margin:0;font-size:0.88rem;color:var(--muted);">No replies yet — be the first to contribute.</p>' +
-            '</div>';
-          return;
-        }
-
-        // Avatar color palette (deterministic by first char)
-        var avatarColors = ['#1d4ed8','#7c3aed','#16a34a','#d97706','#dc2626','#0891b2','#0f766e'];
-        function avatarColor(name) {
-          var c = (name || 'P').charCodeAt(0) % avatarColors.length;
-          return avatarColors[c];
-        }
-
-        el.innerHTML = posts.map(function(p, i) {
-          var isMe    = AppState.user && String(p.userId) === String(AppState.user.userId);
-          var isReply = !!p.parentPostId;
-          var initials = (p.userName || 'P').split(' ').map(function(w) { return w.charAt(0); }).slice(0,2).join('').toUpperCase();
-          var dateStr = p.createdAt ? new Date(p.createdAt).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' }) : '';
-
-          return '<div style="' + (isReply ? 'margin-left:52px;' : '') + 'padding:14px 0;border-bottom:1px solid var(--line);">' +
-            '<div style="display:flex;gap:12px;">' +
-              // Avatar
-              '<div style="width:36px;height:36px;border-radius:50%;background:' + avatarColor(p.userName) + ';display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:800;color:#fff;flex-shrink:0;">' +
-                initials +
-              '</div>' +
-              '<div style="flex:1;min-width:0;">' +
-                // Header row
-                '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;">' +
-                  '<strong style="font-size:0.88rem;">' + safeText(p.userName || 'Pilot') + '</strong>' +
-                  '<span style="font-size:0.75rem;color:var(--muted);">' + dateStr + '</span>' +
-                  (isMe ? '<span style="font-size:0.68rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:1px 6px;border-radius:10px;">You</span>' : '') +
-                '</div>' +
-                // Body
-                '<p style="margin:0 0 8px;font-size:0.9rem;line-height:1.55;color:var(--text);">' + safeText(p.body) + '</p>' +
-                // Actions
-                (isMe
-                  ? '<button style="background:none;border:none;font-size:0.75rem;color:var(--red);cursor:pointer;padding:0;font-family:inherit;" onclick="moduleForumDelete(\'' + p.postId + '\',\'' + moduleId + '\')">Delete</button>'
-                  : '') +
-              '</div>' +
-            '</div>' +
-          '</div>';
-        }).join('');
+        if (hasMain) _renderForumPosts(posts, 'moduleForumPosts', moduleId);
+        if (hasExp)  _renderForumPosts(posts, 'moduleForumPostsExp', moduleId);
       })
       .withFailureHandler(function() {
-        var el2 = byId('moduleForumPosts');
-        if (el2) el2.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;padding:12px 0;">Could not load posts.</p>';
+        if (hasMain) { var e = byId('moduleForumPosts'); if (e) e.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;padding:12px 0;">Could not load posts.</p>'; }
+        if (hasExp)  { var e2 = byId('moduleForumPostsExp'); if (e2) e2.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;padding:12px 0;">Could not load posts.</p>'; }
       })
       .apiModuleForumGetPosts(AppState.sessionToken, moduleId);
   }
 
-  function moduleForumPost(moduleId) {
-    var input = byId('moduleForumInput');
-    var msg   = byId('moduleForumMsg');
+  function moduleForumPost(moduleId, suffix) {
+    var sfx   = suffix || '';
+    var input = byId('moduleForumInput' + sfx);
+    var msg   = byId('moduleForumMsg' + sfx);
     if (!input || !msg) return;
     msg.innerHTML = _spinnerHtml('Posting...');
 
