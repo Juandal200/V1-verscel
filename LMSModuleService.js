@@ -14,6 +14,13 @@ function mergeObjects_(base, patch) {
   return out;
 }
 
+// Normalize GAS sheet boolean — Sheets may return TRUE/FALSE as strings
+function lmsBool_(v) {
+  if (v === true  || v === 'TRUE'  || v === 'true'  || v === 1) return true;
+  if (v === false || v === 'FALSE' || v === 'false' || v === 0 || v === '' || v === null || v === undefined) return false;
+  return !!v;
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 var LMS_QUIZ_COOLDOWN_MS   = 15 * 60 * 1000; // 15-minute cooldown between quiz retries
@@ -554,12 +561,10 @@ function apiModuleForumSavePost(sessionToken, payload) {
         // Mark forum participation on progress if top-level post
         if (!parentPostId) {
           var prog = lmsGetProgress_(caller.userId, moduleId);
-          if (prog && !prog.introForumPosted) {
-            dbUpdateByRow_('ModuleProgress', prog.__rowNumber, { introForumPosted: true, updatedAt: now });
-            // Check if intro is now complete
-            if (prog.introVideoWatched) {
-              dbUpdateByRow_('ModuleProgress', prog.__rowNumber, { introCompleted: true, updatedAt: now });
-            }
+          if (prog && !lmsBool_(prog.introForumPosted)) {
+            var forumPatch = { introForumPosted: true, updatedAt: now };
+            if (lmsBool_(prog.introVideoWatched)) forumPatch.introCompleted = true;
+            dbUpdateByRow_('ModuleProgress', prog.__rowNumber, forumPatch);
           }
         }
 
@@ -741,10 +746,9 @@ function apiModuleMarkVideoWatched(sessionToken, payload) {
       var now  = now_();
 
       if (video.section === 'intro') {
-        if (!prog.introVideoWatched) {
+        if (!lmsBool_(prog.introVideoWatched)) {
           var patch = { introVideoWatched: true, updatedAt: now };
-          // Complete intro if also posted in forum
-          if (prog.introForumPosted) patch.introCompleted = true;
+          if (lmsBool_(prog.introForumPosted)) patch.introCompleted = true;
           dbUpdateByRow_('ModuleProgress', prog.__rowNumber, patch);
           return mergeObjects_(prog, patch);
         }

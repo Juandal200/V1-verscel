@@ -10581,7 +10581,7 @@
   function _renderModuleRoadmap(modules) {
     if (!modules.length) {
       byId('contentArea').innerHTML =
-        '<div style="max-width:760px;margin:0 auto;padding:60px 0;text-align:center;">' +
+        '<div style="max-width:860px;margin:0 auto;padding:60px 0;text-align:center;">' +
           '<div style="font-size:3rem;margin-bottom:16px;">📡</div>' +
           '<h3 style="color:var(--muted);font-weight:400;">No modules available yet.</h3>' +
           '<p style="color:var(--muted);">Check back soon — training content is being prepared.</p>' +
@@ -10590,128 +10590,152 @@
     }
 
     var totalCompleted = modules.filter(function(m) { return m.completed; }).length;
+    var overallPct = modules.length ? Math.round((totalCompleted / modules.length) * 100) : 0;
 
-    // Header
     var header =
-      '<div style="max-width:760px;margin:0 auto 32px;">' +
+      '<div style="max-width:860px;margin:0 auto 28px;">' +
         '<p class="eyebrow" style="margin-bottom:4px;">Aviation English Training</p>' +
         '<h2 style="margin:0 0 6px;">Course Roadmap</h2>' +
-        '<p style="color:var(--muted);margin:0 0 20px;">Complete each module in sequence to advance your ICAO proficiency.</p>' +
-        '<div style="display:flex;align-items:center;gap:16px;background:var(--panel-soft);border:1px solid var(--line);border-radius:10px;padding:14px 18px;">' +
+        '<p style="color:var(--muted);margin:0 0 20px;font-size:0.9rem;">Complete each module in sequence to advance your ICAO proficiency.</p>' +
+        '<div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 20px;display:flex;align-items:center;gap:20px;">' +
+          '<div style="font-size:1.8rem;line-height:1;">✈</div>' +
           '<div style="flex:1;">' +
-            '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
-              '<span style="font-size:0.8rem;color:var(--muted);letter-spacing:.05em;">OVERALL PROGRESS</span>' +
-              '<span style="font-size:0.8rem;font-weight:600;">' + totalCompleted + ' / ' + modules.length + ' modules</span>' +
+            '<div style="display:flex;justify-content:space-between;margin-bottom:7px;">' +
+              '<span style="font-size:0.75rem;color:var(--muted);letter-spacing:.07em;font-weight:600;">OVERALL PROGRESS</span>' +
+              '<span style="font-size:0.75rem;font-weight:700;color:' + (overallPct===100?'var(--green)':'var(--cyan)') + ';">' + totalCompleted + ' / ' + modules.length + ' completed</span>' +
             '</div>' +
-            '<div style="background:var(--line);border-radius:4px;height:8px;">' +
-              '<div style="background:var(--green);width:' + Math.round((totalCompleted/modules.length)*100) + '%;height:8px;border-radius:4px;transition:width .4s;"></div>' +
+            '<div style="background:var(--line);border-radius:6px;height:10px;overflow:hidden;">' +
+              '<div style="background:' + (overallPct===100?'var(--green)':'var(--cyan)') + ';width:' + overallPct + '%;height:10px;border-radius:6px;transition:width .5s;"></div>' +
             '</div>' +
           '</div>' +
         '</div>' +
       '</div>';
 
+    var sects = ['intro','explanation','application','evaluation'];
+    var stepLabels = ['Intro','Explain','Apply','Evaluate'];
+
     var cards = modules.map(function(m, idx) {
-      var locked    = !m.unlocked;
-      var completed = !!m.completed;
+      var locked     = !m.unlocked;
+      var completed  = !!m.completed;
       var inProgress = !locked && !completed;
-
       var sectionsDone = 0;
-      var sects = ['intro','explanation','application','evaluation'];
       if (m.sections) sects.forEach(function(k) { if (m.sections[k] && m.sections[k].completed) sectionsDone++; });
-
       var pct = Math.round((sectionsDone / 4) * 100);
+
+      // Left image panel — badge image or a styled gradient placeholder
+      var accentColor = completed ? '#16a34a' : locked ? '#6b7280' : '#0ea5e9';
+      var imgPanel;
+      if (m.badgeImageUrl) {
+        imgPanel =
+          '<div style="position:relative;width:200px;min-width:200px;background:linear-gradient(145deg,#0f172a,#1e3a5f);flex-shrink:0;overflow:hidden;">' +
+            '<img src="' + safeText(m.badgeImageUrl) + '" style="width:100%;height:100%;object-fit:cover;' + (locked?'filter:grayscale(1) brightness(.55);':'filter:brightness(.7);') + '">' +
+            '<div style="position:absolute;inset:0;background:linear-gradient(to right,transparent 60%,rgba(0,0,0,.5));"></div>' +
+            '<div style="position:absolute;bottom:12px;left:12px;">' +
+              '<p style="margin:0;font-size:0.6rem;font-weight:800;letter-spacing:.14em;color:rgba(255,255,255,.65);text-transform:uppercase;">Module</p>' +
+              '<div style="width:36px;height:36px;border-radius:50%;background:' + accentColor + ';border:2px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1rem;color:#fff;margin-top:4px;">' +
+                (completed ? '✓' : String(idx+1)) +
+              '</div>' +
+            '</div>' +
+            (locked ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1.8rem;">🔒</div>' : '') +
+          '</div>';
+      } else {
+        var gradients = [
+          'linear-gradient(145deg,#0f2744,#1d4ed8)',
+          'linear-gradient(145deg,#1a1a3e,#7c3aed)',
+          'linear-gradient(145deg,#0f3322,#16a34a)',
+          'linear-gradient(145deg,#3b1a00,#d97706)',
+          'linear-gradient(145deg,#200a2a,#9333ea)',
+          'linear-gradient(145deg,#001a2e,#0284c7)'
+        ];
+        var grad = gradients[idx % gradients.length];
+        imgPanel =
+          '<div style="position:relative;width:200px;min-width:200px;' + (locked?'filter:grayscale(.7) brightness(.7);':'') + 'background:' + grad + ';flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;">' +
+            '<p style="margin:0;font-size:0.58rem;font-weight:800;letter-spacing:.16em;color:rgba(255,255,255,.5);text-transform:uppercase;">Module</p>' +
+            '<div style="width:52px;height:52px;border-radius:50%;border:3px solid rgba(255,255,255,.35);background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.5rem;color:#fff;">' +
+              (completed ? '✓' : String(idx+1)) +
+            '</div>' +
+            (locked ? '<span style="font-size:1.2rem;margin-top:4px;">🔒</span>' : '') +
+          '</div>';
+      }
 
       // Status chip
       var chip = completed
-        ? '<span style="display:inline-flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:700;letter-spacing:.06em;color:var(--green);background:rgba(22,163,74,.12);padding:3px 10px;border-radius:20px;">✓ COMPLETED</span>'
+        ? '<span style="font-size:0.68rem;font-weight:700;letter-spacing:.06em;color:var(--green);background:rgba(22,163,74,.12);border:1px solid rgba(22,163,74,.2);padding:2px 9px;border-radius:20px;">✓ COMPLETED</span>'
         : locked
-          ? '<span style="display:inline-flex;align-items:center;gap:5px;font-size:0.72rem;letter-spacing:.06em;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:3px 10px;border-radius:20px;">🔒 LOCKED</span>'
+          ? '<span style="font-size:0.68rem;letter-spacing:.05em;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:2px 9px;border-radius:20px;">LOCKED</span>'
           : sectionsDone > 0
-            ? '<span style="display:inline-flex;align-items:center;gap:5px;font-size:0.72rem;font-weight:700;letter-spacing:.06em;color:var(--cyan);background:rgba(100,200,255,.08);border:1px solid rgba(100,200,255,.2);padding:3px 10px;border-radius:20px;">▶ IN PROGRESS</span>'
-            : '<span style="display:inline-flex;align-items:center;gap:5px;font-size:0.72rem;letter-spacing:.06em;color:var(--silver);background:var(--panel-soft);border:1px solid var(--line);padding:3px 10px;border-radius:20px;">○ NOT STARTED</span>';
+            ? '<span style="font-size:0.68rem;font-weight:700;letter-spacing:.05em;color:var(--cyan);background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.25);padding:2px 9px;border-radius:20px;">▶ IN PROGRESS</span>'
+            : '<span style="font-size:0.68rem;letter-spacing:.05em;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:2px 9px;border-radius:20px;">NOT STARTED</span>';
 
-      // Section steps
-      var stepLabels = ['Intro','Explain','Apply','Evaluate'];
-      var stepIcons  = ['📖','🎓','🛫','🏆'];
-      var steps = sects.map(function(k, i) {
-        var s = m.sections && m.sections[k];
+      // Section mini-steps
+      var miniSteps = sects.map(function(k, i) {
+        var s    = m.sections && m.sections[k];
         var done = s && s.completed;
         var avail = s && s.unlocked;
-        var color = done ? 'var(--green)' : avail ? 'var(--cyan)' : 'var(--line)';
-        var textColor = done ? 'var(--green)' : avail ? 'var(--text)' : 'var(--muted)';
-        return '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">' +
-          '<div style="width:32px;height:32px;border-radius:50%;background:' + (done ? 'var(--green)' : avail ? 'rgba(100,200,255,.15)' : 'var(--panel-soft)') + ';border:2px solid ' + color + ';display:flex;align-items:center;justify-content:center;font-size:0.85rem;">' +
-            (done ? '✓' : stepIcons[i]) +
+        return '<div style="display:flex;flex-direction:column;align-items:center;gap:3px;">' +
+          '<div style="width:24px;height:24px;border-radius:50%;font-size:0.65rem;font-weight:700;display:flex;align-items:center;justify-content:center;' +
+            (done  ? 'background:var(--green);color:#fff;border:none;'
+                   : avail ? 'background:rgba(14,165,233,.12);color:var(--cyan);border:1px solid rgba(14,165,233,.3);'
+                           : 'background:var(--panel-soft);color:var(--muted);border:1px solid var(--line);') + '">' +
+            (done ? '✓' : String(i+1)) +
           '</div>' +
-          '<span style="font-size:0.65rem;color:' + textColor + ';letter-spacing:.03em;">' + stepLabels[i] + '</span>' +
+          '<span style="font-size:0.58rem;color:' + (done?'var(--green)':avail?'var(--text)':'var(--muted)') + ';letter-spacing:.02em;white-space:nowrap;">' + stepLabels[i] + '</span>' +
         '</div>';
       });
-      // Connectors between steps
-      var stepRow = '<div style="display:flex;align-items:flex-start;gap:0;">';
-      steps.forEach(function(s, i) {
-        stepRow += s;
+      var stepsRow = '<div style="display:flex;align-items:flex-start;gap:0;">';
+      miniSteps.forEach(function(s, i) {
+        stepsRow += s;
         if (i < 3) {
-          var nextDone = m.sections && m.sections[sects[i+1]] && m.sections[sects[i+1]].unlocked;
-          stepRow += '<div style="flex:1;height:2px;background:' + (nextDone ? 'var(--cyan)' : 'var(--line)') + ';margin-top:16px;"></div>';
+          stepsRow += '<div style="flex:1;height:1px;background:var(--line);margin-top:12px;"></div>';
         }
       });
-      stepRow += '</div>';
+      stepsRow += '</div>';
 
-      // Badge
-      var badgeHtml = '';
-      if (m.badgeImageUrl) {
-        badgeHtml = '<img src="' + safeText(m.badgeImageUrl) + '" style="width:52px;height:52px;object-fit:contain;border-radius:8px;' + (m.badgeEarned ? '' : 'filter:grayscale(1);opacity:0.4;') + '" title="' + (m.badgeEarned ? 'Badge earned!' : 'Complete module to earn badge') + '">';
-      }
-
-      // CTA
       var cta = !locked
-        ? '<button class="btn ' + (completed ? 'secondary' : 'primary') + '" onclick="event.stopPropagation();renderModuleDetail(\'' + m.moduleId + '\')" style="white-space:nowrap;">' +
+        ? '<button class="btn ' + (completed?'secondary':'primary') + '" style="font-size:0.82rem;padding:8px 18px;white-space:nowrap;" onclick="event.stopPropagation();renderModuleDetail(\'' + m.moduleId + '\')">' +
             (completed ? 'Review' : sectionsDone > 0 ? 'Continue →' : 'Start →') +
           '</button>'
         : '';
 
-      // Left border color
       var borderColor = completed ? 'var(--green)' : inProgress ? 'var(--cyan)' : 'var(--line)';
 
-      return '<div style="max-width:760px;margin:0 auto 14px;">' +
-        '<div style="background:var(--panel);border:1px solid var(--line);border-left:4px solid ' + borderColor + ';border-radius:10px;padding:0;overflow:hidden;' + (!locked ? 'cursor:pointer;transition:border-color .2s,box-shadow .2s;' : 'opacity:0.6;') + '" ' +
-          (!locked ? 'onclick="renderModuleDetail(\'' + m.moduleId + '\')" onmouseenter="this.style.boxShadow=\'0 2px 16px rgba(0,0,0,.18)\'" onmouseleave="this.style.boxShadow=\'\'"' : '') + '>' +
+      return '<div style="max-width:860px;margin:0 auto 14px;">' +
+        '<div style="display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;min-height:140px;' +
+          (completed?'border-color:rgba(22,163,74,.3);':inProgress?'border-color:rgba(14,165,233,.25);':'') +
+          (!locked?'cursor:pointer;transition:box-shadow .2s;':'opacity:0.62;') + '" ' +
+          (!locked?'onclick="renderModuleDetail(\'' + m.moduleId + '\')" onmouseenter="this.style.boxShadow=\'0 4px 20px rgba(0,0,0,.2)\'" onmouseleave="this.style.boxShadow=\'\'"':'') + '>' +
 
-          // Top row
-          '<div style="display:flex;align-items:center;gap:16px;padding:18px 20px;">' +
-            // Number badge
-            '<div style="min-width:44px;height:44px;border-radius:50%;background:' + (completed ? 'var(--green)' : locked ? 'var(--panel-soft)' : 'rgba(100,200,255,.1)') + ';border:2px solid ' + borderColor + ';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1rem;color:' + (completed ? '#fff' : 'var(--muted)') + ';">' +
-              (completed ? '✓' : String(idx + 1)) +
-            '</div>' +
+          imgPanel +
 
-            '<div style="flex:1;min-width:0;">' +
-              '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;">' +
-                '<h3 style="margin:0;font-size:1rem;">' + safeText(m.title) + '</h3>' +
+          '<div style="flex:1;display:flex;flex-direction:column;justify-content:space-between;padding:18px 20px;background:var(--panel);">' +
+            '<div>' +
+              '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px;">' +
+                '<h3 style="margin:0;font-size:1.05rem;line-height:1.3;">' + safeText(m.title) + '</h3>' +
                 chip +
               '</div>' +
-              (m.topic ? '<p style="margin:0;font-size:0.78rem;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;">' + safeText(m.topic) + '</p>' : '') +
+              (m.topic ? '<p style="margin:0 0 8px;font-size:0.75rem;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;font-weight:600;">' + safeText(m.topic) + '</p>' : '') +
+              (m.description ? '<p style="margin:0 0 10px;font-size:0.82rem;color:var(--muted);line-height:1.45;">' + safeText(m.description) + '</p>' : '') +
             '</div>' +
 
-            (badgeHtml ? '<div style="flex-shrink:0;">' + badgeHtml + '</div>' : '') +
-            (cta ? '<div style="flex-shrink:0;">' + cta + '</div>' : '') +
+            '<div>' +
+              stepsRow +
+              (inProgress && pct > 0
+                ? '<div style="margin-top:10px;">' +
+                    '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
+                      '<span style="font-size:0.68rem;color:var(--muted);letter-spacing:.04em;">PROGRESS</span>' +
+                      '<span style="font-size:0.68rem;font-weight:700;color:var(--cyan);">' + pct + '%</span>' +
+                    '</div>' +
+                    '<div style="background:var(--line);border-radius:4px;height:4px;">' +
+                      '<div style="background:var(--cyan);width:' + pct + '%;height:4px;border-radius:4px;"></div>' +
+                    '</div>' +
+                  '</div>'
+                : '') +
+              (cta
+                ? '<div style="margin-top:12px;display:flex;justify-content:flex-end;">' + cta + '</div>'
+                : '') +
+            '</div>' +
           '</div>' +
 
-          // Description + steps
-          (!locked ? '<div style="border-top:1px solid var(--line);padding:14px 20px;background:var(--panel-soft);">' +
-            (m.description ? '<p style="margin:0 0 14px;font-size:0.85rem;color:var(--muted);">' + safeText(m.description) + '</p>' : '') +
-            stepRow +
-            (inProgress && pct > 0
-              ? '<div style="margin-top:12px;">' +
-                  '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
-                    '<span style="font-size:0.72rem;color:var(--muted);">Progress</span>' +
-                    '<span style="font-size:0.72rem;font-weight:600;color:var(--cyan);">' + pct + '%</span>' +
-                  '</div>' +
-                  '<div style="background:var(--line);border-radius:4px;height:4px;">' +
-                    '<div style="background:var(--cyan);width:' + pct + '%;height:4px;border-radius:4px;"></div>' +
-                  '</div>' +
-                '</div>'
-              : '') +
-          '</div>' : '') +
         '</div>' +
       '</div>';
     }).join('');
@@ -10760,86 +10784,118 @@
     var overallPct = Math.round((sectionsDone / 4) * 100);
 
     // ── Breadcrumb + course header ──
+    var progressColor = overallPct === 100 ? '#16a34a' : '#0ea5e9';
     var courseHeader =
-      '<div style="max-width:800px;margin:0 auto 0;">' +
-        // Breadcrumb
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:0.82rem;color:var(--muted);">' +
-          '<button class="btn secondary" onclick="renderModules()" style="padding:5px 12px;font-size:0.78rem;">← Course</button>' +
+      '<div style="max-width:860px;margin:0 auto 0;">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:18px;font-size:0.82rem;color:var(--muted);">' +
+          '<button class="btn secondary" onclick="renderModules()" style="padding:5px 12px;font-size:0.78rem;">← All Modules</button>' +
           '<span>›</span>' +
-          '<span style="color:var(--text);">' + safeText(m.title) + '</span>' +
+          '<span style="color:var(--text);font-weight:600;">' + safeText(m.title) + '</span>' +
         '</div>' +
 
-        // Module header card
-        '<div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:24px;margin-bottom:24px;">' +
-          '<div style="display:flex;align-items:flex-start;gap:20px;">' +
+        // Module header card — hero style
+        '<div style="display:flex;border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:20px;background:var(--panel);min-height:120px;">' +
+          // Left hero band
+          '<div style="width:220px;min-width:220px;flex-shrink:0;position:relative;background:linear-gradient(145deg,#0f172a,#1e3a5f);overflow:hidden;">' +
             (m.badgeImageUrl
-              ? '<div style="flex-shrink:0;"><img src="' + safeText(m.badgeImageUrl) + '" style="width:64px;height:64px;object-fit:contain;border-radius:10px;' + (prog.badgeEarned ? '' : 'filter:grayscale(1);opacity:0.35;') + '" title="' + (prog.badgeEarned ? 'Badge earned!' : 'Complete module to earn') + '"></div>'
-              : '') +
-            '<div style="flex:1;">' +
-              (m.topic ? '<p class="eyebrow" style="margin:0 0 4px;">' + safeText(m.topic) + '</p>' : '') +
-              '<h2 style="margin:0 0 6px;">' + safeText(m.title) + '</h2>' +
-              (m.description ? '<p style="margin:0 0 16px;color:var(--muted);font-size:0.88rem;">' + safeText(m.description) + '</p>' : '') +
-
-              // Progress bar
-              '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
-                '<span style="font-size:0.75rem;color:var(--muted);letter-spacing:.05em;">MODULE PROGRESS</span>' +
-                '<span style="font-size:0.75rem;font-weight:700;color:' + (overallPct === 100 ? 'var(--green)' : 'var(--cyan)') + ';">' + overallPct + '%</span>' +
-              '</div>' +
-              '<div style="background:var(--line);border-radius:6px;height:8px;">' +
-                '<div style="background:' + (overallPct === 100 ? 'var(--green)' : 'var(--cyan)') + ';width:' + overallPct + '%;height:8px;border-radius:6px;transition:width .4s;"></div>' +
-              '</div>' +
+              ? '<img src="' + safeText(m.badgeImageUrl) + '" style="width:100%;height:100%;object-fit:cover;' + (prog.badgeEarned?'':'filter:grayscale(.4) brightness(.6);') + '">' +
+                '<div style="position:absolute;inset:0;background:linear-gradient(to right,transparent 40%,rgba(0,0,0,.55));"></div>'
+              : '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:3rem;opacity:0.25;">✈</div>') +
+            '<div style="position:absolute;bottom:12px;left:14px;">' +
+              (m.topic ? '<p style="margin:0 0 2px;font-size:0.58rem;font-weight:800;letter-spacing:.14em;color:rgba(255,255,255,.6);text-transform:uppercase;">' + safeText(m.topic) + '</p>' : '') +
+              '<p style="margin:0;font-size:0.88rem;font-weight:700;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);">' + safeText(m.title) + '</p>' +
             '</div>' +
+            (prog.badgeEarned
+              ? '<div style="position:absolute;top:10px;right:10px;background:rgba(22,163,74,.85);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:1rem;">🏆</div>'
+              : '') +
           '</div>' +
 
-          // Section stepper
-          '<div style="display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;align-items:center;gap:0;margin-top:24px;">' +
-            _stepperItem('01', 'Introduction', !!prog.introCompleted, introUnlocked) +
-            _stepperLine(expUnlocked) +
-            _stepperItem('02', 'Explanation', !!prog.explanationCompleted, expUnlocked) +
-            _stepperLine(appUnlocked) +
-            _stepperItem('03', 'Application', !!prog.applicationCompleted, appUnlocked) +
-            _stepperLine(evalUnlocked) +
-            _stepperItem('04', 'Evaluation', !!prog.evalPassed, evalUnlocked) +
+          // Right content
+          '<div style="flex:1;padding:20px 24px;display:flex;flex-direction:column;justify-content:space-between;">' +
+            '<div>' +
+              '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">' +
+                '<h2 style="margin:0;font-size:1.15rem;">' + safeText(m.title) + '</h2>' +
+                (overallPct === 100
+                  ? '<span style="font-size:0.7rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:3px 10px;border-radius:20px;">✓ COMPLETE</span>'
+                  : '') +
+              '</div>' +
+              (m.description ? '<p style="margin:0 0 14px;color:var(--muted);font-size:0.85rem;line-height:1.45;">' + safeText(m.description) + '</p>' : '') +
+            '</div>' +
+
+            '<div>' +
+              '<div style="display:flex;justify-content:space-between;margin-bottom:5px;">' +
+                '<span style="font-size:0.7rem;color:var(--muted);letter-spacing:.07em;font-weight:600;">MODULE PROGRESS</span>' +
+                '<span style="font-size:0.7rem;font-weight:800;color:' + progressColor + ';">' + overallPct + '%</span>' +
+              '</div>' +
+              '<div style="background:var(--line);border-radius:6px;height:8px;overflow:hidden;">' +
+                '<div style="background:' + progressColor + ';width:' + overallPct + '%;height:8px;border-radius:6px;transition:width .5s;"></div>' +
+              '</div>' +
+
+              // Stepper
+              '<div style="display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;align-items:center;gap:0;margin-top:16px;">' +
+                _stepperItem('01', 'Introduction', !!prog.introCompleted, introUnlocked) +
+                _stepperLine(expUnlocked) +
+                _stepperItem('02', 'Explanation', !!prog.explanationCompleted, expUnlocked) +
+                _stepperLine(appUnlocked) +
+                _stepperItem('03', 'Application', !!prog.applicationCompleted, appUnlocked) +
+                _stepperLine(evalUnlocked) +
+                _stepperItem('04', 'Evaluation', !!prog.evalPassed, evalUnlocked) +
+              '</div>' +
+            '</div>' +
           '</div>' +
         '</div>' +
       '</div>';
 
     // ── Section builder ──
+    var sectionMeta = {
+      '01': { grad:'linear-gradient(160deg,#0f2744 0%,#1d4ed8 100%)', lightGrad:'linear-gradient(160deg,#dbeafe 0%,#bfdbfe 100%)', accent:'#1d4ed8', label2:'Introduction'  },
+      '02': { grad:'linear-gradient(160deg,#1a0d38 0%,#7c3aed 100%)', lightGrad:'linear-gradient(160deg,#ede9fe 0%,#ddd6fe 100%)', accent:'#7c3aed', label2:'Explanation'   },
+      '03': { grad:'linear-gradient(160deg,#052e16 0%,#16a34a 100%)', lightGrad:'linear-gradient(160deg,#dcfce7 0%,#bbf7d0 100%)', accent:'#16a34a', label2:'Application'   },
+      '04': { grad:'linear-gradient(160deg,#431407 0%,#d97706 100%)', lightGrad:'linear-gradient(160deg,#fef3c7 0%,#fde68a 100%)', accent:'#d97706', label2:'Evaluation'    }
+    };
+
     function sectionCard(num, label, icon, unlocked, completed, bodyHtml) {
-      var borderColor = completed ? 'var(--green)' : unlocked ? 'var(--cyan)' : 'var(--line)';
-      var headBg      = completed ? 'rgba(22,163,74,.07)' : unlocked ? 'rgba(100,200,255,.05)' : 'transparent';
-      var statusChip  = completed
-        ? '<span style="font-size:0.7rem;font-weight:700;color:var(--green);background:rgba(22,163,74,.12);padding:2px 8px;border-radius:20px;letter-spacing:.05em;">✓ COMPLETE</span>'
+      var meta = sectionMeta[num] || sectionMeta['01'];
+      var accentHex = meta.accent;
+
+      var statusChip = completed
+        ? '<span style="font-size:0.67rem;font-weight:700;letter-spacing:.06em;color:#16a34a;background:rgba(22,163,74,.13);border:1px solid rgba(22,163,74,.25);padding:2px 9px;border-radius:20px;">✓ COMPLETE</span>'
         : !unlocked
-          ? '<span style="font-size:0.7rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:2px 8px;border-radius:20px;">🔒 LOCKED</span>'
-          : '<span style="font-size:0.7rem;font-weight:600;color:var(--cyan);background:rgba(100,200,255,.08);border:1px solid rgba(100,200,255,.2);padding:2px 8px;border-radius:20px;">▶ ACTIVE</span>';
+          ? '<span style="font-size:0.67rem;letter-spacing:.05em;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:2px 9px;border-radius:20px;">🔒 LOCKED</span>'
+          : '<span style="font-size:0.67rem;font-weight:700;letter-spacing:.05em;color:' + accentHex + ';background:rgba(0,0,0,.05);border:1px solid rgba(0,0,0,.12);padding:2px 9px;border-radius:20px;">▶ ACTIVE</span>';
 
-      return '<div style="max-width:800px;margin:0 auto 16px;">' +
-        '<div style="border:1px solid var(--line);border-left:4px solid ' + borderColor + ';border-radius:10px;overflow:hidden;">' +
+      // Left visual panel
+      var lockMsg = num === '02' ? 'Complete Introduction to unlock'
+                  : num === '03' ? 'Complete Explanation to unlock'
+                  : 'Complete Application to unlock';
 
-          // Section header
-          '<div style="display:flex;align-items:center;gap:14px;padding:16px 20px;background:' + headBg + ';">' +
-            '<div style="width:40px;height:40px;border-radius:8px;background:' + (completed ? 'var(--green)' : unlocked ? 'rgba(100,200,255,.15)' : 'var(--panel-soft)') + ';display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;">' +
-              '<span style="font-size:1rem;">' + icon + '</span>' +
+      var leftPanel =
+        '<div style="width:170px;min-width:170px;flex-shrink:0;background:' + meta.grad + ';' +
+          (!unlocked ? 'filter:grayscale(.5) brightness(.65);' : '') +
+          'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px 10px;text-align:center;">' +
+          '<p style="margin:0;font-size:0.55rem;font-weight:800;letter-spacing:.16em;color:rgba(255,255,255,.55);text-transform:uppercase;">Section ' + num + '</p>' +
+          '<div style="width:54px;height:54px;border-radius:50%;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:1.6rem;">' +
+            (completed ? '<span style="font-size:1.4rem;color:#fff;font-weight:800;">✓</span>' : icon) +
+          '</div>' +
+          '<p style="margin:0;font-size:0.78rem;font-weight:700;color:#fff;letter-spacing:.01em;line-height:1.2;">' + label + '</p>' +
+          (!unlocked ? '<p style="margin:0;font-size:0.62rem;color:rgba(255,255,255,.5);line-height:1.3;">🔒 ' + lockMsg + '</p>' : '') +
+        '</div>';
+
+      return '<div style="max-width:860px;margin:0 auto 14px;">' +
+        '<div style="display:flex;border:1px solid ' + (completed?'rgba(22,163,74,.3)':unlocked?'rgba(0,0,0,.12)':'var(--line)') + ';border-radius:12px;overflow:hidden;background:var(--panel);">' +
+
+          leftPanel +
+
+          '<div style="flex:1;padding:20px 22px;' + (!unlocked?'opacity:0.7;':'') + '">' +
+            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:' + (unlocked?'16':'0') + 'px;">' +
+              '<h4 style="margin:0;font-size:0.95rem;font-weight:700;">' + label + '</h4>' +
+              statusChip +
             '</div>' +
-            '<div style="flex:1;">' +
-              '<div style="display:flex;align-items:center;gap:8px;">' +
-                '<span style="font-size:0.65rem;color:var(--muted);letter-spacing:.08em;">SECTION ' + num + '</span>' +
-                statusChip +
-              '</div>' +
-              '<h4 style="margin:2px 0 0;font-size:0.95rem;">' + label + '</h4>' +
-            '</div>' +
+            (unlocked
+              ? bodyHtml
+              : '<p style="margin:0;font-size:0.84rem;color:var(--muted);">' + lockMsg + ' first to access this section.</p>') +
           '</div>' +
 
-          // Body
-          (unlocked
-            ? '<div style="padding:20px;">' + bodyHtml + '</div>'
-            : '<div style="padding:16px 20px;background:var(--panel-soft);color:var(--muted);font-size:0.85rem;display:flex;align-items:center;gap:8px;">' +
-                '<span>🔒</span><span>' +
-                (num === '02' ? 'Complete Introduction to unlock.' :
-                 num === '03' ? 'Complete Explanation to unlock.' :
-                 'Complete Application to unlock.') + '</span>' +
-              '</div>') +
         '</div>' +
       '</div>';
     }
