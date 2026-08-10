@@ -13026,43 +13026,6 @@
     }
   }
 
-  function renderHome() {
-    if (window.simMediaStopAll) window.simMediaStopAll();
-    window.setActiveNav('Home');
-    setDashboardNavActive();
-
-    var content = byId('contentArea');
-    if (!content) return;
-    var _tok = window._navToken || 0;
-
-    content.innerHTML =
-      '<section class="analytics-dashboard-shell">' +
-        '<div class="analytics-hero skeleton" style="justify-content:center;">' +
-          '<div class="app-spinner-wrap" style="padding:16px 24px;">' +
-            '<div class="app-spinner"></div>' +
-            '<p class="app-spinner-label">Preparing your flight desk...</p>' +
-          '</div>' +
-        '</div>' +
-      '</section>';
-
-    analyticsLogEvent('dashboard_view', { source: 'renderHome' });
-
-    google.script.run
-      .withSuccessHandler(function(res) {
-        if ((window._navToken || 0) !== _tok) return;
-        if (!res || !res.ok) {
-          content.innerHTML = '<div class="panel"><h3>Dashboard unavailable</h3><p class="subtitle">' + h(res && res.message ? res.message : 'Could not load dashboard.') + '</p></div>';
-          return;
-        }
-        renderAnalyticsDashboard(res);
-      })
-      .withFailureHandler(function(err) {
-        if ((window._navToken || 0) !== _tok) return;
-        content.innerHTML = '<div class="panel"><h3>Dashboard unavailable</h3><p class="subtitle">' + h(err && err.message ? err.message : 'Server error.') + '</p></div>';
-      })
-      .apiGetDashboardAnalytics(AppState.sessionToken);
-  }
-
   function renderProgress() {
     if (window.simMediaStopAll) window.simMediaStopAll();
     setActiveNav('Progress');
