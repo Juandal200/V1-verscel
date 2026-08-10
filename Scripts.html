@@ -10585,7 +10585,7 @@
   function _renderModuleRoadmap(modules) {
     if (!modules.length) {
       byId('contentArea').innerHTML =
-        '<div style="max-width:860px;margin:0 auto;padding:60px 0;text-align:center;">' +
+        '<div style="padding:60px 0;text-align:center;">' +
           '<div style="font-size:3rem;margin-bottom:16px;">📡</div>' +
           '<h3 style="color:var(--muted);font-weight:400;">No modules available yet.</h3>' +
           '<p style="color:var(--muted);">Check back soon — training content is being prepared.</p>' +
@@ -10597,11 +10597,11 @@
     var overallPct = modules.length ? Math.round((totalCompleted / modules.length) * 100) : 0;
 
     var header =
-      '<div style="max-width:860px;margin:0 auto 28px;">' +
+      '<div style="margin-bottom:24px;">' +
         '<p class="eyebrow" style="margin-bottom:4px;">Aviation English Training</p>' +
         '<h2 style="margin:0 0 6px;">Course Roadmap</h2>' +
-        '<p style="color:var(--muted);margin:0 0 20px;font-size:0.9rem;">Complete each module in sequence to advance your ICAO proficiency.</p>' +
-        '<div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 20px;display:flex;align-items:center;gap:20px;">' +
+        '<p style="color:var(--muted);margin:0 0 16px;font-size:0.9rem;">Complete each module in sequence to advance your ICAO proficiency.</p>' +
+        '<div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 20px;display:flex;align-items:center;gap:20px;">' +
           '<div style="font-size:1.8rem;line-height:1;">✈</div>' +
           '<div style="flex:1;">' +
             '<div style="display:flex;justify-content:space-between;margin-bottom:7px;">' +
@@ -10728,7 +10728,7 @@
 
     byId('contentArea').innerHTML =
       header +
-      '<div style="max-width:860px;margin:0 auto;display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">' +
         cards +
       '</div>';
   }
@@ -11036,7 +11036,7 @@
       '</div>';
 
     var contentPanels =
-      '<div style="flex:1;overflow-y:auto;min-width:0;max-width:760px;">' +
+      '<div style="flex:1;overflow-y:auto;min-width:0;">' +
         sectionPanel('intro',       introUnlocked, !!prog.introCompleted,       introBody) +
         sectionPanel('explanation', expUnlocked,   !!prog.explanationCompleted, expBody) +
         sectionPanel('application', appUnlocked,   !!prog.applicationCompleted, appBody) +
