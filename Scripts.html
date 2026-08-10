@@ -10773,11 +10773,10 @@
       .filter(Boolean).length;
     var overallPct = Math.round((sectionsDone / 4) * 100);
 
-    // ── Breadcrumb + compact module header ──
+    // ── Breadcrumb ──
     var courseHeader =
-      '<div style="max-width:860px;margin:0 auto 16px;">' +
-        // Breadcrumb
-        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:0.82rem;">' +
+      '<div style="margin-bottom:14px;">' +
+        '<div style="display:flex;align-items:center;gap:8px;font-size:0.82rem;">' +
           '<button class="btn secondary" onclick="renderModules()" style="padding:5px 12px;font-size:0.78rem;">← All Modules</button>' +
           '<span style="color:var(--muted);">›</span>' +
           '<span style="color:var(--text);font-weight:600;">' + safeText(m.title) + '</span>' +
@@ -11037,7 +11036,7 @@
       '</div>';
 
     var contentPanels =
-      '<div style="flex:1;overflow-y:auto;min-width:0;">' +
+      '<div style="flex:1;overflow-y:auto;min-width:0;max-width:760px;">' +
         sectionPanel('intro',       introUnlocked, !!prog.introCompleted,       introBody) +
         sectionPanel('explanation', expUnlocked,   !!prog.explanationCompleted, expBody) +
         sectionPanel('application', appUnlocked,   !!prog.applicationCompleted, appBody) +
@@ -11046,11 +11045,9 @@
 
     byId('contentArea').innerHTML =
       courseHeader +
-      '<div style="max-width:860px;margin:0 auto;">' +
-        '<div style="display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel);min-height:420px;">' +
-          sidebar +
-          contentPanels +
-        '</div>' +
+      '<div style="display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel);min-height:600px;">' +
+        sidebar +
+        contentPanels +
       '</div>';
 
     _loadForumPosts(m.moduleId);
