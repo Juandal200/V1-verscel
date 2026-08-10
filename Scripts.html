@@ -890,11 +890,7 @@
       return;
     }
 
-    if (typeof window.renderSimulatorPlaceholder === 'function') {
-      window.renderSimulatorPlaceholder();
-    } else {
-      renderHome();
-    }
+    renderHome();
 
     setTimeout(function() {
       if (byId('appScreen') && byId('appScreen').classList.contains('active') && typeof window.renderHome === 'function') {
