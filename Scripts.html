@@ -10851,22 +10851,17 @@
         '</div>';
     }
 
-    // Forum item (inline in Introduction section)
+    // Forum item — lives in right panel; show a prompt here to direct user there
     introBody += _lmsItem('💬', 'Discussion', 'Module Forum',
       forumOk ? _doneChip() : _todoChip('Post to unlock'),
-      '<div id="moduleForumPosts" style="margin-bottom:14px;">' + _spinnerHtml('Loading...') + '</div>' +
-      '<div style="border:1px solid var(--line);border-radius:10px;overflow:hidden;">' +
-        '<div style="display:flex;gap:10px;padding:12px 14px;">' +
-          '<div style="width:32px;height:32px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#fff;flex-shrink:0;">' +
-            safeText(((AppState.user && AppState.user.name) || 'U').charAt(0).toUpperCase()) +
-          '</div>' +
-          '<textarea id="moduleForumInput" rows="2" style="flex:1;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:0.85rem;color:var(--text);resize:none;" placeholder="Write a reply or share your thoughts (min 4 words)..."></textarea>' +
+      '<div style="padding:10px 14px;background:var(--panel-soft);border-radius:8px;display:flex;align-items:center;gap:10px;">' +
+        '<span style="font-size:1.4rem;">💬</span>' +
+        '<div>' +
+          '<div style="font-size:0.87rem;font-weight:600;margin-bottom:2px;">Forum is in the right panel</div>' +
+          '<div style="font-size:0.78rem;color:var(--muted);">Post a reply there to complete this step.</div>' +
         '</div>' +
-        '<div style="display:flex;justify-content:flex-end;padding:8px 14px 10px;border-top:1px solid var(--line);background:var(--panel-soft);">' +
-          '<button class="btn primary" style="font-size:0.82rem;" onclick="moduleForumPost(\'' + m.moduleId + '\')">Post Reply</button>' +
-        '</div>' +
-      '</div>' +
-      '<div id="moduleForumMsg" style="margin-top:6px;font-size:0.82rem;"></div>',
+        '<button class="btn secondary" style="margin-left:auto;font-size:0.78rem;padding:5px 12px;flex-shrink:0;" onclick="_lmsToggleRightPanel(\'forum\')">Open Forum</button>' +
+      '</div>',
       true);
 
     // ── EXPLANATION BODY ──
@@ -11044,22 +11039,62 @@
       outlineSectionHead('evaluation', '4', 'Evaluation', evalUnlocked, lmsBool_(prog.evalPassed)) +
       (evalQs.length ? outlineItem('evaluation', '📝', null, 'Final Exam', lmsBool_(prog.evalPassed), evalUnlocked) : outlineItem('evaluation', '🏆', null, 'Final Evaluation', lmsBool_(prog.evalPassed), evalUnlocked));
 
+    // Toggle function between outline and forum views
+    window._lmsToggleRightPanel = function(view) {
+      var outline = document.getElementById('lmsRightOutline');
+      var forum   = document.getElementById('lmsRightForum');
+      var btnO    = document.getElementById('lmsBtnOutline');
+      var btnF    = document.getElementById('lmsBtnForum');
+      if (!outline || !forum) return;
+      outline.style.display = view === 'outline' ? 'flex' : 'none';
+      forum.style.display   = view === 'forum'   ? 'flex' : 'none';
+      if (btnO) { btnO.style.fontWeight = view==='outline'?'700':'400'; btnO.style.borderBottomColor = view==='outline'?'var(--cyan)':'transparent'; btnO.style.color = view==='outline'?'var(--text)':'var(--muted)'; }
+      if (btnF) { btnF.style.fontWeight = view==='forum'?'700':'400';   btnF.style.borderBottomColor = view==='forum'?'var(--cyan)':'transparent';   btnF.style.color = view==='forum'?'var(--text)':'var(--muted)'; }
+    };
+
     var forumPanel =
       '<div style="width:290px;min-width:290px;flex-shrink:0;border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;">' +
 
-        // Progress header
-        '<div style="padding:14px 16px;border-bottom:1px solid var(--line);flex-shrink:0;">' +
-          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;">' +
-            '<span style="font-size:0.78rem;font-weight:700;">Course Progress</span>' +
-            '<span style="font-size:0.78rem;font-weight:800;color:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';">' + overallPct + '% completed</span>' +
-          '</div>' +
-          '<div style="background:var(--line);border-radius:4px;height:5px;overflow:hidden;">' +
-            '<div style="background:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';width:' + overallPct + '%;height:5px;border-radius:4px;transition:width .5s;"></div>' +
-          '</div>' +
+        // Toggle header
+        '<div style="display:flex;border-bottom:1px solid var(--line);flex-shrink:0;">' +
+          '<button id="lmsBtnForum"   onclick="_lmsToggleRightPanel(\'forum\')"   style="flex:1;padding:12px 8px;border:none;border-bottom:2px solid var(--cyan);background:none;font-family:inherit;font-size:0.82rem;font-weight:700;color:var(--text);cursor:pointer;">💬 Forum</button>' +
+          '<button id="lmsBtnOutline" onclick="_lmsToggleRightPanel(\'outline\')" style="flex:1;padding:12px 8px;border:none;border-bottom:2px solid transparent;background:none;font-family:inherit;font-size:0.82rem;font-weight:400;color:var(--muted);cursor:pointer;">📋 Progress</button>' +
         '</div>' +
 
-        // Scrollable outline list
-        '<div style="flex:1;overflow-y:auto;">' + outlineHtml + '</div>' +
+        // Outline view (hidden by default — forum is default)
+        '<div id="lmsRightOutline" style="flex:1;overflow-y:auto;display:none;flex-direction:column;">' +
+          '<div style="padding:12px 14px;border-bottom:1px solid var(--line);flex-shrink:0;">' +
+            '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
+              '<span style="font-size:0.75rem;font-weight:700;">Module Progress</span>' +
+              '<span style="font-size:0.75rem;font-weight:800;color:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';">' + overallPct + '%</span>' +
+            '</div>' +
+            '<div style="background:var(--line);border-radius:4px;height:5px;overflow:hidden;">' +
+              '<div style="background:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';width:' + overallPct + '%;height:5px;border-radius:4px;"></div>' +
+            '</div>' +
+          '</div>' +
+          outlineHtml +
+        '</div>' +
+
+        // Forum view (shown by default)
+        '<div id="lmsRightForum" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">' +
+          '<div style="padding:12px 14px;border-bottom:1px solid var(--line);flex-shrink:0;">' +
+            '<h4 style="margin:0;font-size:0.9rem;font-weight:700;">Module Discussion</h4>' +
+            '<p style="margin:4px 0 0;font-size:0.75rem;color:var(--muted);">Posting here counts toward Introduction completion.</p>' +
+          '</div>' +
+          '<div style="padding:10px 12px;border-bottom:1px solid var(--line);flex-shrink:0;">' +
+            '<div style="display:flex;gap:8px;">' +
+              '<div style="width:30px;height:30px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:800;color:#fff;flex-shrink:0;">' +
+                safeText(((AppState.user && AppState.user.name) || 'U').charAt(0).toUpperCase()) +
+              '</div>' +
+              '<textarea id="moduleForumInput" rows="2" style="flex:1;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-family:inherit;font-size:0.82rem;color:var(--text);resize:none;" placeholder="Share your thoughts (min 4 words)..."></textarea>' +
+            '</div>' +
+            '<div style="display:flex;justify-content:flex-end;margin-top:6px;">' +
+              '<button class="btn primary" style="font-size:0.78rem;padding:5px 14px;" onclick="moduleForumPost(\'' + m.moduleId + '\')">Post reply</button>' +
+            '</div>' +
+            '<div id="moduleForumMsg" style="font-size:0.78rem;margin-top:4px;"></div>' +
+          '</div>' +
+          '<div id="moduleForumPosts" style="flex:1;overflow-y:auto;padding:0;">' + _spinnerHtml('Loading...') + '</div>' +
+        '</div>' +
 
       '</div>';
 
