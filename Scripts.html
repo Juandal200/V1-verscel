@@ -10841,22 +10841,12 @@
     else if (lmsBool_(prog.applicationCompleted) && !lmsBool_(prog.evalPassed) && evalUnlocked) defaultSection = 'evaluation';
     else if (lmsBool_(prog.evalPassed)) defaultSection = 'evaluation';
 
-    window._lmsCurrentSection = 'intro';
+    window._lmsCurrentSection = defaultSection || 'intro';
 
     window._lmsShowSection = function(key) {
       window._lmsCurrentSection = key;
-      sectionKeys.forEach(function(k) {
-        var panel = document.getElementById('lmsPanel-' + k);
-        var tab   = document.getElementById('lmsTab-' + k);
-        if (!panel || !tab) return;
-        var active = k === key;
-        panel.style.display = active ? 'block' : 'none';
-        var accent = sectionAccents[k] || '#0ea5e9';
-        tab.style.borderBottomColor = active ? accent : 'transparent';
-        tab.style.color             = active ? accent : '';
-        tab.style.fontWeight        = active ? '700' : '500';
-      });
-      // Update right panel forum context when switching sections
+      var panel = document.getElementById('lmsPanel-' + key);
+      if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
       if (window._lmsUpdateRightPanelForum) _lmsUpdateRightPanelForum(key);
     };
 
@@ -10901,36 +10891,7 @@
         _videoEmbed(introVid, videoWatched, m.moduleId));
     }
 
-    // Requirements bar
-    var videoOk = lmsBool_(prog.introVideoWatched);
     var forumOk = lmsBool_(prog.introForumPosted);
-    if (!prog.introCompleted) {
-      introBody +=
-        '<div style="display:flex;align-items:center;gap:14px;padding:10px 20px;background:var(--panel-soft);border-bottom:1px solid var(--line);border-top:1px solid var(--line);">' +
-          '<span style="font-size:0.7rem;color:var(--muted);font-weight:700;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;">To complete:</span>' +
-          '<span style="font-size:0.8rem;' + (videoOk ? 'color:var(--green);text-decoration:line-through;' : 'color:var(--muted);') + '">📹 Watch video</span>' +
-          '<span style="color:var(--line);">·</span>' +
-          '<span style="font-size:0.8rem;' + (forumOk ? 'color:var(--green);text-decoration:line-through;' : 'color:var(--muted);') + '">💬 Post in forum</span>' +
-        '</div>';
-    }
-
-    // Forum item — inline in Introduction
-    introBody += _lmsItem('💬', 'Discussion', 'Module Forum',
-      forumOk ? _doneChip() : _todoChip('Post to unlock'),
-      '<div id="moduleForumPosts" style="margin-bottom:14px;">' + _spinnerHtml('Loading...') + '</div>' +
-      '<div style="border:1px solid var(--line);border-radius:10px;overflow:hidden;">' +
-        '<div style="display:flex;gap:10px;padding:12px 14px;">' +
-          '<div style="width:32px;height:32px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#fff;flex-shrink:0;">' +
-            safeText(((AppState.user && AppState.user.name) || 'U').charAt(0).toUpperCase()) +
-          '</div>' +
-          '<textarea id="moduleForumInput" rows="2" style="flex:1;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:0.85rem;color:var(--text);resize:none;" placeholder="Write a reply or share your thoughts (min 4 words)..."></textarea>' +
-        '</div>' +
-        '<div style="display:flex;justify-content:flex-end;padding:8px 14px 10px;border-top:1px solid var(--line);background:var(--panel-soft);">' +
-          '<button class="btn primary" style="font-size:0.82rem;" onclick="moduleForumPost(\'' + m.moduleId + '\',\'\')">Post Reply</button>' +
-        '</div>' +
-      '</div>' +
-      '<div id="moduleForumMsg" style="margin-top:6px;font-size:0.82rem;"></div>',
-      true);
 
     // ── EXPLANATION BODY ──
     var expBody = '';
@@ -11031,13 +10992,29 @@
       evaluation:  'Complete the Application section to unlock this content.'
     };
 
-    function sectionPanel(key, unlocked, bodyHtml) {
-      var isActive = key === defaultSection;
-      return '<div id="lmsPanel-' + key + '" style="display:' + (isActive ? 'block' : 'none') + ';">' +
+    var _sectionMeta = {
+      intro:       { icon: '📖', label: 'Introduction', num: '01' },
+      explanation: { icon: '🎓', label: 'Explanation',  num: '02' },
+      application: { icon: '🛫', label: 'Application',  num: '03' },
+      evaluation:  { icon: '🏆', label: 'Evaluation',   num: '04' }
+    };
+
+    function sectionPanel(key, unlocked, bodyHtml, completed) {
+      var meta   = _sectionMeta[key] || { icon: '', label: key, num: '' };
+      var accent = sectionAccents[key] || '#0ea5e9';
+      return '<div id="lmsPanel-' + key + '">' +
+        '<div style="display:flex;align-items:center;gap:12px;padding:13px 20px;background:var(--panel-soft);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2;">' +
+          '<span style="font-size:1.25rem;">' + meta.icon + '</span>' +
+          '<div style="flex:1;">' +
+            '<p style="margin:0;font-size:0.58rem;color:var(--muted);font-weight:700;letter-spacing:.1em;text-transform:uppercase;">Section ' + meta.num + '</p>' +
+            '<p style="margin:0;font-size:0.92rem;font-weight:700;color:' + (completed ? '#16a34a' : unlocked ? 'var(--text)' : 'var(--muted)') + ';">' + meta.label + '</p>' +
+          '</div>' +
+          (completed ? '<span style="font-size:0.72rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:2px 8px;border-radius:10px;">✓ Done</span>' : (!unlocked ? '<span style="font-size:0.85rem;color:var(--muted);">🔒</span>' : '')) +
+        '</div>' +
         (unlocked ? bodyHtml :
-          '<div style="padding:60px 32px;text-align:center;">' +
+          '<div style="padding:48px 32px;text-align:center;">' +
             '<div style="font-size:2.8rem;margin-bottom:16px;">🔒</div>' +
-            '<p style="margin:0;font-size:1rem;font-weight:600;color:var(--muted);">' + (lockMsgs[key] || 'Locked') + '</p>' +
+            '<p style="margin:0;font-size:0.95rem;font-weight:600;color:var(--muted);">' + (lockMsgs[key] || 'Locked') + '</p>' +
           '</div>') +
       '</div>';
     }
@@ -11073,14 +11050,14 @@
 
     function outlineSectionHead(key, num, label, unlocked, completed) {
       var accent = sectionAccents[key] || '#0ea5e9';
-      return '<div style="display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--panel-soft);border-bottom:1px solid var(--line);">' +
-        '<div style="width:20px;height:20px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.6rem;font-weight:800;' +
-          (completed ? 'background:#16a34a;color:#fff;' : unlocked ? 'background:' + accent + ';color:#fff;' : 'background:var(--line);color:var(--muted);') + '">' +
-          (completed ? '✓' : num) +
-        '</div>' +
-        '<span style="font-size:0.75rem;font-weight:700;letter-spacing:.04em;">' + label + '</span>' +
+      var sectionIcon = { intro: '📖', explanation: '🎓', application: '🛫', evaluation: '🏆' }[key] || '';
+      return '<div onclick="' + (unlocked ? '_lmsShowSection(\'' + key + '\')' : '') + '" ' +
+        'style="display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--panel-soft);border-bottom:1px solid var(--line);cursor:' + (unlocked ? 'pointer' : 'default') + ';"' +
+        (unlocked ? ' onmouseenter="this.style.background=\'rgba(0,0,0,.06)\'" onmouseleave="this.style.background=\'var(--panel-soft)\'"' : '') + '>' +
+        '<span style="font-size:1rem;">' + sectionIcon + '</span>' +
+        '<span style="font-size:0.75rem;font-weight:700;letter-spacing:.04em;color:' + (completed ? '#16a34a' : unlocked ? 'var(--text)' : 'var(--muted)') + ';">' + label + '</span>' +
+        (completed ? '<span style="margin-left:auto;font-size:0.68rem;font-weight:700;color:#16a34a;">✓ Done</span>' : '') +
         (!unlocked ? '<span style="margin-left:auto;font-size:0.75rem;">🔒</span>' : '') +
-        (completed ? '<span style="margin-left:auto;font-size:0.68rem;font-weight:700;color:#16a34a;">Done</span>' : '') +
       '</div>';
     }
 
@@ -11172,14 +11149,28 @@
     var forumPanel =
       '<div style="width:280px;min-width:280px;flex-shrink:0;border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;">' +
 
-        // Toggle tabs
+        // Toggle tabs — Progress LEFT (default), Forum RIGHT
         '<div style="display:flex;border-bottom:1px solid var(--line);flex-shrink:0;">' +
-          '<button id="rpBtnForum"   onclick="_lmsToggleRightPanel(\'forum\')"   style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid var(--cyan);background:none;font-family:inherit;font-size:0.8rem;font-weight:700;color:var(--text);cursor:pointer;">💬 Forum</button>' +
-          '<button id="rpBtnOutline" onclick="_lmsToggleRightPanel(\'outline\')" style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid transparent;background:none;font-family:inherit;font-size:0.8rem;font-weight:400;color:var(--muted);cursor:pointer;">📋 Progress</button>' +
+          '<button id="rpBtnOutline" onclick="_lmsToggleRightPanel(\'outline\')" style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid var(--cyan);background:none;font-family:inherit;font-size:0.8rem;font-weight:700;color:var(--text);cursor:pointer;">📋 Progress</button>' +
+          '<button id="rpBtnForum"   onclick="_lmsToggleRightPanel(\'forum\')"   style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid transparent;background:none;font-family:inherit;font-size:0.8rem;font-weight:400;color:var(--muted);cursor:pointer;">💬 Forum</button>' +
         '</div>' +
 
-        // ── Forum view (default) ──
-        '<div id="rpForumView" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">' +
+        // ── Outline / progress view (default) ──
+        '<div id="rpOutlineView" style="flex:1;overflow:hidden;display:flex;flex-direction:column;">' +
+          '<div style="padding:12px 14px;border-bottom:1px solid var(--line);flex-shrink:0;">' +
+            '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
+              '<span style="font-size:0.75rem;font-weight:700;">Module Progress</span>' +
+              '<span style="font-size:0.75rem;font-weight:800;color:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';">' + overallPct + '%</span>' +
+            '</div>' +
+            '<div style="background:var(--line);border-radius:4px;height:5px;overflow:hidden;">' +
+              '<div style="background:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';width:' + overallPct + '%;height:5px;border-radius:4px;"></div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="flex:1;overflow-y:auto;">' + outlineHtml + '</div>' +
+        '</div>' +
+
+        // ── Forum view (hidden by default) ──
+        '<div id="rpForumView" style="flex:1;overflow:hidden;display:none;flex-direction:column;">' +
           // Title
           '<div style="padding:10px 14px;border-bottom:1px solid var(--line);flex-shrink:0;">' +
             '<span id="rpForumTitle" style="font-size:0.85rem;font-weight:700;">Introduction Forum</span>' +
@@ -11206,27 +11197,13 @@
           '<div id="rpForumPosts" style="flex:1;overflow-y:auto;padding:0 4px;"></div>' +
         '</div>' +
 
-        // ── Outline / progress view (hidden by default) ──
-        '<div id="rpOutlineView" style="flex:1;overflow:hidden;display:none;flex-direction:column;">' +
-          '<div style="padding:12px 14px;border-bottom:1px solid var(--line);flex-shrink:0;">' +
-            '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
-              '<span style="font-size:0.75rem;font-weight:700;">Module Progress</span>' +
-              '<span style="font-size:0.75rem;font-weight:800;color:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';">' + overallPct + '%</span>' +
-            '</div>' +
-            '<div style="background:var(--line);border-radius:4px;height:5px;overflow:hidden;">' +
-              '<div style="background:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';width:' + overallPct + '%;height:5px;border-radius:4px;"></div>' +
-            '</div>' +
-          '</div>' +
-          '<div style="flex:1;overflow-y:auto;">' + outlineHtml + '</div>' +
-        '</div>' +
-
       '</div>';
 
     // ── Main content panels ──
-    var introPanelHtml  = sectionPanel('intro',       introUnlocked, introBody);
-    var expPanelHtml    = sectionPanel('explanation', expUnlocked,   expBody);
-    var appPanelHtml    = sectionPanel('application', appUnlocked,   appBody);
-    var evalPanelHtml   = sectionPanel('evaluation',  evalUnlocked,  evalBody);
+    var introPanelHtml  = sectionPanel('intro',       introUnlocked, introBody,  lmsBool_(prog.introCompleted));
+    var expPanelHtml    = sectionPanel('explanation', expUnlocked,   expBody,   lmsBool_(prog.explanationCompleted));
+    var appPanelHtml    = sectionPanel('application', appUnlocked,   appBody,   lmsBool_(prog.applicationCompleted));
+    var evalPanelHtml   = sectionPanel('evaluation',  evalUnlocked,  evalBody,  lmsBool_(prog.evalPassed));
 
     byId('contentArea').innerHTML =
       // Breadcrumb
@@ -11238,27 +11215,21 @@
         '<span style="margin-left:auto;font-size:0.72rem;font-weight:700;color:' + (overallPct===100?'var(--green)':'var(--cyan)') + ';">' + sectionsDone + '/4 sections · ' + overallPct + '%</span>' +
       '</div>' +
 
-      // Section tabs
-      '<div style="display:flex;gap:0;border-bottom:1px solid var(--line);margin-bottom:0;overflow-x:auto;">' +
-        makeTab('intro',       '01', 'Introduction', '📖', introUnlocked, lmsBool_(prog.introCompleted)) +
-        makeTab('explanation', '02', 'Explanation',  '🎓', expUnlocked,   lmsBool_(prog.explanationCompleted)) +
-        makeTab('application', '03', 'Application',  '🛫', appUnlocked,   lmsBool_(prog.applicationCompleted)) +
-        makeTab('evaluation',  '04', 'Evaluation',   '🏆', evalUnlocked,  lmsBool_(prog.evalPassed)) +
-      '</div>' +
-
-      // Two-column: main content + right forum panel
-      '<div style="display:flex;border:1px solid var(--line);border-top:none;border-radius:0 0 12px 12px;overflow:hidden;background:var(--panel);min-height:600px;">' +
-        // Left content area
+      // Two-column: scrollable sections + right panel
+      '<div style="display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel);min-height:600px;">' +
+        // Left: all sections stacked, scrollable
         '<div style="flex:1;min-width:0;overflow-y:auto;">' +
           introPanelHtml + expPanelHtml + appPanelHtml + evalPanelHtml +
         '</div>' +
-        // Right forum
+        // Right panel
         forumPanel +
       '</div>';
 
-    // Load inline intro forum and right panel forum
-    _loadForumPosts(m.moduleId, 'intro', 'moduleForumPosts');
-    if (window._lmsLoadRightPanelForum) _lmsLoadRightPanelForum('intro');
+    // Scroll to the default/current section after render
+    setTimeout(function() {
+      var panel = document.getElementById('lmsPanel-' + (defaultSection || 'intro'));
+      if (panel) panel.scrollIntoView({ behavior: 'instant', block: 'start' });
+    }, 0);
   }
 
   // ── Small UI helpers ──────────────────────────────────────────────────────────
@@ -11387,9 +11358,9 @@
             '<p style="margin:0 0 10px;font-size:0.9rem;line-height:1.6;color:var(--text);">' + safeText(p.body) + '</p>' +
             // Actions row
             '<div style="display:flex;align-items:center;gap:14px;">' +
-              // Like button
-              '<button onclick="moduleForumLike(\'' + safeJs(p.postId) + '\',\'' + safeJs(moduleId) + '\',\'' + containerId + '\')" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:0.78rem;color:' + likeColor + ';font-family:inherit;padding:0;">' +
-                likeIcon + ' ' + (likeCount > 0 ? likeCount : '') +
+              // Like button — passes self (this) for optimistic update
+              '<button id="likeBtn_' + safeJs(p.postId) + '_' + sfx + '" onclick="moduleForumLike(\'' + safeJs(p.postId) + '\',\'' + safeJs(moduleId) + '\',\'' + containerId + '\',this)" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px;font-size:0.78rem;color:' + likeColor + ';font-family:inherit;padding:0;">' +
+                likeIcon + (likeCount > 0 ? ' ' + likeCount : '') +
               '</button>' +
               // Reply button (only on top-level posts)
               (!isReply ? '<button onclick="moduleForumToggleReply(\'' + safeJs(p.postId) + '\',\'' + sfx + '\')" style="background:none;border:none;cursor:pointer;font-size:0.78rem;color:var(--muted);font-family:inherit;padding:0;">↩ Reply</button>' : '') +
@@ -11418,7 +11389,8 @@
     el.style.display = visible ? 'none' : 'block';
     if (!visible) {
       var inp = document.getElementById('replyInput_' + postId + '_' + sfx);
-      if (inp) inp.focus();
+      if (inp) { inp.focus(); }
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   };
 
@@ -11439,16 +11411,33 @@
       .apiModuleForumSavePost(AppState.sessionToken, { moduleId: moduleId, section: (sfx === 'Exp' ? 'explanation' : sfx === 'RP' ? (window._lmsCurrentSection || 'intro') : 'intro'), body: input.value.trim(), parentPostId: parentPostId });
   };
 
-  window.moduleForumLike = function(postId, moduleId, containerId) {
+  window.moduleForumLike = function(postId, moduleId, containerId, btn) {
+    // Optimistic update: immediately toggle the like icon
+    if (btn) {
+      var liked = btn.textContent.trim().startsWith('❤️');
+      var currentTxt = btn.textContent.trim();
+      var currentCount = parseInt(currentTxt.replace(/[^0-9]/g, ''), 10) || 0;
+      var newCount = liked ? Math.max(0, currentCount - 1) : currentCount + 1;
+      btn.textContent = (liked ? '🤍' : '❤️') + (newCount > 0 ? ' ' + newCount : '');
+      btn.style.color = liked ? 'var(--muted)' : '#e11d48';
+      btn.disabled = true;
+    }
+
     google.script.run
       .withSuccessHandler(function() {
-        // Reload only the container that was clicked (and the right panel if it's the same section)
+        if (btn) btn.disabled = false;
         var sec = window._lmsCurrentSection || 'intro';
-        if (containerId === 'moduleForumPosts')    _loadForumPosts(moduleId, 'intro',       'moduleForumPosts');
-        if (containerId === 'moduleForumPostsExp') _loadForumPosts(moduleId, 'explanation', 'moduleForumPostsExp');
-        if (containerId === 'rpForumPosts')        _loadForumPosts(moduleId, sec,            'rpForumPosts');
+        if (containerId === 'rpForumPosts') _loadForumPosts(moduleId, sec, 'rpForumPosts');
       })
-      .withFailureHandler(function() {})
+      .withFailureHandler(function() {
+        if (btn) {
+          var liked2 = btn.textContent.trim().startsWith('❤️');
+          var n2 = parseInt(btn.textContent.replace(/[^0-9]/g, ''), 10) || 0;
+          btn.textContent = (liked2 ? '🤍' : '❤️') + (n2 > 0 ? ' ' + n2 : '');
+          btn.style.color = liked2 ? 'var(--muted)' : '#e11d48';
+          btn.disabled = false;
+        }
+      })
       .apiModuleForumLikePost(AppState.sessionToken, { postId: postId, moduleId: moduleId });
   };
 
