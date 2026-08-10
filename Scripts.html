@@ -984,7 +984,7 @@
           '<p class="subtitle">Your aviation communication workspace is ready. Start simulator practice, review progress and check training updates from this home page.</p>' +
           '<div class="welcome-actions">' +
             '<button class="btn primary" onclick="renderSimulatorPlaceholder()">Start simulator</button>' +
-            '<button class="btn secondary" onclick="renderHome()">Refresh dashboard</button>' +
+            '<button class="btn secondary" onclick="renderHome()">Refresh</button>' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -1048,7 +1048,7 @@
 
   function renderHome() {
     try { sessionStorage.removeItem('icao_sim_state'); } catch(e) {}
-    setActiveNav('Dashboard');
+    setActiveNav('Home');
 
     // Access gate
     if (AppState.accessStatus && AppState.accessStatus.status === 'expired') {
@@ -1056,13 +1056,12 @@
       return;
     }
 
-    showGasLoadingSkeleton('LOADING DASHBOARD', 'Retrieving flight data...');
+    showGasLoadingSkeleton('LOADING', 'Getting your dashboard ready...');
     var _tok = _navToken;
 
     refreshMeAndHome(function() {
       if (_navToken !== _tok) return;
 
-      // Re-check after fresh data from server
       if (AppState.accessStatus && AppState.accessStatus.status === 'expired') {
         _renderPaywall();
         return;
@@ -1071,31 +1070,81 @@
         _showTrialBanner(AppState.accessStatus.daysLeft);
       }
 
-      var home = AppState.home || {};
+      var home    = AppState.home || {};
       var metrics = home.metrics || {};
-      var view = home.view || 'STUDENT';
-      var cards = '';
+      var user    = AppState.user || {};
+      var level   = metrics.currentLevel || user.currentLevel || 1;
+      var country = metrics.currentCountry || user.currentCountry || 'USA';
+      var successRate = metrics.successRate || 0;
 
-      if (view === 'ADMIN') {
-        cards += metricCard('Total users', metrics.totalUsers || 0);
-        cards += metricCard('Active users', metrics.activeUsers || 0);
-        cards += metricCard('Pending users', metrics.pendingUsers || 0);
-        cards += metricCard('Total attempts', metrics.totalAttempts || 0);
-      } else if (view === 'INSTRUCTOR') {
-        cards += metricCard('Assigned students', metrics.assignedStudents || 0);
-        cards += metricCard('Active groups', metrics.activeGroups || 0);
-        cards += metricCard('Total attempts', metrics.totalAttempts || 0);
-        cards += metricCard('Average score', String(metrics.averageScore || 0) + '%');
-      } else {
-        cards += metricCard('Current level', metrics.currentLevel || 1);
-        cards += metricCard('Current country', metrics.currentCountry || 'USA');
-        cards += metricCard('Total attempts', metrics.totalAttempts || 0);
-        cards += metricCard('Success rate', String(metrics.successRate || 0) + '%');
-      }
+      // ── Feature cards row ──
+      var simCard =
+        '<div onclick="_navTo(renderSimulatorPlaceholder)" style="flex:1;min-width:220px;cursor:pointer;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 24px;transition:box-shadow .2s;" onmouseenter="this.style.boxShadow=\'0 6px 24px rgba(0,0,0,.18)\'" onmouseleave="this.style.boxShadow=\'\'">' +
+          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">' +
+            '<div style="width:40px;height:40px;border-radius:10px;background:var(--cyan-dim,rgba(14,165,233,.12));display:flex;align-items:center;justify-content:center;font-size:1.3rem;">🎙️</div>' +
+            '<div>' +
+              '<p style="margin:0;font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700;">ATC Simulator</p>' +
+              '<p style="margin:0;font-size:1rem;font-weight:700;">Practice Now</p>' +
+            '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:16px;margin-bottom:16px;">' +
+            '<div>' +
+              '<p style="margin:0;font-size:0.68rem;color:var(--muted);font-weight:700;letter-spacing:.05em;text-transform:uppercase;">Level</p>' +
+              '<p style="margin:0;font-size:1.5rem;font-weight:800;color:var(--cyan);">' + level + '</p>' +
+            '</div>' +
+            '<div>' +
+              '<p style="margin:0;font-size:0.68rem;color:var(--muted);font-weight:700;letter-spacing:.05em;text-transform:uppercase;">Country</p>' +
+              '<p style="margin:0;font-size:1.5rem;font-weight:800;">' + safeText(country) + '</p>' +
+            '</div>' +
+            '<div>' +
+              '<p style="margin:0;font-size:0.68rem;color:var(--muted);font-weight:700;letter-spacing:.05em;text-transform:uppercase;">Success</p>' +
+              '<p style="margin:0;font-size:1.5rem;font-weight:800;color:' + (successRate >= 80 ? '#16a34a' : 'var(--text)') + ';">' + successRate + '%</p>' +
+            '</div>' +
+          '</div>' +
+          '<button class="btn primary" style="width:100%;font-size:0.85rem;" onclick="event.stopPropagation();_navTo(renderSimulatorPlaceholder)">Start Practice</button>' +
+        '</div>';
 
-      byId('contentArea').innerHTML =
-        renderWelcomeFallbackPanel() +
-        '<div class="metrics">' + cards + '</div>';
+      var teaCard =
+        '<div onclick="_navTo(renderTeaExam)" style="flex:1;min-width:220px;cursor:pointer;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 24px;transition:box-shadow .2s;" onmouseenter="this.style.boxShadow=\'0 6px 24px rgba(0,0,0,.18)\'" onmouseleave="this.style.boxShadow=\'\'">' +
+          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">' +
+            '<div style="width:40px;height:40px;border-radius:10px;background:rgba(139,92,246,.12);display:flex;align-items:center;justify-content:center;font-size:1.3rem;">📋</div>' +
+            '<div>' +
+              '<p style="margin:0;font-size:0.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:700;">TEA Exam</p>' +
+              '<p style="margin:0;font-size:1rem;font-weight:700;">Test Your English</p>' +
+            '</div>' +
+          '</div>' +
+          '<p style="margin:0 0 16px;font-size:0.85rem;color:var(--muted);line-height:1.5;">ICAO Test of English for Aviation — evaluate your reading, listening and comprehension.</p>' +
+          '<button class="btn secondary" style="width:100%;font-size:0.85rem;" onclick="event.stopPropagation();_navTo(renderTeaExam)">Begin Exam</button>' +
+        '</div>';
+
+      var cardsRow =
+        '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:28px;">' +
+          simCard + teaCard +
+        '</div>';
+
+      // ── Modules section ──
+      var modulesSection =
+        '<div style="margin-bottom:8px;">' +
+          '<h3 style="margin:0 0 16px;font-size:1rem;font-weight:700;">Training Modules</h3>' +
+          '<div id="homeModulesArea"><div style="text-align:center;padding:32px;color:var(--muted);">Loading modules…</div></div>' +
+        '</div>';
+
+      byId('contentArea').innerHTML = cardsRow + modulesSection;
+
+      // Load modules into home
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (_navToken !== _tok) return;
+          var el = byId('homeModulesArea');
+          if (!el) return;
+          if (!res || !res.ok) { el.innerHTML = '<p style="color:var(--muted);">Could not load modules.</p>'; return; }
+          el.innerHTML = _renderModuleRoadmap(res.modules || [], true);
+        })
+        .withFailureHandler(function() {
+          var el = byId('homeModulesArea');
+          if (el) el.innerHTML = '<p style="color:var(--muted);">Could not load modules.</p>';
+        })
+        .apiModuleGetAll(AppState.sessionToken);
     });
   }
 
@@ -7924,7 +7973,7 @@
           '<article class="senior-mission-card"><span>Average Score</span><strong>' + safeText(countryInfo.scoreAvg || 0) + '%</strong><small>Based on submitted attempts</small></article>' +
           '<article class="senior-mission-card"><span>Level Progress</span><strong>' + safeText(levelInfo.completedCountries || 0) + ' / ' + safeText(levelInfo.totalCountries || 0) + '</strong><small>Countries completed in this level</small></article>' +
         '</div>' +
-        '<div class="senior-actions"><button class="btn secondary" onclick="renderCountryTrainingHub(AppState.training.selectedLevelData)">Back to countries</button><button class="btn secondary" onclick="renderHome()">View dashboard</button>' + action + '</div>' +
+        '<div class="senior-actions"><button class="btn secondary" onclick="renderCountryTrainingHub(AppState.training.selectedLevelData)">Back to countries</button><button class="btn secondary" onclick="renderHome()">Go to Home</button>' + action + '</div>' +
       '</section>';
   }
 
@@ -7988,7 +8037,7 @@
 
     byId('contentArea').innerHTML =
       '<section class="senior-certificate-shell">' +
-        '<div class="senior-certificate-toolbar"><div><p class="eyebrow">Level completed</p><h2>Certificate ready</h2><p class="subtitle">A professional certificate has been generated for this completed level.</p><p id="certSaveStatus" style="font-size:0.78rem;color:#606060;margin-top:4px;">Saving to your profile…</p></div><div class="senior-actions compact"><button class="btn secondary" onclick="renderSimulatorPlaceholder()">Back to simulator</button><button class="btn secondary" onclick="renderHome()">View dashboard</button><button class="btn primary" onclick="window.print()">Print certificate</button></div></div>' +
+        '<div class="senior-certificate-toolbar"><div><p class="eyebrow">Level completed</p><h2>Certificate ready</h2><p class="subtitle">A professional certificate has been generated for this completed level.</p><p id="certSaveStatus" style="font-size:0.78rem;color:#606060;margin-top:4px;">Saving to your profile…</p></div><div class="senior-actions compact"><button class="btn secondary" onclick="renderSimulatorPlaceholder()">Back to simulator</button><button class="btn secondary" onclick="renderHome()">Go to Home</button><button class="btn primary" onclick="window.print()">Print certificate</button></div></div>' +
         '<div class="senior-certificate-card">' +
           '<div class="senior-cert-watermark">ICAO</div>' +
           '<div class="senior-cert-header"><div><p class="senior-cert-kicker">ICAO Trainer Pro</p><h1>Certificate of Operational Proficiency</h1></div><div class="senior-cert-id"><span>Certificate ID</span><strong>' + safeText(certId) + '</strong></div></div>' +
@@ -10582,14 +10631,16 @@
     return v === true || v === 'TRUE' || v === 'true' || v === 1 || v === '1';
   }
 
-  function _renderModuleRoadmap(modules) {
+  function _renderModuleRoadmap(modules, returnHtml) {
     if (!modules.length) {
-      byId('contentArea').innerHTML =
+      var emptyHtml =
         '<div style="padding:60px 0;text-align:center;">' +
           '<div style="font-size:3rem;margin-bottom:16px;">📡</div>' +
           '<h3 style="color:var(--muted);font-weight:400;">No modules available yet.</h3>' +
           '<p style="color:var(--muted);">Check back soon — training content is being prepared.</p>' +
         '</div>';
+      if (returnHtml) return emptyHtml;
+      byId('contentArea').innerHTML = emptyHtml;
       return;
     }
 
@@ -10726,11 +10777,9 @@
       '</div>';
     }).join('');
 
-    byId('contentArea').innerHTML =
-      header +
-      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">' +
-        cards +
-      '</div>';
+    var html = header + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">' + cards + '</div>';
+    if (returnHtml) return html;
+    byId('contentArea').innerHTML = html;
   }
 
   // ── Module detail ─────────────────────────────────────────────────────────────
@@ -12979,7 +13028,7 @@
 
   function renderHome() {
     if (window.simMediaStopAll) window.simMediaStopAll();
-    window.setActiveNav('Dashboard');
+    window.setActiveNav('Home');
     setDashboardNavActive();
 
     var content = byId('contentArea');
