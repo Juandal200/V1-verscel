@@ -10578,6 +10578,10 @@
       .apiModuleGetAll(AppState.sessionToken);
   }
 
+  function lmsBool_(v) {
+    return v === true || v === 'TRUE' || v === 'true' || v === 1 || v === '1';
+  }
+
   function _renderModuleRoadmap(modules) {
     if (!modules.length) {
       byId('contentArea').innerHTML =
@@ -10832,195 +10836,199 @@
         '</div>' +
       '</div>';
 
-    // ── Section builder ──
-    var sectionMeta = {
-      '01': { grad:'linear-gradient(160deg,#0f2744 0%,#1d4ed8 100%)', lightGrad:'linear-gradient(160deg,#dbeafe 0%,#bfdbfe 100%)', accent:'#1d4ed8', label2:'Introduction'  },
-      '02': { grad:'linear-gradient(160deg,#1a0d38 0%,#7c3aed 100%)', lightGrad:'linear-gradient(160deg,#ede9fe 0%,#ddd6fe 100%)', accent:'#7c3aed', label2:'Explanation'   },
-      '03': { grad:'linear-gradient(160deg,#052e16 0%,#16a34a 100%)', lightGrad:'linear-gradient(160deg,#dcfce7 0%,#bbf7d0 100%)', accent:'#16a34a', label2:'Application'   },
-      '04': { grad:'linear-gradient(160deg,#431407 0%,#d97706 100%)', lightGrad:'linear-gradient(160deg,#fef3c7 0%,#fde68a 100%)', accent:'#d97706', label2:'Evaluation'    }
-    };
+    // ── Canvas-style section card ──
+    var sectionAccents = { '01':'#1d4ed8', '02':'#7c3aed', '03':'#16a34a', '04':'#d97706' };
 
     function sectionCard(num, label, icon, unlocked, completed, bodyHtml) {
-      var meta = sectionMeta[num] || sectionMeta['01'];
-      var accentHex = meta.accent;
-
-      var statusChip = completed
-        ? '<span style="font-size:0.67rem;font-weight:700;letter-spacing:.06em;color:#16a34a;background:rgba(22,163,74,.13);border:1px solid rgba(22,163,74,.25);padding:2px 9px;border-radius:20px;">✓ COMPLETE</span>'
+      var accent  = sectionAccents[num] || '#1d4ed8';
+      var lockMsg = num==='02' ? 'Complete the Introduction section to unlock'
+                  : num==='03' ? 'Complete the Explanation section to unlock'
+                  : 'Complete the Application section to unlock';
+      var leftBorder = completed ? '#16a34a' : unlocked ? accent : 'var(--line)';
+      var statusBadge = completed
+        ? '<span style="display:inline-flex;align-items:center;gap:5px;font-size:0.7rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:3px 11px;border-radius:20px;">✓ Complete</span>'
         : !unlocked
-          ? '<span style="font-size:0.67rem;letter-spacing:.05em;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:2px 9px;border-radius:20px;">🔒 LOCKED</span>'
-          : '<span style="font-size:0.67rem;font-weight:700;letter-spacing:.05em;color:' + accentHex + ';background:rgba(0,0,0,.05);border:1px solid rgba(0,0,0,.12);padding:2px 9px;border-radius:20px;">▶ ACTIVE</span>';
+          ? '<span style="font-size:0.7rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:3px 11px;border-radius:20px;">🔒 Locked</span>'
+          : '<span style="font-size:0.7rem;font-weight:600;color:' + accent + ';background:var(--panel-soft);border:1px solid rgba(0,0,0,.1);padding:3px 11px;border-radius:20px;">In Progress</span>';
 
-      // Left visual panel
-      var lockMsg = num === '02' ? 'Complete Introduction to unlock'
-                  : num === '03' ? 'Complete Explanation to unlock'
-                  : 'Complete Application to unlock';
+      return '<div style="max-width:860px;margin:0 auto 12px;">' +
+        '<div style="border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel);">' +
 
-      var leftPanel =
-        '<div style="width:170px;min-width:170px;flex-shrink:0;background:' + meta.grad + ';' +
-          (!unlocked ? 'filter:grayscale(.5) brightness(.65);' : '') +
-          'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px 10px;text-align:center;">' +
-          '<p style="margin:0;font-size:0.55rem;font-weight:800;letter-spacing:.16em;color:rgba(255,255,255,.55);text-transform:uppercase;">Section ' + num + '</p>' +
-          '<div style="width:54px;height:54px;border-radius:50%;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;font-size:1.6rem;">' +
-            (completed ? '<span style="font-size:1.4rem;color:#fff;font-weight:800;">✓</span>' : icon) +
-          '</div>' +
-          '<p style="margin:0;font-size:0.78rem;font-weight:700;color:#fff;letter-spacing:.01em;line-height:1.2;">' + label + '</p>' +
-          (!unlocked ? '<p style="margin:0;font-size:0.62rem;color:rgba(255,255,255,.5);line-height:1.3;">🔒 ' + lockMsg + '</p>' : '') +
-        '</div>';
-
-      return '<div style="max-width:860px;margin:0 auto 14px;">' +
-        '<div style="display:flex;border:1px solid ' + (completed?'rgba(22,163,74,.3)':unlocked?'rgba(0,0,0,.12)':'var(--line)') + ';border-radius:12px;overflow:hidden;background:var(--panel);">' +
-
-          leftPanel +
-
-          '<div style="flex:1;padding:20px 22px;' + (!unlocked?'opacity:0.7;':'') + '">' +
-            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:' + (unlocked?'16':'0') + 'px;">' +
-              '<h4 style="margin:0;font-size:0.95rem;font-weight:700;">' + label + '</h4>' +
-              statusChip +
+          // Section header
+          '<div style="display:flex;align-items:center;gap:14px;padding:14px 20px;background:var(--panel-soft);border-left:5px solid ' + leftBorder + ';' + (unlocked ? 'border-bottom:1px solid var(--line);' : '') + '">' +
+            '<div style="width:38px;height:38px;border-radius:50%;background:' + (completed ? 'rgba(22,163,74,.12)' : unlocked ? 'rgba(0,0,0,.06)' : 'var(--panel)') + ';border:1.5px solid ' + leftBorder + ';display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">' +
+              (completed ? '<span style="color:#16a34a;font-weight:700;font-size:0.85rem;">✓</span>' : icon) +
             '</div>' +
-            (unlocked
-              ? bodyHtml
-              : '<p style="margin:0;font-size:0.84rem;color:var(--muted);">' + lockMsg + ' first to access this section.</p>') +
+            '<div style="flex:1;">' +
+              '<p style="margin:0;font-size:0.62rem;color:var(--muted);letter-spacing:.1em;font-weight:700;text-transform:uppercase;">Section ' + num + '</p>' +
+              '<h4 style="margin:1px 0 0;font-size:1rem;font-weight:700;">' + label + '</h4>' +
+            '</div>' +
+            statusBadge +
           '</div>' +
+
+          // Body
+          (unlocked
+            ? bodyHtml
+            : '<div style="padding:18px 22px;display:flex;align-items:center;gap:12px;color:var(--muted);">' +
+                '<span style="font-size:1.3rem;">🔒</span>' +
+                '<div>' +
+                  '<p style="margin:0;font-size:0.88rem;font-weight:600;color:var(--muted);">' + lockMsg + '</p>' +
+                '</div>' +
+              '</div>') +
 
         '</div>' +
       '</div>';
+    }
+
+    // Canvas-style content item row (video, quiz, etc.)
+    function _lmsItem(typeIcon, typeLabel, title, statusHtml, bodyHtml, noBorder) {
+      return '<div style="' + (!noBorder ? 'border-bottom:1px solid var(--line);' : '') + '">' +
+        '<div style="display:flex;align-items:center;gap:14px;padding:14px 20px;">' +
+          '<div style="width:36px;height:36px;border-radius:8px;background:var(--panel-soft);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">' + typeIcon + '</div>' +
+          '<div style="flex:1;min-width:0;">' +
+            '<p style="margin:0;font-size:0.62rem;color:var(--muted);letter-spacing:.08em;font-weight:700;text-transform:uppercase;">' + typeLabel + '</p>' +
+            '<p style="margin:0;font-size:0.93rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + title + '</p>' +
+          '</div>' +
+          statusHtml +
+        '</div>' +
+        (bodyHtml ? '<div style="padding:0 20px 20px 70px;">' + bodyHtml + '</div>' : '') +
+      '</div>';
+    }
+
+    function _doneChip() {
+      return '<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.7rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;">✓ Done</span>';
+    }
+    function _todoChip(label) {
+      return '<span style="font-size:0.7rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;">' + (label || 'To do') + '</span>';
+    }
+
+    function _videoEmbed(vid, watched, moduleId) {
+      return '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;background:#000;margin-bottom:10px;">' +
+        '<iframe src="https://www.youtube.com/embed/' + _ytId(vid.youtubeUrl) + '?rel=0" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;"></iframe>' +
+      '</div>' +
+      (!watched
+        ? '<button class="btn secondary" style="font-size:0.82rem;" onclick="moduleMarkVideoWatched(\'' + moduleId + '\',\'' + vid.videoId + '\')">✓ Mark as watched</button>'
+        : '<p style="margin:0;font-size:0.82rem;color:var(--green);">✓ Marked as watched</p>');
     }
 
     // ── INTRO BODY ──
     var introBody = '';
+
     if (introVid) {
+      var videoWatched = lmsBool_(prog.introVideoWatched);
+      introBody += _lmsItem('📹', 'Video', safeText(introVid.title || 'Introduction Video'),
+        videoWatched ? _doneChip() : _todoChip('Watch'),
+        _videoEmbed(introVid, videoWatched, m.moduleId));
+    }
+
+    // Requirements bar
+    var videoOk = lmsBool_(prog.introVideoWatched);
+    var forumOk = lmsBool_(prog.introForumPosted);
+    if (!prog.introCompleted) {
       introBody +=
-        '<div style="margin-bottom:20px;">' +
-          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
-            '<span style="font-size:0.75rem;color:var(--muted);letter-spacing:.05em;border:1px solid var(--line);padding:2px 8px;border-radius:4px;">VIDEO</span>' +
-            '<span style="font-size:0.88rem;">' + safeText(introVid.title || 'Introduction Video') + '</span>' +
-            (prog.introVideoWatched ? '<span style="color:var(--green);font-size:0.8rem;">✓ Watched</span>' : '') +
-          '</div>' +
-          '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;background:#000;">' +
-            '<iframe src="https://www.youtube.com/embed/' + _ytId(introVid.youtubeUrl) + '?rel=0" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;"></iframe>' +
-          '</div>' +
-          (!prog.introVideoWatched
-            ? '<button class="btn secondary" style="margin-top:10px;" onclick="moduleMarkVideoWatched(\'' + m.moduleId + '\',\'' + introVid.videoId + '\')">✓ Mark video as watched</button>'
-            : '') +
+        '<div style="display:flex;align-items:center;gap:14px;padding:10px 20px;background:var(--panel-soft);border-bottom:1px solid var(--line);border-top:1px solid var(--line);">' +
+          '<span style="font-size:0.7rem;color:var(--muted);font-weight:700;letter-spacing:.07em;text-transform:uppercase;white-space:nowrap;">To complete:</span>' +
+          '<span style="font-size:0.8rem;' + (videoOk ? 'color:var(--green);text-decoration:line-through;' : 'color:var(--muted);') + '">📹 Watch video</span>' +
+          '<span style="color:var(--line);">·</span>' +
+          '<span style="font-size:0.8rem;' + (forumOk ? 'color:var(--green);text-decoration:line-through;' : 'color:var(--muted);') + '">💬 Post in forum</span>' +
         '</div>';
     }
 
-    // Completion checklist
-    introBody +=
-      '<div style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:20px;">' +
-        '<p style="margin:0 0 10px;font-size:0.75rem;color:var(--muted);letter-spacing:.06em;">COMPLETION REQUIREMENTS</p>' +
-        _checklistItem('Watch the introduction video', !!prog.introVideoWatched) +
-        _checklistItem('Post in the discussion forum', !!prog.introForumPosted) +
-      '</div>';
-
-    // Forum
-    introBody +=
-      '<div>' +
-        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">' +
-          '<span style="font-size:0.75rem;color:var(--muted);letter-spacing:.05em;border:1px solid var(--line);padding:2px 8px;border-radius:4px;">FORUM</span>' +
-          '<span style="font-size:0.88rem;font-weight:600;">Discussion</span>' +
-        '</div>' +
-        '<div id="moduleForumPosts" style="margin-bottom:16px;max-height:320px;overflow-y:auto;">' + _spinnerHtml('Loading...') + '</div>' +
-        '<div style="border:1px solid var(--line);border-radius:8px;overflow:hidden;">' +
-          '<textarea id="moduleForumInput" class="input" rows="3" style="border:none;border-radius:0;resize:vertical;" placeholder="Share your thoughts or ask a question (minimum 4 words)..."></textarea>' +
-          '<div style="display:flex;justify-content:flex-end;padding:8px 10px;background:var(--panel-soft);border-top:1px solid var(--line);">' +
-            '<button class="btn primary" onclick="moduleForumPost(\'' + m.moduleId + '\')">Post →</button>' +
+    // Forum item
+    introBody += _lmsItem('💬', 'Discussion', 'Module Forum',
+      forumOk ? _doneChip() : _todoChip('Post to unlock'),
+      '<div id="moduleForumPosts" style="margin-bottom:14px;">' + _spinnerHtml('Loading...') + '</div>' +
+      '<div style="border:1px solid var(--line);border-radius:10px;overflow:hidden;">' +
+        '<div style="display:flex;gap:10px;padding:12px 14px;">' +
+          '<div style="width:32px;height:32px;border-radius:50%;background:var(--panel-soft);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;flex-shrink:0;">' +
+            safeText(((AppState.user && AppState.user.name) || 'U').charAt(0).toUpperCase()) +
           '</div>' +
+          '<textarea id="moduleForumInput" class="input" rows="3" style="flex:1;resize:none;font-size:0.88rem;" placeholder="Write a reply or share your thoughts (minimum 4 words)..."></textarea>' +
         '</div>' +
-        '<div id="moduleForumMsg" style="margin-top:6px;font-size:0.82rem;"></div>' +
-      '</div>';
+        '<div style="display:flex;justify-content:flex-end;padding:8px 14px 10px;border-top:1px solid var(--line);background:var(--panel-soft);">' +
+          '<button class="btn primary" style="font-size:0.82rem;" onclick="moduleForumPost(\'' + m.moduleId + '\')">Post Reply</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="moduleForumMsg" style="margin-top:6px;font-size:0.82rem;"></div>',
+      true);
 
     // ── EXPLANATION BODY ──
     var expBody = '';
-    if (expVids.length) {
-      expBody += '<div style="display:flex;flex-direction:column;gap:20px;margin-bottom:24px;">';
-      expVids.forEach(function(v, idx) {
-        var watched = watchedIds.indexOf(v.videoId) !== -1;
-        expBody +=
-          '<div>' +
-            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
-              '<span style="font-size:0.75rem;color:var(--muted);letter-spacing:.05em;border:1px solid var(--line);padding:2px 8px;border-radius:4px;">VIDEO ' + (idx+1) + '</span>' +
-              '<span style="font-size:0.88rem;">' + safeText(v.title || 'Lesson ' + (idx+1)) + '</span>' +
-              (watched ? '<span style="color:var(--green);font-size:0.8rem;">✓</span>' : '') +
-            '</div>' +
-            '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;background:#000;">' +
-              '<iframe src="https://www.youtube.com/embed/' + _ytId(v.youtubeUrl) + '?rel=0" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;"></iframe>' +
-            '</div>' +
-            (!watched ? '<button class="btn secondary" style="margin-top:8px;" onclick="moduleMarkVideoWatched(\'' + m.moduleId + '\',\'' + v.videoId + '\')">✓ Mark as watched</button>' : '') +
-          '</div>';
-      });
-      expBody += '</div>';
-    }
+    expVids.forEach(function(v, vi) {
+      var watched = watchedIds.indexOf(v.videoId) !== -1;
+      expBody += _lmsItem('📹', 'Video ' + (vi+1), safeText(v.title || 'Lesson ' + (vi+1)),
+        watched ? _doneChip() : _todoChip('Watch'),
+        _videoEmbed(v, watched, m.moduleId),
+        vi === expVids.length - 1 && !expQs.length);
+    });
 
     if (expQs.length) {
-      expBody +=
-        '<div style="border-top:1px solid var(--line);padding-top:20px;">' +
-          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">' +
-            '<span style="font-size:0.75rem;color:var(--muted);letter-spacing:.05em;border:1px solid var(--line);padding:2px 8px;border-radius:4px;">QUIZ</span>' +
-            '<span style="font-size:0.88rem;font-weight:600;">Section Assessment</span>' +
-            (prog.quizPassed ? '<span style="color:var(--green);font-size:0.8rem;background:rgba(22,163,74,.1);padding:2px 8px;border-radius:10px;">✓ ' + prog.quizScore + '%</span>' : '') +
-          '</div>';
+      var quizStatusHtml = prog.quizPassed ? _doneChip() : _todoChip('Score 85%+');
+      var quizBody = '';
       if (prog.quizPassed) {
-        expBody += '<div style="background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.2);border-radius:8px;padding:14px;color:var(--green);">✓ Quiz passed with ' + prog.quizScore + '%. Section unlocked.</div>';
+        quizBody = '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.2);border-radius:8px;">' +
+          '<span style="font-size:1.2rem;">✅</span>' +
+          '<div><p style="margin:0;font-weight:700;color:var(--green);">Passed — ' + prog.quizScore + '%</p><p style="margin:0;font-size:0.8rem;color:var(--muted);">Explanation section unlocked.</p></div>' +
+        '</div>';
       } else if (prog.quizCooldownUntil) {
-        expBody += '<div style="background:rgba(180,83,9,.08);border:1px solid rgba(180,83,9,.2);border-radius:8px;padding:14px;color:var(--yellow);">⏱ Cooldown active — retry available at ' + _fmtTime(prog.quizCooldownUntil) + '</div>';
+        quizBody = '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(180,83,9,.06);border:1px solid rgba(180,83,9,.2);border-radius:8px;">' +
+          '<span>⏱</span><p style="margin:0;color:var(--yellow);">Cooldown — retry at ' + _fmtTime(prog.quizCooldownUntil) + '</p>' +
+        '</div>';
       } else {
-        expBody += _renderQuizForm('expQuiz', expQs, m.moduleId, 'explanation', prog.quizAttempts, prog.quizScore);
+        quizBody = (prog.quizAttempts > 0 ? '<p style="margin:0 0 14px;font-size:0.82rem;color:var(--muted);">Last attempt: <strong>' + prog.quizScore + '%</strong> — Need 85%. Attempt #' + (prog.quizAttempts+1) + '</p>' : '') +
+          _renderQuizForm('expQuiz', expQs, m.moduleId, 'explanation', prog.quizAttempts, prog.quizScore);
       }
-      expBody += '</div>';
+      expBody += _lmsItem('📝', 'Quiz', 'Section Assessment', quizStatusHtml, quizBody, true);
     }
 
     // ── APPLICATION BODY ──
     var passedCount = prog.scenariosPassed || 0;
     var appBody =
-      '<div style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:20px;">' +
-        '<p style="margin:0 0 10px;font-size:0.75rem;color:var(--muted);letter-spacing:.06em;">COMPLETION REQUIREMENTS</p>' +
-        _checklistItem('Complete 3 ATC scenarios with 85%+ score', prog.applicationCompleted) +
-        '<p style="margin:8px 0 0;font-size:0.82rem;color:var(--muted);">Progress: <strong style="color:var(--text);">' + passedCount + ' / 3</strong> scenarios passed</p>' +
+      '<div style="display:flex;align-items:center;gap:14px;padding:12px 20px;background:var(--panel-soft);border-bottom:1px solid var(--line);">' +
+        '<span style="font-size:0.75rem;color:var(--muted);font-weight:700;letter-spacing:.07em;text-transform:uppercase;">Goal:</span>' +
+        '<span style="font-size:0.85rem;color:var(--text);">Pass 3 ATC scenarios with 85%+ score</span>' +
+        '<span style="margin-left:auto;font-size:0.82rem;font-weight:700;color:' + (prog.applicationCompleted ? 'var(--green)' : 'var(--cyan)') + ';">' + passedCount + ' / 3</span>' +
       '</div>';
 
     if (scns.length) {
-      appBody += '<div style="display:flex;flex-direction:column;gap:10px;">';
-      scns.forEach(function(s) {
-        appBody +=
-          '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;">' +
-            '<div>' +
-              '<div style="display:flex;align-items:center;gap:8px;">' +
-                '<span style="font-size:0.75rem;color:var(--muted);letter-spacing:.05em;border:1px solid var(--line);padding:2px 6px;border-radius:4px;">SCENARIO</span>' +
-                '<strong style="font-size:0.9rem;">' + safeText(s.title || s.scenarioId) + '</strong>' +
-              '</div>' +
-              (s.level ? '<p style="margin:4px 0 0;font-size:0.78rem;color:var(--muted);">Level ' + safeText(s.level) + ' — Target: 85%+</p>' : '') +
-            '</div>' +
-            '<button class="btn primary" onclick="moduleStartScenario(\'' + m.moduleId + '\',\'' + s.scenarioId + '\')">Fly →</button>' +
-          '</div>';
+      scns.forEach(function(s, si) {
+        appBody += _lmsItem('🛫', 'ATC Scenario', safeText(s.title || s.scenarioId),
+          '<button class="btn primary" style="font-size:0.8rem;padding:6px 16px;flex-shrink:0;" onclick="moduleStartScenario(\'' + m.moduleId + '\',\'' + s.scenarioId + '\')">Start →</button>',
+          s.level ? '<p style="margin:0;font-size:0.8rem;color:var(--muted);">Level ' + safeText(s.level) + ' · Target: 85%+</p>' : null,
+          si === scns.length - 1);
       });
-      appBody += '</div>';
     } else {
-      appBody += '<div style="color:var(--muted);font-size:0.88rem;padding:16px;text-align:center;border:1px dashed var(--line);border-radius:8px;">No scenarios linked to this module yet.</div>';
+      appBody += '<div style="padding:20px;text-align:center;color:var(--muted);font-size:0.88rem;">No scenarios linked to this module yet.</div>';
     }
 
     // ── EVALUATION BODY ──
     var evalBody = '';
     if (prog.evalPassed) {
       evalBody =
-        '<div style="text-align:center;padding:32px 20px;">' +
-          (m.badgeImageUrl ? '<img src="' + safeText(m.badgeImageUrl) + '" style="width:80px;height:80px;object-fit:contain;border-radius:12px;margin-bottom:16px;box-shadow:0 4px 24px rgba(0,0,0,.3);">' : '<div style="font-size:3rem;margin-bottom:16px;">🏆</div>') +
-          '<h3 style="color:var(--green);margin:0 0 8px;">Module Complete!</h3>' +
-          '<p style="color:var(--muted);margin:0;">Final score: <strong style="color:var(--text);">' + prog.evalScore + '%</strong> — Badge awarded.</p>' +
+        '<div style="padding:32px 20px;text-align:center;">' +
+          (m.badgeImageUrl ? '<img src="' + safeText(m.badgeImageUrl) + '" style="width:72px;height:72px;object-fit:contain;border-radius:12px;margin-bottom:16px;">' : '<div style="font-size:3rem;margin-bottom:14px;">🏆</div>') +
+          '<h3 style="margin:0 0 6px;color:var(--green);">Module Complete!</h3>' +
+          '<p style="margin:0;color:var(--muted);">Final score: <strong style="color:var(--text);">' + prog.evalScore + '%</strong> — Badge awarded.</p>' +
         '</div>';
-    } else if (evalQs.length) {
-      evalBody +=
-        '<div style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:20px;">' +
-          '<p style="margin:0 0 6px;font-size:0.75rem;color:var(--muted);letter-spacing:.06em;">EVALUATION</p>' +
-          '<p style="margin:0;font-size:0.85rem;color:var(--muted);">Score 85%+ to complete this module and earn the badge. 15-minute cooldown between attempts.</p>' +
-        '</div>';
-      if (prog.evalCooldownUntil) {
-        evalBody += '<div style="background:rgba(180,83,9,.08);border:1px solid rgba(180,83,9,.2);border-radius:8px;padding:14px;color:var(--yellow);">⏱ Cooldown active — retry available at ' + _fmtTime(prog.evalCooldownUntil) + '</div>';
-      } else {
-        evalBody += _renderQuizForm('evalQuiz', evalQs, m.moduleId, 'evaluation', prog.evalAttempts, prog.evalScore);
-      }
     } else {
-      evalBody = '<div style="color:var(--muted);font-size:0.88rem;padding:16px;text-align:center;border:1px dashed var(--line);border-radius:8px;">Evaluation questions not yet available.</div>';
+      var evalStatusHtml = _todoChip('Score 85%+');
+      var evalBody2 = '';
+      if (!evalQs.length) {
+        evalBody2 = '<div style="padding:14px;text-align:center;color:var(--muted);font-size:0.88rem;">Evaluation questions not yet available.</div>';
+      } else if (prog.evalCooldownUntil) {
+        evalBody2 = '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(180,83,9,.06);border:1px solid rgba(180,83,9,.2);border-radius:8px;">' +
+          '<span>⏱</span><p style="margin:0;color:var(--yellow);">Cooldown — retry at ' + _fmtTime(prog.evalCooldownUntil) + '</p>' +
+        '</div>';
+      } else {
+        evalBody2 =
+          '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;margin-bottom:16px;">' +
+            '<span style="font-size:1.2rem;">🏆</span>' +
+            '<p style="margin:0;font-size:0.85rem;color:var(--muted);">Score 85%+ to complete this module and earn your badge. 15-minute cooldown between attempts.</p>' +
+          '</div>' +
+          (prog.evalAttempts > 0 ? '<p style="margin:0 0 14px;font-size:0.82rem;color:var(--muted);">Last attempt: <strong>' + prog.evalScore + '%</strong> — Need 85%. Attempt #' + (prog.evalAttempts+1) + '</p>' : '') +
+          _renderQuizForm('evalQuiz', evalQs, m.moduleId, 'evaluation', prog.evalAttempts, prog.evalScore);
+      }
+      evalBody = _lmsItem('📝', 'Final Exam', 'Module Evaluation', evalStatusHtml, evalBody2, true);
     }
 
     byId('contentArea').innerHTML =
@@ -11060,29 +11068,31 @@
   }
 
   function _renderQuizForm(formId, questions, moduleId, section, attempts, lastScore) {
-    var attemptsNote = (attempts > 0)
-      ? '<p style="margin:0 0 16px;font-size:0.82rem;color:var(--muted);">Previous attempt: <strong>' + lastScore + '%</strong> — Need 85%. Attempt #' + (attempts + 1) + '</p>'
-      : '';
-
     var inputs = questions.map(function(q, i) {
       var opts = (q.options || []).map(function(opt, j) {
-        return '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;border-radius:6px;border:1px solid var(--line);margin-bottom:6px;transition:border-color .15s;" onmouseenter="this.style.borderColor=\'var(--cyan)\'" onmouseleave="this.style.borderColor=\'var(--line)\'">' +
-          '<input type="radio" name="' + formId + '_q' + i + '" value="' + j + '" style="margin-top:2px;accent-color:var(--cyan);">' +
-          '<span style="font-size:0.88rem;">' + safeText(opt) + '</span>' +
+        var inputId = formId + '_q' + i + '_o' + j;
+        return '<label for="' + inputId + '" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:11px 14px;border-radius:8px;border:1.5px solid var(--line);margin-bottom:6px;transition:border-color .15s,background .15s;" onmouseenter="this.style.borderColor=\'var(--cyan)\';this.style.background=\'rgba(14,165,233,.05)\'" onmouseleave="this.style.borderColor=\'var(--line)\';this.style.background=\'\'">' +
+          '<input id="' + inputId + '" type="radio" name="' + formId + '_q' + i + '" value="' + j + '" style="margin-top:2px;accent-color:var(--cyan);flex-shrink:0;">' +
+          '<span style="font-size:0.88rem;line-height:1.45;">' + safeText(opt) + '</span>' +
         '</label>';
       }).join('');
-      return '<div style="margin-bottom:20px;">' +
-        '<p style="font-weight:600;margin:0 0 10px;font-size:0.9rem;">' + (i+1) + '. ' + safeText(q.question) + '</p>' +
+
+      return '<div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:10px;">' +
+        '<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">' +
+          '<span style="font-size:0.68rem;font-weight:800;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;">Question ' + (i+1) + ' of ' + questions.length + '</span>' +
+        '</div>' +
+        '<p style="margin:0 0 14px;font-size:0.95rem;font-weight:600;line-height:1.45;">' + safeText(q.question) + '</p>' +
         '<input type="hidden" class="qid-field" value="' + q.questionId + '">' +
-        opts +
+        '<div>' + opts + '</div>' +
       '</div>';
     }).join('');
 
     return '<div id="' + formId + '">' +
-      attemptsNote +
       inputs +
-      '<button class="btn primary" onclick="moduleSubmitQuiz(\'' + moduleId + '\',\'' + section + '\',\'' + formId + '\')">Submit →</button>' +
-      '<div id="' + formId + 'Msg" style="margin-top:10px;font-size:0.85rem;"></div>' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;flex-wrap:wrap;gap:10px;">' +
+        '<button class="btn primary" style="padding:10px 28px;" onclick="moduleSubmitQuiz(\'' + moduleId + '\',\'' + section + '\',\'' + formId + '\')">Submit Answers →</button>' +
+        '<div id="' + formId + 'Msg" style="font-size:0.85rem;"></div>' +
+      '</div>' +
     '</div>';
   }
 
@@ -11108,32 +11118,53 @@
       .withSuccessHandler(function(res) {
         var posts = (res && res.ok) ? (res.posts || []) : [];
         if (!posts.length) {
-          el.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;padding:12px 0;">No posts yet. Start the discussion below.</p>';
+          el.innerHTML =
+            '<div style="padding:20px 0;text-align:center;">' +
+              '<p style="margin:0;font-size:0.88rem;color:var(--muted);">No replies yet — be the first to contribute.</p>' +
+            '</div>';
           return;
         }
-        el.innerHTML = posts.map(function(p) {
-          var isMe = AppState.user && p.userId === AppState.user.userId;
+
+        // Avatar color palette (deterministic by first char)
+        var avatarColors = ['#1d4ed8','#7c3aed','#16a34a','#d97706','#dc2626','#0891b2','#0f766e'];
+        function avatarColor(name) {
+          var c = (name || 'P').charCodeAt(0) % avatarColors.length;
+          return avatarColors[c];
+        }
+
+        el.innerHTML = posts.map(function(p, i) {
+          var isMe    = AppState.user && String(p.userId) === String(AppState.user.userId);
           var isReply = !!p.parentPostId;
-          return '<div style="' + (isReply ? 'margin-left:20px;border-left:3px solid var(--line);' : 'border-bottom:1px solid var(--line);') + 'padding:12px ' + (isReply ? '12px' : '0') + ';margin-bottom:' + (isReply ? '6px' : '0') + ';">' +
-            '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">' +
-              '<div style="display:flex;align-items:center;gap:8px;">' +
-                '<div style="width:28px;height:28px;border-radius:50%;background:var(--panel-soft);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;color:var(--muted);">' +
-                  safeText((p.userName || 'P').charAt(0).toUpperCase()) +
-                '</div>' +
-                '<div>' +
-                  '<strong style="font-size:0.83rem;">' + safeText(p.userName || 'Pilot') + '</strong>' +
-                  '<span style="margin-left:8px;font-size:0.72rem;color:var(--muted);">' + (p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '') + '</span>' +
-                '</div>' +
+          var initials = (p.userName || 'P').split(' ').map(function(w) { return w.charAt(0); }).slice(0,2).join('').toUpperCase();
+          var dateStr = p.createdAt ? new Date(p.createdAt).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' }) : '';
+
+          return '<div style="' + (isReply ? 'margin-left:52px;' : '') + 'padding:14px 0;border-bottom:1px solid var(--line);">' +
+            '<div style="display:flex;gap:12px;">' +
+              // Avatar
+              '<div style="width:36px;height:36px;border-radius:50%;background:' + avatarColor(p.userName) + ';display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:800;color:#fff;flex-shrink:0;">' +
+                initials +
               '</div>' +
-              (isMe ? '<button class="btn secondary" style="padding:2px 8px;font-size:0.7rem;color:var(--red);" onclick="moduleForumDelete(\'' + p.postId + '\',\'' + moduleId + '\')">Delete</button>' : '') +
+              '<div style="flex:1;min-width:0;">' +
+                // Header row
+                '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;">' +
+                  '<strong style="font-size:0.88rem;">' + safeText(p.userName || 'Pilot') + '</strong>' +
+                  '<span style="font-size:0.75rem;color:var(--muted);">' + dateStr + '</span>' +
+                  (isMe ? '<span style="font-size:0.68rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:1px 6px;border-radius:10px;">You</span>' : '') +
+                '</div>' +
+                // Body
+                '<p style="margin:0 0 8px;font-size:0.9rem;line-height:1.55;color:var(--text);">' + safeText(p.body) + '</p>' +
+                // Actions
+                (isMe
+                  ? '<button style="background:none;border:none;font-size:0.75rem;color:var(--red);cursor:pointer;padding:0;font-family:inherit;" onclick="moduleForumDelete(\'' + p.postId + '\',\'' + moduleId + '\')">Delete</button>'
+                  : '') +
+              '</div>' +
             '</div>' +
-            '<p style="margin:0;font-size:0.88rem;line-height:1.5;">' + safeText(p.body) + '</p>' +
           '</div>';
         }).join('');
       })
       .withFailureHandler(function() {
         var el2 = byId('moduleForumPosts');
-        if (el2) el2.innerHTML = '<p style="color:var(--muted);">Could not load posts.</p>';
+        if (el2) el2.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;padding:12px 0;">Could not load posts.</p>';
       })
       .apiModuleForumGetPosts(AppState.sessionToken, moduleId);
   }
