@@ -11585,7 +11585,7 @@
       var end   = newTotal;
       var dur = 600, t0 = Date.now();
       var prevColor = xpLbl.style.color;
-      if (isBonus) xpLbl.style.color = '#ca8a04';
+      if (isBonus) xpLbl.style.color = '#0ea5e9';
       (function tick() {
         var pct   = Math.min(1, (Date.now() - t0) / dur);
         var eased = 1 - Math.pow(1 - pct, 3);
@@ -11608,15 +11608,14 @@
 
     if (isBonus) {
       toast.innerHTML =
-        '<span style="font-size:1rem;margin-right:6px;">🎲</span>' +
-        '<span style="font-size:0.7rem;font-weight:900;letter-spacing:.06em;background:rgba(0,0,0,.15);border-radius:6px;padding:1px 6px;margin-right:6px;">BONUS</span>' +
+        '<span style="font-size:0.7rem;font-weight:900;letter-spacing:.06em;background:rgba(0,0,0,.15);border-radius:6px;padding:1px 6px;margin-right:8px;">BONUS</span>' +
         '<span>+' + displayAmt + ' XP  ·  ' + label + '</span>';
       toast.style.cssText = [
         'position:fixed', 'bottom:' + (24 + offset) + 'px', 'right:24px',
-        'background:linear-gradient(135deg,rgba(234,179,8,.96),rgba(202,138,4,.96))',
+        'background:linear-gradient(135deg,rgba(14,165,233,.96),rgba(2,132,199,.96))',
         'color:#fff', 'font-family:inherit', 'font-size:0.88rem', 'font-weight:700',
         'padding:11px 20px', 'border-radius:24px', 'display:flex', 'align-items:center',
-        'box-shadow:0 6px 24px rgba(202,138,4,.4)', 'pointer-events:none',
+        'box-shadow:0 6px 24px rgba(14,165,233,.4)', 'pointer-events:none',
         'z-index:99999', 'opacity:0', 'transform:translateY(14px) scale(.92)',
         'transition:opacity .22s,transform .28s'
       ].join(';');
