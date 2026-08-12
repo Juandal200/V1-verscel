@@ -17250,8 +17250,8 @@
     });
     // Within each tier, keep server order (weeklyXp DESC)
 
-    var maxWeekly = 1;
-    res.data.forEach(function(p) { if ((p.weeklyXp || 0) > maxWeekly) maxWeekly = p.weeklyXp; });
+    var maxXp = 1;
+    res.data.forEach(function(p) { if ((p.mergedXp || 0) > maxXp) maxXp = p.mergedXp; });
 
     var html = '<div style="font-size:0.68rem;font-weight:700;letter-spacing:.08em;color:rgba(255,255,255,.35);text-align:center;margin-bottom:8px;text-transform:uppercase;">This week\'s ranking · resets Monday</div>';
 
@@ -17274,7 +17274,7 @@
         var rankCls   = globalRnk <= 3 ? ' gam-lb-rank--' + globalRnk : '';
         var avaCls    = globalRnk <= 3 ? ' gam-lb-avatar--' + globalRnk : '';
         var rowCls    = isMe ? ' gam-lb-row--me' : '';
-        var barW      = Math.min(100, Math.round(((p.weeklyXp || 0) / maxWeekly) * 100));
+        var barW      = Math.min(100, Math.round(((p.mergedXp || 0) / maxXp) * 100));
         var pilotTier = window._getTierFromXp ? window._getTierFromXp(p.mergedXp || 0) : { color: '#0E65F4' };
 
         // Streak badge
@@ -17301,8 +17301,7 @@
               '</div>' +
             '</div>' +
             '<div class="gam-lb-right">' +
-              '<span class="gam-lb-score" style="color:' + pilotTier.color + ';">' + (p.weeklyXp || 0) + ' XP</span>' +
-              '<span class="gam-lb-level" style="color:rgba(255,255,255,.35);font-size:0.68rem;">' + (p.mergedXp || 0) + ' total</span>' +
+              '<span class="gam-lb-score" style="color:' + pilotTier.color + ';">' + (p.mergedXp || 0) + ' XP</span>' +
             '</div>' +
           '</div>';
       });
