@@ -11409,7 +11409,7 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (!res || !res.ok) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error posting.') + '</span>'; return; }
-        if (window._lmsAwardXp) _lmsAwardXp(10, 'Forum reply');
+        if (window._lmsAwardXp) _lmsAwardXp(10, 'Forum reply', 0.25, 2);
         input.value = '';
         msg.innerHTML = '';
         renderModuleDetail(moduleId);
@@ -11475,7 +11475,7 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (!res || !res.ok) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error posting.') + '</span>'; return; }
-        if (window._lmsAwardXp) _lmsAwardXp(20, 'Forum post');
+        if (window._lmsAwardXp) _lmsAwardXp(20, 'Forum post', 0.15, 2);
         input.value = '';
         msg.innerHTML = '';
         renderModuleDetail(moduleId);
@@ -11495,7 +11495,7 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (!res || !res.ok) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error posting.') + '</span>'; return; }
-        if (window._lmsAwardXp) _lmsAwardXp(20, 'Forum post');
+        if (window._lmsAwardXp) _lmsAwardXp(20, 'Forum post', 0.15, 2);
         input.value = '';
         msg.innerHTML = '';
         renderModuleDetail(moduleId);
@@ -11523,7 +11523,7 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (res && res.ok) {
-          if (window._lmsAwardXp) _lmsAwardXp(15, 'Video watched');
+          if (window._lmsAwardXp) _lmsAwardXp(15, 'Video watched', 0.20, 2);
           renderModuleDetail(moduleId);
         }
       })
@@ -11562,7 +11562,7 @@
         }
         if (res.passed) {
           msgEl.innerHTML = '<span style="color:var(--green);font-weight:600;">✓ Passed! Score: ' + res.score + '%</span>';
-          if (window._lmsAwardXp) _lmsAwardXp(50, 'Quiz passed');
+          if (window._lmsAwardXp) _lmsAwardXp(50, 'Quiz passed', 0.10, 3);
         } else {
           msgEl.innerHTML = '<span style="color:var(--red);">Score: ' + res.score + '% — need 85%. Retry in 15 min.</span>';
         }
@@ -11582,73 +11582,89 @@
     });
   }
 
-  // ── LMS XP toast + topbar counter ────────────────────────────────────────────
-  var _lmsXpTotal = 0;
+  // ── LMS XP toast + topbar counter (with variable-ratio bonus layer) ──────────
+  var _lmsXpTotal  = 0;
   var _lmsXpToastQ = 0;
 
-  window._lmsAwardXp = function(amount, label) {
-    _lmsXpTotal += amount;
+  // bonusChance: 0-1 probability; bonusMultiplier: how many times base amount
+  window._lmsAwardXp = function(amount, label, bonusChance, bonusMultiplier) {
+    var isBonus    = bonusChance && Math.random() < bonusChance;
+    var multiplier = isBonus ? (bonusMultiplier || 2) : 1;
+    var final      = amount * multiplier;
+    _lmsXpTotal   += final;
 
-    // Show / update topbar badge
-    var badge = document.getElementById('topnavLmsXpBadge');
+    // ── Topbar badge ──────────────────────────────────────────────────────────
+    var badge   = document.getElementById('topnavLmsXpBadge');
     var countEl = document.getElementById('topnavLmsXpCount');
     if (badge && countEl) {
       badge.style.display = 'flex';
-      // Count-up animation
-      var start = _lmsXpTotal - amount;
-      var end   = _lmsXpTotal;
-      var dur   = 600;
-      var t0    = Date.now();
-      var tick  = function() {
+      var start = _lmsXpTotal - final, end = _lmsXpTotal, dur = 600, t0 = Date.now();
+      (function tick() {
         var pct = Math.min(1, (Date.now() - t0) / dur);
         var eased = 1 - Math.pow(1 - pct, 3);
         countEl.textContent = Math.round(start + (end - start) * eased);
-        if (pct < 1) requestAnimationFrame(tick);
-        else countEl.textContent = end;
-      };
-      requestAnimationFrame(tick);
-      // Pop animation on badge
+        if (pct < 1) requestAnimationFrame(tick); else countEl.textContent = end;
+      })();
       badge.style.transition = 'transform .15s';
-      badge.style.transform = 'scale(1.2)';
-      setTimeout(function() { badge.style.transform = 'scale(1)'; }, 180);
+      badge.style.transform  = isBonus ? 'scale(1.35)' : 'scale(1.2)';
+      setTimeout(function() { badge.style.transform = 'scale(1)'; }, isBonus ? 280 : 180);
+      if (isBonus) {
+        badge.style.background = 'rgba(234,179,8,.18)';
+        badge.style.borderColor = 'rgba(234,179,8,.45)';
+        countEl.style.color = '#ca8a04';
+        setTimeout(function() {
+          badge.style.background  = 'rgba(14,165,233,.13)';
+          badge.style.borderColor = 'rgba(14,165,233,.3)';
+          countEl.style.color     = 'var(--cyan)';
+        }, 1800);
+      }
     }
 
-    // Floating toast
-    var toast = document.createElement('div');
-    toast.textContent = '+' + amount + ' XP  ·  ' + label;
-    var offset = _lmsXpToastQ * 52;
+    // ── Floating toast ────────────────────────────────────────────────────────
+    var toast  = document.createElement('div');
+    var offset = _lmsXpToastQ * 56;
     _lmsXpToastQ++;
-    toast.style.cssText = [
-      'position:fixed',
-      'bottom:' + (24 + offset) + 'px',
-      'right:24px',
-      'background:rgba(14,165,233,.92)',
-      'color:#fff',
-      'font-family:inherit',
-      'font-size:0.82rem',
-      'font-weight:700',
-      'padding:9px 18px',
-      'border-radius:22px',
-      'box-shadow:0 4px 18px rgba(0,0,0,.22)',
-      'pointer-events:none',
-      'z-index:99999',
-      'opacity:0',
-      'transform:translateY(12px)',
-      'transition:opacity .22s,transform .22s'
-    ].join(';');
+
+    if (isBonus) {
+      toast.innerHTML =
+        '<span style="font-size:1rem;margin-right:6px;">🎲</span>' +
+        '<span style="font-size:0.7rem;font-weight:900;letter-spacing:.06em;background:rgba(0,0,0,.15);border-radius:6px;padding:1px 6px;margin-right:6px;">BONUS</span>' +
+        '<span>+' + final + ' XP  ·  ' + label + '</span>';
+      toast.style.cssText = [
+        'position:fixed', 'bottom:' + (24 + offset) + 'px', 'right:24px',
+        'background:linear-gradient(135deg,rgba(234,179,8,.96),rgba(202,138,4,.96))',
+        'color:#fff', 'font-family:inherit', 'font-size:0.88rem', 'font-weight:700',
+        'padding:11px 20px', 'border-radius:24px', 'display:flex', 'align-items:center',
+        'box-shadow:0 6px 24px rgba(202,138,4,.4)', 'pointer-events:none',
+        'z-index:99999', 'opacity:0', 'transform:translateY(14px) scale(.92)',
+        'transition:opacity .22s,transform .28s'
+      ].join(';');
+    } else {
+      toast.textContent = '+' + final + ' XP  ·  ' + label;
+      toast.style.cssText = [
+        'position:fixed', 'bottom:' + (24 + offset) + 'px', 'right:24px',
+        'background:rgba(14,165,233,.92)', 'color:#fff', 'font-family:inherit',
+        'font-size:0.82rem', 'font-weight:700', 'padding:9px 18px', 'border-radius:22px',
+        'box-shadow:0 4px 18px rgba(0,0,0,.22)', 'pointer-events:none',
+        'z-index:99999', 'opacity:0', 'transform:translateY(12px)',
+        'transition:opacity .22s,transform .22s'
+      ].join(';');
+    }
+
     document.body.appendChild(toast);
     requestAnimationFrame(function() {
-      toast.style.opacity = '1';
-      toast.style.transform = 'translateY(0)';
+      toast.style.opacity   = '1';
+      toast.style.transform = isBonus ? 'translateY(0) scale(1)' : 'translateY(0)';
     });
+    var visibleMs = isBonus ? 2800 : 2200;
     setTimeout(function() {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translateY(-10px)';
+      toast.style.opacity   = '0';
+      toast.style.transform = isBonus ? 'translateY(-12px) scale(.96)' : 'translateY(-10px)';
       setTimeout(function() {
         if (toast.parentNode) toast.parentNode.removeChild(toast);
         _lmsXpToastQ = Math.max(0, _lmsXpToastQ - 1);
-      }, 280);
-    }, 2200);
+      }, 300);
+    }, visibleMs);
   };
 
   window.renderModules          = renderModules;
