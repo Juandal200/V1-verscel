@@ -668,7 +668,8 @@ function getMyCompletedLevels(sessionToken) {
       mergedXp: lmsXp,
       weeklyXp: weeklyXp,
       streakDays: streakDays,
-      streakProtected: streakProtected
+      streakProtected: streakProtected,
+      lastActiveAt: streakData.lastActiveAt || ''
     };
   } catch(e) {
     return { ok: false, completedLevels: 0, lmsXp: 0, mergedXp: 0, weeklyXp: 0, streakDays: 0, streakProtected: false };
