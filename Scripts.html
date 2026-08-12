@@ -10994,7 +10994,76 @@
     }
 
     // Quiz overlay shown when a timestamp is hit
+    function _lmsStartQuizMusic() {
+      try {
+        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+        window._lmsQuizAudioCtx = ctx;
+        var drone = ctx.createOscillator(), dg = ctx.createGain();
+        drone.type = 'sine'; drone.frequency.value = 55; dg.gain.value = 0.035;
+        drone.connect(dg); dg.connect(ctx.destination); drone.start();
+        window._lmsQuizDrone = drone;
+        var melody = [
+          {f:220,t:0.00},{f:246,t:0.25},{f:261,t:0.50},{f:246,t:0.75},
+          {f:220,t:1.00},{f:196,t:1.25},{f:207,t:1.50},{f:196,t:1.75}
+        ];
+        var loopLen = 2.0;
+        function scheduleMelody(startTime) {
+          if (!window._lmsQuizAudioCtx) return;
+          melody.forEach(function(n) {
+            var osc = ctx.createOscillator(), g = ctx.createGain();
+            osc.frequency.value = n.f; osc.type = 'triangle';
+            var t = startTime + n.t;
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(0.09, t + 0.04);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+            osc.connect(g); g.connect(ctx.destination);
+            osc.start(t); osc.stop(t + 0.25);
+          });
+          window._lmsQuizMusicTimer = setTimeout(function() {
+            scheduleMelody(ctx.currentTime + 0.05);
+          }, (loopLen - 0.1) * 1000);
+        }
+        scheduleMelody(ctx.currentTime);
+      } catch(e) {}
+    }
+
+    function _lmsStopQuizMusic() {
+      try {
+        clearTimeout(window._lmsQuizMusicTimer);
+        window._lmsQuizMusicTimer = null;
+        if (window._lmsQuizDrone) { try { window._lmsQuizDrone.stop(); } catch(e) {} window._lmsQuizDrone = null; }
+        if (window._lmsQuizAudioCtx) { window._lmsQuizAudioCtx.close(); window._lmsQuizAudioCtx = null; }
+      } catch(e) {}
+    }
+
+    function _showXpFloat(xp) {
+      try {
+        var chip = document.createElement('div');
+        chip.textContent = '+' + xp + ' XP';
+        var sx = window.innerWidth / 2, sy = window.innerHeight / 2;
+        chip.style.cssText = 'position:fixed;z-index:99999;pointer-events:none;font-size:1.5rem;font-weight:900;' +
+          'color:#22c55e;text-shadow:0 0 18px rgba(34,197,94,.7),0 2px 8px rgba(0,0,0,.9);' +
+          'left:' + sx + 'px;top:' + sy + 'px;transform:translate(-50%,-50%);white-space:nowrap;opacity:1;transition:none;';
+        document.body.appendChild(chip);
+        var xpLbl = document.getElementById('topnavXpLabel');
+        var rect = xpLbl ? xpLbl.getBoundingClientRect() : null;
+        var tx = rect ? (rect.left + rect.width / 2) : window.innerWidth - 80;
+        var ty = rect ? (rect.top + rect.height / 2) : 28;
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() {
+            chip.style.transition = 'left 1.1s cubic-bezier(0.4,0,0.2,1),top 1.1s cubic-bezier(0.4,0,0.2,1),opacity 1s ease 0.3s,transform 1.1s ease';
+            chip.style.left = tx + 'px';
+            chip.style.top = ty + 'px';
+            chip.style.transform = 'translate(-50%,-50%) scale(0.55)';
+            chip.style.opacity = '0';
+          });
+        });
+        setTimeout(function() { if (chip.parentNode) chip.parentNode.removeChild(chip); }, 1500);
+      } catch(e) {}
+    }
+
     function _lmsShowVideoQuiz(player, quiz, moduleId, fired) {
+      _lmsStartQuizMusic();
       var ov = document.createElement('div');
       ov.id = '_lmsVqOv';
       ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
@@ -11044,6 +11113,7 @@
               window._lmsLmsXp = (window._lmsLmsXp || 0) + earned;
               var newTotal = (window._lmsSimXp || 0) + window._lmsLmsXp;
               try { localStorage.setItem('_aero_xp_' + (AppState.user && AppState.user.userId || ''), newTotal); } catch(e) {}
+              _showXpFloat(earned);
               _renderTopbarRank(newTotal, 0);
             })
             .withFailureHandler(function() {})
@@ -11054,6 +11124,7 @@
             (quiz.explanation ? '<br><span style="color:rgba(255,255,255,.45);">' + safeText(quiz.explanation) + '</span>' : '');
         }
         setTimeout(function() {
+          _lmsStopQuizMusic();
           var el = document.getElementById('_lmsVqOv');
           if (el) el.parentNode.removeChild(el);
           if (!correct) { player.seekTo(Math.max(0, Number(quiz.videoTimestamp || 0) - 60), true); }
