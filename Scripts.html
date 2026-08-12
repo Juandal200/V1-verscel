@@ -1134,12 +1134,11 @@
   }
 
   function _renderStreakRiskCard() {
-    var streakDays = window._lmsStreakDays || 0;
-    if (streakDays < 2) return '';
-
-    var today      = new Date().toDateString();
-    var lastActive = window._lmsLastActiveAt ? new Date(window._lmsLastActiveAt).toDateString() : '';
-    if (lastActive === today) return ''; // already practiced — no card
+    var streakDays = window._lmsStreakDays || 7; // TEMP: hardcoded for preview
+    // if (streakDays < 2) return '';
+    // var today      = new Date().toDateString();
+    // var lastActive = window._lmsLastActiveAt ? new Date(window._lmsLastActiveAt).toDateString() : '';
+    // if (lastActive === today) return '';
 
     var hour = new Date().getHours();
     var flameFilter, borderCol, bgCol, copy, urgencyDot;
