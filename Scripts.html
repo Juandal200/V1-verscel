@@ -7057,9 +7057,15 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (!res || !res.ok) return;
-        // Inject index so the same key (i0..iN) is used, preventing UUID double-counting
         if (res.attempt) res.attempt._scenarioIndex = _capturedIndex;
         syncTrainingProgressFromAttempt(res);
+        if (res.attempt && res.attempt.correct) {
+          window._lmsLmsXp = (window._lmsLmsXp || 0) + 25;
+          var newTotal = (window._lmsSimXp || 0) + window._lmsLmsXp;
+          try { localStorage.setItem('_aero_xp_' + (AppState.user && AppState.user.userId || ''), newTotal); } catch(e) {}
+          _showXpFloat(25);
+          _renderTopbarRank(newTotal, 0);
+        }
       })
       .withFailureHandler(function(err) {
         console.error('[ICAO] apiSubmitAttempt failed — progress not saved to server:', err && err.message);
