@@ -55,6 +55,19 @@ function setupLMSModuleSheets() {
   _lmsRepairSheetHeaders_(ss, 'UserStreaks');
 }
 
+// Run this once from the GAS editor to force-rewrite ModuleQuiz headers to the new schema.
+function fixModuleQuizHeaders() {
+  var ss = dbGetSpreadsheet_();
+  var sheet = ss.getSheetByName('ModuleQuiz');
+  if (!sheet) { Logger.log('ModuleQuiz sheet not found'); return; }
+  var schema = DB_SCHEMA['ModuleQuiz'];
+  sheet.getRange(1, 1, 1, schema.length).setValues([schema]);
+  var hdr = sheet.getRange(1, 1, 1, schema.length);
+  hdr.setFontWeight('bold');
+  hdr.setBackground('#2d2d2d');
+  Logger.log('ModuleQuiz headers updated: ' + schema.join(', '));
+}
+
 function _lmsRepairSheetHeaders_(ss, sheetName) {
   try {
     var schema = DB_SCHEMA[sheetName];
@@ -595,7 +608,7 @@ function apiSubmitVideoQuizAnswer(sessionToken, moduleId, quizId, isCorrect) {
     if (!isCorrect) return { ok: true, xpAwarded: 0 };
     var row = dbFindOne_('ModuleQuiz', 'questionId', quizId);
     var xp = row ? (Number(row.xpReward) || 5) : 5;
-    updateLmsXp_(user.userId, xp);
+    lmsAddXp_(user.userId, xp);
     return { ok: true, xpAwarded: xp };
   } catch(e) {
     return apiError_('apiSubmitVideoQuizAnswer', e);

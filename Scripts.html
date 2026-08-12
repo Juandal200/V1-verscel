@@ -11029,7 +11029,7 @@
         var ctx = new (window.AudioContext || window.webkitAudioContext)();
         window._lmsQuizAudioCtx = ctx;
         var drone = ctx.createOscillator(), dg = ctx.createGain();
-        drone.type = 'sine'; drone.frequency.value = 55; dg.gain.value = 0.035;
+        drone.type = 'sine'; drone.frequency.value = 55; dg.gain.value = 0.053;
         drone.connect(dg); dg.connect(ctx.destination); drone.start();
         window._lmsQuizDrone = drone;
         var melody = [
@@ -11044,7 +11044,7 @@
             osc.frequency.value = n.f; osc.type = 'triangle';
             var t = startTime + n.t;
             g.gain.setValueAtTime(0, t);
-            g.gain.linearRampToValueAtTime(0.09, t + 0.04);
+            g.gain.linearRampToValueAtTime(0.135, t + 0.04);
             g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
             osc.connect(g); g.connect(ctx.destination);
             osc.start(t); osc.stop(t + 0.25);
