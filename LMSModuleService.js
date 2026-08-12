@@ -855,11 +855,11 @@ function apiModuleMarkVideoWatched(sessionToken, payload) {
     var video = dbFindOne_('ModuleVideos', 'videoId', videoId);
     if (!video) throw new Error('Video not found.');
 
+    var xpAwarded = 0;
     var updated = dbWithScriptLock_(function() {
       var prog = lmsEnsureProgress_(caller.userId, moduleId);
       var now  = now_();
 
-      var xpAwarded = 0;
       if (video.section === 'intro') {
         if (!lmsBool_(prog.introVideoWatched)) {
           xpAwarded = 15;
