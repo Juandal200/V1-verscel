@@ -1190,10 +1190,10 @@
       // ── Streak risk card ──
       var streakCard = '';
       (function() {
-        var days = window._lmsStreakDays || 7; // TEMP: hardcoded for preview
-        // var today = new Date().toDateString();
-        // var lastActive = window._lmsLastActiveAt ? new Date(window._lmsLastActiveAt).toDateString() : '';
-        // if (days < 2 || lastActive === today) return;
+        var days = window._lmsStreakDays || 0;
+        var today = new Date().toDateString();
+        var lastActive = window._lmsLastActiveAt ? new Date(window._lmsLastActiveAt).toDateString() : '';
+        if (days < 2 || lastActive === today) return;
         var hour = new Date().getHours();
         var hoursLeft = 23 - hour;
         var gradient = hour >= 19
