@@ -11023,6 +11023,18 @@
         });
         var msg = document.getElementById('_lmsVqMsg');
         if (correct) {
+          try {
+            var _ac = new (window.AudioContext || window.webkitAudioContext)();
+            [523, 659, 784].forEach(function(freq, i) {
+              var osc = _ac.createOscillator(), gain = _ac.createGain();
+              osc.connect(gain); gain.connect(_ac.destination);
+              osc.frequency.value = freq; osc.type = 'sine';
+              gain.gain.setValueAtTime(0.18, _ac.currentTime + i * 0.13);
+              gain.gain.exponentialRampToValueAtTime(0.001, _ac.currentTime + i * 0.13 + 0.28);
+              osc.start(_ac.currentTime + i * 0.13);
+              osc.stop(_ac.currentTime + i * 0.13 + 0.28);
+            });
+          } catch(e) {}
           var xp = quiz.xpReward || 5;
           msg.innerHTML = '<span style="color:#22c55e;font-weight:700;">✓ Correct! +' + xp + ' XP</span>' +
             (quiz.explanation ? ' <span style="color:rgba(255,255,255,.45);">· ' + safeText(quiz.explanation) + '</span>' : '');
@@ -12153,46 +12165,48 @@
   }
 
   function _renderQuizBuilder(moduleId, moduleTitle, questions) {
-    var expQs  = questions.filter(function(q) { return q.section === 'explanation'; });
-    var evalQs = questions.filter(function(q) { return q.section === 'evaluation'; });
-
     function qRow(q) {
-      return '<tr>' +
-        '<td style="padding:8px 12px;">' + safeText(q.question) + '</td>' +
-        '<td style="padding:8px 12px;color:var(--muted);font-size:0.8rem;">' + safeText(q.section) + '</td>' +
-        '<td style="padding:8px 12px;text-align:center;">' + q.questionOrder + '</td>' +
+      var vid = q.videoId ? q.videoId.replace(/^VID_/, '').slice(0, 10) + '…' : '—';
+      return '<tr style="border-bottom:1px solid var(--line);">' +
+        '<td style="padding:8px 12px;max-width:220px;">' + safeText(q.question) + '</td>' +
+        '<td style="padding:8px 12px;color:var(--muted);font-size:0.78rem;white-space:nowrap;">' + vid + '</td>' +
+        '<td style="padding:8px 12px;text-align:center;white-space:nowrap;">' + _secsToMmss(q.videoTimestamp) + '</td>' +
+        '<td style="padding:8px 12px;text-align:center;color:var(--accent);">' + (q.xpReward || 5) + '</td>' +
         '<td style="padding:8px 12px;font-size:0.8rem;">' +
           (q.options || []).map(function(o, i) {
-            return '<span style="' + (i === q.correctIndex ? 'color:var(--green);font-weight:600;' : '') + '">' + safeText(o) + '</span>';
+            return '<span style="' + (i === q.correctIndex ? 'color:var(--green);font-weight:600;' : 'color:var(--muted);') + '">' + safeText(o) + '</span>';
           }).join(' / ') +
         '</td>' +
-        '<td style="padding:8px 12px;text-align:center;">' +
+        '<td style="padding:8px 12px;text-align:center;white-space:nowrap;">' +
           '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;margin-right:4px;" onclick="adminShowQuestionForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',\'' + q.questionId + '\')">Edit</button>' +
           '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;color:var(--red);" onclick="adminDeleteQuestion(\'' + q.questionId + '\',\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\')">Del</button>' +
         '</td>' +
       '</tr>';
     }
 
-    function qSection(label, qs) {
-      return '<h4 style="color:var(--muted);font-size:0.8rem;letter-spacing:.06em;margin-bottom:8px;">' + label + '</h4>' +
-        '<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">' +
-          '<thead><tr style="border-bottom:1px solid var(--line);">' +
-            '<th style="padding:8px 12px;text-align:left;">Question</th><th style="padding:8px 12px;text-align:left;">Section</th>' +
-            '<th style="padding:8px 12px;text-align:center;">Order</th><th style="padding:8px 12px;text-align:left;">Options (correct in green)</th><th></th>' +
-          '</tr></thead>' +
-          '<tbody>' + (qs.map(qRow).join('') || '<tr><td colspan="5" style="padding:12px;color:var(--muted);">No questions yet.</td></tr>') + '</tbody>' +
-        '</table>';
-    }
+    var rows = questions.length
+      ? questions.map(qRow).join('')
+      : '<tr><td colspan="6" style="padding:16px 12px;color:var(--muted);">No questions yet.</td></tr>';
 
     byId('contentArea').innerHTML =
       '<div class="panel">' +
         renderAdminTabs('modules') +
         '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
           '<button class="btn secondary" onclick="renderAdminModules()">← Modules</button>' +
-          '<h3 style="margin:0;">Quiz — ' + safeText(moduleTitle) + '</h3>' +
+          '<h3 style="margin:0;">Video Quizzes — ' + safeText(moduleTitle) + '</h3>' +
         '</div>' +
-        qSection('EXPLANATION QUIZ', expQs) +
-        qSection('EVALUATION QUIZ', evalQs) +
+        '<h4 style="color:var(--muted);font-size:0.8rem;letter-spacing:.06em;margin-bottom:8px;">VIDEO QUIZZES</h4>' +
+        '<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">' +
+          '<thead><tr style="border-bottom:1px solid var(--line);">' +
+            '<th style="padding:8px 12px;text-align:left;">Question</th>' +
+            '<th style="padding:8px 12px;text-align:left;">Video</th>' +
+            '<th style="padding:8px 12px;text-align:center;">Timestamp</th>' +
+            '<th style="padding:8px 12px;text-align:center;">XP</th>' +
+            '<th style="padding:8px 12px;text-align:left;">Options (correct in green)</th>' +
+            '<th></th>' +
+          '</tr></thead>' +
+          '<tbody>' + rows + '</tbody>' +
+        '</table>' +
         '<button class="btn primary" onclick="adminShowQuestionForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',null)">+ Add Question</button>' +
         '<div id="quizFormArea" style="margin-top:16px;"></div>' +
       '</div>';
