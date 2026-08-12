@@ -311,6 +311,13 @@ var DB_SCHEMA = {
     'createdAt'
   ],
 
+  ModuleQuizAnswers: [
+    'userId',
+    'quizId',
+    'moduleId',
+    'answeredAt'
+  ],
+
   ModuleScenarios: [
     'linkId',
     'moduleId',

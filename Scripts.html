@@ -11138,8 +11138,9 @@
           msg.innerHTML = '<span style="color:#22c55e;font-weight:700;">✓ Correct! +' + xp + ' XP</span>' +
             (quiz.explanation ? ' <span style="color:rgba(255,255,255,.45);">· ' + safeText(quiz.explanation) + '</span>' : '');
           google.script.run
-            .withSuccessHandler(function() {
-              var earned = quiz.xpReward || 5;
+            .withSuccessHandler(function(res) {
+              if (res && res.alreadyEarned) return;
+              var earned = (res && res.xpAwarded) || quiz.xpReward || 5;
               window._lmsLmsXp = (window._lmsLmsXp || 0) + earned;
               var newTotal = (window._lmsSimXp || 0) + window._lmsLmsXp;
               try { localStorage.setItem('_aero_xp_' + (AppState.user && AppState.user.userId || ''), newTotal); } catch(e) {}
