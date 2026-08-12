@@ -6370,7 +6370,8 @@ function apiB2bGetRisk(sessionToken, companyId) {
 function apiGetWeeklyLeaderboard(sessionToken) {
   try {
     AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
-    return TourService.getWeeklyLeaderboard(20);
+    var result = getLeaderboard(50);
+    return { ok: result.status === 'success', data: result.data || [] };
   } catch(err) { return apiError_('apiGetWeeklyLeaderboard', err); }
 }
 

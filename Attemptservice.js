@@ -63,6 +63,7 @@ var AttemptService = {
     });
 
     var progress = ProgressService.updateUserProgress(user, scenario);
+    try { lmsAddXp_(user.userId, 25); lmsUpdateStreak_(user.userId); } catch(e) {}
 
     return {
       ok: true,

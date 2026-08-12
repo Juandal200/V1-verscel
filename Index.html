@@ -1,8 +1,12 @@
 <!DOCTYPE html>
+<!-- build:<?= new Date().getTime() ?> -->
 <html>
 <head>
   <base target="_top">
   <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
 
   <script>
     (function() {
@@ -115,6 +119,7 @@
             <div class="topnav-rank-meta" id="topnavRankMeta">
               <div id="userRankStripes" class="topbar-rank-stripes" style="display:none;"></div>
               <span id="topnavXpLabel" class="topnav-xp-lbl" style="display:none;"></span>
+              <span id="topnavStreakChip" style="display:none;font-size:0.72rem;font-weight:700;margin-left:5px;color:rgba(255,255,255,.7);"></span>
               <small id="topnavLevelsLabel" class="topnav-levels-lbl" style="display:none;"></small>
             </div>
             <div class="topbar-avatar" id="topbarAvatar">
@@ -147,6 +152,20 @@
         if (typeof window.bootApp === 'function') window.bootApp();
       });
     }
+    // Stale-code detector: if new XP functions aren't exposed on window, the
+    // browser is running a cached old version of Scripts.html. Reload once.
+    (function() {
+      var ok = typeof window._getTierFromXp === 'function' && Array.isArray(window.GAM_TIERS);
+      if (!ok) {
+        var flag = '_aero_v318_reloaded';
+        if (!sessionStorage.getItem(flag)) {
+          sessionStorage.setItem(flag, '1');
+          location.reload(true);
+        }
+      } else {
+        sessionStorage.removeItem('_aero_v318_reloaded');
+      }
+    })();
   </script>
 </body>
 </html>

@@ -367,7 +367,16 @@ var DB_SCHEMA = {
 
   LmsXp: [
     'userId',
-    'lmsXp'
+    'lmsXp',
+    'weeklyXp',
+    'weeklyResetAt'
+  ],
+
+  UserStreaks: [
+    'userId',
+    'streakDays',
+    'lastActiveAt',
+    'longestStreak'
   ]
 };
 

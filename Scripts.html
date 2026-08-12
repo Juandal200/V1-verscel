@@ -751,18 +751,89 @@
     enterApplication();
   }
 
-  // Tier progress config — levels needed to enter each tier and its next
+  // Tier progress config — XP thresholds for each permanent rank
   var _TIER_PROGRESS = [
-    { key: 'junior',     start: 0,  end: 3,  nextKey: 'senior',     nextAt: 4  },
-    { key: 'senior',     start: 4,  end: 6,  nextKey: 'instructor', nextAt: 7  },
-    { key: 'instructor', start: 7,  end: 9,  nextKey: 'chief',      nextAt: 10 },
-    { key: 'chief',      start: 10, end: 10, nextKey: null,         nextAt: null }
+    { key: 'junior',     nextKey: 'senior',     nextAt: 300  },
+    { key: 'senior',     nextKey: 'instructor', nextAt: 800  },
+    { key: 'instructor', nextKey: 'chief',      nextAt: 2000 },
+    { key: 'chief',      nextKey: null,         nextAt: null }
   ];
 
-  function _renderTopbarRank(completedLevels) {
+  function _getTierFromXpKey(mergedXp) {
+    var xp = mergedXp || 0;
+    if (xp >= 2000) return 'chief';
+    if (xp >= 800)  return 'instructor';
+    if (xp >= 300)  return 'senior';
+    return 'junior';
+  }
+
+  function _getTierFromXp(mergedXp) {
+    var profession = AppState && AppState.user && AppState.user.profession ? AppState.user.profession : 'PILOT';
+    var key = _getTierFromXpKey(mergedXp);
+    var tiers = window.GAM_TIERS || [];
+    var base = tiers.filter(function(t) { return t.key === key; })[0] || tiers[tiers.length - 1];
+    if (!base) return null;
+    var label = window._gamTierLabel ? window._gamTierLabel(base.key, profession) : key;
+    return { key: base.key, label: label, abbr: base.abbr, color: base.color, glow: base.glow, stripes: base.stripes };
+  }
+
+  function _showRankUpAnimation(tier) {
+    try {
+      var ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [523.25, 659.25, 783.99, 1046.5, 1318.51, 1567.98].forEach(function(freq, i) {
+        var osc = ctx.createOscillator(), gain = ctx.createGain();
+        osc.type = 'sine'; osc.frequency.value = freq;
+        var t = ctx.currentTime + i * 0.13;
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.22, t + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(t); osc.stop(t + 0.55);
+      });
+      setTimeout(function() { try { ctx.close(); } catch(e) {} }, 2200);
+    } catch(e) {}
+    if (!document.getElementById('_rankUpStyle')) {
+      var s = document.createElement('style');
+      s.id = '_rankUpStyle';
+      s.textContent = '@keyframes _ruPop{0%{opacity:0;transform:scale(.4) translateY(50px);}65%{transform:scale(1.07) translateY(-6px);}100%{opacity:1;transform:scale(1) translateY(0);}}' +
+        '@keyframes _ruGlow{0%,100%{text-shadow:0 0 18px currentColor;}50%{text-shadow:0 0 60px currentColor,0 0 100px currentColor;}}';
+      document.head.appendChild(s);
+    }
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;';
+    var stripes = window._gamStripesSvg(tier.stripes, tier.color) + '&nbsp;' + window._gamStripesSvg(tier.stripes, tier.color);
+    overlay.innerHTML =
+      '<div style="text-align:center;animation:_ruPop .65s cubic-bezier(.34,1.56,.64,1) both;">' +
+        '<div style="font-size:0.9rem;font-weight:900;letter-spacing:.35em;color:' + tier.color + ';animation:_ruGlow 1.8s ease-in-out infinite;margin-bottom:22px;text-transform:uppercase;">Rank Up</div>' +
+        '<div style="margin-bottom:18px;font-size:1.3rem;">' + stripes + '</div>' +
+        '<div style="font-size:3.4rem;font-weight:900;color:#fff;line-height:1;letter-spacing:.02em;">' + tier.label.toUpperCase() + '</div>' +
+        '<div style="font-size:0.78rem;color:rgba(255,255,255,.38);margin-top:32px;letter-spacing:.12em;">TAP TO CONTINUE</div>' +
+      '</div>';
+    var dismiss = function() {
+      overlay.style.transition = 'opacity .3s';
+      overlay.style.opacity = '0';
+      setTimeout(function() { if (overlay.parentNode) overlay.parentNode.removeChild(overlay); }, 330);
+    };
+    overlay.onclick = dismiss;
+    setTimeout(dismiss, 6500);
+    document.body.appendChild(overlay);
+  }
+
+  function _renderTopbarRank(mergedXp, streakDays) {
+    var xp = mergedXp || 0;
     var profession = AppState.user && AppState.user.profession ? AppState.user.profession : 'PILOT';
-    var tier = window._gamTierOf ? _gamTierOf(completedLevels, profession) : null;
+    var tier = _getTierFromXp(xp);
     if (!tier) return;
+
+    // ── Rank-up detection ──
+    var prevKey = window._lmsCurrentTierKey;
+    window._lmsCurrentTierKey = tier.key;
+    if (prevKey && prevKey !== tier.key) {
+      var _ord = ['junior','senior','instructor','chief'];
+      if (_ord.indexOf(tier.key) > _ord.indexOf(prevKey)) {
+        setTimeout(function() { _showRankUpAnimation(tier); }, 500);
+      }
+    }
 
     // ── Captain avatar ring + rank badge ──
     var avatar = byId('topbarAvatar');
@@ -781,7 +852,7 @@
     var strips = byId('userRankStripes');
     if (strips && window._gamStripesSvg) {
       strips.innerHTML =
-        _gamStripesSvg(tier.stripes, tier.color) +
+        window._gamStripesSvg(tier.stripes, tier.color) +
         '<span style="font-size:0.75rem;font-weight:700;color:' + tier.color +
         ';margin-left:6px;letter-spacing:0.03em;">' + tier.label + '</span>';
       strips.style.display = '';
@@ -792,25 +863,40 @@
     for (var i = 0; i < _TIER_PROGRESS.length; i++) {
       if (_TIER_PROGRESS[i].key === tier.key) { cfg = _TIER_PROGRESS[i]; break; }
     }
-    // ── XP / completed levels count ──
+    // ── XP label ──
     var xpLbl = byId('topnavXpLabel');
     if (xpLbl) {
-      window._lmsXpBase = completedLevels;
-      xpLbl.textContent = (completedLevels + (window._lmsXpServerTotal || 0)) + ' XP';
+      xpLbl.textContent = xp + ' XP';
       xpLbl.style.color = tier.color;
       xpLbl.style.display = '';
     }
 
+    // ── Streak chip ──
+    var streakChip = byId('topnavStreakChip');
+    if (streakChip) {
+      var sd = streakDays || 0;
+      if (sd > 0) {
+        streakChip.textContent = '🔥 ' + sd + 'd';
+        streakChip.style.display = '';
+      } else {
+        streakChip.style.display = 'none';
+      }
+    }
+
+    // ── Progress to next rank ──
+    var cfg = null;
+    for (var i = 0; i < _TIER_PROGRESS.length; i++) {
+      if (_TIER_PROGRESS[i].key === tier.key) { cfg = _TIER_PROGRESS[i]; break; }
+    }
     var levelsLbl = byId('topnavLevelsLabel');
-    var rankMeta  = byId('topnavRankMeta');
-    if (cfg && levelsLbl) {
-      if (!cfg.nextKey) {
+    if (levelsLbl) {
+      if (!cfg || !cfg.nextKey) {
         levelsLbl.textContent = 'Peak rank achieved';
         levelsLbl.style.color = tier.color;
       } else {
-        var left      = cfg.nextAt - completedLevels;
-        var nextLabel = _gamTierLabel(cfg.nextKey, profession);
-        levelsLbl.textContent = left + ' level' + (left === 1 ? '' : 's') + ' to ' + nextLabel;
+        var left = cfg.nextAt - xp;
+        var nextLabel = window._gamTierLabel ? window._gamTierLabel(cfg.nextKey, profession) : cfg.nextKey;
+        levelsLbl.textContent = left + ' XP to ' + nextLabel;
         levelsLbl.style.color = tier.color + 'cc';
       }
       levelsLbl.style.display = '';
@@ -825,8 +911,8 @@
 
     // Show rank instantly from cache, then update from server in background
     try {
-      var _cachedLvl = localStorage.getItem('_aero_lvl_' + (AppState.user.userId || ''));
-      if (_cachedLvl !== null) _renderTopbarRank(parseInt(_cachedLvl, 10) || 0);
+      var _cachedXp = localStorage.getItem('_aero_xp_' + (AppState.user.userId || ''));
+      if (_cachedXp !== null) _renderTopbarRank(parseInt(_cachedXp, 10) || 0, 0);
     } catch(e) {}
 
     if (window._gamStartPoll) setTimeout(_gamStartPoll, 2000);
@@ -834,10 +920,11 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (res && res.ok) {
-          var lvl = res.completedLevels || 0;
-          window._lmsXpServerTotal = res.lmsXp || 0;
-          _renderTopbarRank(lvl);
-          try { localStorage.setItem('_aero_lvl_' + (AppState.user.userId || ''), lvl); } catch(e) {}
+          var mxp = res.mergedXp || 0;
+          window._lmsLmsXp = res.lmsXp || 0;
+          window._lmsSimXp = mxp - (res.lmsXp || 0);
+          _renderTopbarRank(mxp, res.streakDays || 0);
+          try { localStorage.setItem('_aero_xp_' + (AppState.user.userId || ''), mxp); } catch(e) {}
         }
       })
       .withFailureHandler(function() {})
@@ -11551,9 +11638,22 @@
   window._lmsAwardXp = function(amount, label, bonusChance, bonusMultiplier, serverTotal) {
     var isBonus    = bonusChance && Math.random() < bonusChance;
     var displayAmt = amount * (isBonus ? (bonusMultiplier || 2) : 1);
-    var prevTotal  = (window._lmsXpBase || 0) + (window._lmsXpServerTotal || 0);
-    if (serverTotal !== undefined) window._lmsXpServerTotal = serverTotal;
-    var newTotal   = (window._lmsXpBase || 0) + (window._lmsXpServerTotal || 0);
+    var prevTotal  = (window._lmsSimXp || 0) + (window._lmsLmsXp || 0);
+    if (serverTotal !== undefined) window._lmsLmsXp = serverTotal;
+    var newTotal   = (window._lmsSimXp || 0) + (window._lmsLmsXp || 0);
+
+    // ── Rank-up check ──
+    var prevTierKey = window._lmsCurrentTierKey;
+    var newTierKey  = _getTierFromXpKey ? _getTierFromXpKey(newTotal) : null;
+    if (newTierKey) {
+      window._lmsCurrentTierKey = newTierKey;
+      if (prevTierKey && newTierKey !== prevTierKey) {
+        var _ord = ['junior','senior','instructor','chief'];
+        if (_ord.indexOf(newTierKey) > _ord.indexOf(prevTierKey)) {
+          setTimeout(function() { _showRankUpAnimation(_getTierFromXp(newTotal)); }, 900);
+        }
+      }
+    }
 
     // ── XP chime (C→E→G ascending arpeggio, bonus adds high C) ───────────────
     try {
@@ -12185,6 +12285,8 @@
   window.filterScenarioTable        = filterScenarioTable;
   window.adminLinkScenario          = adminLinkScenario;
   window.adminUnlinkScenario        = adminUnlinkScenario;
+  window._getTierFromXpKey          = _getTierFromXpKey;
+  window._getTierFromXp             = _getTierFromXp;
 
 })();
 
@@ -16893,7 +16995,13 @@
     if (!window.AppState || !AppState.sessionToken) return;
     google.script.run
       .withSuccessHandler(function(res) {
-        if (res && res.ok) _renderTopbarRank(res.completedLevels || 0);
+        if (res && res.ok) {
+          var mxp = res.mergedXp || 0;
+          window._lmsLmsXp = res.lmsXp || 0;
+          window._lmsSimXp = mxp - (res.lmsXp || 0);
+          _renderTopbarRank(mxp, res.streakDays || 0);
+          try { localStorage.setItem('_aero_xp_' + (AppState.user && AppState.user.userId || ''), mxp); } catch(e) {}
+        }
       })
       .withFailureHandler(function() {})
       .getMyCompletedLevels(AppState.sessionToken);
@@ -17124,30 +17232,33 @@
     var box = _gEl('gamLeaderboard');
     if (!box) return;
     if ((!res.ok && res.status !== 'success') || !res.data || !res.data.length) {
-      box.innerHTML = '<div class="gam-lb-empty">No ranking data yet. Complete scenarios to appear here.</div>';
+      box.innerHTML = '<div class="gam-lb-empty">No ranking data yet. Complete LMS activities or scenarios to appear here.</div>';
       return;
     }
     var myEmail = _gam.myEmail ? _gam.myEmail.toLowerCase() : '';
-    var medals  = ['🥇', '🥈', '🥉'];
+    var crowns  = ['👑', '🥈', '🥉'];
 
-    // Group professionals by tier using this week's completed levels — resets every tour.
+    // Assign global weekly rank (sorted by weeklyXp DESC coming from server)
+    var globalRankMap = {};
+    res.data.forEach(function(p, i) { globalRankMap[String(p.email || '').toLowerCase()] = i + 1; });
+
+    // Group by permanent tier based on all-time lmsXp
     var groups = { chief: [], instructor: [], senior: [], junior: [] };
-    res.data.forEach(function (p) {
-      var tier = _gamTierOf(p.completedLevels, p.profession);
-      groups[tier.key].push(p);
+    res.data.forEach(function(p) {
+      var key = window._getTierFromXpKey ? window._getTierFromXpKey(p.mergedXp || 0) : 'junior';
+      groups[key].push(p);
     });
+    // Within each tier, keep server order (weeklyXp DESC)
 
-    // Use the highest XP in this week's data as the bar ceiling so the top
-    // scorer always fills to 100% — works correctly on 2× XP weeks too.
-    var maxXpInData = 1;
-    res.data.forEach(function (p) { if (p.totalXp > maxXpInData) maxXpInData = p.totalXp; });
+    var maxWeekly = 1;
+    res.data.forEach(function(p) { if ((p.weeklyXp || 0) > maxWeekly) maxWeekly = p.weeklyXp; });
 
-    var html = '';
-    GAM_TIERS.forEach(function (tier) {
+    var html = '<div style="font-size:0.68rem;font-weight:700;letter-spacing:.08em;color:rgba(255,255,255,.35);text-align:center;margin-bottom:8px;text-transform:uppercase;">This week\'s ranking · resets Monday</div>';
+
+    GAM_TIERS.forEach(function(tier) {
       var pilots = groups[tier.key];
-      if (!pilots.length) return;
+      if (!pilots || !pilots.length) return;
 
-      // Tier divider header
       html += '<div class="gam-lb-tier-divider" style="border-color:' + tier.color + '30;">' +
         '<span class="gam-lb-tier-label" style="color:' + tier.color + ';text-shadow:0 0 12px ' + tier.glow + ';">' +
           _gamStripesSvg(tier.stripes, tier.color) + '&nbsp;&nbsp;' + tier.label.toUpperCase() +
@@ -17155,23 +17266,33 @@
         '<span class="gam-lb-tier-count" style="color:' + tier.color + '80;">' + pilots.length + ' professional' + (pilots.length !== 1 ? 's' : '') + '</span>' +
       '</div>';
 
-      pilots.forEach(function (p) {
-        var rank      = p.rank;
-        var pilotTier = _gamTierOf(p.completedLevels, p.profession);
-        var isMe    = (String(p.email || '').toLowerCase() === myEmail);
-        var medal   = rank <= 3 ? medals[rank - 1] : rank;
-        var rankCls = rank <= 3 ? ' gam-lb-rank--' + rank : '';
-        var avaCls  = rank <= 3 ? ' gam-lb-avatar--' + rank : '';
-        var rowCls  = isMe ? ' gam-lb-row--me' : '';
-        var barW    = Math.min(100, Math.round((p.totalXp / maxXpInData) * 100));
-        var nameTag = _gEsc(p.name) + (isMe
-          ? ' <span style="color:var(--gam-green);font-size:0.62rem;font-weight:700;margin-left:5px;letter-spacing:0.05em;">YOU</span>'
-          : '');
-        if (isMe) _gam.myWeeklyLevels = p.completedLevels || 0;
+      pilots.forEach(function(p) {
+        var emailLc   = String(p.email || '').toLowerCase();
+        var globalRnk = globalRankMap[emailLc] || 99;
+        var isMe      = (emailLc === myEmail);
+        var crownMkp  = globalRnk <= 3 ? '<span style="font-size:1rem;margin-right:3px;">' + crowns[globalRnk - 1] + '</span>' : '';
+        var rankCls   = globalRnk <= 3 ? ' gam-lb-rank--' + globalRnk : '';
+        var avaCls    = globalRnk <= 3 ? ' gam-lb-avatar--' + globalRnk : '';
+        var rowCls    = isMe ? ' gam-lb-row--me' : '';
+        var barW      = Math.min(100, Math.round(((p.weeklyXp || 0) / maxWeekly) * 100));
+        var pilotTier = window._getTierFromXp ? window._getTierFromXp(p.mergedXp || 0) : { color: '#0E65F4' };
+
+        // Streak badge
+        var streakMkp = '';
+        if (p.streakDays && p.streakDays > 0) {
+          var shield = p.streakProtected ? '&nbsp;🛡️' : '';
+          streakMkp = '<span style="font-size:0.7rem;margin-left:5px;opacity:.85;" title="' + p.streakDays + '-day streak">🔥' + p.streakDays + 'd' + shield + '</span>';
+        }
+
+        var nameTag = crownMkp + _gEsc(p.name) +
+          (isMe ? ' <span style="color:var(--gam-green);font-size:0.62rem;font-weight:700;margin-left:5px;letter-spacing:0.05em;">YOU</span>' : '') +
+          streakMkp;
+
+        if (isMe) _gam.myWeeklyLevels = p.weeklyXp || 0;
 
         html +=
           '<div class="gam-lb-row' + rowCls + '">' +
-            '<span class="gam-lb-rank' + rankCls + '">' + medal + '</span>' +
+            '<span class="gam-lb-rank' + rankCls + '">' + globalRnk + '</span>' +
             '<div class="gam-lb-avatar' + avaCls + '">' + _gIni(p.name) + '</div>' +
             '<div class="gam-lb-info">' +
               '<div class="gam-lb-name">' + nameTag + '</div>' +
@@ -17180,8 +17301,8 @@
               '</div>' +
             '</div>' +
             '<div class="gam-lb-right">' +
-              '<span class="gam-lb-score">' + p.totalXp + ' XP</span>' +
-              '<span class="gam-lb-level" style="color:#DAA520;font-weight:700;">' + (p.weeklyCP || 0) + ' CP</span>' +
+              '<span class="gam-lb-score" style="color:' + pilotTier.color + ';">' + (p.weeklyXp || 0) + ' XP</span>' +
+              '<span class="gam-lb-level" style="color:rgba(255,255,255,.35);font-size:0.68rem;">' + (p.mergedXp || 0) + ' total</span>' +
             '</div>' +
           '</div>';
       });
@@ -17283,6 +17404,8 @@
   window._gamTierOf          = _gamTierOf;
   window._gamTierLabel       = _gamTierLabel;
   window._gamStripesSvg      = _gamStripesSvg;
+  window.GAM_TIERS           = GAM_TIERS;
+  window.PROFESSION_TIERS    = PROFESSION_TIERS;
 
   // Staggered load: fires 1500 ms after DOM ready so the main app initialises first.
   // If the user isn't logged in yet, _gamInit() exits early; renderSquadron() will

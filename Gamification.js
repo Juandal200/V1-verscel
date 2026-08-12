@@ -479,78 +479,68 @@ function getNotificationCounts(myEmail) {
 // -----------------------------------------------------------------------------
 function getLeaderboard(limit) {
   try {
-    var safeLimit = (limit && !isNaN(Number(limit))) ? Math.min(Number(limit), 100) : 20;
-    var ss = _gamSS_();
+    var safeLimit = (limit && !isNaN(Number(limit))) ? Math.min(Number(limit), 100) : 50;
 
-    var progSheet = ss.getSheetByName('Progress');
-    if (!progSheet) return _gamOk_([], 'No progress data yet.');
-    var progData = progSheet.getDataRange().getValues();
-    if (progData.length < 2) return _gamOk_([], 'No progress data yet.');
-    var progHeaders = progData[0].map(function(h) { return String(h); });
-    var progRows = progData.slice(1).map(function(row) {
-      var obj = {};
-      progHeaders.forEach(function(h, i) { obj[h] = row[i]; });
-      return obj;
-    });
-
-    // XP base per level — index matches level number (0 is unused placeholder)
-    // Decreasing curve: early levels give more XP, later levels give less.
-    var XP_BASE = [0, 500, 450, 400, 350, 300, 260, 220, 180, 140, 100];
-
-    // Aggregate per userId — track best score per distinct level to avoid
-    // counting multiple attempts at the same level as separate completions.
-    var byUser = {};
-    progRows.forEach(function(row) {
-      var uid       = String(row['userId'] || '').trim();
-      var score     = parseFloat(row['scoreAvg']) || 0;
-      var lvl       = parseInt(row['level'], 10)  || 0;
-      var completed = String(row['completed'] || '').toLowerCase();
-      var isDone    = (completed === 'true' || completed === '1' || completed === 'yes');
-      if (!uid || lvl < 1) return;
-      if (!byUser[uid]) byUser[uid] = { levels: {}, maxLevel: 0 };
-      if (!byUser[uid].levels[lvl]) byUser[uid].levels[lvl] = { bestScore: 0, completed: false };
-      if (score > byUser[uid].levels[lvl].bestScore) byUser[uid].levels[lvl].bestScore = score;
-      if (isDone) byUser[uid].levels[lvl].completed = true;
-      if (lvl > byUser[uid].maxLevel) byUser[uid].maxLevel = lvl;
-    });
-
-    // Build user lookup from Users sheet
-    var users   = _gamReadAll_(GAM_SHEETS.USERS);
+    // Build user map from Users sheet
+    var users = _gamReadAll_(GAM_SHEETS.USERS);
     var userMap = {};
     users.forEach(function(u) {
       var uid = String(u['userId'] || '').trim();
       if (uid) userMap[uid] = u;
     });
 
-    // Build ranked array — XP and completedLevels derived from distinct level records
-    var entries = Object.keys(byUser).map(function(uid) {
-      var agg = byUser[uid];
-      var u   = userMap[uid] || {};
-      var totalXp = 0;
-      var completedLevels = 0;
-      Object.keys(agg.levels).forEach(function(lvlKey) {
-        var lvlData = agg.levels[lvlKey];
-        if (!lvlData.completed) return;
-        completedLevels++;
-        var lvl   = parseInt(lvlKey, 10);
-        var base  = lvl <= 10 ? XP_BASE[lvl] : 100;
-        var bonus = lvlData.bestScore >= 90 ? 50 : lvlData.bestScore >= 70 ? 25 : 0;
-        totalXp += base + bonus;
+    // Read LmsXp — cumulative + weekly XP per user
+    var lmsXpMap = {};
+    try {
+      var thisMonday = _lmsGetMondayIso_();
+      dbReadAll_('LmsXp').forEach(function(r) {
+        var uid = String(r.userId || '').trim();
+        if (!uid) return;
+        var weeklyReset = !r.weeklyResetAt || String(r.weeklyResetAt) < thisMonday;
+        lmsXpMap[uid] = {
+          lmsXp: Number(r.lmsXp) || 0,
+          weeklyXp: weeklyReset ? 0 : (Number(r.weeklyXp) || 0)
+        };
       });
+    } catch(e) {}
+
+    // Read UserStreaks — streak info per user
+    var streakMap = {};
+    try {
+      dbReadAll_('UserStreaks').forEach(function(r) {
+        var uid = String(r.userId || '').trim();
+        if (!uid) return;
+        var hoursSince = r.lastActiveAt ? (Date.now() - new Date(r.lastActiveAt).getTime()) / (1000 * 60 * 60) : 999;
+        streakMap[uid] = {
+          streakDays: hoursSince < 48 ? (Number(r.streakDays) || 0) : 0,
+          streakProtected: hoursSince < 48
+        };
+      });
+    } catch(e) {}
+
+    // Build ranked list from all users with any LMS activity
+    var uids = Object.keys(lmsXpMap);
+    var entries = uids.map(function(uid) {
+      var u = userMap[uid] || {};
+      var xp = lmsXpMap[uid] || { lmsXp: 0, weeklyXp: 0 };
+      var streak = streakMap[uid] || { streakDays: 0, streakProtected: false };
       return {
         userId:          uid,
         name:            String(u['name'] || u['email'] || uid),
         email:           String(u['email'] || ''),
-        totalXp:         totalXp,
-        completedLevels: completedLevels,
-        maxLevel:        agg.maxLevel || parseInt(u['currentLevel'], 10) || 1
+        profession:      String(u['licenseType'] || 'PILOT'),
+        lmsXp:           xp.lmsXp,
+        mergedXp:        xp.lmsXp,
+        weeklyXp:        xp.weeklyXp,
+        streakDays:      streak.streakDays,
+        streakProtected: streak.streakProtected
       };
     });
 
-    // Tier-first: completedLevels DESC keeps tier grouping intact; totalXp breaks ties
+    // Sort by weeklyXp DESC, lmsXp DESC as tiebreaker
     entries.sort(function(a, b) {
-      if (b.completedLevels !== a.completedLevels) return b.completedLevels - a.completedLevels;
-      return b.totalXp - a.totalXp;
+      if (b.weeklyXp !== a.weeklyXp) return b.weeklyXp - a.weeklyXp;
+      return b.lmsXp - a.lmsXp;
     });
 
     var top = entries.slice(0, safeLimit).map(function(p, i) {
@@ -558,9 +548,12 @@ function getLeaderboard(limit) {
         rank:            i + 1,
         name:            p.name,
         email:           p.email,
-        totalXp:         p.totalXp,
-        completedLevels: p.completedLevels,
-        maxLevel:        p.maxLevel
+        profession:      p.profession,
+        lmsXp:           p.lmsXp,
+        mergedXp:        p.mergedXp,
+        weeklyXp:        p.weeklyXp,
+        streakDays:      p.streakDays,
+        streakProtected: p.streakProtected
       };
     });
 
@@ -657,10 +650,27 @@ function getMyCompletedLevels(sessionToken) {
       var required = levelCountryMap[lvl] || 1;
       if (levelDoneCounts[lvl] >= required) completedCount++;
     });
-    var lmsXp = 0;
-    try { lmsXp = lmsGetTotalXp_(user.userId); } catch(e) {}
-    return { ok: true, completedLevels: completedCount, lmsXp: lmsXp };
+    var lmsXp = 0, weeklyXp = 0, streakDays = 0, streakProtected = false;
+    try {
+      var xpData = lmsGetXpData_(user.userId);
+      lmsXp = xpData.lmsXp;
+      weeklyXp = xpData.weeklyXp;
+    } catch(e) {}
+    try {
+      var streakData = lmsGetStreak_(user.userId);
+      streakDays = streakData.streakDays;
+      streakProtected = streakData.streakProtected;
+    } catch(e) {}
+    return {
+      ok: true,
+      completedLevels: completedCount,
+      lmsXp: lmsXp,
+      mergedXp: lmsXp,
+      weeklyXp: weeklyXp,
+      streakDays: streakDays,
+      streakProtected: streakProtected
+    };
   } catch(e) {
-    return { ok: false, completedLevels: 0, lmsXp: 0 };
+    return { ok: false, completedLevels: 0, lmsXp: 0, mergedXp: 0, weeklyXp: 0, streakDays: 0, streakProtected: false };
   }
 }

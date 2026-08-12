@@ -34,7 +34,7 @@ function setupLMSModuleSheets() {
   var ss = dbGetSpreadsheet_();
   var sheets = [
     'Modules', 'ModuleVideos', 'ModuleQuiz',
-    'ModuleScenarios', 'ModuleForum', 'ModuleForumLikes', 'ModuleProgress', 'LmsXp'
+    'ModuleScenarios', 'ModuleForum', 'ModuleForumLikes', 'ModuleProgress', 'LmsXp', 'UserStreaks'
   ];
 
   sheets.forEach(function(name) {
@@ -49,9 +49,37 @@ function setupLMSModuleSheets() {
       Logger.log('Sheet already exists: ' + name);
     }
   });
+
+  // Ensure existing sheets have all expected columns (adds missing headers without losing data)
+  _lmsRepairSheetHeaders_(ss, 'LmsXp');
+  _lmsRepairSheetHeaders_(ss, 'UserStreaks');
+}
+
+function _lmsRepairSheetHeaders_(ss, sheetName) {
+  try {
+    var schema = DB_SCHEMA[sheetName];
+    if (!schema) return;
+    var sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return;
+    var existing = sheet.getLastColumn() > 0 ? sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(String) : [];
+    schema.forEach(function(col, i) {
+      if (existing.indexOf(col) === -1) {
+        sheet.getRange(1, i + 1).setValue(col);
+      }
+    });
+  } catch(e) {}
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
+
+function _lmsGetMondayIso_() {
+  var d = new Date();
+  var day = d.getDay();
+  var diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
 
 function lmsGetTotalXp_(userId) {
   var rows = dbReadAll_('LmsXp').filter(function(r) {
@@ -60,17 +88,90 @@ function lmsGetTotalXp_(userId) {
   return rows.length ? (Number(rows[0].lmsXp) || 0) : 0;
 }
 
+function lmsGetXpData_(userId) {
+  var rows = dbReadAll_('LmsXp').filter(function(r) {
+    return String(r.userId || '') === String(userId);
+  });
+  if (!rows.length) return { lmsXp: 0, weeklyXp: 0 };
+  var row = rows[0];
+  var thisMonday = _lmsGetMondayIso_();
+  var weeklyReset = !row.weeklyResetAt || String(row.weeklyResetAt) < thisMonday;
+  return {
+    lmsXp: Number(row.lmsXp) || 0,
+    weeklyXp: weeklyReset ? 0 : (Number(row.weeklyXp) || 0)
+  };
+}
+
 function lmsAddXp_(userId, amount) {
   if (!amount) return lmsGetTotalXp_(userId);
   var rows = dbReadAll_('LmsXp');
   var existing = rows.filter(function(r) { return String(r.userId || '') === String(userId); })[0];
+  var thisMonday = _lmsGetMondayIso_();
   if (existing) {
     var newTotal = (Number(existing.lmsXp) || 0) + amount;
-    dbUpdateByRow_('LmsXp', existing.__rowNumber, { lmsXp: newTotal });
+    var weeklyReset = !existing.weeklyResetAt || String(existing.weeklyResetAt) < thisMonday;
+    var newWeekly = weeklyReset ? amount : ((Number(existing.weeklyXp) || 0) + amount);
+    dbUpdateByRow_('LmsXp', existing.__rowNumber, {
+      lmsXp: newTotal,
+      weeklyXp: newWeekly,
+      weeklyResetAt: weeklyReset ? thisMonday : existing.weeklyResetAt
+    });
     return newTotal;
   } else {
-    dbAppend_('LmsXp', { userId: userId, lmsXp: amount });
+    dbAppend_('LmsXp', { userId: userId, lmsXp: amount, weeklyXp: amount, weeklyResetAt: thisMonday });
     return amount;
+  }
+}
+
+function lmsGetStreak_(userId) {
+  try {
+    var rows = dbReadAll_('UserStreaks').filter(function(r) {
+      return String(r.userId || '') === String(userId);
+    });
+    if (!rows.length) return { streakDays: 0, longestStreak: 0, lastActiveAt: '', streakProtected: false };
+    var row = rows[0];
+    var hoursSince = row.lastActiveAt ? (Date.now() - new Date(row.lastActiveAt).getTime()) / (1000 * 60 * 60) : 999;
+    var active = hoursSince < 48;
+    return {
+      streakDays: active ? (Number(row.streakDays) || 0) : 0,
+      longestStreak: Number(row.longestStreak) || 0,
+      lastActiveAt: row.lastActiveAt || '',
+      streakProtected: active
+    };
+  } catch(e) {
+    return { streakDays: 0, longestStreak: 0, lastActiveAt: '', streakProtected: false };
+  }
+}
+
+function lmsUpdateStreak_(userId) {
+  try {
+    var now = new Date();
+    var nowTs = now.getTime();
+    var rows = dbReadAll_('UserStreaks').filter(function(r) {
+      return String(r.userId || '') === String(userId);
+    });
+    if (!rows.length) {
+      dbAppend_('UserStreaks', { userId: userId, streakDays: 1, lastActiveAt: now.toISOString(), longestStreak: 1 });
+      return 1;
+    }
+    var row = rows[0];
+    var lastTs = row.lastActiveAt ? new Date(row.lastActiveAt).getTime() : 0;
+    var hoursSince = (nowTs - lastTs) / (1000 * 60 * 60);
+    var streakDays = Number(row.streakDays) || 0;
+    var longest = Number(row.longestStreak) || 0;
+    if (hoursSince < 24) {
+      dbUpdateByRow_('UserStreaks', row.__rowNumber, { lastActiveAt: now.toISOString() });
+    } else if (hoursSince < 48) {
+      streakDays++;
+      longest = Math.max(streakDays, longest);
+      dbUpdateByRow_('UserStreaks', row.__rowNumber, { streakDays: streakDays, lastActiveAt: now.toISOString(), longestStreak: longest });
+    } else {
+      streakDays = 1;
+      dbUpdateByRow_('UserStreaks', row.__rowNumber, { streakDays: 1, lastActiveAt: now.toISOString() });
+    }
+    return streakDays;
+  } catch(e) {
+    return 0;
   }
 }
 
