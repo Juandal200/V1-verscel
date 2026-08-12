@@ -10929,16 +10929,128 @@
       return '<span style="font-size:0.7rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;">' + (label || 'To do') + '</span>';
     }
 
-    // YouTube facade: show crisp maxresdefault thumbnail + play button; load iframe on click
-    window._lmsPlayYt = function(wrapper, ytId) {
+    // ── YouTube IFrame API — load once, shared by all video players ──────────────
+    (function() {
+      if (window._ytApiLoading) return;
+      window._ytApiLoading = true;
+      window._ytPlayerQueue = [];
+      window.onYouTubeIframeAPIReady = function() {
+        window._ytApiReady = true;
+        var q = window._ytPlayerQueue || [];
+        window._ytPlayerQueue = [];
+        q.forEach(function(fn) { try { fn(); } catch(e) {} });
+      };
+      var s = document.createElement('script');
+      s.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(s);
+    })();
+
+    // Create a YT.Player that polls for mid-video quizzes
+    function _lmsCreateYtPlayer(elId, ytId, videoId, moduleId) {
+      function _init() {
+        var fired = {};
+        var timer = null;
+        window._lmsVidQuizzes = window._lmsVidQuizzes || {};
+
+        var player = new YT.Player(elId, {
+          videoId: ytId,
+          playerVars: { rel: 0, autoplay: 1, modestbranding: 1 },
+          events: {
+            onReady: function() {
+              if (!window._lmsVidQuizzes[videoId]) {
+                google.script.run
+                  .withSuccessHandler(function(res) {
+                    window._lmsVidQuizzes[videoId] = res.ok ? (res.data || []) : [];
+                  })
+                  .withFailureHandler(function() { window._lmsVidQuizzes[videoId] = []; })
+                  .apiGetVideoQuizzes(AppState.sessionToken, videoId);
+              }
+            },
+            onStateChange: function(ev) {
+              if (ev.data === YT.PlayerState.PLAYING) {
+                if (!timer) timer = setInterval(function() {
+                  var qs = (window._lmsVidQuizzes || {})[videoId] || [];
+                  var t  = player.getCurrentTime();
+                  for (var i = 0; i < qs.length; i++) {
+                    var q = qs[i];
+                    var ts = Number(q.videoTimestamp || 0);
+                    if (ts > 0 && t >= ts && !fired[q.quizId]) {
+                      fired[q.quizId] = true;
+                      player.pauseVideo();
+                      _lmsShowVideoQuiz(player, q, moduleId, fired);
+                      break;
+                    }
+                  }
+                }, 900);
+              } else {
+                if (timer) { clearInterval(timer); timer = null; }
+              }
+            }
+          }
+        });
+      }
+      if (window._ytApiReady) { _init(); }
+      else { (window._ytPlayerQueue = window._ytPlayerQueue || []).push(_init); }
+    }
+
+    // Quiz overlay shown when a timestamp is hit
+    function _lmsShowVideoQuiz(player, quiz, moduleId, fired) {
+      var ov = document.createElement('div');
+      ov.id = '_lmsVqOv';
+      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+      var opts = quiz.options || [];
+      ov.innerHTML =
+        '<div style="background:#0d0d0d;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:32px;max-width:500px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.8);">' +
+          '<div style="font-size:0.67rem;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,.35);margin-bottom:14px;text-transform:uppercase;">✋ Quick check</div>' +
+          '<p style="font-size:1rem;font-weight:600;margin:0 0 20px;line-height:1.5;color:#fff;">' + safeText(quiz.question) + '</p>' +
+          '<div id="_lmsVqOpts" style="display:grid;gap:10px;">' +
+            opts.map(function(o, i) {
+              return '<button onclick="_lmsVqPick(' + i + ')" style="text-align:left;padding:12px 16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#fff;font-size:0.88rem;cursor:pointer;">' + safeText(o) + '</button>';
+            }).join('') +
+          '</div>' +
+          '<div id="_lmsVqMsg" style="margin-top:16px;min-height:20px;font-size:0.85rem;"></div>' +
+        '</div>';
+      document.body.appendChild(ov);
+
+      window._lmsVqPick = function(idx) {
+        var btns = Array.prototype.slice.call(document.querySelectorAll('#_lmsVqOpts button'));
+        btns.forEach(function(b) { b.onclick = null; b.style.cursor = 'default'; });
+        var correct = idx === quiz.correctIndex;
+        btns.forEach(function(b, i) {
+          if (i === quiz.correctIndex) { b.style.background = 'rgba(22,163,74,.25)'; b.style.borderColor = 'rgba(22,163,74,.5)'; b.style.color = '#22c55e'; }
+          else if (i === idx)          { b.style.background = 'rgba(239,68,68,.15)'; b.style.borderColor = 'rgba(239,68,68,.4)';  b.style.color = '#ef4444'; b.style.opacity = '1'; }
+          else                         { b.style.opacity = '0.3'; }
+        });
+        var msg = document.getElementById('_lmsVqMsg');
+        if (correct) {
+          var xp = quiz.xpReward || 5;
+          msg.innerHTML = '<span style="color:#22c55e;font-weight:700;">✓ Correct! +' + xp + ' XP</span>' +
+            (quiz.explanation ? ' <span style="color:rgba(255,255,255,.45);">· ' + safeText(quiz.explanation) + '</span>' : '');
+          google.script.run.apiSubmitVideoQuizAnswer(AppState.sessionToken, moduleId, quiz.quizId, true);
+        } else {
+          fired[quiz.quizId] = false;
+          msg.innerHTML = '<span style="color:#ef4444;font-weight:700;">✗ Not quite — rewinding 60 seconds</span>' +
+            (quiz.explanation ? '<br><span style="color:rgba(255,255,255,.45);">' + safeText(quiz.explanation) + '</span>' : '');
+        }
+        setTimeout(function() {
+          var el = document.getElementById('_lmsVqOv');
+          if (el) el.parentNode.removeChild(el);
+          if (!correct) { player.seekTo(Math.max(0, Number(quiz.videoTimestamp || 0) - 60), true); }
+          player.playVideo();
+        }, correct ? 2000 : 3000);
+      };
+    }
+
+    window._lmsPlayYt = function(wrapper, ytId, videoId, moduleId) {
       wrapper.onclick = null;
       wrapper.style.cursor = 'default';
-      wrapper.innerHTML = '<iframe src="https://www.youtube.com/embed/' + ytId + '?rel=0&autoplay=1" frameborder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture;web-share" allowfullscreen style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:8px;"></iframe>';
+      wrapper.innerHTML = '<div id="ytpl_' + videoId + '" style="position:absolute;top:0;left:0;width:100%;height:100%;"></div>';
+      _lmsCreateYtPlayer('ytpl_' + videoId, ytId, videoId, moduleId);
     };
 
     function _videoEmbed(vid, watched, moduleId) {
       var ytId = _ytId(vid.youtubeUrl);
-      return '<div onclick="_lmsPlayYt(this,\'' + ytId + '\')" style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;background:#000;margin-bottom:10px;cursor:pointer;">' +
+      return '<div onclick="_lmsPlayYt(this,\'' + ytId + '\',\'' + vid.videoId + '\',\'' + moduleId + '\')" style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;background:#000;margin-bottom:10px;cursor:pointer;">' +
         '<img src="https://img.youtube.com/vi/' + ytId + '/maxresdefault.jpg" ' +
              'onerror="this.src=\'https://img.youtube.com/vi/' + ytId + '/hqdefault.jpg\'" ' +
              'style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:8px;" draggable="false">' +
@@ -12088,32 +12200,72 @@
 
   function adminShowQuestionForm(moduleId, moduleTitle, questionId) {
     var _tok = _navToken;
-    if (!questionId) { _buildQuestionForm(moduleId, moduleTitle, null); return; }
     byId('quizFormArea').innerHTML = _spinnerHtml('Loading...');
 
+    // Fetch both videos (for dropdown) and existing question (if editing)
+    var _videos = null, _question = null, _pending = 2;
+    function _maybeRender() {
+      if (--_pending > 0) return;
+      _buildQuestionForm(moduleId, moduleTitle, _question, _videos || []);
+    }
+
     google.script.run
-      .withSuccessHandler(function(res) {
-        if (_navToken !== _tok) return;
-        var q = (res.questions || []).find(function(x) { return x.questionId === questionId; });
-        _buildQuestionForm(moduleId, moduleTitle, q || null);
-      })
-      .withFailureHandler(function(err) { byId('quizFormArea').innerHTML = '<span style="color:var(--red);">' + safeText(String(err)) + '</span>'; })
-      .apiAdminListModuleQuestions(AppState.sessionToken, moduleId);
+      .withSuccessHandler(function(res) { if (_navToken !== _tok) return; _videos = res.videos || []; _maybeRender(); })
+      .withFailureHandler(function() { _videos = []; _maybeRender(); })
+      .apiAdminListModuleVideos(AppState.sessionToken, moduleId);
+
+    if (!questionId) { _question = null; _maybeRender(); }
+    else {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (_navToken !== _tok) return;
+          _question = (res.questions || []).find(function(x) { return x.questionId === questionId; }) || null;
+          _maybeRender();
+        })
+        .withFailureHandler(function() { _question = null; _maybeRender(); })
+        .apiAdminListModuleQuestions(AppState.sessionToken, moduleId);
+    }
   }
 
-  function _buildQuestionForm(moduleId, moduleTitle, q) {
+  function _secsToMmss(s) {
+    s = Number(s) || 0;
+    var m = Math.floor(s / 60);
+    var ss = Math.floor(s % 60);
+    return (m < 10 ? '0' : '') + m + ':' + (ss < 10 ? '0' : '') + ss;
+  }
+  function _mmssToSecs(str) {
+    var p = String(str || '0').split(':');
+    if (p.length === 2) return Number(p[0]) * 60 + Number(p[1]);
+    return Number(p[0]) || 0;
+  }
+
+  function _buildQuestionForm(moduleId, moduleTitle, q, videos) {
     var opts = q ? q.options : ['', '', '', ''];
     var correctIdx = q ? q.correctIndex : 0;
 
+    var videoOpts = (videos || []).map(function(v) {
+      var sel = (q && q.videoId === v.videoId) ? ' selected' : '';
+      return '<option value="' + v.videoId + '"' + sel + '>' + safeText(v.title || v.videoId) + '</option>';
+    }).join('');
+
     byId('quizFormArea').innerHTML =
-      '<div style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:16px;max-width:520px;">' +
+      '<div style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:16px;max-width:540px;">' +
         '<h4 style="margin-top:0;">' + (q ? 'Edit Question' : 'New Question') + '</h4>' +
         '<div style="display:grid;gap:10px;">' +
-          '<textarea id="qfQuestion" class="input" rows="2" placeholder="Question text...">' + safeText(q ? q.question : '') + '</textarea>' +
-          '<select id="qfSection" class="input">' +
-            '<option value="explanation"' + ((!q || q.section==='explanation') ? ' selected' : '') + '>Explanation Quiz</option>' +
-            '<option value="evaluation"'  + ((q && q.section==='evaluation')   ? ' selected' : '') + '>Evaluation Quiz</option>' +
+          '<select id="qfVideoId" class="input">' +
+            (videoOpts || '<option value="">— No videos in this module yet —</option>') +
           '</select>' +
+          '<div style="display:flex;gap:10px;">' +
+            '<div style="flex:1;">' +
+              '<label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px;">Timestamp (MM:SS)</label>' +
+              '<input id="qfTimestamp" class="input" value="' + _secsToMmss(q ? q.videoTimestamp : 0) + '" placeholder="e.g. 02:00">' +
+            '</div>' +
+            '<div style="width:100px;">' +
+              '<label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px;">XP reward</label>' +
+              '<input id="qfXp" class="input" type="number" min="1" value="' + (q ? q.xpReward : 5) + '">' +
+            '</div>' +
+          '</div>' +
+          '<textarea id="qfQuestion" class="input" rows="2" placeholder="Question text...">' + safeText(q ? q.question : '') + '</textarea>' +
           '<label style="font-size:0.78rem;color:var(--muted);">Options (select the correct answer)</label>' +
           opts.map(function(opt, i) {
             return '<div style="display:flex;gap:8px;align-items:center;">' +
@@ -12121,7 +12273,10 @@
               '<input id="qfOpt' + i + '" class="input" style="flex:1;" value="' + safeText(opt) + '" placeholder="Option ' + (i+1) + '">' +
             '</div>';
           }).join('') +
-          '<input id="qfOrder" class="input" type="number" value="' + (q ? q.questionOrder : 0) + '" placeholder="Order">' +
+          '<div>' +
+            '<label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px;">Explanation (shown after answer)</label>' +
+            '<input id="qfExplanation" class="input" value="' + safeText(q ? q.explanation : '') + '" placeholder="Why is this the correct answer?">' +
+          '</div>' +
         '</div>' +
         '<div style="margin-top:12px;display:flex;gap:8px;">' +
           '<button class="btn primary" onclick="adminSaveQuestion(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',' + (q ? '\'' + q.questionId + '\'' : 'null') + ')">Save</button>' +
@@ -12140,12 +12295,14 @@
     var correctIdx   = correctRadio ? Number(correctRadio.value) : 0;
 
     var payload = {
-      moduleId:      moduleId,
-      question:      byId('qfQuestion').value.trim(),
-      section:       byId('qfSection').value,
-      options:       opts,
-      correctIndex:  correctIdx,
-      questionOrder: Number(byId('qfOrder').value) || 0
+      moduleId:       moduleId,
+      videoId:        (byId('qfVideoId') || {}).value || '',
+      question:       (byId('qfQuestion') || {}).value.trim(),
+      options:        opts,
+      correctIndex:   correctIdx,
+      explanation:    (byId('qfExplanation') || {}).value.trim(),
+      xpReward:       Number((byId('qfXp') || {}).value) || 5,
+      videoTimestamp: _mmssToSecs((byId('qfTimestamp') || {}).value)
     };
     if (questionId) payload.questionId = questionId;
     byId('qfMsg').innerHTML = _spinnerHtml('Saving...');

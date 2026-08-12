@@ -301,11 +301,13 @@ var DB_SCHEMA = {
   ModuleQuiz: [
     'questionId',
     'moduleId',
-    'section',
+    'videoId',
     'question',
     'optionsJson',
     'correctIndex',
-    'questionOrder',
+    'explanation',
+    'xpReward',
+    'videoTimestamp',
     'createdAt'
   ],
 

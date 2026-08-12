@@ -455,17 +455,17 @@ function apiAdminSaveModuleQuestion(sessionToken, payload) {
 
     var question  = String(payload.question  || '').trim();
     var moduleId  = String(payload.moduleId  || '').trim();
-    var section   = String(payload.section   || '').trim();
+    var videoId   = String(payload.videoId   || '').trim();
 
-    if (!question)  throw new Error('question is required.');
-    if (!moduleId)  throw new Error('moduleId is required.');
-    if (section !== 'explanation' && section !== 'evaluation') {
-      throw new Error('section must be explanation or evaluation.');
-    }
+    if (!question) throw new Error('question is required.');
+    if (!moduleId) throw new Error('moduleId is required.');
+    if (!videoId)  throw new Error('videoId is required.');
 
     var options = Array.isArray(payload.options) ? payload.options : [];
     if (options.length < 2) throw new Error('At least 2 options required.');
-    var correctIndex = Number(payload.correctIndex || 0);
+    var correctIndex    = Number(payload.correctIndex    || 0);
+    var xpReward        = Number(payload.xpReward        || 5);
+    var videoTimestamp  = Number(payload.videoTimestamp  || 0);
     if (correctIndex < 0 || correctIndex >= options.length) throw new Error('Invalid correctIndex.');
 
     var result = dbWithScriptLock_(function() {
@@ -474,24 +474,28 @@ function apiAdminSaveModuleQuestion(sessionToken, payload) {
         var existing = dbFindOne_('ModuleQuiz', 'questionId', payload.questionId);
         if (!existing) throw new Error('Question not found.');
         var patch = {
-          question:      question,
-          section:       section,
-          optionsJson:   JSON.stringify(options),
-          correctIndex:  correctIndex,
-          questionOrder: payload.questionOrder !== undefined ? Number(payload.questionOrder) : Number(existing.questionOrder || 0)
+          videoId:        videoId,
+          question:       question,
+          optionsJson:    JSON.stringify(options),
+          correctIndex:   correctIndex,
+          explanation:    String(payload.explanation || '').trim(),
+          xpReward:       xpReward,
+          videoTimestamp: videoTimestamp
         };
         dbUpdateByRow_('ModuleQuiz', existing.__rowNumber, patch);
         return mergeObjects_(existing, patch);
       } else {
         var newQ = {
-          questionId:    uuid_('QST'),
-          moduleId:      moduleId,
-          section:       section,
-          question:      question,
-          optionsJson:   JSON.stringify(options),
-          correctIndex:  correctIndex,
-          questionOrder: Number(payload.questionOrder || 0),
-          createdAt:     now
+          questionId:     uuid_('QST'),
+          moduleId:       moduleId,
+          videoId:        videoId,
+          question:       question,
+          optionsJson:    JSON.stringify(options),
+          correctIndex:   correctIndex,
+          explanation:    String(payload.explanation || '').trim(),
+          xpReward:       xpReward,
+          videoTimestamp: videoTimestamp,
+          createdAt:      now
         };
         dbAppend_('ModuleQuiz', newQ);
         return newQ;
@@ -530,25 +534,71 @@ function apiAdminListModuleQuestions(sessionToken, moduleId) {
 
     var questions = dbReadAll_('ModuleQuiz')
       .filter(function(q) { return String(q.moduleId || '') === moduleId; })
-      .sort(function(a, b) { return Number(a.questionOrder || 0) - Number(b.questionOrder || 0); })
+      .sort(function(a, b) { return Number(a.videoTimestamp || 0) - Number(b.videoTimestamp || 0); })
       .map(function(q) {
         var opts = [];
         try { opts = JSON.parse(q.optionsJson || '[]'); } catch(e) {}
         return {
-          questionId:    q.questionId,
-          moduleId:      q.moduleId,
-          section:       q.section,
-          question:      q.question,
-          options:       opts,
-          correctIndex:  Number(q.correctIndex || 0),
-          questionOrder: Number(q.questionOrder || 0),
-          createdAt:     q.createdAt
+          questionId:     q.questionId,
+          moduleId:       q.moduleId,
+          videoId:        q.videoId,
+          question:       q.question,
+          options:        opts,
+          correctIndex:   Number(q.correctIndex || 0),
+          explanation:    q.explanation || '',
+          xpReward:       Number(q.xpReward || 5),
+          videoTimestamp: Number(q.videoTimestamp || 0),
+          createdAt:      q.createdAt
         };
       });
 
     return { ok: true, questions: questions };
   } catch(err) {
     return apiError_('apiAdminListModuleQuestions', err);
+  }
+}
+
+function apiGetVideoQuizzes(sessionToken, videoId) {
+  try {
+    AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    videoId = String(videoId || '');
+    if (!videoId) return { ok: true, data: [] };
+
+    var quizzes = dbReadAll_('ModuleQuiz')
+      .filter(function(r) { return String(r.videoId || '') === videoId; })
+      .sort(function(a, b) { return Number(a.videoTimestamp || 0) - Number(b.videoTimestamp || 0); })
+      .map(function(r) {
+        var opts = [];
+        try { opts = JSON.parse(r.optionsJson || '[]'); } catch(e) {}
+        return {
+          quizId:         r.questionId,
+          videoId:        r.videoId,
+          moduleId:       r.moduleId,
+          question:       r.question,
+          options:        opts,
+          correctIndex:   Number(r.correctIndex || 0),
+          explanation:    r.explanation || '',
+          xpReward:       Number(r.xpReward || 5),
+          videoTimestamp: Number(r.videoTimestamp || 0)
+        };
+      });
+
+    return { ok: true, data: quizzes };
+  } catch(e) {
+    return apiError_('apiGetVideoQuizzes', e);
+  }
+}
+
+function apiSubmitVideoQuizAnswer(sessionToken, moduleId, quizId, isCorrect) {
+  try {
+    var user = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    if (!isCorrect) return { ok: true, xpAwarded: 0 };
+    var row = dbFindOne_('ModuleQuiz', 'questionId', quizId);
+    var xp = row ? (Number(row.xpReward) || 5) : 5;
+    updateLmsXp_(user.userId, xp);
+    return { ok: true, xpAwarded: xp };
+  } catch(e) {
+    return apiError_('apiSubmitVideoQuizAnswer', e);
   }
 }
 
