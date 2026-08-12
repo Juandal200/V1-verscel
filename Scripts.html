@@ -11409,6 +11409,7 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (!res || !res.ok) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error posting.') + '</span>'; return; }
+        if (window._lmsAwardXp) _lmsAwardXp(10, 'Forum reply');
         input.value = '';
         msg.innerHTML = '';
         renderModuleDetail(moduleId);
@@ -11474,6 +11475,7 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (!res || !res.ok) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error posting.') + '</span>'; return; }
+        if (window._lmsAwardXp) _lmsAwardXp(20, 'Forum post');
         input.value = '';
         msg.innerHTML = '';
         renderModuleDetail(moduleId);
@@ -11493,6 +11495,7 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (!res || !res.ok) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error posting.') + '</span>'; return; }
+        if (window._lmsAwardXp) _lmsAwardXp(20, 'Forum post');
         input.value = '';
         msg.innerHTML = '';
         renderModuleDetail(moduleId);
@@ -11519,7 +11522,10 @@
   function moduleMarkVideoWatched(moduleId, videoId) {
     google.script.run
       .withSuccessHandler(function(res) {
-        if (res && res.ok) renderModuleDetail(moduleId);
+        if (res && res.ok) {
+          if (window._lmsAwardXp) _lmsAwardXp(15, 'Video watched');
+          renderModuleDetail(moduleId);
+        }
       })
       .withFailureHandler(function() {})
       .apiModuleMarkVideoWatched(AppState.sessionToken, { moduleId: moduleId, videoId: videoId });
@@ -11556,6 +11562,7 @@
         }
         if (res.passed) {
           msgEl.innerHTML = '<span style="color:var(--green);font-weight:600;">✓ Passed! Score: ' + res.score + '%</span>';
+          if (window._lmsAwardXp) _lmsAwardXp(50, 'Quiz passed');
         } else {
           msgEl.innerHTML = '<span style="color:var(--red);">Score: ' + res.score + '% — need 85%. Retry in 15 min.</span>';
         }
@@ -11574,6 +11581,75 @@
       }, 800);
     });
   }
+
+  // ── LMS XP toast + topbar counter ────────────────────────────────────────────
+  var _lmsXpTotal = 0;
+  var _lmsXpToastQ = 0;
+
+  window._lmsAwardXp = function(amount, label) {
+    _lmsXpTotal += amount;
+
+    // Show / update topbar badge
+    var badge = document.getElementById('topnavLmsXpBadge');
+    var countEl = document.getElementById('topnavLmsXpCount');
+    if (badge && countEl) {
+      badge.style.display = 'flex';
+      // Count-up animation
+      var start = _lmsXpTotal - amount;
+      var end   = _lmsXpTotal;
+      var dur   = 600;
+      var t0    = Date.now();
+      var tick  = function() {
+        var pct = Math.min(1, (Date.now() - t0) / dur);
+        var eased = 1 - Math.pow(1 - pct, 3);
+        countEl.textContent = Math.round(start + (end - start) * eased);
+        if (pct < 1) requestAnimationFrame(tick);
+        else countEl.textContent = end;
+      };
+      requestAnimationFrame(tick);
+      // Pop animation on badge
+      badge.style.transition = 'transform .15s';
+      badge.style.transform = 'scale(1.2)';
+      setTimeout(function() { badge.style.transform = 'scale(1)'; }, 180);
+    }
+
+    // Floating toast
+    var toast = document.createElement('div');
+    toast.textContent = '+' + amount + ' XP  ·  ' + label;
+    var offset = _lmsXpToastQ * 52;
+    _lmsXpToastQ++;
+    toast.style.cssText = [
+      'position:fixed',
+      'bottom:' + (24 + offset) + 'px',
+      'right:24px',
+      'background:rgba(14,165,233,.92)',
+      'color:#fff',
+      'font-family:inherit',
+      'font-size:0.82rem',
+      'font-weight:700',
+      'padding:9px 18px',
+      'border-radius:22px',
+      'box-shadow:0 4px 18px rgba(0,0,0,.22)',
+      'pointer-events:none',
+      'z-index:99999',
+      'opacity:0',
+      'transform:translateY(12px)',
+      'transition:opacity .22s,transform .22s'
+    ].join(';');
+    document.body.appendChild(toast);
+    requestAnimationFrame(function() {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateY(0)';
+    });
+    setTimeout(function() {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(-10px)';
+      setTimeout(function() {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+        _lmsXpToastQ = Math.max(0, _lmsXpToastQ - 1);
+      }, 280);
+    }, 2200);
+  };
 
   window.renderModules          = renderModules;
   window.renderModuleDetail     = renderModuleDetail;
