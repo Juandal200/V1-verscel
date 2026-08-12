@@ -363,6 +363,11 @@ var DB_SCHEMA = {
     'timeSpentEvalSec',
     'completedAt',
     'updatedAt'
+  ],
+
+  LmsXp: [
+    'userId',
+    'lmsXp'
   ]
 };
 
