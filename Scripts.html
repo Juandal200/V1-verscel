@@ -1144,24 +1144,23 @@
     var hour = new Date().getHours();
     var flameFilter, borderCol, bgCol, copy, urgencyDot;
 
+    var hoursLeft = 23 - hour;
+    var copy = '<strong>' + hoursLeft + ' hour' + (hoursLeft === 1 ? '' : 's') + ' left</strong> — your <strong>' + streakDays + '-day streak</strong> ends tonight.';
+
     if (hour < 12) {
       flameFilter  = 'saturate(1) brightness(1)';
       borderCol    = 'rgba(251,146,60,0.28)';
       bgCol        = 'rgba(251,146,60,0.05)';
-      copy         = 'Your <strong>' + streakDays + '-day streak</strong> is safe — but it needs protecting today.';
       urgencyDot   = '#f97316';
     } else if (hour < 19) {
       flameFilter  = 'saturate(0.55) brightness(0.85)';
       borderCol    = 'rgba(251,146,60,0.4)';
       bgCol        = 'rgba(251,146,60,0.07)';
-      copy         = 'Halfway through the day. Your <strong>' + streakDays + '-day streak</strong> hasn\'t been protected yet.';
       urgencyDot   = '#fb923c';
     } else {
-      var hoursLeft = 24 - hour;
       flameFilter  = 'saturate(0.12) brightness(0.6)';
       borderCol    = 'rgba(239,68,68,0.45)';
       bgCol        = 'rgba(239,68,68,0.06)';
-      copy         = '<strong>' + hoursLeft + ' hour' + (hoursLeft === 1 ? '' : 's') + ' left</strong> — your ' + streakDays + '-day streak ends tonight.';
       urgencyDot   = '#ef4444';
     }
 
