@@ -606,17 +606,9 @@ function apiSubmitVideoQuizAnswer(sessionToken, moduleId, quizId, isCorrect) {
   try {
     var user = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
     if (!isCorrect) return { ok: true, xpAwarded: 0 };
-
-    // Check if this user already earned XP for this quiz
-    var alreadyAnswered = dbReadAll_('ModuleQuizAnswers').some(function(r) {
-      return String(r.userId) === String(user.userId) && String(r.quizId) === String(quizId);
-    });
-    if (alreadyAnswered) return { ok: true, xpAwarded: 0, alreadyEarned: true };
-
     var row = dbFindOne_('ModuleQuiz', 'questionId', quizId);
     var xp = row ? (Number(row.xpReward) || 5) : 5;
     lmsAddXp_(user.userId, xp);
-    dbAppend_('ModuleQuizAnswers', { userId: user.userId, quizId: quizId, moduleId: moduleId, answeredAt: new Date().toISOString() });
     return { ok: true, xpAwarded: xp };
   } catch(e) {
     return apiError_('apiSubmitVideoQuizAnswer', e);
