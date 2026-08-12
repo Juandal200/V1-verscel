@@ -53,6 +53,13 @@ function setupLMSModuleSheets() {
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
+function lmsGetTotalXp_(userId) {
+  var rows = dbReadAll_('ModuleProgress').filter(function(r) {
+    return String(r.userId || '') === String(userId);
+  });
+  return rows.reduce(function(sum, r) { return sum + (Number(r.lmsXp) || 0); }, 0);
+}
+
 function lmsGetProgress_(userId, moduleId) {
   var rows = dbReadAll_('ModuleProgress').filter(function(r) {
     return String(r.userId || '') === String(userId) &&
@@ -86,6 +93,7 @@ function lmsEnsureProgress_(userId, moduleId) {
     evalPassed:               false,
     badgeEarned:              false,
     badgeEarnedAt:            '',
+    lmsXp:                    0,
     timeSpentIntroSec:        0,
     timeSpentExplanationSec:  0,
     timeSpentApplicationSec:  0,
@@ -630,21 +638,30 @@ function apiModuleForumSavePost(sessionToken, payload) {
         };
         dbAppend_('ModuleForum', newPost);
 
-        // Mark forum participation on progress if top-level intro post
-        if (!parentPostId && (!section || section === 'intro')) {
-          var prog = lmsGetProgress_(caller.userId, moduleId);
-          if (prog && !lmsBool_(prog.introForumPosted)) {
-            var forumPatch = { introForumPosted: true, updatedAt: now };
-            if (lmsBool_(prog.introVideoWatched)) forumPatch.introCompleted = true;
-            dbUpdateByRow_('ModuleProgress', prog.__rowNumber, forumPatch);
+        // Award XP + mark forum participation
+        var xpForPost = parentPostId ? 10 : 20;
+        var progForXp = lmsGetProgress_(caller.userId, moduleId);
+        if (progForXp) {
+          var xpPatch = { lmsXp: (Number(progForXp.lmsXp) || 0) + xpForPost, updatedAt: now };
+          if (!parentPostId && (!section || section === 'intro') && !lmsBool_(progForXp.introForumPosted)) {
+            xpPatch.introForumPosted = true;
+            if (lmsBool_(progForXp.introVideoWatched)) xpPatch.introCompleted = true;
           }
+          dbUpdateByRow_('ModuleProgress', progForXp.__rowNumber, xpPatch);
+        } else if (!parentPostId && (!section || section === 'intro')) {
+          // Progress row may not exist yet for this module — ensure it
+          var ensured = lmsEnsureProgress_(caller.userId, moduleId);
+          var ep = { lmsXp: xpForPost, introForumPosted: true, updatedAt: now };
+          if (lmsBool_(ensured.introVideoWatched)) ep.introCompleted = true;
+          dbUpdateByRow_('ModuleProgress', ensured.__rowNumber, ep);
         }
 
         return newPost;
       }
     });
 
-    return { ok: true, post: result };
+    var lmsXpTotal = lmsGetTotalXp_(caller.userId);
+    return { ok: true, post: result, lmsXpTotal: lmsXpTotal };
   } catch(err) {
     return apiError_('apiModuleForumSavePost', err);
   }
@@ -834,9 +851,11 @@ function apiModuleMarkVideoWatched(sessionToken, payload) {
       var prog = lmsEnsureProgress_(caller.userId, moduleId);
       var now  = now_();
 
+      var xpAwarded = 0;
       if (video.section === 'intro') {
         if (!lmsBool_(prog.introVideoWatched)) {
-          var patch = { introVideoWatched: true, updatedAt: now };
+          xpAwarded = 15;
+          var patch = { introVideoWatched: true, lmsXp: (Number(prog.lmsXp) || 0) + xpAwarded, updatedAt: now };
           if (lmsBool_(prog.introForumPosted)) patch.introCompleted = true;
           dbUpdateByRow_('ModuleProgress', prog.__rowNumber, patch);
           return mergeObjects_(prog, patch);
@@ -844,7 +863,8 @@ function apiModuleMarkVideoWatched(sessionToken, payload) {
       } else if (video.section === 'explanation') {
         var watched = [];
         try { watched = JSON.parse(prog.explanationVideosWatched || '[]'); } catch(e) {}
-        if (watched.indexOf(videoId) === -1) watched.push(videoId);
+        var alreadyWatched = watched.indexOf(videoId) !== -1;
+        if (!alreadyWatched) { watched.push(videoId); xpAwarded = 15; }
 
         // Check if ALL explanation videos are now watched
         var allExpVideos = dbReadAll_('ModuleVideos').filter(function(v) {
@@ -852,15 +872,12 @@ function apiModuleMarkVideoWatched(sessionToken, payload) {
         });
         var allWatched = allExpVideos.every(function(v) { return watched.indexOf(String(v.videoId)) !== -1; });
 
-        var patch2 = { explanationVideosWatched: JSON.stringify(watched), updatedAt: now };
-        // If all videos watched, auto-complete explanation when no quiz exists
+        var patch2 = { explanationVideosWatched: JSON.stringify(watched), lmsXp: (Number(prog.lmsXp) || 0) + xpAwarded, updatedAt: now };
         if (allWatched && !lmsBool_(prog.explanationCompleted)) {
           var hasQuiz = dbReadAll_('ModuleQuiz').some(function(q) {
             return String(q.moduleId || '') === moduleId && String(q.section || '') === 'explanation';
           });
-          if (!hasQuiz) {
-            patch2.explanationCompleted = true;
-          }
+          if (!hasQuiz) patch2.explanationCompleted = true;
         }
         dbUpdateByRow_('ModuleProgress', prog.__rowNumber, patch2);
         return mergeObjects_(prog, patch2);
@@ -869,7 +886,8 @@ function apiModuleMarkVideoWatched(sessionToken, payload) {
       return prog;
     });
 
-    return { ok: true, progress: updated };
+    var lmsXpTotal = lmsGetTotalXp_(caller.userId);
+    return { ok: true, progress: updated, lmsXpTotal: lmsXpTotal };
   } catch(err) {
     return apiError_('apiModuleMarkVideoWatched', err);
   }
@@ -902,31 +920,36 @@ function apiModuleSubmitQuiz(sessionToken, payload) {
       var passed = score >= LMS_MIN_PASS_SCORE;
       var patch  = { updatedAt: now };
 
+      var xpAwarded = 0;
       if (section === 'explanation') {
-        patch.quizScore          = score;
-        patch.quizLastAttemptAt  = now;
-        patch.quizAttempts       = Number(prog.quizAttempts || 0) + 1;
-        if (passed) {
+        patch.quizScore         = score;
+        patch.quizLastAttemptAt = now;
+        patch.quizAttempts      = Number(prog.quizAttempts || 0) + 1;
+        if (passed && !lmsBool_(prog.quizPassed)) {
           patch.quizPassed           = true;
           patch.explanationCompleted = true;
+          xpAwarded = 50;
         }
       } else {
         patch.evalScore         = score;
         patch.evalLastAttemptAt = now;
         patch.evalAttempts      = Number(prog.evalAttempts || 0) + 1;
-        if (passed) {
-          patch.evalPassed  = true;
-          patch.badgeEarned = true;
+        if (passed && !lmsBool_(prog.evalPassed)) {
+          patch.evalPassed    = true;
+          patch.badgeEarned   = true;
           patch.badgeEarnedAt = now;
           patch.completedAt   = now;
+          xpAwarded = 50;
         }
       }
+      if (xpAwarded > 0) patch.lmsXp = (Number(prog.lmsXp) || 0) + xpAwarded;
 
       dbUpdateByRow_('ModuleProgress', prog.__rowNumber, patch);
       return { score: score, passed: passed, blocked: false };
     });
 
-    return { ok: true, score: result.score, passed: result.passed, cooldownUntil: result.cooldownUntil || null };
+    var lmsXpTotal = lmsGetTotalXp_(caller.userId);
+    return { ok: true, score: result.score, passed: result.passed, cooldownUntil: result.cooldownUntil || null, lmsXpTotal: lmsXpTotal };
   } catch(err) {
     return apiError_('apiModuleSubmitQuiz', err);
   }

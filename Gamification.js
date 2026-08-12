@@ -657,8 +657,10 @@ function getMyCompletedLevels(sessionToken) {
       var required = levelCountryMap[lvl] || 1;
       if (levelDoneCounts[lvl] >= required) completedCount++;
     });
-    return { ok: true, completedLevels: completedCount };
+    var lmsXp = 0;
+    try { lmsXp = lmsGetTotalXp_(user.userId); } catch(e) {}
+    return { ok: true, completedLevels: completedCount, lmsXp: lmsXp };
   } catch(e) {
-    return { ok: false, completedLevels: 0 };
+    return { ok: false, completedLevels: 0, lmsXp: 0 };
   }
 }

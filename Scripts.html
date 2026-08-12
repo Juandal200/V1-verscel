@@ -796,7 +796,7 @@
     var xpLbl = byId('topnavXpLabel');
     if (xpLbl) {
       window._lmsXpBase = completedLevels;
-      xpLbl.textContent = (completedLevels + (window._lmsXpTotal || 0)) + ' XP';
+      xpLbl.textContent = (completedLevels + (window._lmsXpServerTotal || 0)) + ' XP';
       xpLbl.style.color = tier.color;
       xpLbl.style.display = '';
     }
@@ -835,6 +835,7 @@
       .withSuccessHandler(function(res) {
         if (res && res.ok) {
           var lvl = res.completedLevels || 0;
+          window._lmsXpServerTotal = res.lmsXp || 0;
           _renderTopbarRank(lvl);
           try { localStorage.setItem('_aero_lvl_' + (AppState.user.userId || ''), lvl); } catch(e) {}
         }
@@ -11370,7 +11371,7 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (!res || !res.ok) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error posting.') + '</span>'; return; }
-        if (window._lmsAwardXp) _lmsAwardXp(10, 'Forum reply', 0.25, 2);
+        if (window._lmsAwardXp) _lmsAwardXp(10, 'Forum reply', 0.25, 2, res.lmsXpTotal);
         input.value = '';
         msg.innerHTML = '';
         renderModuleDetail(moduleId);
@@ -11436,7 +11437,7 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (!res || !res.ok) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error posting.') + '</span>'; return; }
-        if (window._lmsAwardXp) _lmsAwardXp(20, 'Forum post', 0.15, 2);
+        if (window._lmsAwardXp) _lmsAwardXp(20, 'Forum post', 0.15, 2, res.lmsXpTotal);
         input.value = '';
         msg.innerHTML = '';
         renderModuleDetail(moduleId);
@@ -11456,7 +11457,7 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (!res || !res.ok) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error posting.') + '</span>'; return; }
-        if (window._lmsAwardXp) _lmsAwardXp(20, 'Forum post', 0.15, 2);
+        if (window._lmsAwardXp) _lmsAwardXp(20, 'Forum post', 0.15, 2, res.lmsXpTotal);
         input.value = '';
         msg.innerHTML = '';
         renderModuleDetail(moduleId);
@@ -11484,7 +11485,7 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (res && res.ok) {
-          if (window._lmsAwardXp) _lmsAwardXp(15, 'Video watched', 0.20, 2);
+          if (window._lmsAwardXp) _lmsAwardXp(15, 'Video watched', 0.20, 2, res.lmsXpTotal);
           renderModuleDetail(moduleId);
         }
       })
@@ -11523,7 +11524,7 @@
         }
         if (res.passed) {
           msgEl.innerHTML = '<span style="color:var(--green);font-weight:600;">✓ Passed! Score: ' + res.score + '%</span>';
-          if (window._lmsAwardXp) _lmsAwardXp(50, 'Quiz passed', 0.10, 3);
+          if (window._lmsAwardXp) _lmsAwardXp(50, 'Quiz passed', 0.10, 3, res.lmsXpTotal);
         } else {
           msgEl.innerHTML = '<span style="color:var(--red);">Score: ' + res.score + '% — need 85%. Retry in 15 min.</span>';
         }
@@ -11544,15 +11545,15 @@
   }
 
   // ── LMS XP toast + topbar counter (with variable-ratio bonus layer) ──────────
-  var _lmsXpTotal  = 0;
   var _lmsXpToastQ = 0;
 
-  // bonusChance: 0-1 probability; bonusMultiplier: how many times base amount
-  window._lmsAwardXp = function(amount, label, bonusChance, bonusMultiplier) {
+  // serverTotal: real persisted total from GAS; bonusChance/bonusMultiplier: visual-only multiplier on toast
+  window._lmsAwardXp = function(amount, label, bonusChance, bonusMultiplier, serverTotal) {
     var isBonus    = bonusChance && Math.random() < bonusChance;
-    var multiplier = isBonus ? (bonusMultiplier || 2) : 1;
-    var final      = amount * multiplier;
-    _lmsXpTotal   += final;
+    var displayAmt = amount * (isBonus ? (bonusMultiplier || 2) : 1);
+    var prevTotal  = (window._lmsXpBase || 0) + (window._lmsXpServerTotal || 0);
+    if (serverTotal !== undefined) window._lmsXpServerTotal = serverTotal;
+    var newTotal   = (window._lmsXpBase || 0) + (window._lmsXpServerTotal || 0);
 
     // ── XP chime (C→E→G ascending arpeggio, bonus adds high C) ───────────────
     try {
@@ -11580,9 +11581,8 @@
     // ── Update existing topbar XP label ───────────────────────────────────────
     var xpLbl = document.getElementById('topnavXpLabel');
     if (xpLbl) {
-      var base  = window._lmsXpBase || 0;
-      var start = base + _lmsXpTotal - final;
-      var end   = base + _lmsXpTotal;
+      var start = prevTotal;
+      var end   = newTotal;
       var dur = 600, t0 = Date.now();
       var prevColor = xpLbl.style.color;
       if (isBonus) xpLbl.style.color = '#ca8a04';
@@ -11610,7 +11610,7 @@
       toast.innerHTML =
         '<span style="font-size:1rem;margin-right:6px;">🎲</span>' +
         '<span style="font-size:0.7rem;font-weight:900;letter-spacing:.06em;background:rgba(0,0,0,.15);border-radius:6px;padding:1px 6px;margin-right:6px;">BONUS</span>' +
-        '<span>+' + final + ' XP  ·  ' + label + '</span>';
+        '<span>+' + displayAmt + ' XP  ·  ' + label + '</span>';
       toast.style.cssText = [
         'position:fixed', 'bottom:' + (24 + offset) + 'px', 'right:24px',
         'background:linear-gradient(135deg,rgba(234,179,8,.96),rgba(202,138,4,.96))',
@@ -11621,7 +11621,7 @@
         'transition:opacity .22s,transform .28s'
       ].join(';');
     } else {
-      toast.textContent = '+' + final + ' XP  ·  ' + label;
+      toast.textContent = '+' + displayAmt + ' XP  ·  ' + label;
       toast.style.cssText = [
         'position:fixed', 'bottom:' + (24 + offset) + 'px', 'right:24px',
         'background:rgba(14,165,233,.92)', 'color:#fff', 'font-family:inherit',
