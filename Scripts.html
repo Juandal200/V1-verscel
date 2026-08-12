@@ -795,7 +795,8 @@
     // ── XP / completed levels count ──
     var xpLbl = byId('topnavXpLabel');
     if (xpLbl) {
-      xpLbl.textContent = completedLevels + ' XP';
+      window._lmsXpBase = completedLevels;
+      xpLbl.textContent = (completedLevels + (window._lmsXpTotal || 0)) + ' XP';
       xpLbl.style.color = tier.color;
       xpLbl.style.display = '';
     }
@@ -11553,31 +11554,28 @@
     var final      = amount * multiplier;
     _lmsXpTotal   += final;
 
-    // ── Topbar badge ──────────────────────────────────────────────────────────
-    var badge   = document.getElementById('topnavLmsXpBadge');
-    var countEl = document.getElementById('topnavLmsXpCount');
-    if (badge && countEl) {
-      badge.style.display = 'flex';
-      var start = _lmsXpTotal - final, end = _lmsXpTotal, dur = 600, t0 = Date.now();
+    // ── Update existing topbar XP label ───────────────────────────────────────
+    var xpLbl = document.getElementById('topnavXpLabel');
+    if (xpLbl) {
+      var base  = window._lmsXpBase || 0;
+      var start = base + _lmsXpTotal - final;
+      var end   = base + _lmsXpTotal;
+      var dur = 600, t0 = Date.now();
+      var prevColor = xpLbl.style.color;
+      if (isBonus) xpLbl.style.color = '#ca8a04';
       (function tick() {
-        var pct = Math.min(1, (Date.now() - t0) / dur);
+        var pct   = Math.min(1, (Date.now() - t0) / dur);
         var eased = 1 - Math.pow(1 - pct, 3);
-        countEl.textContent = Math.round(start + (end - start) * eased);
-        if (pct < 1) requestAnimationFrame(tick); else countEl.textContent = end;
+        xpLbl.textContent = Math.round(start + (end - start) * eased) + ' XP';
+        if (pct < 1) requestAnimationFrame(tick);
+        else {
+          xpLbl.textContent = end + ' XP';
+          if (isBonus) setTimeout(function() { xpLbl.style.color = prevColor; }, 1600);
+        }
       })();
-      badge.style.transition = 'transform .15s';
-      badge.style.transform  = isBonus ? 'scale(1.35)' : 'scale(1.2)';
-      setTimeout(function() { badge.style.transform = 'scale(1)'; }, isBonus ? 280 : 180);
-      if (isBonus) {
-        badge.style.background = 'rgba(234,179,8,.18)';
-        badge.style.borderColor = 'rgba(234,179,8,.45)';
-        countEl.style.color = '#ca8a04';
-        setTimeout(function() {
-          badge.style.background  = 'rgba(14,165,233,.13)';
-          badge.style.borderColor = 'rgba(14,165,233,.3)';
-          countEl.style.color     = 'var(--cyan)';
-        }, 1800);
-      }
+      xpLbl.style.transition = 'transform .15s';
+      xpLbl.style.transform  = isBonus ? 'scale(1.25)' : 'scale(1.15)';
+      setTimeout(function() { xpLbl.style.transform = 'scale(1)'; }, isBonus ? 280 : 180);
     }
 
     // ── Floating toast ────────────────────────────────────────────────────────
