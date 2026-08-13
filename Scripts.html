@@ -11015,6 +11015,12 @@
     var appUnlocked   = lmsBool_(prog.explanationCompleted);
     var evalUnlocked  = lmsBool_(prog.applicationCompleted);
 
+    var introForumPosted = lmsBool_(prog.introForumPosted);
+    var expForumPosted   = lmsBool_(prog.explanationForumPosted);
+    // Gate: video watched but forum post missing — show amber lock on the NEXT section
+    var introForumNeeded = lmsBool_(prog.introVideoWatched) && !introForumPosted;
+    var expForumNeeded   = expUnlocked && !expForumPosted && !lmsBool_(prog.explanationCompleted);
+
     // Overall progress
     var sectionsDone = [lmsBool_(prog.introCompleted), lmsBool_(prog.explanationCompleted), lmsBool_(prog.applicationCompleted), lmsBool_(prog.evalPassed)]
       .filter(Boolean).length;
@@ -11031,6 +11037,7 @@
     else if (lmsBool_(prog.evalPassed)) defaultSection = 'evaluation';
 
     window._lmsCurrentSection = defaultSection || 'intro';
+    window._lmsForumGateMap = { intro: !introForumPosted, explanation: expUnlocked && !expForumPosted };
 
     window._lmsShowSection = function(key) {
       window._lmsCurrentSection = key;
@@ -11039,7 +11046,7 @@
         var panel = document.getElementById('lmsPanel-' + k);
         if (panel) panel.style.display = k === key ? 'block' : 'none';
         var head = document.getElementById('outlineHead-' + k);
-        if (head) head.style.background = k === key ? 'rgba(14,165,233,.12)' : '';
+        if (head && !head.dataset.forumGate) head.style.background = k === key ? 'rgba(14,165,233,.12)' : '';
       });
       // Scroll left content area to top
       var leftCol = document.querySelector('#contentArea .lms-left-col');
@@ -11430,9 +11437,17 @@
       '</div>';
     }
 
-    function outlineSectionHead(key, num, label, unlocked, completed) {
+    function outlineSectionHead(key, num, label, unlocked, completed, forumGate) {
       var sectionIcon = { intro: '📖', explanation: '🎓', application: '🛫', evaluation: '🏆' }[key] || '';
       var isActiveSec = key === (defaultSection || 'intro');
+      if (forumGate) {
+        return '<div id="outlineHead-' + key + '" data-forum-gate="1" onclick="_lmsToggleRightPanel(\'forum\')" ' +
+          'style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(234,179,8,.07);border-bottom:1px solid var(--line);border-left:3px solid #eab308;cursor:pointer;">' +
+          '<span style="font-size:0.95rem;flex-shrink:0;">' + sectionIcon + '</span>' +
+          '<span style="font-size:0.76rem;font-weight:700;flex:1;color:var(--text);">' + label + '</span>' +
+          '<span style="font-size:0.6rem;font-weight:800;color:#eab308;white-space:nowrap;background:rgba(234,179,8,.15);border-radius:8px;padding:2px 7px;">💬 Post to unlock</span>' +
+        '</div>';
+      }
       return '<div id="outlineHead-' + key + '" onclick="' + (unlocked ? '_lmsShowSection(\'' + key + '\')' : '') + '" ' +
         'style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:' + (isActiveSec ? 'rgba(14,165,233,.12)' : 'var(--panel-soft)') + ';border-bottom:1px solid var(--line);cursor:' + (unlocked ? 'pointer' : 'default') + ';">' +
         '<span style="font-size:0.95rem;flex-shrink:0;">' + sectionIcon + '</span>' +
@@ -11455,14 +11470,14 @@
       outlineSectionHead('intro', '1', 'Introduction', true, lmsBool_(prog.introCompleted)) +
       (introVid ? outlineItem('intro', '📹', introVid.youtubeUrl, introVid.title || 'Introduction Video', lmsBool_(prog.introVideoWatched), true, _isNext(lmsBool_(prog.introVideoWatched), true)) : '') +
 
-      outlineSectionHead('explanation', '2', 'Explanation', expUnlocked, lmsBool_(prog.explanationCompleted)) +
+      outlineSectionHead('explanation', '2', 'Explanation', expUnlocked, lmsBool_(prog.explanationCompleted), introForumNeeded) +
       expVids.map(function(v) {
         var watched = expWatched.indexOf(v.videoId) !== -1;
         return outlineItem('explanation', '📹', v.youtubeUrl, v.title || 'Lesson Video', watched, expUnlocked, _isNext(watched, expUnlocked));
       }).join('') +
       (expQs.length ? outlineItem('explanation', '📝', null, 'Section Quiz', lmsBool_(prog.quizPassed), expUnlocked, _isNext(lmsBool_(prog.quizPassed), expUnlocked)) : '') +
 
-      outlineSectionHead('application', '3', 'Application', appUnlocked, lmsBool_(prog.applicationCompleted)) +
+      outlineSectionHead('application', '3', 'Application', appUnlocked, lmsBool_(prog.applicationCompleted), expForumNeeded) +
       scns.map(function(s) {
         return outlineItem('application', '🛫', null, s.title || s.scenarioId, false, appUnlocked, _isNext(false, appUnlocked));
       }).join('') +
@@ -11494,7 +11509,13 @@
     };
 
     window._lmsUpdateRightPanelForum = function(sectionKey) {
-      // Only intro and explanation have forums
+      // Update the Required badge based on current section's forum gate state
+      var badge = document.getElementById('rpForumRequired');
+      if (badge) {
+        var gateMap = window._lmsForumGateMap || {};
+        badge.style.display = gateMap[sectionKey] ? '' : 'none';
+      }
+      // Only reload forum posts if forum panel is visible
       var forumView = document.getElementById('rpForumView');
       if (!forumView || forumView.style.display === 'none') return;
       _lmsLoadRightPanelForum(sectionKey);
@@ -11538,7 +11559,7 @@
 
         // Toggle tabs — Forum LEFT (default), Progress RIGHT
         '<div style="display:flex;border-bottom:1px solid var(--line);flex-shrink:0;">' +
-          '<button id="rpBtnForum"   onclick="_lmsToggleRightPanel(\'forum\')"   style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid var(--cyan);background:none;font-family:inherit;font-size:0.8rem;font-weight:700;color:var(--text);cursor:pointer;">💬 Forum</button>' +
+          '<button id="rpBtnForum"   onclick="_lmsToggleRightPanel(\'forum\')"   style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid var(--cyan);background:none;font-family:inherit;font-size:0.8rem;font-weight:700;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">💬 Forum<span id="rpForumRequired" style="font-size:0.6rem;font-weight:800;color:#92400e;background:#fef3c7;border-radius:6px;padding:1px 6px;' + ((!introForumPosted && defaultSection === 'intro') || (expUnlocked && !expForumPosted && defaultSection === 'explanation') ? '' : 'display:none;') + '">Required</span></button>' +
           '<button id="rpBtnOutline" onclick="_lmsToggleRightPanel(\'outline\')" style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid transparent;background:none;font-family:inherit;font-size:0.8rem;font-weight:400;color:var(--muted);cursor:pointer;">📋 Progress</button>' +
         '</div>' +
 

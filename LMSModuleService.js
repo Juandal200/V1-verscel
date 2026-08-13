@@ -208,6 +208,7 @@ function lmsEnsureProgress_(userId, moduleId) {
     introForumPosted:         false,
     introCompleted:           false,
     explanationVideosWatched: '[]',
+    explanationForumPosted:   false,
     quizScore:                0,
     quizLastAttemptAt:        '',
     quizAttempts:             0,
@@ -827,6 +828,29 @@ function apiModuleForumSavePost(sessionToken, payload) {
             dbUpdateByRow_('ModuleProgress', progForForum.__rowNumber, fp);
           }
         }
+        if (!parentPostId && section === 'explanation') {
+          var progExp = lmsGetProgress_(caller.userId, moduleId);
+          if (progExp && !lmsBool_(progExp.explanationForumPosted)) {
+            var fpExp = { explanationForumPosted: true, updatedAt: now };
+            if (!lmsBool_(progExp.explanationCompleted)) {
+              var hasExpQuiz = dbReadAll_('ModuleQuiz').some(function(q) {
+                return String(q.moduleId || '') === moduleId && String(q.section || '') === 'explanation';
+              });
+              if (hasExpQuiz) {
+                if (lmsBool_(progExp.quizPassed)) fpExp.explanationCompleted = true;
+              } else {
+                var ew = []; try { ew = JSON.parse(progExp.explanationVideosWatched || '[]'); } catch(e) {}
+                var allExpVids = dbReadAll_('ModuleVideos').filter(function(v) {
+                  return String(v.moduleId || '') === moduleId && String(v.section || '') === 'explanation';
+                });
+                if (allExpVids.length && allExpVids.every(function(v) { return ew.indexOf(String(v.videoId)) !== -1; })) {
+                  fpExp.explanationCompleted = true;
+                }
+              }
+            }
+            dbUpdateByRow_('ModuleProgress', progExp.__rowNumber, fpExp);
+          }
+        }
 
         return newPost;
       }
@@ -988,6 +1012,7 @@ function apiModuleGetDetail(sessionToken, moduleId) {
         introForumPosted:        lmsBool_(prog.introForumPosted),
         introCompleted:          lmsBool_(prog.introCompleted),
         explanationVideosWatched: watchedIds,
+        explanationForumPosted:  lmsBool_(prog.explanationForumPosted),
         quizScore:               Number(prog.quizScore   || 0),
         quizAttempts:            Number(prog.quizAttempts || 0),
         quizPassed:              lmsBool_(prog.quizPassed),
@@ -1044,7 +1069,7 @@ function apiModuleMarkVideoWatched(sessionToken, payload) {
         var allWatched = allExpVideos.every(function(v) { return watched.indexOf(String(v.videoId)) !== -1; });
 
         var patch2 = { explanationVideosWatched: JSON.stringify(watched), updatedAt: now };
-        if (allWatched && !lmsBool_(prog.explanationCompleted)) {
+        if (allWatched && !lmsBool_(prog.explanationCompleted) && lmsBool_(prog.explanationForumPosted)) {
           var hasQuiz = dbReadAll_('ModuleQuiz').some(function(q) {
             return String(q.moduleId || '') === moduleId && String(q.section || '') === 'explanation';
           });
@@ -1098,8 +1123,8 @@ function apiModuleSubmitQuiz(sessionToken, payload) {
         patch.quizLastAttemptAt = now;
         patch.quizAttempts      = Number(prog.quizAttempts || 0) + 1;
         if (passed && !lmsBool_(prog.quizPassed)) {
-          patch.quizPassed           = true;
-          patch.explanationCompleted = true;
+          patch.quizPassed = true;
+          if (lmsBool_(prog.explanationForumPosted)) patch.explanationCompleted = true;
           xpAwarded = 50;
         }
       } else {
