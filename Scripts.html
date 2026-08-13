@@ -7067,7 +7067,7 @@
           _showXpFloat(25);
           var _oldKey = window._getTierFromXpKey ? window._getTierFromXpKey(_oldTotal) : null;
           var _newKey = window._getTierFromXpKey ? window._getTierFromXpKey(newTotal) : null;
-          if (_oldKey && _newKey && _oldKey !== _newKey) _showRankUpCelebration(_newKey);
+          if (_oldKey && _newKey && _oldKey !== _newKey) window._showRankUpCelebration(_newKey);
           _renderTopbarRank(newTotal, 0);
         }
       })
@@ -10593,7 +10593,6 @@
   })();
 
   window.renderHome = renderHome;
-  window._showRankUpCelebration = _showRankUpCelebration;
   window.renderSimulatorPlaceholder = renderSimulatorPlaceholder;
   window.renderProgressPlaceholder = renderProgressPlaceholder;
   window.renderCertificatesPlaceholder = renderCertificatesPlaceholder;
@@ -10747,7 +10746,7 @@
     return v === true || v === 'TRUE' || v === 'true' || v === 1 || v === '1';
   }
 
-  function _showRankUpCelebration(newTierKey) {
+  window._showRankUpCelebration = function(newTierKey) {
     try {
       var xp      = (window._lmsLmsXp || 0) + (window._lmsSimXp || 0);
       var tier    = window._getTierFromXp ? window._getTierFromXp(xp) : null;
@@ -11227,7 +11226,7 @@
               _showXpFloat(earned);
               var _oldKey = window._getTierFromXpKey ? window._getTierFromXpKey(_oldTotal) : null;
               var _newKey = window._getTierFromXpKey ? window._getTierFromXpKey(newTotal) : null;
-              if (_oldKey && _newKey && _oldKey !== _newKey) _showRankUpCelebration(_newKey);
+              if (_oldKey && _newKey && _oldKey !== _newKey) window._showRankUpCelebration(_newKey);
               _renderTopbarRank(newTotal, 0);
             })
             .withFailureHandler(function() {})
@@ -11975,7 +11974,7 @@
       if (prevTierKey && newTierKey !== prevTierKey) {
         var _ord = ['junior','senior','instructor','chief'];
         if (_ord.indexOf(newTierKey) > _ord.indexOf(prevTierKey)) {
-          setTimeout(function() { _showRankUpCelebration(newTierKey); }, 900);
+          setTimeout(function() { window._showRankUpCelebration(newTierKey); }, 900);
         }
       }
     }
