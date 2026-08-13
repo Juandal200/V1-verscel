@@ -10996,10 +10996,12 @@
 
   // ── Module detail ─────────────────────────────────────────────────────────────
 
-  function renderModuleDetail(moduleId) {
+  function renderModuleDetail(moduleId, opts) {
     setActiveNav('Modules');
     var _tok = _navToken;
-    byId('contentArea').innerHTML = '<div class="panel">' + _spinnerHtml('Loading module...') + '</div>';
+    if (!(opts && opts.silent)) {
+      byId('contentArea').innerHTML = '<div class="panel">' + _spinnerHtml('Loading module...') + '</div>';
+    }
 
     google.script.run
       .withSuccessHandler(function(res) {
@@ -11895,7 +11897,7 @@
         if (window._lmsAwardXp) _lmsAwardXp(20, 'Forum post', 0.15, 2, res.lmsXpTotal);
         input.value = '';
         msg.innerHTML = '';
-        renderModuleDetail(moduleId);
+        renderModuleDetail(moduleId, { silent: true });
       })
       .withFailureHandler(function(err) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(String(err)) + '</span>'; })
       .apiModuleForumSavePost(AppState.sessionToken, { moduleId: moduleId, section: section, body: input.value.trim() });
@@ -11915,7 +11917,7 @@
         if (window._lmsAwardXp) _lmsAwardXp(20, 'Forum post', 0.15, 2, res.lmsXpTotal);
         input.value = '';
         msg.innerHTML = '';
-        renderModuleDetail(moduleId);
+        renderModuleDetail(moduleId, { silent: true });
       })
       .withFailureHandler(function(err) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(String(err)) + '</span>'; })
       .apiModuleForumSavePost(AppState.sessionToken, { moduleId: moduleId, section: section, body: input.value.trim() });
