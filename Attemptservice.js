@@ -63,14 +63,16 @@ var AttemptService = {
     });
 
     var progress = ProgressService.updateUserProgress(user, scenario);
-    try { if (evaluation.correct) { lmsAddXp_(user.userId, 25); lmsUpdateStreak_(user.userId); } } catch(e) {}
+    var lmsXpTotal;
+    try { if (evaluation.correct) { lmsXpTotal = lmsAddXp_(user.userId, 25); lmsUpdateStreak_(user.userId); } } catch(e) {}
 
     return {
       ok: true,
       attempt: attempt,
       evaluation: evaluation,
       progress: progress,
-      expectedAnswer: scenario.expectedReadback
+      expectedAnswer: scenario.expectedReadback,
+      lmsXpTotal: lmsXpTotal
     };
   },
 

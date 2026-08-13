@@ -7061,7 +7061,11 @@
         syncTrainingProgressFromAttempt(res);
         if (res.attempt && res.attempt.correct) {
           var _oldTotal = (window._lmsSimXp || 0) + (window._lmsLmsXp || 0);
-          window._lmsLmsXp = (window._lmsLmsXp || 0) + 25;
+          if (res.lmsXpTotal !== undefined) {
+            window._lmsLmsXp = Math.max(res.lmsXpTotal, (window._lmsLmsXp || 0) + 25);
+          } else {
+            window._lmsLmsXp = (window._lmsLmsXp || 0) + 25;
+          }
           var newTotal = (window._lmsSimXp || 0) + window._lmsLmsXp;
           try { localStorage.setItem('_aero_xp_' + (AppState.user && AppState.user.userId || ''), newTotal); } catch(e) {}
           _showXpFloat(25);
@@ -11220,7 +11224,11 @@
             .withSuccessHandler(function(res) {
               var earned = (res && res.xpAwarded) || quiz.xpReward || 5;
               var _oldTotal = (window._lmsSimXp || 0) + (window._lmsLmsXp || 0);
-              window._lmsLmsXp = (window._lmsLmsXp || 0) + earned;
+              if (res && res.lmsXpTotal !== undefined) {
+                window._lmsLmsXp = Math.max(res.lmsXpTotal, (window._lmsLmsXp || 0) + earned);
+              } else {
+                window._lmsLmsXp = (window._lmsLmsXp || 0) + earned;
+              }
               var newTotal = (window._lmsSimXp || 0) + window._lmsLmsXp;
               try { localStorage.setItem('_aero_xp_' + (AppState.user && AppState.user.userId || ''), newTotal); } catch(e) {}
               _showXpFloat(earned);
@@ -11963,7 +11971,11 @@
     var isBonus    = bonusChance && Math.random() < bonusChance;
     var displayAmt = amount * (isBonus ? (bonusMultiplier || 2) : 1);
     var prevTotal  = (window._lmsSimXp || 0) + (window._lmsLmsXp || 0);
-    if (serverTotal !== undefined) window._lmsLmsXp = serverTotal;
+    if (serverTotal !== undefined) {
+      window._lmsLmsXp = Math.max(serverTotal, (window._lmsLmsXp || 0));
+    } else {
+      window._lmsLmsXp = (window._lmsLmsXp || 0) + amount;
+    }
     var newTotal   = (window._lmsSimXp || 0) + (window._lmsLmsXp || 0);
 
     // ── Rank-up check ──

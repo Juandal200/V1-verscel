@@ -608,8 +608,8 @@ function apiSubmitVideoQuizAnswer(sessionToken, moduleId, quizId, isCorrect) {
     if (!isCorrect) return { ok: true, xpAwarded: 0 };
     var row = dbFindOne_('ModuleQuiz', 'questionId', quizId);
     var xp = row ? (Number(row.xpReward) || 5) : 5;
-    lmsAddXp_(user.userId, xp);
-    return { ok: true, xpAwarded: xp };
+    var newTotal = lmsAddXp_(user.userId, xp);
+    return { ok: true, xpAwarded: xp, lmsXpTotal: newTotal };
   } catch(e) {
     return apiError_('apiSubmitVideoQuizAnswer', e);
   }
