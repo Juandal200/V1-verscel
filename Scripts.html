@@ -12037,6 +12037,9 @@
       setTimeout(function() { xpLbl.style.transform = 'scale(1)'; }, isBonus ? 280 : 180);
     }
 
+    // ── Flying XP chip to topbar ─────────────────────────────────────────────
+    if (typeof _showXpFloat === 'function') _showXpFloat(displayAmt);
+
     // ── Floating toast ────────────────────────────────────────────────────────
     var toast  = document.createElement('div');
     var offset = _lmsXpToastQ * 56;
