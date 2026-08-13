@@ -10972,17 +10972,31 @@
             '</div>' +
             (m.topic ? '<p style="margin:0 0 10px;font-size:0.7rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;font-weight:600;">' + safeText(m.topic) + '</p>' : '<div style="margin-bottom:10px;"></div>') +
             stepsRow +
-            (inProgress && pct > 0
-              ? '<div style="margin-bottom:12px;">' +
-                  '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
-                    '<span style="font-size:0.65rem;color:var(--muted);">Progress</span>' +
-                    '<span style="font-size:0.65rem;font-weight:700;color:var(--cyan);">' + pct + '%</span>' +
-                  '</div>' +
-                  '<div style="background:var(--line);border-radius:4px;height:4px;overflow:hidden;">' +
-                    '<div style="background:var(--cyan);width:' + pct + '%;height:4px;border-radius:4px;"></div>' +
-                  '</div>' +
-                '</div>'
-              : '') +
+            (m.score !== null && m.score !== undefined
+              ? (function() {
+                  var sc = m.score;
+                  var scColor = sc >= 85 ? '#16a34a' : sc >= 70 ? '#d97706' : '#ef4444';
+                  return '<div style="margin-bottom:12px;">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">' +
+                      '<span style="font-size:0.63rem;font-weight:700;letter-spacing:.06em;color:var(--muted);text-transform:uppercase;">Module Score</span>' +
+                      '<span style="font-size:0.78rem;font-weight:900;color:' + scColor + ';">' + sc + '%</span>' +
+                    '</div>' +
+                    '<div style="background:var(--line);border-radius:4px;height:5px;overflow:hidden;">' +
+                      '<div style="background:' + scColor + ';width:' + sc + '%;height:5px;border-radius:4px;"></div>' +
+                    '</div>' +
+                  '</div>';
+                })()
+              : inProgress && pct > 0
+                ? '<div style="margin-bottom:12px;">' +
+                    '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
+                      '<span style="font-size:0.65rem;color:var(--muted);">Progress</span>' +
+                      '<span style="font-size:0.65rem;font-weight:700;color:var(--cyan);">' + pct + '%</span>' +
+                    '</div>' +
+                    '<div style="background:var(--line);border-radius:4px;height:4px;overflow:hidden;">' +
+                      '<div style="background:var(--cyan);width:' + pct + '%;height:4px;border-radius:4px;"></div>' +
+                    '</div>' +
+                  '</div>'
+                : '') +
             cta +
           '</div>' +
         '</div>' +

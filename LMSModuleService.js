@@ -908,6 +908,12 @@ function apiModuleGetAll(sessionToken) {
       var prevProgress = prevModule ? progressMap[prevModule.moduleId] : null;
       var unlocked     = idx === 0 || !!(prevProgress && prevProgress.completedAt);
 
+      var scenariosPassed = prog ? Number(prog.scenariosPassed || 0) : 0;
+      var evalScore       = prog ? Number(prog.evalScore       || 0) : 0;
+      var evalAttempts    = prog ? Number(prog.evalAttempts    || 0) : 0;
+      var appScore        = Math.min(100, Math.round((scenariosPassed / 3) * 100));
+      var moduleScore     = evalAttempts > 0 ? Math.round(appScore * 0.4 + evalScore * 0.6) : null;
+
       return {
         moduleId:      m.moduleId,
         title:         m.title,
@@ -918,6 +924,7 @@ function apiModuleGetAll(sessionToken) {
         unlocked:      unlocked,
         completed:     !!(prog && prog.completedAt),
         badgeEarned:   !!(prog && prog.badgeEarned),
+        score:         moduleScore,
         sections: {
           intro:       { unlocked: unlocked,                                   completed: !!(prog && prog.introCompleted) },
           explanation: { unlocked: !!(prog && prog.introCompleted),             completed: !!(prog && prog.explanationCompleted) },
