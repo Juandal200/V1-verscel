@@ -10748,10 +10748,10 @@
 
   window._showRankUpCelebration = function(newTierKey) {
     try {
-      var xp      = (window._lmsLmsXp || 0) + (window._lmsSimXp || 0);
-      var tier    = window._getTierFromXp ? window._getTierFromXp(xp) : null;
+      var tiers   = window.GAM_TIERS || [];
+      var tier    = tiers.filter(function(t) { return t.key === newTierKey; })[0] || null;
       var color   = tier ? tier.color : '#0E65F4';
-      var label   = tier ? tier.label : (newTierKey || 'Senior');
+      var label   = tier ? (window._gamTierLabel ? window._gamTierLabel(tier.key, (AppState && AppState.user && AppState.user.profession) || 'PILOT') : tier.label) : (newTierKey || 'Senior');
       var stripes = (tier && tier.stripes && window._gamStripesSvg) ? window._gamStripesSvg(tier.stripes, color, 44) : '';
 
       // Triumphant ascending sound
