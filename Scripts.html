@@ -7051,8 +7051,10 @@
       expectedAnswer: scenario.expectedReadback || '',
       progress: AppState.training.lastProgress || null
     });
+    // Instant XP animation — chip flies immediately when client confirms correct
+    if (clientEval.correct) _showXpFloat(25);
 
-    // Background server save — updates progress counter when it arrives
+    // Background server save — syncs real XP total and triggers rank-up check
     var _capturedIndex = index;
     google.script.run
       .withSuccessHandler(function(res) {
@@ -7068,7 +7070,6 @@
           }
           var newTotal = (window._lmsSimXp || 0) + window._lmsLmsXp;
           try { localStorage.setItem('_aero_xp_' + (AppState.user && AppState.user.userId || ''), newTotal); } catch(e) {}
-          _showXpFloat(25);
           var _oldKey = window._getTierFromXpKey ? window._getTierFromXpKey(_oldTotal) : null;
           var _newKey = window._getTierFromXpKey ? window._getTierFromXpKey(newTotal) : null;
           if (_oldKey && _newKey && _oldKey !== _newKey) window._showRankUpCelebration(_newKey);
