@@ -11974,7 +11974,7 @@
       if (prevTierKey && newTierKey !== prevTierKey) {
         var _ord = ['junior','senior','instructor','chief'];
         if (_ord.indexOf(newTierKey) > _ord.indexOf(prevTierKey)) {
-          setTimeout(function() { _showRankUpAnimation(_getTierFromXp(newTotal)); }, 900);
+          setTimeout(function() { _showRankUpCelebration(newTierKey); }, 900);
         }
       }
     }
