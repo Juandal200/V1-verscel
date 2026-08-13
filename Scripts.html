@@ -11331,15 +11331,16 @@
     }
 
     // ── Right panel: compact progress outline ──
-    function outlineItem(sectionKey, typeIcon, ytUrl, title, done, unlocked) {
+    function outlineItem(sectionKey, typeIcon, ytUrl, title, done, unlocked, isNext) {
       return '<div onclick="' + (unlocked ? '_lmsShowSection(\'' + sectionKey + '\')' : '') + '" ' +
-        'style="display:flex;align-items:center;gap:9px;padding:7px 14px 7px 20px;border-bottom:1px solid var(--line);cursor:' + (unlocked?'pointer':'default') + ';' + (!unlocked?'opacity:0.4;':'') + 'transition:background .12s;" ' +
-        (unlocked ? 'onmouseenter="this.style.background=\'rgba(0,0,0,.04)\'" onmouseleave="this.style.background=\'\'"' : '') + '>' +
+        'style="display:flex;align-items:center;gap:9px;padding:7px 14px 7px 20px;border-bottom:1px solid var(--line);cursor:' + (unlocked?'pointer':'default') + ';' + (!unlocked?'opacity:0.4;':'') + (isNext?'background:rgba(14,165,233,.07);':'') + 'transition:background .12s;" ' +
+        (unlocked ? 'onmouseenter="this.style.background=\'rgba(14,165,233,.12)\'" onmouseleave="this.style.background=\'' + (isNext?'rgba(14,165,233,.07)':'') + '\'"' : '') + '>' +
         '<div style="width:16px;height:16px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.58rem;font-weight:800;' +
-          (done ? 'background:#16a34a;color:#fff;' : 'background:var(--panel-soft);border:1.5px solid var(--line);color:var(--muted);') + '">' +
-          (done ? '✓' : typeIcon.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim() || '·') +
+          (done ? 'background:#16a34a;color:#fff;' : isNext ? 'background:var(--cyan);color:#000;' : 'background:var(--panel-soft);border:1.5px solid var(--line);color:var(--muted);') + '">' +
+          (done ? '✓' : isNext ? '▶' : typeIcon.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim() || '·') +
         '</div>' +
-        '<span style="font-size:0.78rem;color:' + (done ? '#16a34a' : 'var(--text)') + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">' + safeText(title) + '</span>' +
+        '<span style="font-size:0.78rem;font-weight:' + (isNext?'700':'400') + ';color:' + (done ? '#16a34a' : isNext ? 'var(--cyan)' : 'var(--text)') + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">' + safeText(title) + '</span>' +
+        (isNext ? '<span style="font-size:0.58rem;font-weight:800;letter-spacing:.05em;color:var(--cyan);white-space:nowrap;flex-shrink:0;">UP NEXT →</span>' : '') +
       '</div>';
     }
 
@@ -11357,26 +11358,32 @@
 
     var expWatched = prog.explanationVideosWatched || [];
 
+    var _nextAssigned = false;
+    function _isNext(done, unlocked) {
+      if (_nextAssigned || done || !unlocked) return false;
+      _nextAssigned = true;
+      return true;
+    }
+
     var outlineHtml =
       outlineSectionHead('intro', '1', 'Introduction', true, lmsBool_(prog.introCompleted)) +
-      (introVid ? outlineItem('intro', '📹', introVid.youtubeUrl, introVid.title || 'Introduction Video', lmsBool_(prog.introVideoWatched), true) : '') +
-      outlineItem('intro', '💬', null, 'Discussion Forum', lmsBool_(prog.introForumPosted), true) +
+      (introVid ? outlineItem('intro', '📹', introVid.youtubeUrl, introVid.title || 'Introduction Video', lmsBool_(prog.introVideoWatched), true, _isNext(lmsBool_(prog.introVideoWatched), true)) : '') +
 
       outlineSectionHead('explanation', '2', 'Explanation', expUnlocked, lmsBool_(prog.explanationCompleted)) +
       expVids.map(function(v) {
         var watched = expWatched.indexOf(v.videoId) !== -1;
-        return outlineItem('explanation', '📹', v.youtubeUrl, v.title || 'Lesson Video', watched, expUnlocked);
+        return outlineItem('explanation', '📹', v.youtubeUrl, v.title || 'Lesson Video', watched, expUnlocked, _isNext(watched, expUnlocked));
       }).join('') +
-      (expQs.length ? outlineItem('explanation', '📝', null, 'Section Quiz', lmsBool_(prog.quizPassed), expUnlocked) : '') +
+      (expQs.length ? outlineItem('explanation', '📝', null, 'Section Quiz', lmsBool_(prog.quizPassed), expUnlocked, _isNext(lmsBool_(prog.quizPassed), expUnlocked)) : '') +
 
       outlineSectionHead('application', '3', 'Application', appUnlocked, lmsBool_(prog.applicationCompleted)) +
       scns.map(function(s) {
-        return outlineItem('application', '🛫', null, s.title || s.scenarioId, false, appUnlocked);
+        return outlineItem('application', '🛫', null, s.title || s.scenarioId, false, appUnlocked, _isNext(false, appUnlocked));
       }).join('') +
-      (scns.length === 0 ? outlineItem('application', '🛫', null, 'ATC Scenarios', false, appUnlocked) : '') +
+      (scns.length === 0 ? outlineItem('application', '🛫', null, 'ATC Scenarios', false, appUnlocked, _isNext(false, appUnlocked)) : '') +
 
       outlineSectionHead('evaluation', '4', 'Evaluation', evalUnlocked, lmsBool_(prog.evalPassed)) +
-      (evalQs.length ? outlineItem('evaluation', '📝', null, 'Final Exam', lmsBool_(prog.evalPassed), evalUnlocked) : outlineItem('evaluation', '🏆', null, 'Final Evaluation', lmsBool_(prog.evalPassed), evalUnlocked));
+      (evalQs.length ? outlineItem('evaluation', '📝', null, 'Final Exam', lmsBool_(prog.evalPassed), evalUnlocked, _isNext(lmsBool_(prog.evalPassed), evalUnlocked)) : outlineItem('evaluation', '🏆', null, 'Final Evaluation', lmsBool_(prog.evalPassed), evalUnlocked, _isNext(lmsBool_(prog.evalPassed), evalUnlocked)));
 
     // Right-panel toggle logic (defined here so it closes over moduleId + outlineHtml)
     var _rpModuleId = m.moduleId;
