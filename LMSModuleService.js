@@ -1310,13 +1310,12 @@ function apiModuleRecordScenarioPassed(sessionToken, payload) {
 
       var count = Number(prog.scenariosPassed || 0) + 1;
       var patch = { scenariosPassed: count, updatedAt: now };
-      if (count >= LMS_MIN_SCENARIOS) patch.applicationCompleted = true;
 
       dbUpdateByRow_('ModuleProgress', prog.__rowNumber, patch);
       return mergeObjects_(prog, patch);
     });
 
-    return { ok: true, scenariosPassed: Number(updated.scenariosPassed), applicationCompleted: !!updated.applicationCompleted };
+    return { ok: true, scenariosPassed: Number(updated.scenariosPassed) };
   } catch(err) {
     return apiError_('apiModuleRecordScenarioPassed', err);
   }
@@ -1417,7 +1416,9 @@ function apiGrammarSubmit(sessionToken, payload) {
     if (passed && !lmsBool_(prog.grammarPassed)) {
       patch.grammarPassed      = true;
       patch.grammarCompletedAt = now;
-      patch.applicationCompleted = true;
+      if (lmsBool_(prog.listeningShortPassed) && lmsBool_(prog.listeningLongPassed)) {
+        patch.applicationCompleted = true;
+      }
       try { lmsXpTotal = lmsAddXp_(caller.userId, LMS_GRAMMAR_XP); lmsUpdateStreak_(caller.userId); } catch(e) {}
     }
 
@@ -1432,7 +1433,7 @@ function apiGrammarSubmit(sessionToken, payload) {
       attempts:        attempts,
       results:         results,
       lmsXpTotal:      lmsXpTotal,
-      applicationCompleted: passed || lmsBool_(prog.applicationCompleted)
+      applicationCompleted: !!(patch.applicationCompleted || lmsBool_(prog.applicationCompleted))
     };
   } catch(err) {
     return apiError_('apiGrammarSubmit', err);
@@ -1624,7 +1625,9 @@ function apiListeningSubmit(sessionToken, payload) {
       var longPassed  = format === 'long'  ? true : lmsBool_(prog.listeningLongPassed);
       if (shortPassed && longPassed) {
         patch.listeningCompletedAt = now;
-        patch.applicationCompleted = true;
+        if (lmsBool_(prog.grammarPassed)) {
+          patch.applicationCompleted = true;
+        }
       }
       try { lmsXpTotal = lmsAddXp_(caller.userId, LMS_LISTENING_XP); lmsUpdateStreak_(caller.userId); } catch(e) {}
     }
