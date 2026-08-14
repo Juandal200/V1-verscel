@@ -35,7 +35,7 @@ function setupLMSModuleSheets() {
   var sheets = [
     'Modules', 'ModuleVideos', 'ModuleQuiz', 'ModuleQuizAnswers',
     'ModuleScenarios', 'ModuleForum', 'ModuleForumLikes', 'ModuleProgress',
-    'ModuleGrammar', 'ModuleListening', 'LmsXp', 'UserStreaks'
+    'ModuleGrammar', 'ModuleListening', 'ModuleSpeakingPrompt', 'ModuleSpeakingSubmission', 'LmsXp', 'UserStreaks'
   ];
 
   sheets.forEach(function(name) {
@@ -226,6 +226,10 @@ function lmsEnsureProgress_(userId, moduleId) {
     listeningLongLastAttemptAt: '',
     listeningLongPassed:      false,
     listeningCompletedAt:     '',
+    speakingSubmitted:        false,
+    speakingScore:            0,
+    speakingGraded:           false,
+    speakingCompletedAt:      '',
     quizLastAttemptAt:        '',
     quizAttempts:             0,
     quizPassed:               false,
@@ -1057,6 +1061,35 @@ function apiModuleGetDetail(sessionToken, moduleId) {
     var listeningShortCooldown = prog ? lmsCheckCooldown_(prog.listeningShortLastAttemptAt) : null;
     var listeningLongCooldown  = prog ? lmsCheckCooldown_(prog.listeningLongLastAttemptAt)  : null;
 
+    var speakingPrompts = dbReadAll_('ModuleSpeakingPrompt')
+      .filter(function(p) { return String(p.moduleId || '') === moduleId; })
+      .sort(function(a, b) { return Number(a.promptOrder || 0) - Number(b.promptOrder || 0); })
+      .map(function(p) {
+        return {
+          promptId:    p.promptId,
+          promptOrder: Number(p.promptOrder || 0),
+          type:        p.type,
+          title:       p.title,
+          promptText:  p.promptText,
+          imageUrl:    p.imageUrl || ''
+        };
+      });
+
+    var speakingSubmissions = prog ? dbReadAll_('ModuleSpeakingSubmission').filter(function(s) {
+      return String(s.userId || '') === String(caller.userId) && String(s.moduleId || '') === moduleId;
+    }).map(function(s) {
+      return {
+        submissionId:  s.submissionId,
+        promptId:      s.promptId,
+        responseText:  s.responseText,
+        submittedAt:   s.submittedAt,
+        status:        s.status,
+        raterScore:    s.raterScore !== '' && s.raterScore !== undefined ? Number(s.raterScore) : null,
+        raterFeedback: s.raterFeedback || '',
+        gradedAt:      s.gradedAt || ''
+      };
+    }) : [];
+
     return {
       ok: true,
       module: {
@@ -1066,11 +1099,13 @@ function apiModuleGetDetail(sessionToken, moduleId) {
         description:   module.description,
         badgeImageUrl: module.badgeImageUrl
       },
-      videos:           videos,
-      questions:        questions,
-      scenarios:        scenarios,
-      grammarExercises: grammarExercises,
-      listeningClips:   listeningClips,
+      videos:               videos,
+      questions:            questions,
+      scenarios:            scenarios,
+      grammarExercises:     grammarExercises,
+      listeningClips:       listeningClips,
+      speakingPrompts:      speakingPrompts,
+      speakingSubmissions:  speakingSubmissions,
       progress: prog ? {
         introVideoWatched:        lmsBool_(prog.introVideoWatched),
         introForumPosted:         lmsBool_(prog.introForumPosted),
@@ -1094,6 +1129,9 @@ function apiModuleGetDetail(sessionToken, moduleId) {
         listeningLongAttempts:    Number(prog.listeningLongAttempts || 0),
         listeningLongPassed:      lmsBool_(prog.listeningLongPassed),
         listeningLongCooldown:    listeningLongCooldown,
+        speakingSubmitted:        lmsBool_(prog.speakingSubmitted),
+        speakingScore:            prog.speakingScore !== '' && prog.speakingScore !== undefined ? Number(prog.speakingScore) : null,
+        speakingGraded:           lmsBool_(prog.speakingGraded),
         scenariosPassed:          Number(prog.scenariosPassed || 0),
         applicationCompleted:     lmsBool_(prog.applicationCompleted),
         evalScore:                Number(prog.evalScore    || 0),
@@ -1660,6 +1698,121 @@ function apiListeningAdminDelete(sessionToken, clipId) {
     return { ok: true };
   } catch(err) {
     return apiError_('apiListeningAdminDelete', err);
+  }
+}
+
+// ── Speaking Production Station ───────────────────────────────────────────────
+
+function apiSpeakingSubmit(sessionToken, payload) {
+  try {
+    var caller    = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    var moduleId  = String((payload || {}).moduleId || '');
+    var responses = (payload || {}).responses || []; // [{ promptId, responseText }]
+    if (!moduleId) throw new Error('moduleId required.');
+    if (!responses.length) throw new Error('At least one response required.');
+
+    var prog = lmsEnsureProgress_(caller.userId, moduleId);
+    if (!lmsSectionUnlocked_(prog, 'application')) throw new Error('Application section not yet unlocked.');
+    if (lmsBool_(prog.speakingSubmitted)) return { ok: false, error: 'Already submitted. Awaiting review.' };
+
+    var now = now_();
+    responses.forEach(function(r) {
+      var text = String(r.responseText || '').trim();
+      if (!text) return;
+      dbAppend_('ModuleSpeakingSubmission', {
+        submissionId: uuid_('SS'),
+        userId:       caller.userId,
+        moduleId:     moduleId,
+        promptId:     String(r.promptId || ''),
+        responseText: text,
+        submittedAt:  now,
+        status:       'pending',
+        raterScore:   '',
+        raterFeedback: '',
+        gradedAt:     '',
+        raterId:      ''
+      });
+    });
+
+    dbUpdateByRow_('ModuleProgress', prog.__rowNumber, { speakingSubmitted: true, updatedAt: now });
+
+    return { ok: true, submitted: responses.length };
+  } catch(err) {
+    return apiError_('apiSpeakingSubmit', err);
+  }
+}
+
+// ── Speaking Admin CRUD ───────────────────────────────────────────────────────
+
+function apiSpeakingAdminList(sessionToken, moduleId) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
+    moduleId = String(moduleId || '');
+    if (!moduleId) throw new Error('moduleId required.');
+
+    var prompts = dbReadAll_('ModuleSpeakingPrompt')
+      .filter(function(p) { return String(p.moduleId || '') === moduleId; })
+      .sort(function(a, b) { return Number(a.promptOrder || 0) - Number(b.promptOrder || 0); })
+      .map(function(p) {
+        return { promptId: p.promptId, promptOrder: Number(p.promptOrder || 0), type: p.type, title: p.title, promptText: p.promptText, imageUrl: p.imageUrl || '', rubricJson: p.rubricJson || '' };
+      });
+
+    return { ok: true, prompts: prompts };
+  } catch(err) {
+    return apiError_('apiSpeakingAdminList', err);
+  }
+}
+
+function apiSpeakingAdminSave(sessionToken, payload) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
+    var p         = payload || {};
+    var moduleId  = String(p.moduleId   || '');
+    var type      = String(p.type       || '');
+    var title     = String(p.title      || '').trim();
+    var promptTxt = String(p.promptText || '').trim();
+    var imageUrl  = String(p.imageUrl   || '').trim();
+    var rubric    = String(p.rubricJson  || '').trim();
+    var order     = Number(p.promptOrder || 0);
+
+    if (!moduleId || !type || !title || !promptTxt) throw new Error('moduleId, type, title, and promptText are required.');
+    if (['image_description', 'interview'].indexOf(type) === -1) throw new Error('type must be image_description or interview.');
+
+    var now = now_();
+
+    if (p.promptId) {
+      var existing = dbFindOne_('ModuleSpeakingPrompt', 'promptId', String(p.promptId));
+      if (!existing) throw new Error('Prompt not found.');
+      dbUpdateByRow_('ModuleSpeakingPrompt', existing.__rowNumber, {
+        type: type, title: title, promptText: promptTxt, imageUrl: imageUrl,
+        rubricJson: rubric, promptOrder: order
+      });
+      return { ok: true, promptId: p.promptId };
+    } else {
+      var id = uuid_('SP');
+      dbAppend_('ModuleSpeakingPrompt', {
+        promptId: id, moduleId: moduleId, promptOrder: order, type: type,
+        title: title, promptText: promptTxt, imageUrl: imageUrl,
+        rubricJson: rubric, createdAt: now
+      });
+      return { ok: true, promptId: id };
+    }
+  } catch(err) {
+    return apiError_('apiSpeakingAdminSave', err);
+  }
+}
+
+function apiSpeakingAdminDelete(sessionToken, promptId) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
+    promptId = String(promptId || '');
+    if (!promptId) throw new Error('promptId required.');
+    var existing = dbFindOne_('ModuleSpeakingPrompt', 'promptId', promptId);
+    if (!existing) throw new Error('Prompt not found.');
+    dbDeleteByRow_('ModuleSpeakingPrompt', existing.__rowNumber);
+    return { ok: true };
+  } catch(err) {
+    return apiError_('apiSpeakingAdminDelete', err);
   }
 }
 

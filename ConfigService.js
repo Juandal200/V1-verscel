@@ -373,6 +373,10 @@ var DB_SCHEMA = {
     'listeningLongLastAttemptAt',
     'listeningLongPassed',
     'listeningCompletedAt',
+    'speakingSubmitted',
+    'speakingScore',
+    'speakingGraded',
+    'speakingCompletedAt',
     'scenariosPassed',
     'applicationCompleted',
     'evalScore',
@@ -413,6 +417,32 @@ var DB_SCHEMA = {
     'voiceName',
     'questionsJson',
     'createdAt'
+  ],
+
+  ModuleSpeakingPrompt: [
+    'promptId',
+    'moduleId',
+    'promptOrder',
+    'type',
+    'title',
+    'promptText',
+    'imageUrl',
+    'rubricJson',
+    'createdAt'
+  ],
+
+  ModuleSpeakingSubmission: [
+    'submissionId',
+    'userId',
+    'moduleId',
+    'promptId',
+    'responseText',
+    'submittedAt',
+    'status',
+    'raterScore',
+    'raterFeedback',
+    'gradedAt',
+    'raterId'
   ],
 
   LmsXp: [

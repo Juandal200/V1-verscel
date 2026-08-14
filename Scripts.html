@@ -11508,12 +11508,91 @@
       '</div>';
     }
 
-    // ── Speaking Production placeholder ──
-    var listeningUnlocked = listeningDone;
-    var productionBody = _stationHead('3', '🎙', 'Speaking Production', false, !listeningUnlocked) +
-      '<div style="padding:16px 20px;font-size:0.88rem;color:var(--muted);">' +
-        (listeningUnlocked ? '🎙 Speaking production exercises — Coming in Phase 3.' : '🔒 Complete Listening Station to unlock.') +
+    // ── Speaking Production Station ──
+    var listeningUnlocked    = listeningDone;
+    var speakingPrompts      = res.speakingPrompts     || [];
+    var speakingSubmissions  = res.speakingSubmissions || [];
+    var speakingSubmitted    = lmsBool_(prog.speakingSubmitted);
+    var speakingGraded       = lmsBool_(prog.speakingGraded);
+    var speakingScore        = prog.speakingScore !== null && prog.speakingScore !== undefined ? prog.speakingScore : null;
+
+    // Build a map of promptId → existing submission
+    var submMap = {};
+    speakingSubmissions.forEach(function(s) { submMap[s.promptId] = s; });
+
+    function _spkPromptCard(prompt, idx, disabled) {
+      var sub      = submMap[prompt.promptId];
+      var typeLabel = prompt.type === 'image_description' ? 'Image Description' : 'Interview Question';
+      var typeIcon  = prompt.type === 'image_description' ? '🖼' : '🎤';
+      var html = '<div style="border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px;">' +
+        '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--panel-soft);border-bottom:1px solid var(--line);">' +
+          '<span>' + typeIcon + '</span>' +
+          '<span style="font-weight:700;font-size:0.86rem;">' + safeText(prompt.title || typeLabel) + '</span>' +
+          '<span style="margin-left:auto;font-size:0.75rem;color:var(--muted);">' + typeLabel + '</span>' +
+        '</div>';
+
+      if (prompt.imageUrl) {
+        html += '<div style="padding:12px 16px 0;"><img src="' + safeText(prompt.imageUrl) + '" style="max-width:100%;border-radius:6px;max-height:200px;object-fit:cover;"></div>';
+      }
+
+      html += '<div style="padding:12px 16px;">' +
+        '<p style="margin:0 0 10px;font-size:0.88rem;color:var(--text);">' + safeText(prompt.promptText) + '</p>';
+
+      if (sub && sub.status === 'graded') {
+        html += '<div style="padding:10px 14px;background:rgba(22,163,74,.07);border:1px solid rgba(22,163,74,.25);border-radius:6px;font-size:0.84rem;">' +
+          '<p style="margin:0 0 4px;font-weight:700;color:var(--green);">Graded — ' + sub.raterScore + '/100</p>' +
+          (sub.raterFeedback ? '<p style="margin:0;color:var(--muted);">' + safeText(sub.raterFeedback) + '</p>' : '') +
+        '</div>';
+      } else if (sub && sub.status === 'pending') {
+        html += '<div style="padding:10px 14px;background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.3);border-radius:6px;">' +
+          '<p style="margin:0;font-size:0.84rem;color:#ca8a04;">⏳ Submitted — awaiting instructor review</p>' +
+          '<p style="margin:4px 0 0;font-size:0.78rem;color:var(--muted);">Your response: ' + safeText((sub.responseText || '').substring(0, 120)) + (sub.responseText && sub.responseText.length > 120 ? '…' : '') + '</p>' +
+        '</div>';
+      } else {
+        html += '<textarea id="spk-' + safeText(prompt.promptId) + '" ' + (disabled ? 'disabled' : '') +
+          ' placeholder="Type your response here…" rows="4"' +
+          ' style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--text);font-size:0.86rem;resize:vertical;box-sizing:border-box;font-family:inherit;"></textarea>';
+      }
+
+      html += '</div></div>';
+      return html;
+    }
+
+    var productionBody = _stationHead('3', '🎙', 'Speaking Production', speakingGraded, !listeningUnlocked);
+
+    if (!listeningUnlocked) {
+      productionBody += '<div style="padding:16px 20px;font-size:0.88rem;color:var(--muted);">🔒 Complete Listening Station to unlock.</div>';
+    } else if (speakingGraded) {
+      productionBody += '<div style="padding:18px 20px;display:flex;align-items:center;gap:14px;background:rgba(22,163,74,.04);">' +
+        '<span style="font-size:1.6rem;">✅</span>' +
+        '<div><p style="margin:0;font-weight:700;color:var(--green);">Graded — ' + speakingScore + '/100</p>' +
+        '<p style="margin:0;font-size:0.8rem;color:var(--muted);">Speaking Production complete.</p></div>' +
       '</div>';
+    } else if (!speakingPrompts.length) {
+      productionBody += '<div style="padding:16px 20px;font-size:0.88rem;color:var(--muted);">Speaking prompts not yet available for this module.</div>';
+    } else if (speakingSubmitted) {
+      productionBody += '<div style="padding:16px 20px;">' +
+        '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.3);border-radius:8px;margin-bottom:16px;">' +
+          '<span style="font-size:1.3rem;">⏳</span>' +
+          '<div><p style="margin:0;font-weight:700;color:#ca8a04;">Submitted — awaiting instructor review</p>' +
+          '<p style="margin:2px 0 0;font-size:0.8rem;color:var(--muted);">Your responses are in the review queue. Results will appear here once graded.</p></div>' +
+        '</div>';
+      speakingPrompts.forEach(function(prompt, idx) { productionBody += _spkPromptCard(prompt, idx, true); });
+      productionBody += '</div>';
+    } else {
+      productionBody += '<div id="speakingForm-' + safeText(m.moduleId) + '" style="padding:16px 20px;">' +
+        '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.2);border-radius:8px;margin-bottom:16px;">' +
+          '<span>🎙</span>' +
+          '<p style="margin:0;font-size:0.84rem;color:var(--text);">Write your responses below. An instructor will review and grade each one using the ICAO rubric.</p>' +
+        '</div>';
+      speakingPrompts.forEach(function(prompt, idx) { productionBody += _spkPromptCard(prompt, idx, false); });
+      productionBody +=
+        '<div style="display:flex;align-items:center;gap:12px;margin-top:4px;">' +
+          '<button class="btn primary" style="font-size:0.88rem;" onclick="moduleSubmitSpeaking(\'' + safeText(m.moduleId) + '\')">Submit for Review</button>' +
+          '<span style="font-size:0.8rem;color:var(--muted);">Responses will be reviewed by your instructor</span>' +
+        '</div>' +
+      '</div>';
+    }
 
     var appBody =
       '<div style="border-bottom:1px solid var(--line);">' + grammarBody + '</div>' +
@@ -12236,6 +12315,33 @@
     if (typeof _showXpFloat === 'function') _showXpFloat(displayAmt, isBonus);
   };
 
+  // ── Speaking Production: submit ───────────────────────────────────────────────
+  window.moduleSubmitSpeaking = function(moduleId) {
+    var form = document.getElementById('speakingForm-' + moduleId);
+    if (!form) return;
+    var textareas = form.querySelectorAll('textarea[id^="spk-"]');
+    var responses = [];
+    var allFilled = true;
+    Array.prototype.forEach.call(textareas, function(ta) {
+      var promptId = ta.id.replace('spk-', '');
+      var text = ta.value.trim();
+      if (!text) allFilled = false;
+      responses.push({ promptId: promptId, responseText: text });
+    });
+    if (!allFilled) { alert('Please fill in all responses before submitting.'); return; }
+
+    var submitBtn = form.querySelector('button.btn.primary');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting…'; }
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Submission failed.'); if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit for Review'; } return; }
+        renderModuleDetail(moduleId, { silent: true });
+      })
+      .withFailureHandler(function() { alert('Network error.'); if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit for Review'; } })
+      .apiSpeakingSubmit(window._lmsSessionToken, { moduleId: moduleId, responses: responses });
+  };
+
   // ── Listening: load clip audio ───────────────────────────────────────────────
   window._lmsLoadListeningClip = function(clipId, domId) {
     var audio   = document.getElementById('audio-' + domId);
@@ -12458,7 +12564,8 @@
           '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleQuiz(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Quiz</button>' +
           '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleScenarios(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Scenarios</button>' +
           '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleGrammar(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Grammar</button>' +
-          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;" onclick="renderAdminModuleListening(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Listening</button>' +
+          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleListening(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Listening</button>' +
+          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;" onclick="renderAdminModuleSpeaking(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Speaking</button>' +
         '</td>' +
       '</tr>';
     }).join('');
@@ -13368,6 +13475,145 @@
   window.adminShowListeningForm     = adminShowListeningForm;
   window.adminSaveListeningClip     = adminSaveListeningClip;
   window.adminDeleteListeningClip   = adminDeleteListeningClip;
+
+  // ── Speaking Admin Builder ────────────────────────────────────────────────────
+
+  function renderAdminModuleSpeaking(moduleId, moduleTitle) {
+    var _tok = _navToken;
+    byId('contentArea').innerHTML =
+      '<div class="panel">' + renderAdminTabs('modules') + _spinnerHtml('Loading speaking prompts...') + '</div>';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (_navToken !== _tok) return;
+        if (!res || !res.ok) { showContentError(res && res.error ? res.error : 'Could not load prompts.'); return; }
+        _renderSpeakingBuilder(moduleId, moduleTitle, res.prompts || []);
+      })
+      .withFailureHandler(function(err) { if (_navToken !== _tok) return; handleServerError(err); })
+      .apiSpeakingAdminList(AppState.sessionToken, moduleId);
+  }
+
+  function _renderSpeakingBuilder(moduleId, moduleTitle, prompts) {
+    function promptRow(p) {
+      var typeLabel = p.type === 'image_description' ? '🖼 Image' : '🎤 Interview';
+      return '<tr>' +
+        '<td style="padding:8px 12px;text-align:center;color:var(--muted);">' + p.promptOrder + '</td>' +
+        '<td style="padding:8px 12px;font-size:0.8rem;">' + typeLabel + '</td>' +
+        '<td style="padding:8px 12px;font-size:0.82rem;">' + safeText(p.title) + '</td>' +
+        '<td style="padding:8px 12px;font-size:0.78rem;color:var(--muted);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + safeText(p.promptText) + '</td>' +
+        '<td style="padding:8px 12px;text-align:center;">' +
+          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;margin-right:4px;" onclick="adminShowSpeakingForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',' + safeJs(JSON.stringify(p)) + ')">Edit</button>' +
+          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;color:var(--red);" onclick="adminDeleteSpeakingPrompt(\'' + p.promptId + '\',\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\')">Del</button>' +
+        '</td>' +
+      '</tr>';
+    }
+
+    byId('contentArea').innerHTML =
+      '<div class="panel">' +
+        renderAdminTabs('modules') +
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
+          '<button class="btn secondary" onclick="renderAdminModules()">← Modules</button>' +
+          '<h3 style="margin:0;">Speaking — ' + safeText(moduleTitle) + '</h3>' +
+          '<button class="btn primary" style="margin-left:auto;" onclick="adminShowSpeakingForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',null)">+ Add Prompt</button>' +
+        '</div>' +
+        '<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">' +
+          '<thead><tr style="border-bottom:1px solid var(--line);">' +
+            '<th style="padding:8px 12px;text-align:center;width:40px;">#</th>' +
+            '<th style="padding:8px 12px;text-align:left;width:100px;">Type</th>' +
+            '<th style="padding:8px 12px;text-align:left;">Title</th>' +
+            '<th style="padding:8px 12px;text-align:left;">Prompt</th>' +
+            '<th style="padding:8px 12px;width:120px;"></th>' +
+          '</tr></thead>' +
+          '<tbody>' + (prompts.map(promptRow).join('') || '<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--muted);">No prompts yet.</td></tr>') + '</tbody>' +
+        '</table>' +
+        '<div id="speakingFormArea"></div>' +
+      '</div>';
+  }
+
+  function adminShowSpeakingForm(moduleId, moduleTitle, promptJson) {
+    var p = null;
+    if (promptJson) { try { p = typeof promptJson === 'string' ? JSON.parse(promptJson) : promptJson; } catch(e) {} }
+
+    var formHtml =
+      '<div style="border:1px solid var(--line);border-radius:10px;padding:20px;margin-top:8px;">' +
+        '<h4 style="margin:0 0 16px;">' + (p ? 'Edit Prompt' : 'New Prompt') + '</h4>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">' +
+          '<div>' +
+            '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Type</label>' +
+            '<select class="input" id="spkType" style="width:100%;">' +
+              '<option value="image_description"' + (p && p.type === 'image_description' ? ' selected' : '') + '>Image Description</option>' +
+              '<option value="interview"'         + (p && p.type === 'interview'         ? ' selected' : '') + '>Interview Question</option>' +
+            '</select>' +
+          '</div>' +
+          '<div>' +
+            '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Order #</label>' +
+            '<input class="input" id="spkOrder" type="number" value="' + (p ? p.promptOrder : 0) + '" style="width:100%;">' +
+          '</div>' +
+        '</div>' +
+        '<div style="margin-bottom:14px;">' +
+          '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Title</label>' +
+          '<input class="input" id="spkTitle" value="' + (p ? safeText(p.title) : '') + '" style="width:100%;" placeholder="e.g. Describe the weather situation">' +
+        '</div>' +
+        '<div style="margin-bottom:14px;">' +
+          '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Prompt Text (shown to student)</label>' +
+          '<textarea class="input" id="spkPromptText" rows="3" style="width:100%;resize:vertical;">' + (p ? safeText(p.promptText) : '') + '</textarea>' +
+        '</div>' +
+        '<div style="margin-bottom:14px;">' +
+          '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Image URL <span style="font-weight:400;">(for image_description type — optional)</span></label>' +
+          '<input class="input" id="spkImageUrl" value="' + (p ? safeText(p.imageUrl || '') : '') + '" style="width:100%;" placeholder="https://...">' +
+        '</div>' +
+        '<div style="margin-bottom:16px;">' +
+          '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Rubric / Grading notes <span style="font-weight:400;">(shown to rater, not student)</span></label>' +
+          '<textarea class="input" id="spkRubric" rows="3" style="width:100%;resize:vertical;">' + (p ? safeText(p.rubricJson || '') : '') + '</textarea>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;">' +
+          '<button class="btn primary" onclick="adminSaveSpeakingPrompt(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',\'' + (p ? p.promptId : '') + '\')">Save Prompt</button>' +
+          '<button class="btn secondary" onclick="adminClearSpeakingForm()">Cancel</button>' +
+        '</div>' +
+      '</div>';
+
+    byId('speakingFormArea').innerHTML = formHtml;
+    byId('speakingFormArea').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  window.adminClearSpeakingForm = function() { var a = byId('speakingFormArea'); if (a) a.innerHTML = ''; };
+
+  function adminSaveSpeakingPrompt(moduleId, moduleTitle, promptId) {
+    var type      = byId('spkType')       ? byId('spkType').value.trim()       : '';
+    var order     = byId('spkOrder')      ? Number(byId('spkOrder').value)      : 0;
+    var title     = byId('spkTitle')      ? byId('spkTitle').value.trim()       : '';
+    var promptTxt = byId('spkPromptText') ? byId('spkPromptText').value.trim()  : '';
+    var imageUrl  = byId('spkImageUrl')   ? byId('spkImageUrl').value.trim()    : '';
+    var rubric    = byId('spkRubric')     ? byId('spkRubric').value.trim()      : '';
+    if (!type || !title || !promptTxt) { alert('Type, title, and prompt text are required.'); return; }
+
+    var payload = { moduleId: moduleId, type: type, promptOrder: order, title: title, promptText: promptTxt, imageUrl: imageUrl, rubricJson: rubric };
+    if (promptId) payload.promptId = promptId;
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Error saving prompt.'); return; }
+        renderAdminModuleSpeaking(moduleId, moduleTitle);
+      })
+      .withFailureHandler(handleServerError)
+      .apiSpeakingAdminSave(AppState.sessionToken, payload);
+  }
+
+  function adminDeleteSpeakingPrompt(promptId, moduleId, moduleTitle) {
+    if (!confirm('Delete this speaking prompt?')) return;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Error deleting.'); return; }
+        renderAdminModuleSpeaking(moduleId, moduleTitle);
+      })
+      .withFailureHandler(handleServerError)
+      .apiSpeakingAdminDelete(AppState.sessionToken, promptId);
+  }
+
+  window.renderAdminModuleSpeaking   = renderAdminModuleSpeaking;
+  window.adminShowSpeakingForm       = adminShowSpeakingForm;
+  window.adminSaveSpeakingPrompt     = adminSaveSpeakingPrompt;
+  window.adminDeleteSpeakingPrompt   = adminDeleteSpeakingPrompt;
   window._getTierFromXpKey          = _getTierFromXpKey;
   window._getTierFromXp             = _getTierFromXp;
 
