@@ -12736,6 +12736,32 @@
 
   // ── Module list ──────────────────────────────────────────────────────────────
 
+  // ── Unified module builder sub-navigation ────────────────────────────────────
+  function _moduleBuilderSubnav(moduleId, title, activeTab, addLabel, addOnclick) {
+    var tabs = [
+      { key: 'videos',    label: '🎬 Videos',    fn: 'renderAdminModuleVideos'    },
+      { key: 'grammar',   label: '📝 Grammar',   fn: 'renderAdminModuleGrammar'   },
+      { key: 'listening', label: '🔊 Listening',  fn: 'renderAdminModuleListening' },
+      { key: 'speaking',  label: '🎙 Speaking',   fn: 'renderAdminModuleSpeaking'  },
+      { key: 'quiz',      label: '🏆 Quiz/Eval',  fn: 'renderAdminModuleQuiz'      },
+      { key: 'scenarios', label: '📡 Scenarios',  fn: 'renderAdminModuleScenarios' }
+    ];
+    var tabHtml = tabs.map(function(t) {
+      var isActive = t.key === activeTab;
+      return '<button onclick="' + t.fn + '(\'' + moduleId + '\',\'' + safeJs(title) + '\')" ' +
+        'style="padding:7px 14px;border:none;border-bottom:2px solid ' + (isActive ? 'var(--cyan)' : 'transparent') + ';background:none;font-family:inherit;font-size:0.82rem;font-weight:' + (isActive ? '700' : '400') + ';color:' + (isActive ? 'var(--cyan)' : 'var(--muted)') + ';cursor:pointer;white-space:nowrap;transition:color .15s;">' +
+        t.label + '</button>';
+    }).join('');
+    return '<div style="margin-bottom:20px;">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">' +
+        '<button class="btn secondary" style="font-size:0.78rem;padding:4px 10px;" onclick="renderAdminModules()">← Modules</button>' +
+        '<span style="font-weight:700;font-size:0.95rem;">' + safeText(title) + '</span>' +
+        (addLabel && addOnclick ? '<button class="btn primary" style="margin-left:auto;font-size:0.8rem;padding:5px 14px;" onclick="' + addOnclick + '">' + addLabel + '</button>' : '') +
+      '</div>' +
+      '<div style="display:flex;gap:2px;border-bottom:1px solid var(--line);overflow-x:auto;">' + tabHtml + '</div>' +
+    '</div>';
+  }
+
   function renderAdminModules() {
     setActiveNav('Admin');
     var _tok = _navToken;
@@ -12755,24 +12781,23 @@
   function _renderModuleList(modules) {
     var rows = modules.map(function(m) {
       var statusBadge = m.status === 'ACTIVE'
-        ? '<span style="color:var(--green);font-weight:600;">ACTIVE</span>'
-        : '<span style="color:var(--muted);">DRAFT</span>';
-      return '<tr>' +
-        '<td style="font-weight:600;">' + safeText(m.title) + '</td>' +
-        '<td>' + safeText(m.topic || '') + '</td>' +
-        '<td style="text-align:center;">' + m.moduleOrder + '</td>' +
-        '<td style="text-align:center;">' + statusBadge + '</td>' +
-        '<td style="text-align:center;">' + (m.videoCount || 0) + ' videos</td>' +
-        '<td style="text-align:center;">' + (m.questionCount || 0) + ' questions</td>' +
-        '<td style="text-align:center;">' + (m.scenarioCount || 0) + ' scenarios</td>' +
-        '<td style="text-align:center;">' +
-          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleEdit(\'' + m.moduleId + '\')">Edit</button>' +
-          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleVideos(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Videos</button>' +
-          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleQuiz(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Quiz</button>' +
-          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleScenarios(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Scenarios</button>' +
-          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleGrammar(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Grammar</button>' +
-          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleListening(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Listening</button>' +
-          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;" onclick="renderAdminModuleSpeaking(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Speaking</button>' +
+        ? '<span style="color:var(--green);font-size:0.72rem;font-weight:700;">ACTIVE</span>'
+        : '<span style="color:var(--muted);font-size:0.72rem;">DRAFT</span>';
+      var counts =
+        '<span style="font-size:0.72rem;color:var(--muted);">' +
+          (m.videoCount    || 0) + ' vid · ' +
+          (m.questionCount || 0) + ' q · ' +
+          (m.scenarioCount || 0) + ' scn' +
+        '</span>';
+      return '<tr style="border-bottom:1px solid var(--line);">' +
+        '<td style="padding:10px 12px;font-weight:600;">' + safeText(m.title) + '</td>' +
+        '<td style="padding:10px 12px;color:var(--muted);font-size:0.82rem;">' + safeText(m.topic || '') + '</td>' +
+        '<td style="padding:10px 12px;text-align:center;font-size:0.82rem;">' + m.moduleOrder + '</td>' +
+        '<td style="padding:10px 12px;text-align:center;">' + statusBadge + '</td>' +
+        '<td style="padding:10px 12px;text-align:center;">' + counts + '</td>' +
+        '<td style="padding:10px 12px;text-align:right;white-space:nowrap;">' +
+          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:6px;" onclick="renderAdminModuleEdit(\'' + m.moduleId + '\')">⚙ Settings</button>' +
+          '<button class="btn primary"   style="padding:4px 12px;font-size:0.75rem;" onclick="renderAdminModuleVideos(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Manage →</button>' +
         '</td>' +
       '</tr>';
     }).join('');
@@ -12784,21 +12809,17 @@
           '<h3 style="margin:0;">Modules <span style="color:var(--muted);font-size:0.85rem;">(' + modules.length + ')</span></h3>' +
           '<button class="btn primary" onclick="renderAdminModuleEdit(null)">+ New Module</button>' +
         '</div>' +
-        '<div style="overflow-x:auto;">' +
-          '<table style="width:100%;border-collapse:collapse;">' +
-            '<thead><tr style="text-align:left;border-bottom:1px solid var(--line);">' +
-              '<th style="padding:8px 12px;">Title</th>' +
-              '<th style="padding:8px 12px;">Topic</th>' +
-              '<th style="padding:8px 12px;text-align:center;">Order</th>' +
-              '<th style="padding:8px 12px;text-align:center;">Status</th>' +
-              '<th style="padding:8px 12px;text-align:center;">Videos</th>' +
-              '<th style="padding:8px 12px;text-align:center;">Questions</th>' +
-              '<th style="padding:8px 12px;text-align:center;">Scenarios</th>' +
-              '<th style="padding:8px 12px;text-align:center;">Actions</th>' +
-            '</tr></thead>' +
-            '<tbody>' + (rows || '<tr><td colspan="8" style="padding:24px;text-align:center;color:var(--muted);">No modules yet. Create your first one.</td></tr>') + '</tbody>' +
-          '</table>' +
-        '</div>' +
+        '<table style="width:100%;border-collapse:collapse;">' +
+          '<thead><tr style="text-align:left;border-bottom:1px solid var(--line);">' +
+            '<th style="padding:8px 12px;">Title</th>' +
+            '<th style="padding:8px 12px;">Topic</th>' +
+            '<th style="padding:8px 12px;text-align:center;">Order</th>' +
+            '<th style="padding:8px 12px;text-align:center;">Status</th>' +
+            '<th style="padding:8px 12px;text-align:center;">Content</th>' +
+            '<th style="padding:8px 12px;"></th>' +
+          '</tr></thead>' +
+          '<tbody>' + (rows || '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--muted);">No modules yet. Create your first one.</td></tr>') + '</tbody>' +
+        '</table>' +
       '</div>';
   }
 
@@ -12938,10 +12959,7 @@
     byId('contentArea').innerHTML =
       '<div class="panel">' +
         renderAdminTabs('modules') +
-        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
-          '<button class="btn secondary" onclick="renderAdminModules()">← Modules</button>' +
-          '<h3 style="margin:0;">Videos — ' + safeText(moduleTitle) + '</h3>' +
-        '</div>' +
+        _moduleBuilderSubnav(moduleId, moduleTitle, 'videos', '+ Add Video', 'adminShowVideoForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',null,\'\',\'intro\',\'\',0)') +
         '<h4 style="color:var(--muted);font-size:0.8rem;letter-spacing:.06em;margin-bottom:8px;">INTRODUCTION (1 video)</h4>' +
         videoTable(introVideos.map(videoRow).join('') || '<tr><td colspan="5" style="padding:12px;color:var(--muted);">No intro video yet.</td></tr>') +
         '<h4 style="color:var(--muted);font-size:0.8rem;letter-spacing:.06em;margin-bottom:8px;">EXPLANATION (2-3 videos)</h4>' +
@@ -13060,10 +13078,7 @@
     byId('contentArea').innerHTML =
       '<div class="panel">' +
         renderAdminTabs('modules') +
-        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
-          '<button class="btn secondary" onclick="renderAdminModules()">← Modules</button>' +
-          '<h3 style="margin:0;">Quiz &amp; Eval Questions — ' + safeText(moduleTitle) + '</h3>' +
-        '</div>' +
+        _moduleBuilderSubnav(moduleId, moduleTitle, 'quiz', '+ Add Question', 'adminShowQuestionForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',null)') +
         '<div style="display:flex;gap:10px;margin-bottom:12px;font-size:0.78rem;color:var(--muted);">' +
           '<span style="padding:3px 10px;border-radius:6px;background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.2);">EXP = Explanation quiz (' + expQs.length + ')</span>' +
           '<span style="padding:3px 10px;border-radius:6px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);">EVAL = Evaluation exam (' + evalQs.length + ')</span>' +
@@ -13308,10 +13323,7 @@
     byId('contentArea').innerHTML =
       '<div class="panel">' +
         renderAdminTabs('modules') +
-        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
-          '<button class="btn secondary" onclick="renderAdminModules()">← Modules</button>' +
-          '<h3 style="margin:0;">Scenarios — ' + safeText(moduleTitle) + '</h3>' +
-        '</div>' +
+        _moduleBuilderSubnav(moduleId, moduleTitle, 'scenarios') +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">' +
           '<div>' +
             '<h4 style="color:var(--muted);font-size:0.8rem;letter-spacing:.06em;margin-bottom:8px;">LINKED (' + linked.length + ' / need 3+)</h4>' +
@@ -13401,11 +13413,7 @@
     byId('contentArea').innerHTML =
       '<div class="panel">' +
         renderAdminTabs('modules') +
-        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
-          '<button class="btn secondary" onclick="renderAdminModules()">← Modules</button>' +
-          '<h3 style="margin:0;">Grammar — ' + safeText(moduleTitle) + '</h3>' +
-          '<button class="btn primary" style="margin-left:auto;" onclick="adminShowGrammarForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',null)">+ Add Exercise</button>' +
-        '</div>' +
+        _moduleBuilderSubnav(moduleId, moduleTitle, 'grammar', '+ Add Exercise', 'adminShowGrammarForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',null)') +
         '<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">' +
           '<thead><tr style="border-bottom:1px solid var(--line);">' +
             '<th style="padding:8px 12px;text-align:center;width:48px;">#</th>' +
@@ -13601,11 +13609,7 @@
     byId('contentArea').innerHTML =
       '<div class="panel">' +
         renderAdminTabs('modules') +
-        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
-          '<button class="btn secondary" onclick="renderAdminModules()">← Modules</button>' +
-          '<h3 style="margin:0;">Listening — ' + safeText(moduleTitle) + '</h3>' +
-          '<button class="btn primary" style="margin-left:auto;" onclick="adminShowListeningForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',null)">+ Add Clip</button>' +
-        '</div>' +
+        _moduleBuilderSubnav(moduleId, moduleTitle, 'listening', '+ Add Clip', 'adminShowListeningForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',null)') +
         '<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">' +
           '<thead><tr style="border-bottom:1px solid var(--line);">' +
             '<th style="padding:8px 12px;text-align:center;width:40px;">#</th>' +
@@ -13791,11 +13795,7 @@
     byId('contentArea').innerHTML =
       '<div class="panel">' +
         renderAdminTabs('modules') +
-        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
-          '<button class="btn secondary" onclick="renderAdminModules()">← Modules</button>' +
-          '<h3 style="margin:0;">Speaking — ' + safeText(moduleTitle) + '</h3>' +
-          '<button class="btn primary" style="margin-left:auto;" onclick="adminShowSpeakingForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',null)">+ Add Prompt</button>' +
-        '</div>' +
+        _moduleBuilderSubnav(moduleId, moduleTitle, 'speaking', '+ Add Prompt', 'adminShowSpeakingForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',null)') +
         '<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">' +
           '<thead><tr style="border-bottom:1px solid var(--line);">' +
             '<th style="padding:8px 12px;text-align:center;width:40px;">#</th>' +
