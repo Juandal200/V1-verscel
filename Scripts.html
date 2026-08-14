@@ -11357,24 +11357,93 @@
     }
 
     // ── APPLICATION BODY ──
-    var passedCount = prog.scenariosPassed || 0;
-    var appBody =
-      '<div style="display:flex;align-items:center;gap:14px;padding:12px 20px;background:var(--panel-soft);border-bottom:1px solid var(--line);">' +
-        '<span style="font-size:0.75rem;color:var(--muted);font-weight:700;letter-spacing:.07em;text-transform:uppercase;">Goal:</span>' +
-        '<span style="font-size:0.85rem;color:var(--text);">Pass 3 ATC scenarios with 85%+ score</span>' +
-        '<span style="margin-left:auto;font-size:0.82rem;font-weight:700;color:' + (prog.applicationCompleted ? 'var(--green)' : 'var(--cyan)') + ';">' + passedCount + ' / 3</span>' +
+    var grammarExercises = res.grammarExercises || [];
+    var grammarPassed    = lmsBool_(prog.grammarPassed);
+    var grammarScore     = Number(prog.grammarScore || 0);
+    var grammarAttempts  = Number(prog.grammarAttempts || 0);
+    var grammarCooldown  = prog.grammarCooldownUntil || null;
+
+    // ── Station header helper ──
+    function _stationHead(num, icon, label, done, locked) {
+      var color = done ? '#16a34a' : locked ? 'var(--muted)' : '#0ea5e9';
+      return '<div style="display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--panel-soft);border-bottom:1px solid var(--line);">' +
+        '<div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:800;background:' + (done ? 'rgba(22,163,74,.15)' : locked ? 'rgba(100,116,139,.12)' : 'rgba(14,165,233,.12)') + ';color:' + color + ';flex-shrink:0;">' + num + '</div>' +
+        '<span style="font-size:1rem;">' + icon + '</span>' +
+        '<span style="font-weight:700;color:' + color + ';font-size:0.92rem;">' + label + '</span>' +
+        (done ? '<span style="margin-left:auto;font-size:0.75rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);padding:2px 8px;border-radius:20px;">✓ Complete</span>' : '') +
+        (locked ? '<span style="margin-left:auto;font-size:0.75rem;color:var(--muted);">🔒 Locked</span>' : '') +
+      '</div>';
+    }
+
+    // ── Grammar exercise renderer ──
+    function _renderGrammarExercise(ex, idx, disabled) {
+      var dis = disabled ? ' disabled' : '';
+      var body = '<div style="margin-bottom:6px;font-size:0.88rem;color:var(--text);line-height:1.5;">' + safeText(ex.prompt) + '</div>';
+      if (ex.type === 'fill_blank') {
+        body += '<input id="gr-' + safeText(ex.exerciseId) + '" type="text" placeholder="Your answer…" ' + dis +
+          ' style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:6px;background:var(--input-bg,var(--panel));color:var(--text);font-size:0.88rem;box-sizing:border-box;">';
+      } else {
+        body += '<div style="display:flex;flex-direction:column;gap:6px;">';
+        (ex.options || []).forEach(function(opt, oi) {
+          body += '<button id="gr-' + safeText(ex.exerciseId) + '-' + oi + '" ' + dis +
+            ' onclick="if(!this.disabled)_lmsGrSelect(this,\'' + safeText(ex.exerciseId) + '\',' + oi + ')"' +
+            ' style="text-align:left;padding:9px 14px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--text);font-size:0.86rem;cursor:pointer;transition:background .12s,border-color .12s;">' +
+            '<span style="font-weight:700;margin-right:8px;color:var(--muted);">' + String.fromCharCode(65+oi) + '.</span>' + safeText(opt) +
+          '</button>';
+        });
+        body += '</div>';
+      }
+      return '<div id="grwrap-' + safeText(ex.exerciseId) + '" data-exid="' + safeText(ex.exerciseId) + '" data-type="' + safeText(ex.type) + '" data-answer="" style="padding:14px 16px;border:1px solid var(--line);border-radius:8px;background:var(--panel);margin-bottom:10px;">' +
+        '<div style="font-size:0.7rem;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">Q' + (idx+1) + ' · ' + safeText(ex.type === 'fill_blank' ? 'Fill in the blank' : ex.type === 'error_id' ? 'Identify the error' : 'Multiple choice') + '</div>' +
+        body +
+      '</div>';
+    }
+
+    // ── Grammar station body ──
+    var grammarBody = _stationHead('1', '📝', 'Grammar Station', grammarPassed, false);
+
+    if (grammarPassed) {
+      grammarBody += '<div style="padding:18px 20px;display:flex;align-items:center;gap:14px;background:rgba(22,163,74,.04);">' +
+        '<span style="font-size:1.6rem;">✅</span>' +
+        '<div><p style="margin:0;font-weight:700;color:var(--green);">Passed — ' + grammarScore + '%</p>' +
+        '<p style="margin:0;font-size:0.8rem;color:var(--muted);">Grammar station complete.</p></div>' +
+      '</div>';
+    } else if (grammarCooldown) {
+      grammarBody += '<div style="padding:16px 20px;display:flex;align-items:center;gap:10px;">' +
+        '<span>⏱</span><p style="margin:0;color:var(--yellow);">Cooldown — retry at ' + _fmtTime(grammarCooldown) + '</p>' +
+      '</div>';
+    } else if (!grammarExercises.length) {
+      grammarBody += '<div style="padding:20px;text-align:center;color:var(--muted);font-size:0.88rem;">Grammar exercises not yet available for this module.</div>';
+    } else {
+      if (grammarAttempts > 0) {
+        grammarBody += '<div style="padding:10px 20px 0;font-size:0.82rem;color:var(--muted);">Last attempt: <strong>' + grammarScore + '%</strong> — Need 85%. Attempt #' + (grammarAttempts + 1) + '</div>';
+      }
+      grammarBody += '<div id="grammarForm-' + safeText(m.moduleId) + '" style="padding:16px 20px;">';
+      grammarExercises.forEach(function(ex, idx) {
+        grammarBody += _renderGrammarExercise(ex, idx, false);
+      });
+      grammarBody += '<div style="margin-top:4px;display:flex;align-items:center;gap:12px;">' +
+        '<button class="btn primary" style="font-size:0.88rem;" onclick="moduleSubmitGrammar(\'' + safeText(m.moduleId) + '\')">Submit Grammar Exercises</button>' +
+        '<span style="font-size:0.8rem;color:var(--muted);">Need 85%+ to pass</span>' +
+      '</div></div>';
+    }
+
+    // ── Listening placeholder ──
+    var listeningBody = _stationHead('2', '🎧', 'Listening Station', false, !grammarPassed) +
+      '<div style="padding:20px;text-align:center;color:var(--muted);font-size:0.88rem;">' +
+        (grammarPassed
+          ? '🎧 Listening exercises — Coming in Phase 2.'
+          : '🔒 Complete Grammar Station to unlock.') +
       '</div>';
 
-    if (scns.length) {
-      scns.forEach(function(s, si) {
-        appBody += _lmsItem('🛫', 'ATC Scenario', safeText(s.title || s.scenarioId),
-          '<button class="btn primary" style="font-size:0.8rem;padding:6px 16px;flex-shrink:0;" onclick="moduleStartScenario(\'' + m.moduleId + '\',\'' + s.scenarioId + '\')">Start →</button>',
-          s.level ? '<p style="margin:0;font-size:0.8rem;color:var(--muted);">Level ' + safeText(s.level) + ' · Target: 85%+</p>' : null,
-          si === scns.length - 1);
-      });
-    } else {
-      appBody += '<div style="padding:20px;text-align:center;color:var(--muted);font-size:0.88rem;">No scenarios linked to this module yet.</div>';
-    }
+    // ── Speaking Production placeholder ──
+    var productionBody = _stationHead('3', '🎙', 'Speaking Production', false, true) +
+      '<div style="padding:20px;text-align:center;color:var(--muted);font-size:0.88rem;">🔒 Unlocked after Listening Station — Coming in Phase 3.</div>';
+
+    var appBody =
+      '<div style="border-bottom:1px solid var(--line);">' + grammarBody + '</div>' +
+      '<div style="border-bottom:1px solid var(--line);">' + listeningBody + '</div>' +
+      '<div>' + productionBody + '</div>';
 
     // ── EVALUATION BODY ──
     var evalBody = '';
@@ -12092,6 +12161,97 @@
     if (typeof _showXpFloat === 'function') _showXpFloat(displayAmt, isBonus);
   };
 
+  // ── Grammar: option selector ─────────────────────────────────────────────────
+  window._lmsGrSelect = function(btn, exerciseId, optionIndex) {
+    var wrap = document.getElementById('grwrap-' + exerciseId);
+    if (!wrap) return;
+    wrap.dataset.answer = String(optionIndex);
+    var btns = wrap.querySelectorAll('button[id^="gr-' + exerciseId + '-"]');
+    btns.forEach(function(b) {
+      b.style.background    = 'var(--panel)';
+      b.style.borderColor   = 'var(--line)';
+      b.style.color         = 'var(--text)';
+      b.style.fontWeight    = '';
+    });
+    btn.style.background  = 'rgba(14,165,233,.12)';
+    btn.style.borderColor = '#0ea5e9';
+    btn.style.color       = '#0ea5e9';
+    btn.style.fontWeight  = '700';
+  };
+
+  // ── Grammar: submit ───────────────────────────────────────────────────────────
+  window.moduleSubmitGrammar = function(moduleId) {
+    var form = document.getElementById('grammarForm-' + moduleId);
+    if (!form) return;
+    var wraps = form.querySelectorAll('[data-exid]');
+    var answers = {};
+    var allAnswered = true;
+    wraps.forEach(function(wrap) {
+      var exId = wrap.dataset.exid;
+      var type = wrap.dataset.type;
+      var answer;
+      if (type === 'fill_blank') {
+        var inp = document.getElementById('gr-' + exId);
+        answer = inp ? inp.value.trim() : '';
+      } else {
+        answer = wrap.dataset.answer;
+      }
+      if (!answer && answer !== '0') allAnswered = false;
+      answers[exId] = answer;
+    });
+    if (!allAnswered) {
+      alert('Please answer all questions before submitting.');
+      return;
+    }
+
+    var submitBtn = form.querySelector('button.btn.primary');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Grading…'; }
+
+    gasPost_({ action: 'apiGrammarSubmit', args: [window._lmsSessionToken, { moduleId: moduleId, answers: answers }] },
+      function(res) {
+        if (!res.ok) { alert(res.error || 'Submission failed.'); if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Grammar Exercises'; } return; }
+
+        // Show result feedback on each exercise
+        var resultsMap = {};
+        (res.results || []).forEach(function(r) { resultsMap[r.exerciseId] = r; });
+        wraps.forEach(function(wrap) {
+          var exId   = wrap.dataset.exid;
+          var result = resultsMap[exId];
+          if (!result) return;
+          var color = result.correct ? '#16a34a' : '#ef4444';
+          wrap.style.borderColor = color;
+          wrap.style.background  = result.correct ? 'rgba(22,163,74,.06)' : 'rgba(239,68,68,.06)';
+          if (result.explanation) {
+            var existing = wrap.querySelector('.gr-explanation');
+            if (!existing) {
+              var note = document.createElement('p');
+              note.className = 'gr-explanation';
+              note.style.cssText = 'margin:8px 0 0;font-size:0.8rem;color:var(--muted);border-top:1px solid var(--line);padding-top:8px;';
+              note.textContent = (result.correct ? '✓ ' : '✗ Correct answer: ' + result.correctAnswer + ' — ') + result.explanation;
+              wrap.appendChild(note);
+            }
+          }
+        });
+
+        if (res.passed) {
+          _lmsAwardXp(30, 'Grammar Station', 0.3, 2, res.lmsXpTotal);
+          renderModuleDetail(moduleId, { silent: true });
+        } else {
+          var coolMsg = res.grammarCooldownUntil ? ' Retry at ' + _fmtTime(res.grammarCooldownUntil) + '.' : '';
+          var scoreDiv = document.createElement('div');
+          scoreDiv.style.cssText = 'margin-top:12px;padding:10px 14px;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.25);border-radius:8px;font-size:0.85rem;color:var(--text);';
+          scoreDiv.textContent = 'Score: ' + res.score + '% — Need 85% to pass.' + coolMsg;
+          form.appendChild(scoreDiv);
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Retry Grammar Exercises'; }
+        }
+      },
+      function(err) {
+        alert('Network error. Please try again.');
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Grammar Exercises'; }
+      }
+    );
+  };
+
   window.renderModules          = renderModules;
   window.renderModuleDetail     = renderModuleDetail;
   window.moduleMarkVideoWatched = moduleMarkVideoWatched;
@@ -12140,7 +12300,8 @@
           '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleEdit(\'' + m.moduleId + '\')">Edit</button>' +
           '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleVideos(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Videos</button>' +
           '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleQuiz(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Quiz</button>' +
-          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;" onclick="renderAdminModuleScenarios(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Scenarios</button>' +
+          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleScenarios(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Scenarios</button>' +
+          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;" onclick="renderAdminModuleGrammar(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Grammar</button>' +
         '</td>' +
       '</tr>';
     }).join('');
@@ -12661,6 +12822,186 @@
       .apiAdminUnlinkModuleScenario(AppState.sessionToken, { moduleId: moduleId, scenarioId: scenarioId });
   }
 
+  // ── Grammar Admin Builder ─────────────────────────────────────────────────────
+
+  function renderAdminModuleGrammar(moduleId, moduleTitle) {
+    var _tok = _navToken;
+    byId('contentArea').innerHTML =
+      '<div class="panel">' + renderAdminTabs('modules') + _spinnerHtml('Loading grammar exercises...') + '</div>';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (_navToken !== _tok) return;
+        if (!res || !res.ok) { showContentError(res && res.error ? res.error : 'Could not load grammar exercises.'); return; }
+        _renderGrammarBuilder(moduleId, moduleTitle, res.exercises || []);
+      })
+      .withFailureHandler(function(err) { if (_navToken !== _tok) return; handleServerError(err); })
+      .apiGrammarAdminList(AppState.sessionToken, moduleId);
+  }
+
+  function _renderGrammarBuilder(moduleId, moduleTitle, exercises) {
+    function typeLabel(t) { return t === 'fill_blank' ? 'Fill in the blank' : t === 'error_id' ? 'Identify the error' : 'Multiple choice'; }
+
+    function exRow(ex) {
+      return '<tr>' +
+        '<td style="padding:8px 12px;color:var(--muted);text-align:center;">' + ex.exerciseOrder + '</td>' +
+        '<td style="padding:8px 12px;font-size:0.8rem;">' + safeText(typeLabel(ex.type)) + '</td>' +
+        '<td style="padding:8px 12px;font-size:0.82rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + safeText(ex.prompt) + '</td>' +
+        '<td style="padding:8px 12px;text-align:center;">' +
+          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;margin-right:4px;" onclick="adminShowGrammarForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',' + safeJs(JSON.stringify(ex)) + ')">Edit</button>' +
+          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;color:var(--red);" onclick="adminDeleteGrammarEx(\'' + ex.exerciseId + '\',\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\')">Del</button>' +
+        '</td>' +
+      '</tr>';
+    }
+
+    byId('contentArea').innerHTML =
+      '<div class="panel">' +
+        renderAdminTabs('modules') +
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
+          '<button class="btn secondary" onclick="renderAdminModules()">← Modules</button>' +
+          '<h3 style="margin:0;">Grammar — ' + safeText(moduleTitle) + '</h3>' +
+          '<button class="btn primary" style="margin-left:auto;" onclick="adminShowGrammarForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',null)">+ Add Exercise</button>' +
+        '</div>' +
+        '<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">' +
+          '<thead><tr style="border-bottom:1px solid var(--line);">' +
+            '<th style="padding:8px 12px;text-align:center;width:48px;">#</th>' +
+            '<th style="padding:8px 12px;text-align:left;">Type</th>' +
+            '<th style="padding:8px 12px;text-align:left;">Prompt</th>' +
+            '<th style="padding:8px 12px;text-align:center;width:120px;">Actions</th>' +
+          '</tr></thead>' +
+          '<tbody>' + (exercises.map(exRow).join('') || '<tr><td colspan="4" style="padding:16px;text-align:center;color:var(--muted);">No exercises yet.</td></tr>') + '</tbody>' +
+        '</table>' +
+        '<div id="grammarFormArea"></div>' +
+      '</div>';
+  }
+
+  function adminShowGrammarForm(moduleId, moduleTitle, exJson) {
+    var ex = null;
+    if (exJson) { try { ex = typeof exJson === 'string' ? JSON.parse(exJson) : exJson; } catch(e) {} }
+    var typeVal    = ex ? ex.type : 'mcq';
+    var promptVal  = ex ? safeText(ex.prompt) : '';
+    var correctVal = ex ? safeText(ex.correctAnswer) : '';
+    var expVal     = ex ? safeText(ex.explanation || '') : '';
+    var orderVal   = ex ? ex.exerciseOrder : 0;
+    var opts       = ex ? (ex.options || []) : ['', '', '', ''];
+
+    function optFields(type) {
+      if (type === 'fill_blank') return '<p style="margin:0;font-size:0.82rem;color:var(--muted);">No options needed. Correct answer is the exact text the student must type.</p>';
+      var html = '<div style="display:flex;flex-direction:column;gap:6px;">';
+      ['A','B','C','D'].forEach(function(ltr, i) {
+        html += '<div style="display:flex;gap:8px;align-items:center;">' +
+          '<span style="font-weight:700;width:20px;color:var(--muted);">' + ltr + '</span>' +
+          '<input class="input" style="flex:1;" id="grOpt' + i + '" placeholder="Option ' + ltr + '" value="' + (opts[i] ? safeText(opts[i]) : '') + '">' +
+        '</div>';
+      });
+      html += '</div>';
+      return html;
+    }
+
+    var formHtml =
+      '<div style="border:1px solid var(--line);border-radius:10px;padding:20px;margin-top:8px;">' +
+        '<h4 style="margin:0 0 16px;">' + (ex ? 'Edit Exercise' : 'New Exercise') + '</h4>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px;">' +
+          '<div>' +
+            '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Type</label>' +
+            '<select class="input" id="grType" onchange="adminGrRefreshOptions()" style="width:100%;">' +
+              '<option value="mcq"' + (typeVal==='mcq'?' selected':'') + '>Multiple choice (MCQ)</option>' +
+              '<option value="fill_blank"' + (typeVal==='fill_blank'?' selected':'') + '>Fill in the blank</option>' +
+              '<option value="error_id"' + (typeVal==='error_id'?' selected':'') + '>Identify the error</option>' +
+            '</select>' +
+          '</div>' +
+          '<div>' +
+            '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Order #</label>' +
+            '<input class="input" id="grOrder" type="number" value="' + orderVal + '" style="width:100%;">' +
+          '</div>' +
+        '</div>' +
+        '<div style="margin-bottom:14px;">' +
+          '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Prompt</label>' +
+          '<textarea class="input" id="grPrompt" rows="3" style="width:100%;resize:vertical;">' + promptVal + '</textarea>' +
+          '<p style="margin:4px 0 0;font-size:0.75rem;color:var(--muted);">For fill-in-the-blank use ___ as the blank marker.</p>' +
+        '</div>' +
+        '<div id="grOptsArea" style="margin-bottom:14px;">' +
+          '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Options</label>' +
+          optFields(typeVal) +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:14px;">' +
+          '<div>' +
+            '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Correct Answer <span style="font-weight:400;">(for MCQ/error_id: index 0–3; for fill-blank: exact text)</span></label>' +
+            '<input class="input" id="grCorrect" value="' + correctVal + '" style="width:100%;" placeholder="e.g. 0 or the exact word">' +
+          '</div>' +
+          '<div>' +
+            '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Explanation (shown after answering)</label>' +
+            '<input class="input" id="grExp" value="' + expVal + '" style="width:100%;">' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;">' +
+          '<button class="btn primary" onclick="adminSaveGrammarEx(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',\'' + (ex ? ex.exerciseId : '') + '\')">Save Exercise</button>' +
+          '<button class="btn secondary" onclick="adminClearGrammarForm()">Cancel</button>' +
+        '</div>' +
+      '</div>';
+
+    byId('grammarFormArea').innerHTML = formHtml;
+    byId('grammarFormArea').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  window.adminGrRefreshOptions = function() {
+    var type = byId('grType') ? byId('grType').value : 'mcq';
+    var area = byId('grOptsArea');
+    if (!area) return;
+    function optFields(t) {
+      if (t === 'fill_blank') return '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Options</label><p style="margin:0;font-size:0.82rem;color:var(--muted);">No options needed. Correct answer is the exact text the student must type.</p>';
+      var html = '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Options</label><div style="display:flex;flex-direction:column;gap:6px;">';
+      ['A','B','C','D'].forEach(function(ltr, i) {
+        html += '<div style="display:flex;gap:8px;align-items:center;">' +
+          '<span style="font-weight:700;width:20px;color:var(--muted);">' + ltr + '</span>' +
+          '<input class="input" style="flex:1;" id="grOpt' + i + '" placeholder="Option ' + ltr + '">' +
+        '</div>';
+      });
+      return html + '</div>';
+    }
+    area.innerHTML = optFields(type);
+  };
+
+  window.adminClearGrammarForm = function() {
+    var a = byId('grammarFormArea');
+    if (a) a.innerHTML = '';
+  };
+
+  function adminSaveGrammarEx(moduleId, moduleTitle, exerciseId) {
+    var type    = byId('grType')    ? byId('grType').value.trim()    : '';
+    var prompt  = byId('grPrompt') ? byId('grPrompt').value.trim()   : '';
+    var correct = byId('grCorrect') ? byId('grCorrect').value.trim() : '';
+    var exp     = byId('grExp')    ? byId('grExp').value.trim()      : '';
+    var order   = byId('grOrder')  ? Number(byId('grOrder').value)   : 0;
+    var options = [];
+    if (type !== 'fill_blank') {
+      [0,1,2,3].forEach(function(i) { var el = byId('grOpt' + i); if (el) options.push(el.value.trim()); });
+    }
+    if (!type || !prompt || !correct) { alert('Type, prompt, and correct answer are required.'); return; }
+
+    var payload = { moduleId: moduleId, type: type, prompt: prompt, options: options, correctAnswer: correct, explanation: exp, exerciseOrder: order };
+    if (exerciseId) payload.exerciseId = exerciseId;
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Error saving exercise.'); return; }
+        renderAdminModuleGrammar(moduleId, moduleTitle);
+      })
+      .withFailureHandler(handleServerError)
+      .apiGrammarAdminSave(AppState.sessionToken, payload);
+  }
+
+  function adminDeleteGrammarEx(exerciseId, moduleId, moduleTitle) {
+    if (!confirm('Delete this grammar exercise?')) return;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Error deleting.'); return; }
+        renderAdminModuleGrammar(moduleId, moduleTitle);
+      })
+      .withFailureHandler(handleServerError)
+      .apiGrammarAdminDelete(AppState.sessionToken, exerciseId);
+  }
+
   window.renderAdminModules         = renderAdminModules;
   window.renderAdminModuleEdit      = renderAdminModuleEdit;
   window.adminSaveModule            = adminSaveModule;
@@ -12677,6 +13018,10 @@
   window.filterScenarioTable        = filterScenarioTable;
   window.adminLinkScenario          = adminLinkScenario;
   window.adminUnlinkScenario        = adminUnlinkScenario;
+  window.renderAdminModuleGrammar   = renderAdminModuleGrammar;
+  window.adminShowGrammarForm       = adminShowGrammarForm;
+  window.adminSaveGrammarEx         = adminSaveGrammarEx;
+  window.adminDeleteGrammarEx       = adminDeleteGrammarEx;
   window._getTierFromXpKey          = _getTierFromXpKey;
   window._getTierFromXp             = _getTierFromXp;
 

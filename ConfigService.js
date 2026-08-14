@@ -353,11 +353,17 @@ var DB_SCHEMA = {
     'introForumPosted',
     'introCompleted',
     'explanationVideosWatched',
+    'explanationForumPosted',
     'quizScore',
     'quizLastAttemptAt',
     'quizAttempts',
     'quizPassed',
     'explanationCompleted',
+    'grammarScore',
+    'grammarAttempts',
+    'grammarLastAttemptAt',
+    'grammarPassed',
+    'grammarCompletedAt',
     'scenariosPassed',
     'applicationCompleted',
     'evalScore',
@@ -372,6 +378,19 @@ var DB_SCHEMA = {
     'timeSpentEvalSec',
     'completedAt',
     'updatedAt'
+  ],
+
+  ModuleGrammar: [
+    'exerciseId',
+    'moduleId',
+    'exerciseOrder',
+    'type',
+    'prompt',
+    'optionsJson',
+    'correctAnswer',
+    'explanation',
+    'xpReward',
+    'createdAt'
   ],
 
   LmsXp: [

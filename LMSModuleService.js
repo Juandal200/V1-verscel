@@ -34,7 +34,7 @@ function setupLMSModuleSheets() {
   var ss = dbGetSpreadsheet_();
   var sheets = [
     'Modules', 'ModuleVideos', 'ModuleQuiz', 'ModuleQuizAnswers',
-    'ModuleScenarios', 'ModuleForum', 'ModuleForumLikes', 'ModuleProgress', 'LmsXp', 'UserStreaks'
+    'ModuleScenarios', 'ModuleForum', 'ModuleForumLikes', 'ModuleProgress', 'ModuleGrammar', 'LmsXp', 'UserStreaks'
   ];
 
   sheets.forEach(function(name) {
@@ -53,6 +53,7 @@ function setupLMSModuleSheets() {
   // Ensure existing sheets have all expected columns (adds missing headers without losing data)
   _lmsRepairSheetHeaders_(ss, 'LmsXp');
   _lmsRepairSheetHeaders_(ss, 'UserStreaks');
+  _lmsRepairSheetHeaders_(ss, 'ModuleProgress');
 }
 
 // Run this once from the GAS editor to force-rewrite ModuleQuiz headers to the new schema.
@@ -210,6 +211,11 @@ function lmsEnsureProgress_(userId, moduleId) {
     explanationVideosWatched: '[]',
     explanationForumPosted:   false,
     quizScore:                0,
+    grammarScore:             0,
+    grammarAttempts:          0,
+    grammarLastAttemptAt:     '',
+    grammarPassed:            false,
+    grammarCompletedAt:       '',
     quizLastAttemptAt:        '',
     quizAttempts:             0,
     quizPassed:               false,
@@ -999,8 +1005,26 @@ function apiModuleGetDetail(sessionToken, moduleId) {
       }
     }
 
-    var cooldownUntil = prog ? lmsCheckCooldown_(prog.quizLastAttemptAt) : null;
-    var evalCooldown  = prog ? lmsCheckCooldown_(prog.evalLastAttemptAt)  : null;
+    var cooldownUntil    = prog ? lmsCheckCooldown_(prog.quizLastAttemptAt)     : null;
+    var evalCooldown     = prog ? lmsCheckCooldown_(prog.evalLastAttemptAt)     : null;
+    var grammarCooldown  = prog ? lmsCheckCooldown_(prog.grammarLastAttemptAt)  : null;
+
+    var grammarExercises = dbReadAll_('ModuleGrammar')
+      .filter(function(g) { return String(g.moduleId || '') === moduleId; })
+      .sort(function(a, b) { return Number(a.exerciseOrder || 0) - Number(b.exerciseOrder || 0); })
+      .map(function(g) {
+        var opts = [];
+        try { opts = JSON.parse(g.optionsJson || '[]'); } catch(e) {}
+        return {
+          exerciseId:    g.exerciseId,
+          exerciseOrder: Number(g.exerciseOrder || 0),
+          type:          g.type,
+          prompt:        g.prompt,
+          options:       opts,
+          explanation:   g.explanation
+          // correctAnswer intentionally omitted for students
+        };
+      });
 
     return {
       ok: true,
@@ -1011,27 +1035,32 @@ function apiModuleGetDetail(sessionToken, moduleId) {
         description:   module.description,
         badgeImageUrl: module.badgeImageUrl
       },
-      videos:    videos,
-      questions: questions,
-      scenarios: scenarios,
+      videos:           videos,
+      questions:        questions,
+      scenarios:        scenarios,
+      grammarExercises: grammarExercises,
       progress: prog ? {
-        introVideoWatched:       lmsBool_(prog.introVideoWatched),
-        introForumPosted:        lmsBool_(prog.introForumPosted),
-        introCompleted:          lmsBool_(prog.introCompleted),
+        introVideoWatched:        lmsBool_(prog.introVideoWatched),
+        introForumPosted:         lmsBool_(prog.introForumPosted),
+        introCompleted:           lmsBool_(prog.introCompleted),
         explanationVideosWatched: watchedIds,
-        explanationForumPosted:  lmsBool_(prog.explanationForumPosted),
-        quizScore:               Number(prog.quizScore   || 0),
-        quizAttempts:            Number(prog.quizAttempts || 0),
-        quizPassed:              lmsBool_(prog.quizPassed),
-        quizCooldownUntil:       cooldownUntil,
-        explanationCompleted:    lmsBool_(prog.explanationCompleted),
-        scenariosPassed:         Number(prog.scenariosPassed || 0),
-        applicationCompleted:    lmsBool_(prog.applicationCompleted),
-        evalScore:               Number(prog.evalScore    || 0),
-        evalAttempts:            Number(prog.evalAttempts  || 0),
-        evalPassed:              lmsBool_(prog.evalPassed),
-        evalCooldownUntil:       evalCooldown,
-        badgeEarned:             lmsBool_(prog.badgeEarned)
+        explanationForumPosted:   lmsBool_(prog.explanationForumPosted),
+        quizScore:                Number(prog.quizScore    || 0),
+        quizAttempts:             Number(prog.quizAttempts || 0),
+        quizPassed:               lmsBool_(prog.quizPassed),
+        quizCooldownUntil:        cooldownUntil,
+        explanationCompleted:     lmsBool_(prog.explanationCompleted),
+        grammarScore:             Number(prog.grammarScore    || 0),
+        grammarAttempts:          Number(prog.grammarAttempts || 0),
+        grammarPassed:            lmsBool_(prog.grammarPassed),
+        grammarCooldownUntil:     grammarCooldown,
+        scenariosPassed:          Number(prog.scenariosPassed || 0),
+        applicationCompleted:     lmsBool_(prog.applicationCompleted),
+        evalScore:                Number(prog.evalScore    || 0),
+        evalAttempts:             Number(prog.evalAttempts  || 0),
+        evalPassed:               lmsBool_(prog.evalPassed),
+        evalCooldownUntil:        evalCooldown,
+        badgeEarned:              lmsBool_(prog.badgeEarned)
       } : null
     };
   } catch(err) {
@@ -1210,6 +1239,182 @@ function apiModuleLogTime(sessionToken, payload) {
     return { ok: true };
   } catch(err) {
     return apiError_('apiModuleLogTime', err);
+  }
+}
+
+// ── Grammar Station ───────────────────────────────────────────────────────────
+
+var LMS_GRAMMAR_PASS_SCORE = 85;
+var LMS_GRAMMAR_XP         = 30;
+
+function _gradeGrammarAnswer_(exercise, rawAnswer) {
+  var correct = String(exercise.correctAnswer || '').trim();
+  var answer  = String(rawAnswer || '').trim();
+  if (exercise.type === 'fill_blank') {
+    return answer.toLowerCase() === correct.toLowerCase();
+  }
+  // mcq and error_id compare by option index
+  return answer === correct;
+}
+
+function apiGrammarSubmit(sessionToken, payload) {
+  try {
+    var caller   = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    var moduleId = String((payload || {}).moduleId || '');
+    var answers  = (payload || {}).answers || {}; // { exerciseId: rawAnswer, ... }
+    if (!moduleId) throw new Error('moduleId required.');
+
+    var prog = lmsEnsureProgress_(caller.userId, moduleId);
+    if (!lmsSectionUnlocked_(prog, 'application')) throw new Error('Application section not yet unlocked.');
+
+    // Cooldown check
+    var cooldown = lmsCheckCooldown_(prog.grammarLastAttemptAt);
+    if (cooldown) return { ok: false, error: 'Cooldown active until ' + cooldown, grammarCooldownUntil: cooldown };
+
+    var exercises = dbReadAll_('ModuleGrammar')
+      .filter(function(g) { return String(g.moduleId || '') === moduleId; });
+
+    if (!exercises.length) return { ok: false, error: 'No grammar exercises found for this module.' };
+
+    var totalQ  = exercises.length;
+    var correct = 0;
+    var results = [];
+
+    exercises.forEach(function(ex) {
+      var raw    = answers[ex.exerciseId];
+      var passed = _gradeGrammarAnswer_(ex, raw);
+      if (passed) correct++;
+      results.push({
+        exerciseId:    ex.exerciseId,
+        correct:       passed,
+        correctAnswer: ex.correctAnswer,
+        explanation:   ex.explanation
+      });
+    });
+
+    var score    = Math.round((correct / totalQ) * 100);
+    var passed   = score >= LMS_GRAMMAR_PASS_SCORE;
+    var attempts = Number(prog.grammarAttempts || 0) + 1;
+    var now      = now_();
+
+    var patch = {
+      grammarScore:          score,
+      grammarAttempts:       attempts,
+      grammarLastAttemptAt:  now,
+      updatedAt:             now
+    };
+
+    var lmsXpTotal;
+    if (passed && !lmsBool_(prog.grammarPassed)) {
+      patch.grammarPassed      = true;
+      patch.grammarCompletedAt = now;
+      patch.applicationCompleted = true;
+      try { lmsXpTotal = lmsAddXp_(caller.userId, LMS_GRAMMAR_XP); lmsUpdateStreak_(caller.userId); } catch(e) {}
+    }
+
+    dbUpdateByRow_('ModuleProgress', prog.__rowNumber, patch);
+
+    return {
+      ok:              true,
+      score:           score,
+      passed:          passed,
+      correct:         correct,
+      total:           totalQ,
+      attempts:        attempts,
+      results:         results,
+      lmsXpTotal:      lmsXpTotal,
+      applicationCompleted: passed || lmsBool_(prog.applicationCompleted)
+    };
+  } catch(err) {
+    return apiError_('apiGrammarSubmit', err);
+  }
+}
+
+// ── Grammar Admin CRUD ────────────────────────────────────────────────────────
+
+function apiGrammarAdminList(sessionToken, moduleId) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
+    moduleId = String(moduleId || '');
+    if (!moduleId) throw new Error('moduleId required.');
+
+    var exercises = dbReadAll_('ModuleGrammar')
+      .filter(function(g) { return String(g.moduleId || '') === moduleId; })
+      .sort(function(a, b) { return Number(a.exerciseOrder || 0) - Number(b.exerciseOrder || 0); })
+      .map(function(g) {
+        var opts = [];
+        try { opts = JSON.parse(g.optionsJson || '[]'); } catch(e) {}
+        return {
+          exerciseId:    g.exerciseId,
+          exerciseOrder: Number(g.exerciseOrder || 0),
+          type:          g.type,
+          prompt:        g.prompt,
+          options:       opts,
+          correctAnswer: g.correctAnswer,
+          explanation:   g.explanation,
+          xpReward:      Number(g.xpReward || 0)
+        };
+      });
+
+    return { ok: true, exercises: exercises };
+  } catch(err) {
+    return apiError_('apiGrammarAdminList', err);
+  }
+}
+
+function apiGrammarAdminSave(sessionToken, payload) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
+    var p          = payload || {};
+    var moduleId   = String(p.moduleId || '');
+    var type       = String(p.type || '');
+    var prompt     = String(p.prompt || '').trim();
+    var options    = Array.isArray(p.options) ? p.options : [];
+    var correct    = String(p.correctAnswer || '').trim();
+    var explanation = String(p.explanation || '').trim();
+    var order      = Number(p.exerciseOrder || 0);
+
+    if (!moduleId || !type || !prompt || !correct) throw new Error('moduleId, type, prompt, and correctAnswer are required.');
+    if (['mcq', 'fill_blank', 'error_id'].indexOf(type) === -1) throw new Error('Invalid exercise type.');
+
+    var optsJson = JSON.stringify(options);
+    var now = now_();
+
+    if (p.exerciseId) {
+      var existing = dbFindOne_('ModuleGrammar', 'exerciseId', String(p.exerciseId));
+      if (!existing) throw new Error('Exercise not found.');
+      dbUpdateByRow_('ModuleGrammar', existing.__rowNumber, {
+        type: type, prompt: prompt, optionsJson: optsJson,
+        correctAnswer: correct, explanation: explanation,
+        exerciseOrder: order
+      });
+      return { ok: true, exerciseId: p.exerciseId };
+    } else {
+      var id = uuid_('GR');
+      dbAppend_('ModuleGrammar', {
+        exerciseId: id, moduleId: moduleId, exerciseOrder: order,
+        type: type, prompt: prompt, optionsJson: optsJson,
+        correctAnswer: correct, explanation: explanation,
+        xpReward: LMS_GRAMMAR_XP, createdAt: now
+      });
+      return { ok: true, exerciseId: id };
+    }
+  } catch(err) {
+    return apiError_('apiGrammarAdminSave', err);
+  }
+}
+
+function apiGrammarAdminDelete(sessionToken, exerciseId) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
+    exerciseId = String(exerciseId || '');
+    if (!exerciseId) throw new Error('exerciseId required.');
+    var existing = dbFindOne_('ModuleGrammar', 'exerciseId', exerciseId);
+    if (!existing) throw new Error('Exercise not found.');
+    dbDeleteByRow_('ModuleGrammar', existing.__rowNumber);
+    return { ok: true };
+  } catch(err) {
+    return apiError_('apiGrammarAdminDelete', err);
   }
 }
 
