@@ -55,6 +55,8 @@ function setupLMSModuleSheets() {
   _lmsRepairSheetHeaders_(ss, 'LmsXp');
   _lmsRepairSheetHeaders_(ss, 'UserStreaks');
   _lmsRepairSheetHeaders_(ss, 'ModuleProgress');
+  _lmsRepairSheetHeaders_(ss, 'ModuleQuiz');
+  _lmsRepairSheetHeaders_(ss, 'Modules');
 }
 
 // Run this once from the GAS editor to force-rewrite ModuleQuiz headers to the new schema.
@@ -308,27 +310,29 @@ function apiAdminSaveModule(sessionToken, payload) {
         var existing = dbFindOne_('Modules', 'moduleId', payload.moduleId);
         if (!existing) throw new Error('Module not found.');
         var patch = {
-          title:         title,
-          topic:         String(payload.topic       || existing.topic       || '').trim(),
-          description:   String(payload.description || existing.description || '').trim(),
-          moduleOrder:   payload.moduleOrder !== undefined ? Number(payload.moduleOrder) : Number(existing.moduleOrder || 0),
-          status:        String(payload.status       || existing.status      || 'DRAFT'),
-          badgeImageUrl: String(payload.badgeImageUrl || existing.badgeImageUrl || '').trim(),
-          updatedAt:     now
+          title:               title,
+          topic:               String(payload.topic       || existing.topic       || '').trim(),
+          description:         String(payload.description || existing.description || '').trim(),
+          moduleOrder:         payload.moduleOrder !== undefined ? Number(payload.moduleOrder) : Number(existing.moduleOrder || 0),
+          status:              String(payload.status       || existing.status      || 'DRAFT'),
+          badgeImageUrl:       String(payload.badgeImageUrl || existing.badgeImageUrl || '').trim(),
+          evalTimeLimitMinutes: payload.evalTimeLimitMinutes !== undefined ? Number(payload.evalTimeLimitMinutes) || 30 : Number(existing.evalTimeLimitMinutes || 30),
+          updatedAt:           now
         };
         dbUpdateByRow_('Modules', existing.__rowNumber, patch);
         return mergeObjects_(existing, patch);
       } else {
         var newModule = {
-          moduleId:      uuid_('MOD'),
-          title:         title,
-          topic:         String(payload.topic       || '').trim(),
-          description:   String(payload.description || '').trim(),
-          moduleOrder:   Number(payload.moduleOrder || 0),
-          status:        'DRAFT',
-          badgeImageUrl: String(payload.badgeImageUrl || '').trim(),
-          createdAt:     now,
-          updatedAt:     now
+          moduleId:             uuid_('MOD'),
+          title:                title,
+          topic:                String(payload.topic       || '').trim(),
+          description:          String(payload.description || '').trim(),
+          moduleOrder:          Number(payload.moduleOrder || 0),
+          status:               'DRAFT',
+          badgeImageUrl:        String(payload.badgeImageUrl || '').trim(),
+          evalTimeLimitMinutes: Number(payload.evalTimeLimitMinutes || 30),
+          createdAt:            now,
+          updatedAt:            now
         };
         dbAppend_('Modules', newModule);
         return newModule;
@@ -487,19 +491,24 @@ function apiAdminSaveModuleQuestion(sessionToken, payload) {
     AuthService.requireRole(sessionToken, ['ADMIN']);
     payload = payload || {};
 
-    var question  = String(payload.question  || '').trim();
-    var moduleId  = String(payload.moduleId  || '').trim();
-    var videoId   = String(payload.videoId   || '').trim();
+    var question      = String(payload.question  || '').trim();
+    var moduleId      = String(payload.moduleId  || '').trim();
+    var section       = String(payload.section   || 'explanation').trim();
+    var questionType  = String(payload.questionType || 'standard').trim();
+    var audioScript   = String(payload.audioScript  || '').trim();
+    var questionOrder = Number(payload.questionOrder || 0);
 
     if (!question) throw new Error('question is required.');
     if (!moduleId) throw new Error('moduleId is required.');
-    if (!videoId)  throw new Error('videoId is required.');
+
+    var videoId = String(payload.videoId || '').trim();
+    if (section === 'explanation' && !videoId) throw new Error('videoId is required for explanation questions.');
 
     var options = Array.isArray(payload.options) ? payload.options : [];
     if (options.length < 2) throw new Error('At least 2 options required.');
-    var correctIndex    = Number(payload.correctIndex    || 0);
-    var xpReward        = Number(payload.xpReward        || 5);
-    var videoTimestamp  = Number(payload.videoTimestamp  || 0);
+    var correctIndex   = Number(payload.correctIndex   || 0);
+    var xpReward       = Number(payload.xpReward       || 5);
+    var videoTimestamp = Number(payload.videoTimestamp  || 0);
     if (correctIndex < 0 || correctIndex >= options.length) throw new Error('Invalid correctIndex.');
 
     var result = dbWithScriptLock_(function() {
@@ -508,6 +517,10 @@ function apiAdminSaveModuleQuestion(sessionToken, payload) {
         var existing = dbFindOne_('ModuleQuiz', 'questionId', payload.questionId);
         if (!existing) throw new Error('Question not found.');
         var patch = {
+          section:        section,
+          questionOrder:  questionOrder,
+          questionType:   questionType,
+          audioScript:    audioScript,
           videoId:        videoId,
           question:       question,
           optionsJson:    JSON.stringify(options),
@@ -522,6 +535,10 @@ function apiAdminSaveModuleQuestion(sessionToken, payload) {
         var newQ = {
           questionId:     uuid_('QST'),
           moduleId:       moduleId,
+          section:        section,
+          questionOrder:  questionOrder,
+          questionType:   questionType,
+          audioScript:    audioScript,
           videoId:        videoId,
           question:       question,
           optionsJson:    JSON.stringify(options),
@@ -568,13 +585,24 @@ function apiAdminListModuleQuestions(sessionToken, moduleId) {
 
     var questions = dbReadAll_('ModuleQuiz')
       .filter(function(q) { return String(q.moduleId || '') === moduleId; })
-      .sort(function(a, b) { return Number(a.videoTimestamp || 0) - Number(b.videoTimestamp || 0); })
+      .sort(function(a, b) {
+        var secOrder = { explanation: 0, evaluation: 1 };
+        var sd = (secOrder[String(a.section||'explanation')] || 0) - (secOrder[String(b.section||'explanation')] || 0);
+        if (sd !== 0) return sd;
+        var od = Number(a.questionOrder || 0) - Number(b.questionOrder || 0);
+        if (od !== 0) return od;
+        return Number(a.videoTimestamp || 0) - Number(b.videoTimestamp || 0);
+      })
       .map(function(q) {
         var opts = [];
         try { opts = JSON.parse(q.optionsJson || '[]'); } catch(e) {}
         return {
           questionId:     q.questionId,
           moduleId:       q.moduleId,
+          section:        q.section       || 'explanation',
+          questionOrder:  Number(q.questionOrder || 0),
+          questionType:   q.questionType  || 'standard',
+          audioScript:    q.audioScript   || '',
           videoId:        q.videoId,
           question:       q.question,
           options:        opts,
@@ -984,8 +1012,10 @@ function apiModuleGetDetail(sessionToken, moduleId) {
           section:       q.section,
           question:      q.question,
           options:       opts,
-          questionOrder: Number(q.questionOrder || 0)
-          // correctIndex intentionally omitted for students
+          questionOrder: Number(q.questionOrder || 0),
+          questionType:  q.questionType || 'standard',
+          hasAudio:      !!(q.audioScript && String(q.audioScript).trim())
+          // correctIndex and audioScript intentionally omitted for students
         };
       });
 
@@ -1093,11 +1123,12 @@ function apiModuleGetDetail(sessionToken, moduleId) {
     return {
       ok: true,
       module: {
-        moduleId:      module.moduleId,
-        title:         module.title,
-        topic:         module.topic,
-        description:   module.description,
-        badgeImageUrl: module.badgeImageUrl
+        moduleId:            module.moduleId,
+        title:               module.title,
+        topic:               module.topic,
+        description:         module.description,
+        badgeImageUrl:       module.badgeImageUrl,
+        evalTimeLimitMinutes: module.evalTimeLimitMinutes ? Number(module.evalTimeLimitMinutes) : 30
       },
       videos:               videos,
       questions:            questions,
@@ -1698,6 +1729,40 @@ function apiListeningAdminDelete(sessionToken, clipId) {
     return { ok: true };
   } catch(err) {
     return apiError_('apiListeningAdminDelete', err);
+  }
+}
+
+// ── Eval listening question audio ────────────────────────────────────────────
+
+function apiEvalGetQuestionAudio(sessionToken, questionId) {
+  try {
+    AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    questionId = String(questionId || '');
+    if (!questionId) throw new Error('questionId required.');
+
+    var q = dbFindOne_('ModuleQuiz', 'questionId', questionId);
+    if (!q) throw new Error('Question not found.');
+
+    var script = String(q.audioScript || '').trim();
+    if (!script) throw new Error('Question has no audio script.');
+
+    var profile = TTSService.getProfileByCountry_('UK');
+    var voices  = profile.voiceNames || [];
+    var voice   = voices[Math.floor(Math.random() * voices.length)] || voices[0] || '';
+    var rate    = profile.speakingRate || 0.9;
+
+    var cacheKey = TTSService.buildTtsCacheKey_(script, profile, rate, voice);
+    var cached   = TTSService.getTtsFromCache_(cacheKey);
+    if (cached) return { ok: true, audioBase64: cached, mimeType: 'audio/mp3', cached: true };
+
+    var ssml   = TTSService.buildAtcSsml_(script, profile, rate, voice);
+    var result = TTSService.callGoogleTtsWithFallbackVoices_(ssml, { languageCode: profile.languageCode, pitch: profile.pitch, effectsProfileId: profile.effectsProfileId, voiceNames: [voice].concat(voices.filter(function(v) { return v !== voice; })) }, rate);
+
+    TTSService.storeTtsInCache_(cacheKey, result.audioBase64);
+
+    return { ok: true, audioBase64: result.audioBase64, mimeType: 'audio/mp3', voiceName: result.voiceName };
+  } catch(err) {
+    return apiError_('apiEvalGetQuestionAudio', err);
   }
 }
 

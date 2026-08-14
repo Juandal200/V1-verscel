@@ -284,6 +284,7 @@ var DB_SCHEMA = {
     'moduleOrder',
     'status',
     'badgeImageUrl',
+    'evalTimeLimitMinutes',
     'createdAt',
     'updatedAt'
   ],
@@ -301,13 +302,17 @@ var DB_SCHEMA = {
   ModuleQuiz: [
     'questionId',
     'moduleId',
+    'section',
     'videoId',
+    'questionOrder',
     'question',
     'optionsJson',
     'correctIndex',
     'explanation',
     'xpReward',
     'videoTimestamp',
+    'questionType',
+    'audioScript',
     'createdAt'
   ],
 

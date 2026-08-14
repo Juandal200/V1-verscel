@@ -11602,6 +11602,7 @@
 
     // ── EVALUATION BODY ──
     var evalBody = '';
+    var timeLim = Number(m.evalTimeLimitMinutes) || 30;
     if (prog.evalPassed) {
       evalBody =
         '<div style="padding:32px 20px;text-align:center;">' +
@@ -11619,15 +11620,40 @@
           '<span>⏱</span><p style="margin:0;color:var(--yellow);">Cooldown — retry at ' + _fmtTime(prog.evalCooldownUntil) + '</p>' +
         '</div>';
       } else {
+        var safeEvalQsJson = JSON.stringify(evalQs).replace(/\\/g,'\\\\').replace(/'/g,'\\x27').replace(/<\//g,'\\x3c/');
+        var hasListeningQ = evalQs.some(function(q) { return q.questionType === 'listening' && q.hasAudio; });
         evalBody2 =
-          '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;margin-bottom:16px;">' +
-            '<span style="font-size:1.2rem;">🏆</span>' +
-            '<p style="margin:0;font-size:0.85rem;color:var(--muted);">Score 85%+ to complete this module and earn your badge. 15-minute cooldown between attempts.</p>' +
-          '</div>' +
-          (prog.evalAttempts > 0 ? '<p style="margin:0 0 14px;font-size:0.82rem;color:var(--muted);">Last attempt: <strong>' + prog.evalScore + '%</strong> — Need 85%. Attempt #' + (prog.evalAttempts+1) + '</p>' : '') +
-          _renderQuizForm('evalQuiz', evalQs, m.moduleId, 'evaluation', prog.evalAttempts, prog.evalScore);
+          '<div id="evalExamContainer">' +
+            '<div id="evalQsStore" data-mid="' + safeText(m.moduleId) + '" data-qs=\'' + safeEvalQsJson + '\' data-tlim="' + timeLim + '" style="display:none;"></div>' +
+            // ── Cover card ──
+            '<div id="evalCoverCard" style="padding:28px 20px;">' +
+              '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;">' +
+                '<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;font-size:0.85rem;">' +
+                  '<span>📋</span><span><strong>' + evalQs.length + '</strong> questions</span>' +
+                '</div>' +
+                '<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;font-size:0.85rem;">' +
+                  '<span>⏱</span><span><strong>' + timeLim + '</strong> minutes</span>' +
+                '</div>' +
+                '<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;font-size:0.85rem;">' +
+                  '<span>🎯</span><span>Pass: <strong>85%</strong></span>' +
+                '</div>' +
+                (hasListeningQ ? '<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.25);border-radius:8px;font-size:0.85rem;color:var(--cyan);">' +
+                  '<span>🔊</span><span>Includes listening questions</span>' +
+                '</div>' : '') +
+              '</div>' +
+              (prog.evalAttempts > 0 ?
+                '<div style="padding:10px 14px;background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2);border-radius:8px;margin-bottom:20px;font-size:0.82rem;">' +
+                  'Last attempt: <strong>' + prog.evalScore + '%</strong> — Need 85%. This will be attempt #' + (prog.evalAttempts + 1) + '.' +
+                '</div>'
+              : '') +
+              '<p style="margin:0 0 20px;font-size:0.83rem;color:var(--muted);line-height:1.5;">Once you begin, the timer starts. Your answers are auto-submitted if time expires.</p>' +
+              '<button class="btn primary" style="padding:10px 28px;" onclick="_evalBegin()">Begin Exam →</button>' +
+            '</div>' +
+            // ── Active exam area (hidden until Begin) ──
+            '<div id="evalExamArea" style="display:none;"></div>' +
+          '</div>';
       }
-      evalBody = _lmsItem('📝', 'Final Exam', 'Module Evaluation', evalStatusHtml, evalBody2, true);
+      evalBody = _lmsItem('📝', 'Final Exam', 'ICAO Language Proficiency Test', evalStatusHtml, evalBody2, true);
     }
 
     // ── Tab bar ──
@@ -12229,6 +12255,186 @@
       .apiModuleSubmitQuiz(AppState.sessionToken, { moduleId: moduleId, section: section, answers: answers });
   }
 
+  // ── Evaluation Exam (timed, 3-state: cover → exam → result) ─────────────────
+
+  function _evalBegin() {
+    var store = byId('evalQsStore');
+    if (!store) return;
+    var moduleId     = store.getAttribute('data-mid');
+    var timeLimitMin = Number(store.getAttribute('data-tlim')) || 30;
+    var qs = [];
+    try { qs = JSON.parse(store.getAttribute('data-qs') || '[]'); } catch(e) {}
+    if (!qs.length) return;
+
+    byId('evalCoverCard').style.display = 'none';
+
+    var endMs = Date.now() + timeLimitMin * 60 * 1000;
+    sessionStorage.setItem('evalEnd_' + moduleId, String(endMs));
+
+    var examArea = byId('evalExamArea');
+    examArea.innerHTML = _buildEvalExamHtml(moduleId, qs);
+    examArea.style.display = '';
+
+    if (window._evalTimerId) clearInterval(window._evalTimerId);
+    window._evalModuleId = moduleId;
+    window._evalTimerId  = setInterval(function() { _evalTick(moduleId, endMs); }, 1000);
+    _evalTick(moduleId, endMs);
+  }
+
+  function _buildEvalExamHtml(moduleId, qs) {
+    var inputs = qs.map(function(q, i) {
+      var isListening = q.questionType === 'listening' && q.hasAudio;
+      var audioPart = isListening
+        ? '<div style="margin-bottom:12px;">' +
+            '<button id="evalAudioBtn_' + safeText(q.questionId) + '" class="btn secondary" style="font-size:0.82rem;padding:6px 14px;" ' +
+            'onclick="_evalLoadAudio(\'' + safeJs(q.questionId) + '\',\'evalAudioBtn_' + safeJs(q.questionId) + '\')">🔊 Play Audio</button>' +
+          '</div>'
+        : '';
+
+      var opts = (q.options || []).map(function(opt, j) {
+        var inputId = 'evalQ_' + i + '_o' + j;
+        return '<label for="' + inputId + '" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:11px 14px;border-radius:8px;border:1.5px solid var(--line);margin-bottom:6px;transition:border-color .15s,background .15s;" ' +
+          'onmouseenter="this.style.borderColor=\'var(--cyan)\';this.style.background=\'rgba(14,165,233,.05)\'" ' +
+          'onmouseleave="this.style.borderColor=\'var(--line)\';this.style.background=\'\'">' +
+          '<input id="' + inputId + '" type="radio" name="evalQ_' + i + '" value="' + j + '" style="margin-top:2px;accent-color:var(--cyan);flex-shrink:0;">' +
+          '<span style="font-size:0.88rem;line-height:1.45;">' + safeText(opt) + '</span>' +
+        '</label>';
+      }).join('');
+
+      return '<div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:10px;">' +
+        '<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">' +
+          '<span style="font-size:0.68rem;font-weight:800;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;">Question ' + (i+1) + ' of ' + qs.length + '</span>' +
+          (isListening ? '<span style="font-size:0.65rem;font-weight:800;color:var(--cyan);letter-spacing:.08em;text-transform:uppercase;background:rgba(14,165,233,.1);padding:1px 6px;border-radius:4px;">🔊 Listening</span>' : '') +
+        '</div>' +
+        audioPart +
+        '<p style="margin:0 0 14px;font-size:0.95rem;font-weight:600;line-height:1.45;">' + safeText(q.question) + '</p>' +
+        '<input type="hidden" class="evalQid" value="' + safeText(q.questionId) + '">' +
+        '<div>' + opts + '</div>' +
+      '</div>';
+    }).join('');
+
+    return '<div style="padding:16px 20px;">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding:10px 16px;background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.2);border-radius:8px;">' +
+        '<span style="font-size:0.82rem;font-weight:700;color:var(--text);">ICAO Language Proficiency Test</span>' +
+        '<span id="evalTimerDisplay" style="font-size:1.1rem;font-weight:800;font-variant-numeric:tabular-nums;color:var(--cyan);letter-spacing:.04em;">--:--</span>' +
+      '</div>' +
+      '<div>' + inputs + '</div>' +
+      '<div style="display:flex;align-items:center;gap:14px;margin-top:20px;">' +
+        '<button class="btn primary" style="padding:10px 28px;" onclick="_evalSubmit(false)">Submit Answers →</button>' +
+        '<div id="evalSubmitMsg" style="font-size:0.85rem;"></div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  function _evalTick(moduleId, endMs) {
+    var remaining = Math.max(0, endMs - Date.now());
+    var el = byId('evalTimerDisplay');
+    if (!el) { clearInterval(window._evalTimerId); return; }
+
+    var totalSecs = Math.ceil(remaining / 1000);
+    var mins = Math.floor(totalSecs / 60);
+    var secs = totalSecs % 60;
+    el.textContent = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+    el.style.color  = remaining <= 120000 ? '#dc2626' : 'var(--cyan)';
+
+    if (remaining <= 0) {
+      clearInterval(window._evalTimerId);
+      _evalSubmit(true);
+    }
+  }
+
+  function _evalSubmit(isAutoSubmit) {
+    clearInterval(window._evalTimerId);
+
+    var msgEl  = byId('evalSubmitMsg');
+    var qidEls = document.querySelectorAll('#evalExamArea .evalQid');
+    var answers = [];
+    var missing = false;
+    var moduleId = window._evalModuleId;
+
+    qidEls.forEach(function(h, i) {
+      var sel = document.querySelector('input[name="evalQ_' + i + '"]:checked');
+      if (!sel) { if (!isAutoSubmit) { missing = true; } return; }
+      answers.push({ questionId: h.value, selectedIndex: Number(sel.value) });
+    });
+
+    if (missing) {
+      if (msgEl) msgEl.innerHTML = '<span style="color:var(--yellow);">Please answer all questions before submitting.</span>';
+      return;
+    }
+
+    if (msgEl) msgEl.innerHTML = _spinnerHtml(isAutoSubmit ? 'Time expired — submitting...' : 'Submitting...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) {
+          if (msgEl) msgEl.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error.') + '</span>';
+          return;
+        }
+        _evalShowResult(moduleId, res);
+      })
+      .withFailureHandler(function(err) {
+        if (msgEl) msgEl.innerHTML = '<span style="color:var(--red);">' + safeText(String(err)) + '</span>';
+      })
+      .apiModuleSubmitQuiz(AppState.sessionToken, { moduleId: moduleId, section: 'evaluation', answers: answers });
+  }
+
+  function _evalShowResult(moduleId, res) {
+    var container = byId('evalExamContainer');
+    if (!container) { setTimeout(function() { renderModuleDetail(moduleId); }, 1500); return; }
+    var passed = res.passed;
+    var score  = res.score;
+
+    container.innerHTML =
+      '<div style="padding:40px 20px;text-align:center;">' +
+        (passed
+          ? '<div style="font-size:3.2rem;margin-bottom:16px;">🏆</div>' +
+            '<h3 style="margin:0 0 8px;color:var(--green);">Passed!</h3>' +
+            '<p style="margin:0 0 6px;color:var(--muted);">Score: <strong style="color:var(--text);font-size:1.1rem;">' + score + '%</strong></p>' +
+            '<p style="margin:0;font-size:0.82rem;color:var(--muted);">Module complete — badge awarded.</p>'
+          : '<div style="font-size:3.2rem;margin-bottom:16px;">📋</div>' +
+            '<h3 style="margin:0 0 8px;color:var(--red);">Score: ' + score + '%</h3>' +
+            '<p style="margin:0 0 6px;color:var(--muted);">Need 85% to pass.</p>' +
+            (res.cooldownUntil ? '<p style="margin:0;font-size:0.82rem;color:var(--yellow);">Next attempt available at ' + _fmtTime(res.cooldownUntil) + '</p>' : '')
+        ) +
+      '</div>';
+
+    if (passed && window._lmsAwardXp) _lmsAwardXp(50, 'Eval passed', 0.10, 3, res.lmsXpTotal);
+    setTimeout(function() { renderModuleDetail(moduleId); }, 3000);
+  }
+
+  function _evalLoadAudio(questionId, btnId) {
+    var btn = byId(btnId);
+    if (!btn) return;
+    btn.disabled  = true;
+    btn.textContent = '⏳ Loading...';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok || !res.audioBase64) {
+          if (btn) { btn.disabled = false; btn.textContent = '🔊 Play Audio'; }
+          return;
+        }
+        var blob  = _b64ToBlob(res.audioBase64, res.mimeType || 'audio/mp3');
+        var url   = URL.createObjectURL(blob);
+        var audio = new Audio(url);
+        audio.play().catch(function() {});
+        if (btn) {
+          btn.textContent = '▶ Playing...';
+          audio.onended = function() { btn.disabled = false; btn.textContent = '🔊 Play Again'; };
+          audio.onerror = function() { btn.disabled = false; btn.textContent = '🔊 Play Audio'; };
+        }
+      })
+      .withFailureHandler(function() {
+        if (btn) { btn.disabled = false; btn.textContent = '🔊 Play Audio'; }
+      })
+      .apiEvalGetQuestionAudio(AppState.sessionToken, questionId);
+  }
+
+  window._evalBegin    = _evalBegin;
+  window._evalSubmit   = _evalSubmit;
+  window._evalLoadAudio = _evalLoadAudio;
+
   function moduleStartScenario(moduleId, scenarioId) {
     AppState.pendingModuleScenario = { moduleId: moduleId, scenarioId: scenarioId };
     _navTo(function() {
@@ -12638,6 +12844,8 @@
           '</select>' +
           '<label style="font-size:0.8rem;color:var(--muted);">Badge Image URL</label>' +
           '<input id="mfBadge" class="input" value="' + safeText(m ? m.badgeImageUrl || '' : '') + '" placeholder="https://...">' +
+          '<label style="font-size:0.8rem;color:var(--muted);">Eval Time Limit (minutes)</label>' +
+          '<input id="mfEvalTime" class="input" type="number" min="5" max="180" value="' + (m && m.evalTimeLimitMinutes ? Number(m.evalTimeLimitMinutes) : 30) + '" placeholder="30">' +
         '</div>' +
         '<div style="margin-top:20px;display:flex;gap:10px;">' +
           '<button class="btn primary" onclick="adminSaveModule(' + (m ? '\'' + m.moduleId + '\'' : 'null') + ')">Save Module</button>' +
@@ -12650,12 +12858,13 @@
 
   function adminSaveModule(moduleId) {
     var payload = {
-      title:         byId('mfTitle').value.trim(),
-      topic:         byId('mfTopic').value.trim(),
-      description:   byId('mfDesc').value.trim(),
-      moduleOrder:   Number(byId('mfOrder').value) || 0,
-      status:        byId('mfStatus').value,
-      badgeImageUrl: byId('mfBadge').value.trim()
+      title:               byId('mfTitle').value.trim(),
+      topic:               byId('mfTopic').value.trim(),
+      description:         byId('mfDesc').value.trim(),
+      moduleOrder:         Number(byId('mfOrder').value) || 0,
+      status:              byId('mfStatus').value,
+      badgeImageUrl:       byId('mfBadge').value.trim(),
+      evalTimeLimitMinutes: Number((byId('mfEvalTime') || {}).value) || 30
     };
     if (moduleId) payload.moduleId = moduleId;
     byId('mfMsg').innerHTML = _spinnerHtml('Saving...');
@@ -12812,12 +13021,25 @@
   }
 
   function _renderQuizBuilder(moduleId, moduleTitle, questions) {
+    var expQs  = questions.filter(function(q) { return (q.section || 'explanation') === 'explanation'; });
+    var evalQs = questions.filter(function(q) { return q.section === 'evaluation'; });
+
+    function sectionBadge(q) {
+      if (q.section === 'evaluation') return '<span style="font-size:0.65rem;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(234,179,8,.12);color:#ca8a04;border:1px solid rgba(234,179,8,.3);">EVAL</span>';
+      return '<span style="font-size:0.65rem;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(14,165,233,.1);color:var(--cyan);border:1px solid rgba(14,165,233,.25);">EXP</span>';
+    }
+    function typeBadge(q) {
+      if (q.questionType === 'listening') return '<span style="font-size:0.65rem;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(139,92,246,.1);color:#8b5cf6;border:1px solid rgba(139,92,246,.25);">🔊</span>';
+      return '';
+    }
+
     function qRow(q) {
-      var vid = q.videoId ? q.videoId.replace(/^VID_/, '').slice(0, 10) + '…' : '—';
+      var vid = (q.section === 'evaluation') ? '—' : (q.videoId ? q.videoId.replace(/^VID_/, '').slice(0,10) + '…' : '—');
       return '<tr style="border-bottom:1px solid var(--line);">' +
+        '<td style="padding:8px 12px;">' + sectionBadge(q) + ' ' + typeBadge(q) + '</td>' +
         '<td style="padding:8px 12px;max-width:220px;">' + safeText(q.question) + '</td>' +
         '<td style="padding:8px 12px;color:var(--muted);font-size:0.78rem;white-space:nowrap;">' + vid + '</td>' +
-        '<td style="padding:8px 12px;text-align:center;white-space:nowrap;">' + _secsToMmss(q.videoTimestamp) + '</td>' +
+        '<td style="padding:8px 12px;text-align:center;white-space:nowrap;">' + (q.section === 'evaluation' ? (q.questionOrder || 0) : _secsToMmss(q.videoTimestamp)) + '</td>' +
         '<td style="padding:8px 12px;text-align:center;color:var(--accent);">' + (q.xpReward || 5) + '</td>' +
         '<td style="padding:8px 12px;font-size:0.8rem;">' +
           (q.options || []).map(function(o, i) {
@@ -12831,28 +13053,32 @@
       '</tr>';
     }
 
-    var rows = questions.length
+    var allRows = questions.length
       ? questions.map(qRow).join('')
-      : '<tr><td colspan="6" style="padding:16px 12px;color:var(--muted);">No questions yet.</td></tr>';
+      : '<tr><td colspan="7" style="padding:16px 12px;color:var(--muted);">No questions yet.</td></tr>';
 
     byId('contentArea').innerHTML =
       '<div class="panel">' +
         renderAdminTabs('modules') +
         '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
           '<button class="btn secondary" onclick="renderAdminModules()">← Modules</button>' +
-          '<h3 style="margin:0;">Video Quizzes — ' + safeText(moduleTitle) + '</h3>' +
+          '<h3 style="margin:0;">Quiz &amp; Eval Questions — ' + safeText(moduleTitle) + '</h3>' +
         '</div>' +
-        '<h4 style="color:var(--muted);font-size:0.8rem;letter-spacing:.06em;margin-bottom:8px;">VIDEO QUIZZES</h4>' +
+        '<div style="display:flex;gap:10px;margin-bottom:12px;font-size:0.78rem;color:var(--muted);">' +
+          '<span style="padding:3px 10px;border-radius:6px;background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.2);">EXP = Explanation quiz (' + expQs.length + ')</span>' +
+          '<span style="padding:3px 10px;border-radius:6px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);">EVAL = Evaluation exam (' + evalQs.length + ')</span>' +
+        '</div>' +
         '<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">' +
           '<thead><tr style="border-bottom:1px solid var(--line);">' +
+            '<th style="padding:8px 12px;text-align:left;width:80px;">Type</th>' +
             '<th style="padding:8px 12px;text-align:left;">Question</th>' +
             '<th style="padding:8px 12px;text-align:left;">Video</th>' +
-            '<th style="padding:8px 12px;text-align:center;">Timestamp</th>' +
+            '<th style="padding:8px 12px;text-align:center;">Time/Order</th>' +
             '<th style="padding:8px 12px;text-align:center;">XP</th>' +
             '<th style="padding:8px 12px;text-align:left;">Options (correct in green)</th>' +
             '<th></th>' +
           '</tr></thead>' +
-          '<tbody>' + rows + '</tbody>' +
+          '<tbody>' + allRows + '</tbody>' +
         '</table>' +
         '<button class="btn primary" onclick="adminShowQuestionForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',null)">+ Add Question</button>' +
         '<div id="quizFormArea" style="margin-top:16px;"></div>' +
@@ -12901,23 +13127,52 @@
   }
 
   function _buildQuestionForm(moduleId, moduleTitle, q, videos) {
-    var opts = q ? q.options : ['', '', '', ''];
+    var opts       = q ? q.options : ['', '', '', ''];
     var correctIdx = q ? q.correctIndex : 0;
+    var qSection   = q ? (q.section || 'explanation') : 'explanation';
+    var qType      = q ? (q.questionType || 'standard') : 'standard';
 
     var videoOpts = (videos || []).map(function(v) {
       var sel = (q && q.videoId === v.videoId) ? ' selected' : '';
       return '<option value="' + v.videoId + '"' + sel + '>' + safeText(v.title || v.videoId) + '</option>';
     }).join('');
 
+    var isEval = qSection === 'evaluation';
+
     byId('quizFormArea').innerHTML =
-      '<div style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:16px;max-width:540px;">' +
+      '<div style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:16px;max-width:560px;">' +
         '<h4 style="margin-top:0;">' + (q ? 'Edit Question' : 'New Question') + '</h4>' +
         '<div style="display:grid;gap:10px;">' +
-          '<select id="qfVideoId" class="input">' +
-            (videoOpts || '<option value="">— No videos in this module yet —</option>') +
-          '</select>' +
+          // Section + Type row
           '<div style="display:flex;gap:10px;">' +
             '<div style="flex:1;">' +
+              '<label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px;">Section</label>' +
+              '<select id="qfSection" class="input" onchange="_qfToggleSection(this.value)">' +
+                '<option value="explanation"' + (qSection === 'explanation' ? ' selected' : '') + '>Explanation Quiz</option>' +
+                '<option value="evaluation"'  + (qSection === 'evaluation'  ? ' selected' : '') + '>Evaluation Exam</option>' +
+              '</select>' +
+            '</div>' +
+            '<div style="flex:1;">' +
+              '<label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px;">Question Type</label>' +
+              '<select id="qfType" class="input" onchange="_qfToggleType(this.value)">' +
+                '<option value="standard"' + (qType === 'standard'  ? ' selected' : '') + '>Standard (MCQ)</option>' +
+                '<option value="listening"' + (qType === 'listening' ? ' selected' : '') + '>Listening (Audio)</option>' +
+              '</select>' +
+            '</div>' +
+            '<div style="width:90px;">' +
+              '<label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px;">Order</label>' +
+              '<input id="qfOrder" class="input" type="number" min="0" value="' + (q ? (q.questionOrder || 0) : 0) + '">' +
+            '</div>' +
+          '</div>' +
+          // Video (shown for explanation) / XP + Timestamp
+          '<div id="qfVideoRow" style="display:' + (isEval ? 'none' : 'block') + ';">' +
+            '<label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px;">Video</label>' +
+            '<select id="qfVideoId" class="input">' +
+              (videoOpts || '<option value="">— No videos in this module yet —</option>') +
+            '</select>' +
+          '</div>' +
+          '<div style="display:flex;gap:10px;">' +
+            '<div id="qfTimestampWrap" style="flex:1;display:' + (isEval ? 'none' : 'block') + ';">' +
               '<label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px;">Timestamp (MM:SS)</label>' +
               '<input id="qfTimestamp" class="input" value="' + _secsToMmss(q ? q.videoTimestamp : 0) + '" placeholder="e.g. 02:00">' +
             '</div>' +
@@ -12925,6 +13180,11 @@
               '<label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px;">XP reward</label>' +
               '<input id="qfXp" class="input" type="number" min="1" value="' + (q ? q.xpReward : 5) + '">' +
             '</div>' +
+          '</div>' +
+          // Audio script (shown for listening type)
+          '<div id="qfAudioScriptWrap" style="display:' + (qType === 'listening' ? 'block' : 'none') + ';">' +
+            '<label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px;">Audio Script (TTS will read this aloud)</label>' +
+            '<textarea id="qfAudioScript" class="input" rows="3" placeholder="Text that will be converted to speech for the student...">' + safeText(q ? q.audioScript || '' : '') + '</textarea>' +
           '</div>' +
           '<textarea id="qfQuestion" class="input" rows="2" placeholder="Question text...">' + safeText(q ? q.question : '') + '</textarea>' +
           '<label style="font-size:0.78rem;color:var(--muted);">Options (select the correct answer)</label>' +
@@ -12947,6 +13207,19 @@
       '</div>';
   }
 
+  function _qfToggleSection(section) {
+    var isEval = section === 'evaluation';
+    var vRow   = byId('qfVideoRow');
+    var tsWrap = byId('qfTimestampWrap');
+    if (vRow)   vRow.style.display   = isEval ? 'none' : 'block';
+    if (tsWrap) tsWrap.style.display = isEval ? 'none' : 'block';
+  }
+
+  function _qfToggleType(type) {
+    var wrap = byId('qfAudioScriptWrap');
+    if (wrap) wrap.style.display = type === 'listening' ? 'block' : 'none';
+  }
+
   function adminSaveQuestion(moduleId, moduleTitle, questionId) {
     var opts = [0,1,2,3].map(function(i) {
       var el = byId('qfOpt' + i);
@@ -12955,15 +13228,21 @@
     var correctRadio = document.querySelector('input[name="qfCorrect"]:checked');
     var correctIdx   = correctRadio ? Number(correctRadio.value) : 0;
 
+    var section = ((byId('qfSection') || {}).value || 'explanation');
+
     var payload = {
       moduleId:       moduleId,
-      videoId:        (byId('qfVideoId') || {}).value || '',
+      section:        section,
+      questionOrder:  Number((byId('qfOrder') || {}).value) || 0,
+      questionType:   (byId('qfType') || {}).value || 'standard',
+      audioScript:    (byId('qfAudioScript') || {}).value || '',
+      videoId:        section === 'explanation' ? ((byId('qfVideoId') || {}).value || '') : '',
       question:       (byId('qfQuestion') || {}).value.trim(),
       options:        opts,
       correctIndex:   correctIdx,
       explanation:    (byId('qfExplanation') || {}).value.trim(),
       xpReward:       Number((byId('qfXp') || {}).value) || 5,
-      videoTimestamp: _mmssToSecs((byId('qfTimestamp') || {}).value)
+      videoTimestamp: section === 'explanation' ? _mmssToSecs((byId('qfTimestamp') || {}).value) : 0
     };
     if (questionId) payload.questionId = questionId;
     byId('qfMsg').innerHTML = _spinnerHtml('Saving...');

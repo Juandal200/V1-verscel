@@ -107,6 +107,10 @@ function runSetupLMSModuleSheets() {
   Logger.log('LMS module sheets setup complete.');
 }
 
+function runFixModuleQuizHeaders() {
+  fixModuleQuizHeaders();
+}
+
 function getClientConfigJson() {
   var props = PropertiesService.getScriptProperties();
 
