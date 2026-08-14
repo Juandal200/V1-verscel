@@ -1311,7 +1311,8 @@
         '<button class="btn ' + (activeTab === 'invites'      ? 'primary' : 'secondary') + '" onclick="renderAdminInvites()">✉ Invites</button>' +
         '<button class="btn ' + (activeTab === 'subscriptions'? 'primary' : 'secondary') + '" onclick="renderAdminSubscriptions()">💳 Subscriptions</button>' +
         '<button class="btn secondary" onclick="window.renderFirstFlight && window.renderFirstFlight()" title="Preview the First Flight onboarding screen">🛫 Preview First Flight</button>' +
-        '<button class="btn ' + (activeTab === 'modules' ? 'primary' : 'secondary') + '" onclick="renderAdminModules()">📚 Modules</button>' +
+        '<button class="btn ' + (activeTab === 'modules'       ? 'primary' : 'secondary') + '" onclick="renderAdminModules()">📚 Modules</button>' +
+        '<button class="btn ' + (activeTab === 'speakingqueue' ? 'primary' : 'secondary') + '" onclick="renderAdminSpeakingQueue()">🎙 Speaking Queue</button>' +
       '</div>';
   }
 
@@ -13614,6 +13615,165 @@
   window.adminShowSpeakingForm       = adminShowSpeakingForm;
   window.adminSaveSpeakingPrompt     = adminSaveSpeakingPrompt;
   window.adminDeleteSpeakingPrompt   = adminDeleteSpeakingPrompt;
+
+  // ── Speaking Rater Dashboard ──────────────────────────────────────────────────
+
+  function renderAdminSpeakingQueue() {
+    setActiveNav('Admin');
+    var _tok = _navToken;
+    byId('contentArea').innerHTML =
+      '<div class="panel">' + renderAdminTabs('speakingqueue') + _spinnerHtml('Loading speaking queue...') + '</div>';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (_navToken !== _tok) return;
+        if (!res || !res.ok) { showContentError(res && res.error ? res.error : 'Could not load queue.'); return; }
+        _renderSpeakingQueue(res.submissions || []);
+      })
+      .withFailureHandler(function(err) { if (_navToken !== _tok) return; handleServerError(err); })
+      .apiSpeakingRaterGetQueue(AppState.sessionToken);
+  }
+
+  function _renderSpeakingQueue(submissions) {
+    var pending = submissions.filter(function(s) { return s.status === 'pending'; });
+    var graded  = submissions.filter(function(s) { return s.status === 'graded'; });
+
+    function typeLabel(t) { return t === 'image_description' ? '🖼 Image' : '🎤 Interview'; }
+
+    function _fmtDate(iso) {
+      if (!iso) return '—';
+      try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch(e) { return iso; }
+    }
+
+    function submRow(s, isPending) {
+      var rowId = 'spkrow-' + safeText(s.submissionId);
+      return '<tr id="' + rowId + '" style="cursor:pointer;border-bottom:1px solid var(--line);" ' +
+        'onclick="_lmsToggleSpkDetail(\'' + safeText(s.submissionId) + '\')">' +
+        '<td style="padding:10px 12px;">' +
+          '<div style="font-weight:600;font-size:0.88rem;">' + safeText(s.userName) + '</div>' +
+          '<div style="font-size:0.75rem;color:var(--muted);">' + safeText(s.userEmail) + '</div>' +
+        '</td>' +
+        '<td style="padding:10px 12px;font-size:0.84rem;">' + safeText(s.moduleTitle) + '</td>' +
+        '<td style="padding:10px 12px;font-size:0.82rem;">' + safeText(s.promptTitle) + '</td>' +
+        '<td style="padding:10px 12px;font-size:0.8rem;color:var(--muted);">' + typeLabel(s.promptType) + '</td>' +
+        '<td style="padding:10px 12px;font-size:0.8rem;color:var(--muted);">' + _fmtDate(s.submittedAt) + '</td>' +
+        '<td style="padding:10px 12px;text-align:center;">' +
+          (isPending
+            ? '<span style="background:rgba(234,179,8,.12);color:#ca8a04;padding:2px 8px;border-radius:12px;font-size:0.73rem;font-weight:700;">PENDING</span>'
+            : '<span style="background:rgba(22,163,74,.1);color:#16a34a;padding:2px 8px;border-radius:12px;font-size:0.73rem;font-weight:700;">GRADED ' + s.raterScore + '/100</span>') +
+        '</td>' +
+      '</tr>' +
+      '<tr id="detail-' + safeText(s.submissionId) + '" style="display:none;">' +
+        '<td colspan="6" style="padding:0;">' + _spkDetailPanel(s, isPending) + '</td>' +
+      '</tr>';
+    }
+
+    function _spkDetailPanel(s, isPending) {
+      var sid = safeText(s.submissionId);
+      return '<div style="padding:20px 24px;background:var(--panel-soft);border-top:1px solid var(--line);border-bottom:1px solid var(--line);">' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px;">' +
+          '<div>' +
+            '<h5 style="margin:0 0 8px;font-size:0.78rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;">Prompt</h5>' +
+            (s.imageUrl ? '<img src="' + safeText(s.imageUrl) + '" style="max-width:100%;border-radius:6px;max-height:180px;object-fit:cover;margin-bottom:10px;">' : '') +
+            '<p style="margin:0;font-size:0.88rem;color:var(--text);">' + safeText(s.promptText) + '</p>' +
+          '</div>' +
+          '<div>' +
+            '<h5 style="margin:0 0 8px;font-size:0.78rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;">Student Response</h5>' +
+            '<div style="padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;font-size:0.86rem;line-height:1.6;white-space:pre-wrap;">' + safeText(s.responseText) + '</div>' +
+          '</div>' +
+        '</div>' +
+        (s.rubric ? '<div style="margin-bottom:16px;padding:10px 14px;background:rgba(14,165,233,.05);border:1px solid rgba(14,165,233,.2);border-radius:6px;">' +
+          '<p style="margin:0 0 4px;font-size:0.72rem;font-weight:700;color:#0ea5e9;text-transform:uppercase;">Grading Notes / Rubric</p>' +
+          '<p style="margin:0;font-size:0.82rem;color:var(--muted);">' + safeText(s.rubric) + '</p>' +
+        '</div>' : '') +
+        (isPending
+          ? '<div style="display:grid;grid-template-columns:140px 1fr auto;gap:12px;align-items:end;">' +
+              '<div>' +
+                '<label style="display:block;font-size:0.78rem;color:var(--muted);margin-bottom:4px;">Score (0–100)</label>' +
+                '<input id="spkscore-' + sid + '" type="number" min="0" max="100" class="input" placeholder="e.g. 75" style="width:100%;">' +
+              '</div>' +
+              '<div>' +
+                '<label style="display:block;font-size:0.78rem;color:var(--muted);margin-bottom:4px;">Feedback for student</label>' +
+                '<input id="spkfb-' + sid + '" type="text" class="input" placeholder="Strengths and areas to improve…" style="width:100%;">' +
+              '</div>' +
+              '<button class="btn primary" onclick="adminGradeSpeaking(\'' + sid + '\')">Submit Grade</button>' +
+            '</div>'
+          : '<div style="padding:10px 14px;background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.2);border-radius:6px;font-size:0.84rem;">' +
+              '<strong style="color:var(--green);">Graded ' + s.raterScore + '/100</strong>' +
+              (s.raterFeedback ? ' — ' + safeText(s.raterFeedback) : '') +
+            '</div>') +
+      '</div>';
+    }
+
+    var pendingSection = pending.length
+      ? '<table style="width:100%;border-collapse:collapse;">' +
+          '<thead><tr style="border-bottom:2px solid var(--line);">' +
+            '<th style="padding:8px 12px;text-align:left;">Student</th>' +
+            '<th style="padding:8px 12px;text-align:left;">Module</th>' +
+            '<th style="padding:8px 12px;text-align:left;">Prompt</th>' +
+            '<th style="padding:8px 12px;text-align:left;">Type</th>' +
+            '<th style="padding:8px 12px;text-align:left;">Submitted</th>' +
+            '<th style="padding:8px 12px;text-align:center;">Status</th>' +
+          '</tr></thead>' +
+          '<tbody>' + pending.map(function(s) { return submRow(s, true); }).join('') + '</tbody>' +
+        '</table>'
+      : '<div style="padding:24px;text-align:center;color:var(--muted);">No pending submissions.</div>';
+
+    var gradedSection = graded.length
+      ? '<details style="margin-top:24px;">' +
+          '<summary style="cursor:pointer;font-size:0.85rem;font-weight:700;color:var(--muted);padding:10px 0;">Graded submissions (' + graded.length + ')</summary>' +
+          '<table style="width:100%;border-collapse:collapse;margin-top:8px;">' +
+            '<thead><tr style="border-bottom:2px solid var(--line);">' +
+              '<th style="padding:8px 12px;text-align:left;">Student</th>' +
+              '<th style="padding:8px 12px;text-align:left;">Module</th>' +
+              '<th style="padding:8px 12px;text-align:left;">Prompt</th>' +
+              '<th style="padding:8px 12px;text-align:left;">Type</th>' +
+              '<th style="padding:8px 12px;text-align:left;">Submitted</th>' +
+              '<th style="padding:8px 12px;text-align:center;">Status</th>' +
+            '</tr></thead>' +
+            '<tbody>' + graded.map(function(s) { return submRow(s, false); }).join('') + '</tbody>' +
+          '</table>' +
+        '</details>'
+      : '';
+
+    byId('contentArea').innerHTML =
+      '<div class="panel">' +
+        renderAdminTabs('speakingqueue') +
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
+          '<h3 style="margin:0;">🎙 Speaking Queue</h3>' +
+          (pending.length ? '<span style="background:rgba(234,179,8,.15);color:#ca8a04;padding:3px 10px;border-radius:20px;font-size:0.8rem;font-weight:700;">' + pending.length + ' pending</span>' : '') +
+          '<button class="btn secondary" style="margin-left:auto;font-size:0.82rem;" onclick="renderAdminSpeakingQueue()">↻ Refresh</button>' +
+        '</div>' +
+        pendingSection + gradedSection +
+      '</div>';
+  }
+
+  window._lmsToggleSpkDetail = function(submissionId) {
+    var detailRow = document.getElementById('detail-' + submissionId);
+    if (!detailRow) return;
+    detailRow.style.display = detailRow.style.display === 'none' ? '' : 'none';
+  };
+
+  window.adminGradeSpeaking = function(submissionId) {
+    var scoreEl = document.getElementById('spkscore-' + submissionId);
+    var fbEl    = document.getElementById('spkfb-'    + submissionId);
+    var score   = scoreEl ? Number(scoreEl.value) : NaN;
+    var fb      = fbEl    ? fbEl.value.trim()     : '';
+    if (isNaN(score) || score < 0 || score > 100) { alert('Enter a score between 0 and 100.'); return; }
+
+    var btn = scoreEl && scoreEl.closest('div') && scoreEl.closest('div').parentNode.querySelector('button.btn.primary');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Error saving grade.'); if (btn) { btn.disabled = false; btn.textContent = 'Submit Grade'; } return; }
+        renderAdminSpeakingQueue();
+      })
+      .withFailureHandler(function() { alert('Network error.'); if (btn) { btn.disabled = false; btn.textContent = 'Submit Grade'; } })
+      .apiSpeakingRaterGrade(AppState.sessionToken, { submissionId: submissionId, raterScore: score, raterFeedback: fb });
+  };
+
+  window.renderAdminSpeakingQueue = renderAdminSpeakingQueue;
   window._getTierFromXpKey          = _getTierFromXpKey;
   window._getTierFromXp             = _getTierFromXp;
 

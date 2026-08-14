@@ -1816,6 +1816,115 @@ function apiSpeakingAdminDelete(sessionToken, promptId) {
   }
 }
 
+// ── Speaking Rater Dashboard ──────────────────────────────────────────────────
+
+function apiSpeakingRaterGetQueue(sessionToken) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
+
+    var submissions = dbReadAll_('ModuleSpeakingSubmission');
+    var prompts     = dbReadAll_('ModuleSpeakingPrompt');
+    var modules     = dbReadAll_('Modules');
+    var users       = dbReadAll_('Users');
+
+    var promptMap = {};
+    prompts.forEach(function(p) { promptMap[p.promptId] = p; });
+    var moduleMap = {};
+    modules.forEach(function(m) { moduleMap[m.moduleId] = m; });
+    var userMap = {};
+    users.forEach(function(u) { userMap[u.userId] = u; });
+
+    var result = submissions.map(function(s) {
+      var prompt  = promptMap[s.promptId] || {};
+      var module_ = moduleMap[s.moduleId] || {};
+      var user    = userMap[s.userId]     || {};
+      return {
+        submissionId:  s.submissionId,
+        userId:        s.userId,
+        userName:      user.name  || user.email || s.userId,
+        userEmail:     user.email || '',
+        moduleId:      s.moduleId,
+        moduleTitle:   module_.title || s.moduleId,
+        promptId:      s.promptId,
+        promptTitle:   prompt.title    || '',
+        promptType:    prompt.type     || '',
+        promptText:    prompt.promptText || '',
+        imageUrl:      prompt.imageUrl  || '',
+        rubric:        prompt.rubricJson || '',
+        responseText:  s.responseText  || '',
+        submittedAt:   s.submittedAt   || '',
+        status:        s.status        || 'pending',
+        raterScore:    s.raterScore !== '' && s.raterScore !== undefined ? Number(s.raterScore) : null,
+        raterFeedback: s.raterFeedback || '',
+        gradedAt:      s.gradedAt      || ''
+      };
+    }).sort(function(a, b) {
+      // Pending first, then by submittedAt descending
+      if (a.status === 'pending' && b.status !== 'pending') return -1;
+      if (a.status !== 'pending' && b.status === 'pending') return 1;
+      return String(b.submittedAt).localeCompare(String(a.submittedAt));
+    });
+
+    return { ok: true, submissions: result };
+  } catch(err) {
+    return apiError_('apiSpeakingRaterGetQueue', err);
+  }
+}
+
+function apiSpeakingRaterGrade(sessionToken, payload) {
+  try {
+    var caller        = AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
+    var submissionId  = String((payload || {}).submissionId  || '');
+    var raterScore    = Number((payload || {}).raterScore);
+    var raterFeedback = String((payload || {}).raterFeedback || '').trim();
+
+    if (!submissionId) throw new Error('submissionId required.');
+    if (isNaN(raterScore) || raterScore < 0 || raterScore > 100) throw new Error('raterScore must be 0–100.');
+
+    var sub = dbFindOne_('ModuleSpeakingSubmission', 'submissionId', submissionId);
+    if (!sub) throw new Error('Submission not found.');
+    if (String(sub.status) === 'graded') throw new Error('Already graded.');
+
+    var now = now_();
+    dbUpdateByRow_('ModuleSpeakingSubmission', sub.__rowNumber, {
+      status:        'graded',
+      raterScore:    raterScore,
+      raterFeedback: raterFeedback,
+      gradedAt:      now,
+      raterId:       caller.userId
+    });
+
+    // Check if all submissions for this user+module are now graded
+    var allSubs = dbReadAll_('ModuleSpeakingSubmission').filter(function(s) {
+      return String(s.userId || '') === String(sub.userId) && String(s.moduleId || '') === String(sub.moduleId);
+    });
+    var allGraded = allSubs.every(function(s) {
+      return s.submissionId === submissionId ? true : String(s.status) === 'graded';
+    });
+
+    if (allGraded) {
+      var scores = allSubs.map(function(s) {
+        return s.submissionId === submissionId ? raterScore : Number(s.raterScore || 0);
+      });
+      var avgScore = Math.round(scores.reduce(function(a, b) { return a + b; }, 0) / scores.length);
+
+      var prog = lmsGetProgress_(sub.userId, sub.moduleId);
+      if (prog) {
+        dbUpdateByRow_('ModuleProgress', prog.__rowNumber, {
+          speakingScore:       avgScore,
+          speakingGraded:      true,
+          speakingCompletedAt: now,
+          updatedAt:           now
+        });
+      }
+    }
+
+    return { ok: true, allGraded: allGraded };
+  } catch(err) {
+    return apiError_('apiSpeakingRaterGrade', err);
+  }
+}
+
 // ── ADMIN: Progress overview ──────────────────────────────────────────────────
 
 function apiAdminGetModuleProgress(sessionToken, moduleId) {
