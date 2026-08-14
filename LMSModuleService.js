@@ -1952,6 +1952,9 @@ function apiSpeakingRaterGrade(sessionToken, payload) {
     var sub = dbFindOne_('ModuleSpeakingSubmission', 'submissionId', submissionId);
     if (!sub) throw new Error('Submission not found.');
     if (String(sub.status) === 'graded') throw new Error('Already graded.');
+    if (String(sub.userId) === String(caller.userId)) throw new Error('Cannot grade your own submission.');
+    var prompt = dbFindOne_('ModuleSpeakingPrompt', 'promptId', sub.promptId);
+    if (!prompt || String(prompt.moduleId) !== String(sub.moduleId)) throw new Error('Submission integrity error.');
 
     var now = now_();
     dbUpdateByRow_('ModuleSpeakingSubmission', sub.__rowNumber, {
