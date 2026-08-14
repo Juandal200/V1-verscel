@@ -11620,11 +11620,11 @@
           '<span>⏱</span><p style="margin:0;color:var(--yellow);">Cooldown — retry at ' + _fmtTime(prog.evalCooldownUntil) + '</p>' +
         '</div>';
       } else {
-        var safeEvalQsJson = JSON.stringify(evalQs).replace(/\\/g,'\\\\').replace(/'/g,'\\x27').replace(/<\//g,'\\x3c/');
+        var safeEvalQsJson = JSON.stringify(evalQs).replace(/&/g,'&amp;').replace(/"/g,'&quot;');
         var hasListeningQ = evalQs.some(function(q) { return q.questionType === 'listening' && q.hasAudio; });
         evalBody2 =
           '<div id="evalExamContainer">' +
-            '<div id="evalQsStore" data-mid="' + safeText(m.moduleId) + '" data-qs=\'' + safeEvalQsJson + '\' data-tlim="' + timeLim + '" style="display:none;"></div>' +
+            '<div id="evalQsStore" data-mid="' + safeText(m.moduleId) + '" data-qs="' + safeEvalQsJson + '" data-tlim="' + timeLim + '" style="display:none;"></div>' +
             // ── Cover card ──
             '<div id="evalCoverCard" style="padding:28px 20px;">' +
               '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;">' +

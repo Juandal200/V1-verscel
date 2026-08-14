@@ -1361,8 +1361,8 @@ function _gradeGrammarAnswer_(exercise, rawAnswer) {
   if (exercise.type === 'fill_blank') {
     return answer.toLowerCase() === correct.toLowerCase();
   }
-  // mcq and error_id compare by option index
-  return answer === correct;
+  // mcq and error_id: compare as numbers (sheet may store as number or string)
+  return Number(answer) === Number(correct);
 }
 
 function apiGrammarSubmit(sessionToken, payload) {
