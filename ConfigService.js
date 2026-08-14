@@ -364,6 +364,15 @@ var DB_SCHEMA = {
     'grammarLastAttemptAt',
     'grammarPassed',
     'grammarCompletedAt',
+    'listeningShortScore',
+    'listeningShortAttempts',
+    'listeningShortLastAttemptAt',
+    'listeningShortPassed',
+    'listeningLongScore',
+    'listeningLongAttempts',
+    'listeningLongLastAttemptAt',
+    'listeningLongPassed',
+    'listeningCompletedAt',
     'scenariosPassed',
     'applicationCompleted',
     'evalScore',
@@ -390,6 +399,19 @@ var DB_SCHEMA = {
     'correctAnswer',
     'explanation',
     'xpReward',
+    'createdAt'
+  ],
+
+  ModuleListening: [
+    'clipId',
+    'moduleId',
+    'clipOrder',
+    'format',
+    'title',
+    'script',
+    'languageCode',
+    'voiceName',
+    'questionsJson',
     'createdAt'
   ],
 

@@ -34,7 +34,8 @@ function setupLMSModuleSheets() {
   var ss = dbGetSpreadsheet_();
   var sheets = [
     'Modules', 'ModuleVideos', 'ModuleQuiz', 'ModuleQuizAnswers',
-    'ModuleScenarios', 'ModuleForum', 'ModuleForumLikes', 'ModuleProgress', 'ModuleGrammar', 'LmsXp', 'UserStreaks'
+    'ModuleScenarios', 'ModuleForum', 'ModuleForumLikes', 'ModuleProgress',
+    'ModuleGrammar', 'ModuleListening', 'LmsXp', 'UserStreaks'
   ];
 
   sheets.forEach(function(name) {
@@ -216,6 +217,15 @@ function lmsEnsureProgress_(userId, moduleId) {
     grammarLastAttemptAt:     '',
     grammarPassed:            false,
     grammarCompletedAt:       '',
+    listeningShortScore:      0,
+    listeningShortAttempts:   0,
+    listeningShortLastAttemptAt: '',
+    listeningShortPassed:     false,
+    listeningLongScore:       0,
+    listeningLongAttempts:    0,
+    listeningLongLastAttemptAt: '',
+    listeningLongPassed:      false,
+    listeningCompletedAt:     '',
     quizLastAttemptAt:        '',
     quizAttempts:             0,
     quizPassed:               false,
@@ -1026,6 +1036,27 @@ function apiModuleGetDetail(sessionToken, moduleId) {
         };
       });
 
+    var listeningClips = dbReadAll_('ModuleListening')
+      .filter(function(c) { return String(c.moduleId || '') === moduleId; })
+      .sort(function(a, b) { return Number(a.clipOrder || 0) - Number(b.clipOrder || 0); })
+      .map(function(c) {
+        var qs = [];
+        try { qs = JSON.parse(c.questionsJson || '[]'); } catch(e) {}
+        return {
+          clipId:       c.clipId,
+          clipOrder:    Number(c.clipOrder || 0),
+          format:       c.format,
+          title:        c.title,
+          languageCode: c.languageCode || 'en-GB',
+          voiceName:    c.voiceName   || '',
+          questions:    qs.map(function(q) { return { questionId: q.questionId, question: q.question, options: q.options }; })
+          // script and correctIndex intentionally omitted for students
+        };
+      });
+
+    var listeningShortCooldown = prog ? lmsCheckCooldown_(prog.listeningShortLastAttemptAt) : null;
+    var listeningLongCooldown  = prog ? lmsCheckCooldown_(prog.listeningLongLastAttemptAt)  : null;
+
     return {
       ok: true,
       module: {
@@ -1039,6 +1070,7 @@ function apiModuleGetDetail(sessionToken, moduleId) {
       questions:        questions,
       scenarios:        scenarios,
       grammarExercises: grammarExercises,
+      listeningClips:   listeningClips,
       progress: prog ? {
         introVideoWatched:        lmsBool_(prog.introVideoWatched),
         introForumPosted:         lmsBool_(prog.introForumPosted),
@@ -1054,6 +1086,14 @@ function apiModuleGetDetail(sessionToken, moduleId) {
         grammarAttempts:          Number(prog.grammarAttempts || 0),
         grammarPassed:            lmsBool_(prog.grammarPassed),
         grammarCooldownUntil:     grammarCooldown,
+        listeningShortScore:      Number(prog.listeningShortScore    || 0),
+        listeningShortAttempts:   Number(prog.listeningShortAttempts || 0),
+        listeningShortPassed:     lmsBool_(prog.listeningShortPassed),
+        listeningShortCooldown:   listeningShortCooldown,
+        listeningLongScore:       Number(prog.listeningLongScore    || 0),
+        listeningLongAttempts:    Number(prog.listeningLongAttempts || 0),
+        listeningLongPassed:      lmsBool_(prog.listeningLongPassed),
+        listeningLongCooldown:    listeningLongCooldown,
         scenariosPassed:          Number(prog.scenariosPassed || 0),
         applicationCompleted:     lmsBool_(prog.applicationCompleted),
         evalScore:                Number(prog.evalScore    || 0),
@@ -1415,6 +1455,211 @@ function apiGrammarAdminDelete(sessionToken, exerciseId) {
     return { ok: true };
   } catch(err) {
     return apiError_('apiGrammarAdminDelete', err);
+  }
+}
+
+// ── Listening Station ─────────────────────────────────────────────────────────
+
+var LMS_LISTENING_PASS_SCORE = 85;
+var LMS_LISTENING_XP         = 25; // per format (short / long)
+
+function apiListeningGetClipAudio(sessionToken, clipId) {
+  try {
+    AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    clipId = String(clipId || '');
+    if (!clipId) throw new Error('clipId required.');
+
+    var clip = dbFindOne_('ModuleListening', 'clipId', clipId);
+    if (!clip) throw new Error('Listening clip not found.');
+
+    var script = String(clip.script || '').trim();
+    if (!script) throw new Error('Clip has no script.');
+
+    var langCode  = String(clip.languageCode || 'en-GB');
+    var voiceName = String(clip.voiceName || '').trim();
+    var profile   = TTSService.getProfileByCountry_(langCode === 'en-US' ? 'USA' : langCode === 'en-AU' ? 'AU' : 'UK');
+    var voices    = profile.voiceNames || [];
+    var voice     = voiceName || voices[Math.floor(Math.random() * voices.length)] || voices[0] || '';
+    var rate      = profile.speakingRate || 0.9;
+
+    var cacheKey = TTSService.buildTtsCacheKey_(script, profile, rate, voice);
+    var cached   = TTSService.getTtsFromCache_(cacheKey);
+    if (cached) return { ok: true, audioBase64: cached, mimeType: 'audio/mp3', cached: true };
+
+    var ssml   = TTSService.buildAtcSsml_(script, profile, rate, voice);
+    var result = TTSService.callGoogleTtsWithFallbackVoices_(ssml, { languageCode: profile.languageCode, pitch: profile.pitch, effectsProfileId: profile.effectsProfileId, voiceNames: [voice].concat(voices.filter(function(v) { return v !== voice; })) }, rate);
+
+    TTSService.storeTtsInCache_(cacheKey, result.audioBase64);
+
+    return { ok: true, audioBase64: result.audioBase64, mimeType: 'audio/mp3', voiceName: result.voiceName };
+  } catch(err) {
+    return apiError_('apiListeningGetClipAudio', err);
+  }
+}
+
+function apiListeningSubmit(sessionToken, payload) {
+  try {
+    var caller   = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    var moduleId = String((payload || {}).moduleId || '');
+    var format   = String((payload || {}).format   || ''); // 'short' | 'long'
+    var answers  = (payload || {}).answers || {};          // { questionId: selectedIndex, ... }
+    if (!moduleId) throw new Error('moduleId required.');
+    if (format !== 'short' && format !== 'long') throw new Error('format must be short or long.');
+
+    var prog = lmsEnsureProgress_(caller.userId, moduleId);
+    if (!lmsSectionUnlocked_(prog, 'application')) throw new Error('Application section not yet unlocked.');
+    if (!lmsBool_(prog.grammarPassed)) throw new Error('Grammar station must be completed first.');
+
+    var cdField   = format === 'short' ? 'listeningShortLastAttemptAt' : 'listeningLongLastAttemptAt';
+    var cooldown  = lmsCheckCooldown_(prog[cdField]);
+    if (cooldown) return { ok: false, error: 'Cooldown active.', cooldownUntil: cooldown };
+
+    var clips = dbReadAll_('ModuleListening').filter(function(c) {
+      return String(c.moduleId || '') === moduleId && String(c.format || '') === format;
+    });
+    if (!clips.length) return { ok: false, error: 'No ' + format + ' listening clips found for this module.' };
+
+    var totalQ = 0;
+    var correct = 0;
+    clips.forEach(function(clip) {
+      var qs = [];
+      try { qs = JSON.parse(clip.questionsJson || '[]'); } catch(e) {}
+      qs.forEach(function(q) {
+        totalQ++;
+        var given = String(answers[q.questionId] !== undefined ? answers[q.questionId] : '');
+        if (given === String(q.correctIndex)) correct++;
+      });
+    });
+
+    if (!totalQ) return { ok: false, error: 'No questions found for this format.' };
+
+    var score    = Math.round((correct / totalQ) * 100);
+    var passed   = score >= LMS_LISTENING_PASS_SCORE;
+    var attField = format === 'short' ? 'listeningShortAttempts'  : 'listeningLongAttempts';
+    var scoField = format === 'short' ? 'listeningShortScore'     : 'listeningLongScore';
+    var pasField = format === 'short' ? 'listeningShortPassed'    : 'listeningLongPassed';
+    var attempts = Number(prog[attField] || 0) + 1;
+    var now      = now_();
+
+    var patch = {};
+    patch[scoField] = score;
+    patch[attField] = attempts;
+    patch[cdField]  = now;
+    patch.updatedAt = now;
+
+    var lmsXpTotal;
+    if (passed && !lmsBool_(prog[pasField])) {
+      patch[pasField] = true;
+      // Check if both formats now passed to set listeningCompletedAt
+      var shortPassed = format === 'short' ? true : lmsBool_(prog.listeningShortPassed);
+      var longPassed  = format === 'long'  ? true : lmsBool_(prog.listeningLongPassed);
+      if (shortPassed && longPassed) {
+        patch.listeningCompletedAt = now;
+        patch.applicationCompleted = true;
+      }
+      try { lmsXpTotal = lmsAddXp_(caller.userId, LMS_LISTENING_XP); lmsUpdateStreak_(caller.userId); } catch(e) {}
+    }
+
+    dbUpdateByRow_('ModuleProgress', prog.__rowNumber, patch);
+
+    return {
+      ok:          true,
+      score:       score,
+      passed:      passed,
+      correct:     correct,
+      total:       totalQ,
+      attempts:    attempts,
+      lmsXpTotal:  lmsXpTotal,
+      applicationCompleted: passed && patch.applicationCompleted ? true : lmsBool_(prog.applicationCompleted)
+    };
+  } catch(err) {
+    return apiError_('apiListeningSubmit', err);
+  }
+}
+
+// ── Listening Admin CRUD ──────────────────────────────────────────────────────
+
+function apiListeningAdminList(sessionToken, moduleId) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
+    moduleId = String(moduleId || '');
+    if (!moduleId) throw new Error('moduleId required.');
+
+    var clips = dbReadAll_('ModuleListening')
+      .filter(function(c) { return String(c.moduleId || '') === moduleId; })
+      .sort(function(a, b) { return Number(a.clipOrder || 0) - Number(b.clipOrder || 0); })
+      .map(function(c) {
+        var qs = [];
+        try { qs = JSON.parse(c.questionsJson || '[]'); } catch(e) {}
+        return { clipId: c.clipId, clipOrder: Number(c.clipOrder || 0), format: c.format, title: c.title, script: c.script, languageCode: c.languageCode, voiceName: c.voiceName, questions: qs };
+      });
+
+    return { ok: true, clips: clips };
+  } catch(err) {
+    return apiError_('apiListeningAdminList', err);
+  }
+}
+
+function apiListeningAdminSave(sessionToken, payload) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
+    var p        = payload || {};
+    var moduleId = String(p.moduleId  || '');
+    var format   = String(p.format    || '');
+    var title    = String(p.title     || '').trim();
+    var script   = String(p.script    || '').trim();
+    var langCode  = String(p.languageCode || 'en-GB');
+    var voiceName = String(p.voiceName   || '').trim();
+    var order    = Number(p.clipOrder || 0);
+    var questions = Array.isArray(p.questions) ? p.questions : [];
+
+    if (!moduleId || !format || !title || !script) throw new Error('moduleId, format, title, and script are required.');
+    if (format !== 'short' && format !== 'long') throw new Error('format must be short or long.');
+
+    var questionsJson = JSON.stringify(questions.map(function(q, i) {
+      return {
+        questionId:   q.questionId || uuid_('LQ'),
+        question:     String(q.question || ''),
+        options:      Array.isArray(q.options) ? q.options : [],
+        correctIndex: Number(q.correctIndex || 0)
+      };
+    }));
+
+    var now = now_();
+
+    if (p.clipId) {
+      var existing = dbFindOne_('ModuleListening', 'clipId', String(p.clipId));
+      if (!existing) throw new Error('Clip not found.');
+      dbUpdateByRow_('ModuleListening', existing.__rowNumber, {
+        format: format, title: title, script: script, languageCode: langCode,
+        voiceName: voiceName, clipOrder: order, questionsJson: questionsJson
+      });
+      return { ok: true, clipId: p.clipId };
+    } else {
+      var id = uuid_('LC');
+      dbAppend_('ModuleListening', {
+        clipId: id, moduleId: moduleId, clipOrder: order, format: format,
+        title: title, script: script, languageCode: langCode, voiceName: voiceName,
+        questionsJson: questionsJson, createdAt: now
+      });
+      return { ok: true, clipId: id };
+    }
+  } catch(err) {
+    return apiError_('apiListeningAdminSave', err);
+  }
+}
+
+function apiListeningAdminDelete(sessionToken, clipId) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
+    clipId = String(clipId || '');
+    if (!clipId) throw new Error('clipId required.');
+    var existing = dbFindOne_('ModuleListening', 'clipId', clipId);
+    if (!existing) throw new Error('Clip not found.');
+    dbDeleteByRow_('ModuleListening', existing.__rowNumber);
+    return { ok: true };
+  } catch(err) {
+    return apiError_('apiListeningAdminDelete', err);
   }
 }
 

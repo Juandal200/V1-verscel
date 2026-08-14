@@ -11028,11 +11028,12 @@
   }
 
   function _renderModuleDetail(data) {
-    var m    = data.module   || {};
-    var prog = data.progress || {};
-    var vids = data.videos   || [];
-    var qs   = data.questions || [];
-    var scns = data.scenarios || [];
+    var m              = data.module         || {};
+    var prog           = data.progress       || {};
+    var vids           = data.videos         || [];
+    var qs             = data.questions      || [];
+    var scns           = data.scenarios      || [];
+    var res            = data; // alias so appBody sub-blocks can reference res.grammarExercises etc.
 
     var introVid   = vids.filter(function(v) { return v.section === 'intro'; })[0];
     var expVids    = vids.filter(function(v) { return v.section === 'explanation'; });
@@ -11428,17 +11429,91 @@
       '</div></div>';
     }
 
-    // ── Listening placeholder ──
-    var listeningBody = _stationHead('2', '🎧', 'Listening Station', false, !grammarPassed) +
-      '<div style="padding:20px;text-align:center;color:var(--muted);font-size:0.88rem;">' +
-        (grammarPassed
-          ? '🎧 Listening exercises — Coming in Phase 2.'
-          : '🔒 Complete Grammar Station to unlock.') +
+    // ── Listening Station ──
+    var listeningClips      = res.listeningClips || [];
+    var shortClips          = listeningClips.filter(function(c) { return c.format === 'short'; });
+    var longClips           = listeningClips.filter(function(c) { return c.format === 'long'; });
+    var listeningShortPassed = lmsBool_(prog.listeningShortPassed);
+    var listeningLongPassed  = lmsBool_(prog.listeningLongPassed);
+    var listeningDone        = listeningShortPassed && listeningLongPassed;
+
+    function _renderListeningFormat(clips, format, passed, score, attempts, cooldown) {
+      var fmtLabel = format === 'short' ? 'Short Audio' : 'Long Audio';
+      var fmtIcon  = format === 'short' ? '🔉' : '🔊';
+      var idBase   = 'lst-' + format + '-' + safeText(m.moduleId);
+      var html = '<div style="margin-bottom:16px;border:1px solid var(--line);border-radius:8px;overflow:hidden;">' +
+        '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--panel-soft);border-bottom:1px solid var(--line);">' +
+          '<span>' + fmtIcon + '</span>' +
+          '<span style="font-weight:700;font-size:0.88rem;">' + fmtLabel + '</span>' +
+          (passed ? '<span style="margin-left:auto;font-size:0.75rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);padding:2px 8px;border-radius:20px;">✓ Passed ' + score + '%</span>' : '') +
+        '</div>';
+
+      if (passed) {
+        html += '<div style="padding:12px 16px;font-size:0.85rem;color:var(--green);">✓ ' + fmtLabel + ' complete.</div>';
+      } else if (cooldown) {
+        html += '<div style="padding:12px 16px;display:flex;align-items:center;gap:8px;"><span>⏱</span><span style="color:var(--yellow);font-size:0.85rem;">Cooldown — retry at ' + _fmtTime(cooldown) + '</span></div>';
+      } else if (!clips.length) {
+        html += '<div style="padding:12px 16px;font-size:0.85rem;color:var(--muted);">' + fmtLabel + ' clips not yet available.</div>';
+      } else {
+        if (attempts > 0) {
+          html += '<div style="padding:8px 16px 0;font-size:0.8rem;color:var(--muted);">Last attempt: <strong>' + score + '%</strong> — Need 85%. Attempt #' + (attempts + 1) + '</div>';
+        }
+        clips.forEach(function(clip, ci) {
+          var clipDomId = idBase + '-clip-' + ci;
+          html +=
+            '<div style="padding:14px 16px;' + (ci < clips.length - 1 ? 'border-bottom:1px solid var(--line);' : '') + '">' +
+              '<p style="margin:0 0 10px;font-weight:600;font-size:0.88rem;">' + safeText(clip.title || 'Clip ' + (ci+1)) + '</p>' +
+              '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
+                '<button class="btn secondary" style="font-size:0.82rem;padding:7px 16px;" ' +
+                  'onclick="_lmsLoadListeningClip(\'' + safeText(clip.clipId) + '\',\'' + clipDomId + '\')">' +
+                  '▶ Play Audio' +
+                '</button>' +
+                '<audio id="audio-' + clipDomId + '" style="flex:1;min-width:0;" controls></audio>' +
+                '<span id="loading-' + clipDomId + '" style="display:none;font-size:0.8rem;color:var(--muted);">Loading…</span>' +
+              '</div>' +
+              '<div id="qs-' + clipDomId + '" style="display:none;">';
+          clip.questions.forEach(function(q, qi) {
+            html += '<div data-qid="' + safeText(q.questionId) + '" data-answer="" style="margin-bottom:10px;">' +
+              '<p style="margin:0 0 6px;font-size:0.85rem;font-weight:600;">Q' + (qi+1) + '. ' + safeText(q.question) + '</p>' +
+              '<div style="display:flex;flex-direction:column;gap:5px;">';
+            (q.options || []).forEach(function(opt, oi) {
+              html += '<button ' +
+                'onclick="if(!this.disabled)_lmsLstSelect(this,\'' + safeText(q.questionId) + '\',' + oi + ',' + JSON.stringify(idBase) + ')"' +
+                ' style="text-align:left;padding:7px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--text);font-size:0.84rem;cursor:pointer;">' +
+                '<span style="font-weight:700;margin-right:6px;color:var(--muted);">' + String.fromCharCode(65+oi) + '.</span>' + safeText(opt) +
+              '</button>';
+            });
+            html += '</div></div>';
+          });
+          html += '</div></div>';
+        });
+        html +=
+          '<div style="padding:12px 16px;border-top:1px solid var(--line);display:flex;align-items:center;gap:12px;">' +
+            '<button id="submitBtn-' + idBase + '" class="btn primary" style="font-size:0.86rem;" ' +
+              'onclick="moduleSubmitListening(\'' + safeText(m.moduleId) + '\',\'' + format + '\',\'' + idBase + '\')">Submit ' + fmtLabel + '</button>' +
+            '<span style="font-size:0.8rem;color:var(--muted);">Need 85%+ to pass</span>' +
+          '</div>';
+      }
+      html += '</div>';
+      return html;
+    }
+
+    var listeningBody = _stationHead('2', '🎧', 'Listening Station', listeningDone, !grammarPassed);
+    if (!grammarPassed) {
+      listeningBody += '<div style="padding:16px 20px;font-size:0.88rem;color:var(--muted);">🔒 Complete Grammar Station to unlock.</div>';
+    } else {
+      listeningBody += '<div style="padding:16px 20px;">' +
+        _renderListeningFormat(shortClips, 'short', listeningShortPassed, prog.listeningShortScore || 0, prog.listeningShortAttempts || 0, prog.listeningShortCooldown || null) +
+        _renderListeningFormat(longClips,  'long',  listeningLongPassed,  prog.listeningLongScore  || 0, prog.listeningLongAttempts  || 0, prog.listeningLongCooldown  || null) +
       '</div>';
+    }
 
     // ── Speaking Production placeholder ──
-    var productionBody = _stationHead('3', '🎙', 'Speaking Production', false, true) +
-      '<div style="padding:20px;text-align:center;color:var(--muted);font-size:0.88rem;">🔒 Unlocked after Listening Station — Coming in Phase 3.</div>';
+    var listeningUnlocked = listeningDone;
+    var productionBody = _stationHead('3', '🎙', 'Speaking Production', false, !listeningUnlocked) +
+      '<div style="padding:16px 20px;font-size:0.88rem;color:var(--muted);">' +
+        (listeningUnlocked ? '🎙 Speaking production exercises — Coming in Phase 3.' : '🔒 Complete Listening Station to unlock.') +
+      '</div>';
 
     var appBody =
       '<div style="border-bottom:1px solid var(--line);">' + grammarBody + '</div>' +
@@ -12161,6 +12236,88 @@
     if (typeof _showXpFloat === 'function') _showXpFloat(displayAmt, isBonus);
   };
 
+  // ── Listening: load clip audio ───────────────────────────────────────────────
+  window._lmsLoadListeningClip = function(clipId, domId) {
+    var audio   = document.getElementById('audio-' + domId);
+    var loading = document.getElementById('loading-' + domId);
+    var qs      = document.getElementById('qs-' + domId);
+    if (!audio) return;
+    if (loading) loading.style.display = '';
+    audio.style.display = 'none';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (loading) loading.style.display = 'none';
+        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Could not load audio.'); return; }
+        var blob = _b64ToBlob(res.audioBase64, 'audio/mp3');
+        audio.src = URL.createObjectURL(blob);
+        audio.style.display = '';
+        audio.play().catch(function(){});
+        if (qs) qs.style.display = '';
+      })
+      .withFailureHandler(function() { if (loading) loading.style.display = 'none'; alert('Audio load failed.'); })
+      .apiListeningGetClipAudio(window._lmsSessionToken, clipId);
+  };
+
+  function _b64ToBlob(b64, mime) {
+    var bin = atob(b64);
+    var buf = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    return new Blob([buf], { type: mime });
+  }
+
+  // ── Listening: option selector ────────────────────────────────────────────────
+  window._lmsLstSelect = function(btn, questionId, optIdx, idBase) {
+    var wrap = btn.closest('[data-qid="' + questionId + '"]');
+    if (!wrap) return;
+    wrap.dataset.answer = String(optIdx);
+    Array.prototype.forEach.call(wrap.querySelectorAll('button'), function(b) {
+      b.style.background  = 'var(--panel)';
+      b.style.borderColor = 'var(--line)';
+      b.style.color       = 'var(--text)';
+      b.style.fontWeight  = '';
+    });
+    btn.style.background  = 'rgba(14,165,233,.12)';
+    btn.style.borderColor = '#0ea5e9';
+    btn.style.color       = '#0ea5e9';
+    btn.style.fontWeight  = '700';
+  };
+
+  // ── Listening: submit ─────────────────────────────────────────────────────────
+  window.moduleSubmitListening = function(moduleId, format, idBase) {
+    var clips = document.querySelectorAll('#lst-' + format + '-' + moduleId + ' [data-qid]');
+    var answers = {};
+    var allAnswered = true;
+    Array.prototype.forEach.call(clips, function(wrap) {
+      var qid = wrap.dataset.qid;
+      var ans = wrap.dataset.answer;
+      if (ans === '' || ans === undefined) allAnswered = false;
+      answers[qid] = ans;
+    });
+    if (!allAnswered) { alert('Please answer all questions before submitting.'); return; }
+
+    var submitBtn = document.getElementById('submitBtn-' + idBase);
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Grading…'; }
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Submission failed.'); if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit ' + (format === 'short' ? 'Short Audio' : 'Long Audio'); } return; }
+        if (res.passed) {
+          _lmsAwardXp(25, 'Listening Station', 0.25, 2, res.lmsXpTotal);
+          renderModuleDetail(moduleId, { silent: true });
+        } else {
+          var msg = 'Score: ' + res.score + '% — Need 85% to pass.';
+          if (res.cooldownUntil) msg += ' Retry at ' + _fmtTime(res.cooldownUntil) + '.';
+          var el = document.createElement('div');
+          el.style.cssText = 'margin-top:8px;padding:8px 12px;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.25);border-radius:6px;font-size:0.83rem;';
+          el.textContent = msg;
+          if (submitBtn) { submitBtn.parentNode.appendChild(el); submitBtn.disabled = false; submitBtn.textContent = 'Retry ' + (format === 'short' ? 'Short Audio' : 'Long Audio'); }
+        }
+      })
+      .withFailureHandler(function() { alert('Network error.'); if (submitBtn) { submitBtn.disabled = false; } })
+      .apiListeningSubmit(window._lmsSessionToken, { moduleId: moduleId, format: format, answers: answers });
+  };
+
   // ── Grammar: option selector ─────────────────────────────────────────────────
   window._lmsGrSelect = function(btn, exerciseId, optionIndex) {
     var wrap = document.getElementById('grwrap-' + exerciseId);
@@ -12207,11 +12364,10 @@
     var submitBtn = form.querySelector('button.btn.primary');
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Grading…'; }
 
-    gasPost_({ action: 'apiGrammarSubmit', args: [window._lmsSessionToken, { moduleId: moduleId, answers: answers }] },
-      function(res) {
-        if (!res.ok) { alert(res.error || 'Submission failed.'); if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Grammar Exercises'; } return; }
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Submission failed.'); if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Grammar Exercises'; } return; }
 
-        // Show result feedback on each exercise
         var resultsMap = {};
         (res.results || []).forEach(function(r) { resultsMap[r.exerciseId] = r; });
         wraps.forEach(function(wrap) {
@@ -12244,12 +12400,12 @@
           form.appendChild(scoreDiv);
           if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Retry Grammar Exercises'; }
         }
-      },
-      function(err) {
+      })
+      .withFailureHandler(function(err) {
         alert('Network error. Please try again.');
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Grammar Exercises'; }
-      }
-    );
+      })
+      .apiGrammarSubmit(window._lmsSessionToken, { moduleId: moduleId, answers: answers });
   };
 
   window.renderModules          = renderModules;
@@ -12301,7 +12457,8 @@
           '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleVideos(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Videos</button>' +
           '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleQuiz(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Quiz</button>' +
           '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleScenarios(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Scenarios</button>' +
-          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;" onclick="renderAdminModuleGrammar(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Grammar</button>' +
+          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;margin-right:4px;" onclick="renderAdminModuleGrammar(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Grammar</button>' +
+          '<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;" onclick="renderAdminModuleListening(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Listening</button>' +
         '</td>' +
       '</tr>';
     }).join('');
@@ -13022,6 +13179,195 @@
   window.adminShowGrammarForm       = adminShowGrammarForm;
   window.adminSaveGrammarEx         = adminSaveGrammarEx;
   window.adminDeleteGrammarEx       = adminDeleteGrammarEx;
+
+  // ── Listening Admin Builder ───────────────────────────────────────────────────
+
+  function renderAdminModuleListening(moduleId, moduleTitle) {
+    var _tok = _navToken;
+    byId('contentArea').innerHTML =
+      '<div class="panel">' + renderAdminTabs('modules') + _spinnerHtml('Loading listening clips...') + '</div>';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (_navToken !== _tok) return;
+        if (!res || !res.ok) { showContentError(res && res.error ? res.error : 'Could not load clips.'); return; }
+        _renderListeningBuilder(moduleId, moduleTitle, res.clips || []);
+      })
+      .withFailureHandler(function(err) { if (_navToken !== _tok) return; handleServerError(err); })
+      .apiListeningAdminList(AppState.sessionToken, moduleId);
+  }
+
+  function _renderListeningBuilder(moduleId, moduleTitle, clips) {
+    function clipRow(c) {
+      return '<tr>' +
+        '<td style="padding:8px 12px;text-align:center;color:var(--muted);">' + c.clipOrder + '</td>' +
+        '<td style="padding:8px 12px;font-size:0.8rem;"><span style="background:rgba(14,165,233,.1);color:#0ea5e9;padding:2px 7px;border-radius:12px;font-size:0.72rem;font-weight:700;">' + c.format.toUpperCase() + '</span></td>' +
+        '<td style="padding:8px 12px;font-size:0.82rem;">' + safeText(c.title) + '</td>' +
+        '<td style="padding:8px 12px;text-align:center;color:var(--muted);">' + (c.questions || []).length + ' Q</td>' +
+        '<td style="padding:8px 12px;text-align:center;">' +
+          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;margin-right:4px;" onclick="adminShowListeningForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',' + safeJs(JSON.stringify(c)) + ')">Edit</button>' +
+          '<button class="btn secondary" style="padding:3px 8px;font-size:0.73rem;color:var(--red);" onclick="adminDeleteListeningClip(\'' + c.clipId + '\',\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\')">Del</button>' +
+        '</td>' +
+      '</tr>';
+    }
+
+    byId('contentArea').innerHTML =
+      '<div class="panel">' +
+        renderAdminTabs('modules') +
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
+          '<button class="btn secondary" onclick="renderAdminModules()">← Modules</button>' +
+          '<h3 style="margin:0;">Listening — ' + safeText(moduleTitle) + '</h3>' +
+          '<button class="btn primary" style="margin-left:auto;" onclick="adminShowListeningForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',null)">+ Add Clip</button>' +
+        '</div>' +
+        '<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">' +
+          '<thead><tr style="border-bottom:1px solid var(--line);">' +
+            '<th style="padding:8px 12px;text-align:center;width:40px;">#</th>' +
+            '<th style="padding:8px 12px;text-align:left;width:80px;">Format</th>' +
+            '<th style="padding:8px 12px;text-align:left;">Title</th>' +
+            '<th style="padding:8px 12px;text-align:center;width:50px;">Qs</th>' +
+            '<th style="padding:8px 12px;width:120px;"></th>' +
+          '</tr></thead>' +
+          '<tbody>' + (clips.map(clipRow).join('') || '<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--muted);">No clips yet.</td></tr>') + '</tbody>' +
+        '</table>' +
+        '<div id="listeningFormArea"></div>' +
+      '</div>';
+  }
+
+  function adminShowListeningForm(moduleId, moduleTitle, clipJson) {
+    var clip = null;
+    if (clipJson) { try { clip = typeof clipJson === 'string' ? JSON.parse(clipJson) : clipJson; } catch(e) {} }
+    var qs     = clip ? (clip.questions || []) : [{ questionId: '', question: '', options: ['', '', '', ''], correctIndex: 0 }];
+    var qsHtml = '';
+    qs.forEach(function(q, qi) {
+      qsHtml += _lstQBlock(qi, q);
+    });
+
+    var formHtml =
+      '<div style="border:1px solid var(--line);border-radius:10px;padding:20px;margin-top:8px;">' +
+        '<h4 style="margin:0 0 16px;">' + (clip ? 'Edit Clip' : 'New Clip') + '</h4>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;">' +
+          '<div>' +
+            '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Format</label>' +
+            '<select class="input" id="lstFormat" style="width:100%;">' +
+              '<option value="short"' + (clip && clip.format === 'short' ? ' selected' : '') + '>Short Audio</option>' +
+              '<option value="long"'  + (clip && clip.format === 'long'  ? ' selected' : '') + '>Long Audio</option>' +
+            '</select>' +
+          '</div>' +
+          '<div>' +
+            '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Order #</label>' +
+            '<input class="input" id="lstOrder" type="number" value="' + (clip ? clip.clipOrder : 0) + '" style="width:100%;">' +
+          '</div>' +
+          '<div>' +
+            '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Accent</label>' +
+            '<select class="input" id="lstLang" style="width:100%;">' +
+              '<option value="en-GB"' + (clip && clip.languageCode === 'en-GB' ? ' selected' : '') + '>British (en-GB)</option>' +
+              '<option value="en-US"' + (clip && clip.languageCode === 'en-US' ? ' selected' : '') + '>American (en-US)</option>' +
+              '<option value="en-AU"' + (clip && clip.languageCode === 'en-AU' ? ' selected' : '') + '>Australian (en-AU)</option>' +
+            '</select>' +
+          '</div>' +
+        '</div>' +
+        '<div style="margin-bottom:14px;">' +
+          '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Title</label>' +
+          '<input class="input" id="lstTitle" value="' + (clip ? safeText(clip.title) : '') + '" style="width:100%;" placeholder="e.g. ATC Weather Briefing — Short">' +
+        '</div>' +
+        '<div style="margin-bottom:18px;">' +
+          '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Script (TTS will read this aloud)</label>' +
+          '<textarea class="input" id="lstScript" rows="5" style="width:100%;resize:vertical;">' + (clip ? safeText(clip.script) : '') + '</textarea>' +
+        '</div>' +
+        '<h5 style="margin:0 0 10px;color:var(--muted);font-size:0.8rem;letter-spacing:.06em;text-transform:uppercase;">Comprehension Questions</h5>' +
+        '<div id="lstQsArea">' + qsHtml + '</div>' +
+        '<button class="btn secondary" style="font-size:0.8rem;margin-bottom:16px;" onclick="adminAddLstQ()">+ Add Question</button>' +
+        '<div style="display:flex;gap:10px;">' +
+          '<button class="btn primary" onclick="adminSaveListeningClip(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',\'' + (clip ? clip.clipId : '') + '\')">Save Clip</button>' +
+          '<button class="btn secondary" onclick="adminClearListeningForm()">Cancel</button>' +
+        '</div>' +
+      '</div>';
+
+    byId('listeningFormArea').innerHTML = formHtml;
+    byId('listeningFormArea').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function _lstQBlock(qi, q) {
+    var optsHtml = (q.options || ['','','','']).map(function(opt, oi) {
+      return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">' +
+        '<label style="width:20px;font-weight:700;color:var(--muted);">' + String.fromCharCode(65+oi) + '</label>' +
+        '<input class="input" style="flex:1;" value="' + safeText(opt) + '" placeholder="Option ' + String.fromCharCode(65+oi) + '">' +
+        '<label style="font-size:0.8rem;color:var(--muted);white-space:nowrap;">' +
+          '<input type="radio" name="lstCorrect-' + qi + '" value="' + oi + '"' + (q.correctIndex === oi ? ' checked' : '') + '> Correct' +
+        '</label>' +
+      '</div>';
+    }).join('');
+    return '<div class="lst-q-block" style="border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;">' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
+        '<span style="font-weight:700;font-size:0.85rem;color:var(--muted);">Q' + (qi+1) + '</span>' +
+        '<input class="input" style="flex:1;" placeholder="Question text" value="' + safeText(q.question || '') + '">' +
+        '<button class="btn secondary" style="padding:3px 8px;font-size:0.72rem;color:var(--red);" onclick="this.closest(\'.lst-q-block\').remove()">×</button>' +
+      '</div>' + optsHtml +
+    '</div>';
+  }
+
+  window.adminAddLstQ = function() {
+    var area = byId('lstQsArea');
+    if (!area) return;
+    var idx = area.querySelectorAll('.lst-q-block').length;
+    var div = document.createElement('div');
+    div.innerHTML = _lstQBlock(idx, { question: '', options: ['','','',''], correctIndex: 0 });
+    area.appendChild(div.firstChild);
+  };
+  window.adminClearListeningForm = function() { var a = byId('listeningFormArea'); if (a) a.innerHTML = ''; };
+
+  function adminSaveListeningClip(moduleId, moduleTitle, clipId) {
+    var format  = byId('lstFormat')  ? byId('lstFormat').value  : 'short';
+    var order   = byId('lstOrder')   ? Number(byId('lstOrder').value) : 0;
+    var lang    = byId('lstLang')    ? byId('lstLang').value    : 'en-GB';
+    var title   = byId('lstTitle')   ? byId('lstTitle').value.trim()  : '';
+    var script  = byId('lstScript')  ? byId('lstScript').value.trim() : '';
+    if (!title || !script) { alert('Title and script are required.'); return; }
+
+    var questions = [];
+    var area = byId('lstQsArea');
+    if (area) {
+      Array.prototype.forEach.call(area.querySelectorAll('.lst-q-block'), function(block, qi) {
+        var qText   = block.querySelector('input[placeholder="Question text"]');
+        var inputs  = block.querySelectorAll('input.input:not([placeholder="Question text"])');
+        var radios  = block.querySelectorAll('input[type="radio"]');
+        var correct = 0;
+        radios.forEach(function(r, ri) { if (r.checked) correct = ri; });
+        var opts = [];
+        inputs.forEach(function(inp) { opts.push(inp.value.trim()); });
+        if (qText && qText.value.trim()) {
+          questions.push({ questionId: uuid_('LQ'), question: qText.value.trim(), options: opts, correctIndex: correct });
+        }
+      });
+    }
+
+    var payload = { moduleId: moduleId, format: format, clipOrder: order, languageCode: lang, title: title, script: script, questions: questions };
+    if (clipId) payload.clipId = clipId;
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Error saving clip.'); return; }
+        renderAdminModuleListening(moduleId, moduleTitle);
+      })
+      .withFailureHandler(handleServerError)
+      .apiListeningAdminSave(AppState.sessionToken, payload);
+  }
+
+  function adminDeleteListeningClip(clipId, moduleId, moduleTitle) {
+    if (!confirm('Delete this listening clip?')) return;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { alert(res && res.error ? res.error : 'Error deleting.'); return; }
+        renderAdminModuleListening(moduleId, moduleTitle);
+      })
+      .withFailureHandler(handleServerError)
+      .apiListeningAdminDelete(AppState.sessionToken, clipId);
+  }
+
+  window.renderAdminModuleListening = renderAdminModuleListening;
+  window.adminShowListeningForm     = adminShowListeningForm;
+  window.adminSaveListeningClip     = adminSaveListeningClip;
+  window.adminDeleteListeningClip   = adminDeleteListeningClip;
   window._getTierFromXpKey          = _getTierFromXpKey;
   window._getTierFromXp             = _getTierFromXp;
 
