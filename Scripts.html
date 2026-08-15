@@ -982,6 +982,7 @@
     }
 
     renderHome();
+    _startActiveTimeTracker();
 
     setTimeout(function() {
       if (byId('appScreen') && byId('appScreen').classList.contains('active') && typeof window.renderHome === 'function') {
@@ -1313,6 +1314,7 @@
         '<button class="btn secondary" onclick="window.renderFirstFlight && window.renderFirstFlight()" title="Preview the First Flight onboarding screen">🛫 Preview First Flight</button>' +
         '<button class="btn ' + (activeTab === 'modules'       ? 'primary' : 'secondary') + '" onclick="renderAdminModules()">📚 Modules</button>' +
         '<button class="btn ' + (activeTab === 'speakingqueue' ? 'primary' : 'secondary') + '" onclick="renderAdminSpeakingQueue()">🎙 Speaking Queue</button>' +
+        '<button class="btn ' + (activeTab === 'progress'      ? 'primary' : 'secondary') + '" onclick="renderAdminProgress()">📊 Progress</button>' +
       '</div>';
   }
 
@@ -11004,7 +11006,7 @@
       '</div>';
     }).join('');
 
-    var html = header + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">' + cards + '</div>';
+    var html = header + _progressModuleToggle(false) + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">' + cards + '</div>';
     if (returnHtml) return html;
     byId('contentArea').innerHTML = html;
   }
@@ -12720,6 +12722,295 @@
       })
       .apiGrammarSubmit(window._lmsSessionToken, { moduleId: moduleId, answers: answers });
   };
+
+  // ── Active time tracker ───────────────────────────────────────────────────────
+
+  function _startActiveTimeTracker() {
+    if (window._activeTrackerRunning) return;
+    window._activeTrackerRunning = true;
+
+    var IDLE_LIMIT   = 5 * 60 * 1000; // 5 min idle = pause tracking
+    var SYNC_EVERY   = 30 * 1000;     // sync to server every 30s
+    var _lastActive  = Date.now();
+    var _accumulated = 0;
+    var _lastSync    = Date.now();
+
+    function _resetIdle() { _lastActive = Date.now(); }
+    ['mousemove','mousedown','keydown','scroll','touchstart','click'].forEach(function(evt) {
+      document.addEventListener(evt, _resetIdle, { passive: true });
+    });
+
+    setInterval(function() {
+      var now  = Date.now();
+      var idle = now - _lastActive > IDLE_LIMIT;
+      if (!idle) _accumulated += 1;   // 1 second tick
+
+      if (now - _lastSync >= SYNC_EVERY && _accumulated > 0 && AppState && AppState.sessionToken) {
+        var secs = _accumulated;
+        _accumulated = 0;
+        _lastSync    = now;
+        google.script.run
+          .withSuccessHandler(function() {})
+          .withFailureHandler(function() { _accumulated += secs; }) // retry on fail
+          .apiTrackActiveTime(AppState.sessionToken, secs);
+      }
+    }, 1000);
+
+    window.addEventListener('beforeunload', function() {
+      if (_accumulated > 0 && AppState && AppState.sessionToken) {
+        navigator.sendBeacon && navigator.sendBeacon('/api/gas', JSON.stringify({
+          action: 'apiTrackActiveTime', args: [AppState.sessionToken, _accumulated]
+        }));
+      }
+    });
+  }
+
+  // ── Student Progress view ─────────────────────────────────────────────────────
+
+  function renderMyProgress() {
+    setActiveNav('Modules');
+    var _tok = _navToken;
+    byId('contentArea').innerHTML = '<div class="panel">' + _progressModuleToggle(true) + _spinnerHtml('Loading progress...') + '</div>';
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (_navToken !== _tok) return;
+        if (!res || !res.ok) { showContentError(res && res.error ? res.error : 'Could not load progress.'); return; }
+        _renderProgressReport(res, false);
+      })
+      .withFailureHandler(function(err) { if (_navToken !== _tok) return; handleServerError(err); })
+      .apiGetProgressReport(AppState.sessionToken, null);
+  }
+
+  function _progressModuleToggle(onProgress) {
+    return '<div style="display:flex;gap:8px;margin-bottom:20px;">' +
+      '<button class="btn ' + (!onProgress ? 'primary' : 'secondary') + '" onclick="renderModules()">📚 Modules</button>' +
+      '<button class="btn ' + (onProgress  ? 'primary' : 'secondary') + '" onclick="renderMyProgress()">📊 My Progress</button>' +
+    '</div>';
+  }
+
+  function _renderProgressReport(res, isAdmin) {
+    var mods   = res.modules || [];
+    var totalH = Math.floor((res.totalActiveSeconds || 0) / 3600);
+    var totalM = Math.floor(((res.totalActiveSeconds || 0) % 3600) / 60);
+    var timeStr = totalH > 0 ? totalH + 'h ' + totalM + 'm' : totalM + 'm';
+
+    var skills = [
+      { key: 'quizBest',      label: 'Quiz',      color: '#7c3aed' },
+      { key: 'grammarBest',   label: 'Grammar',   color: '#0ea5e9' },
+      { key: 'listeningBest', label: 'Listening', color: '#16a34a' },
+      { key: 'evalBest',      label: 'Evaluation',color: '#d97706' }
+    ];
+
+    function scoreBar(val, color) {
+      if (val === null || val === undefined) {
+        return '<div style="display:flex;align-items:center;gap:6px;">' +
+          '<div style="flex:1;height:6px;background:var(--line);border-radius:3px;"></div>' +
+          '<span style="font-size:0.68rem;color:var(--muted);width:28px;text-align:right;">—</span>' +
+        '</div>';
+      }
+      var pct = Math.min(100, Math.max(0, val));
+      var barColor = val >= 85 ? '#16a34a' : val >= 60 ? '#d97706' : '#dc2626';
+      return '<div style="display:flex;align-items:center;gap:6px;">' +
+        '<div style="flex:1;height:6px;background:var(--line);border-radius:3px;overflow:hidden;">' +
+          '<div style="width:' + pct + '%;height:100%;background:' + barColor + ';border-radius:3px;transition:width .4s;"></div>' +
+        '</div>' +
+        '<span style="font-size:0.68rem;font-weight:700;color:' + barColor + ';width:28px;text-align:right;">' + val + '%</span>' +
+      '</div>';
+    }
+
+    var completedCount = mods.filter(function(m) { return m.completed; }).length;
+    var overallPct = mods.length ? Math.round((completedCount / mods.length) * 100) : 0;
+
+    var rows = mods.map(function(m) {
+      var statusColor = m.completed ? '#16a34a' : (m.quizBest !== null || m.grammarBest !== null || m.listeningBest !== null || m.evalBest !== null) ? '#0ea5e9' : 'var(--muted)';
+      var statusLabel = m.completed ? '✓ Complete' : (m.quizBest !== null || m.grammarBest !== null || m.listeningBest !== null || m.evalBest !== null) ? 'In Progress' : 'Not Started';
+      return '<tr style="border-bottom:1px solid var(--line);">' +
+        '<td style="padding:12px;">' +
+          '<div style="font-weight:600;font-size:0.88rem;">' + safeText(m.title) + '</div>' +
+          (m.topic ? '<div style="font-size:0.72rem;color:var(--muted);">' + safeText(m.topic) + '</div>' : '') +
+        '</td>' +
+        '<td style="padding:12px;text-align:center;"><span style="font-size:0.72rem;font-weight:700;color:' + statusColor + ';">' + statusLabel + '</span></td>' +
+        skills.map(function(s) {
+          return '<td style="padding:12px;min-width:110px;">' +
+            '<div style="font-size:0.65rem;color:var(--muted);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;">' + s.label + '</div>' +
+            scoreBar(m[s.key]) +
+          '</td>';
+        }).join('') +
+      '</tr>';
+    }).join('');
+
+    var html =
+      '<div class="panel">' +
+        (!isAdmin ? _progressModuleToggle(true) : '') +
+        (isAdmin ? '<div style="margin-bottom:16px;"><button class="btn secondary" onclick="renderAdminProgress()">← Back</button></div>' : '') +
+        // Summary bar
+        '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px;">' +
+          '<div style="flex:1;min-width:140px;padding:16px 20px;background:var(--panel-soft);border:1px solid var(--line);border-radius:10px;">' +
+            '<div style="font-size:0.68rem;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">Total Active Time</div>' +
+            '<div style="font-size:1.8rem;font-weight:800;color:var(--text);">' + timeStr + '</div>' +
+          '</div>' +
+          '<div style="flex:1;min-width:140px;padding:16px 20px;background:var(--panel-soft);border:1px solid var(--line);border-radius:10px;">' +
+            '<div style="font-size:0.68rem;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">Modules Completed</div>' +
+            '<div style="font-size:1.8rem;font-weight:800;color:var(--text);">' + completedCount + ' <span style="font-size:1rem;color:var(--muted);">/ ' + mods.length + '</span></div>' +
+          '</div>' +
+          '<div style="flex:1;min-width:140px;padding:16px 20px;background:var(--panel-soft);border:1px solid var(--line);border-radius:10px;">' +
+            '<div style="font-size:0.68rem;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">Overall Progress</div>' +
+            '<div style="font-size:1.8rem;font-weight:800;color:' + (overallPct >= 85 ? '#16a34a' : overallPct >= 50 ? '#d97706' : 'var(--text)') + ';">' + overallPct + '%</div>' +
+          '</div>' +
+          '<div style="flex:0;display:flex;align-items:center;">' +
+            '<button class="btn primary" style="padding:10px 18px;font-size:0.82rem;" onclick="_downloadProgressPdf(' + JSON.stringify(res) + ')">⬇ Download PDF</button>' +
+          '</div>' +
+        '</div>' +
+        // Skills table
+        '<div style="overflow-x:auto;">' +
+          '<table style="width:100%;border-collapse:collapse;">' +
+            '<thead><tr style="border-bottom:2px solid var(--line);">' +
+              '<th style="padding:10px 12px;text-align:left;font-size:0.75rem;color:var(--muted);">Module</th>' +
+              '<th style="padding:10px 12px;text-align:center;font-size:0.75rem;color:var(--muted);">Status</th>' +
+              '<th style="padding:10px 12px;font-size:0.75rem;color:var(--muted);">Quiz</th>' +
+              '<th style="padding:10px 12px;font-size:0.75rem;color:var(--muted);">Grammar</th>' +
+              '<th style="padding:10px 12px;font-size:0.75rem;color:var(--muted);">Listening</th>' +
+              '<th style="padding:10px 12px;font-size:0.75rem;color:var(--muted);">Evaluation</th>' +
+            '</tr></thead>' +
+            '<tbody>' + (rows || '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--muted);">No modules available.</td></tr>') + '</tbody>' +
+          '</table>' +
+        '</div>' +
+      '</div>';
+
+    byId('contentArea').innerHTML = html;
+  }
+
+  // ── PDF Report ────────────────────────────────────────────────────────────────
+
+  function _downloadProgressPdf(res) {
+    var mods   = res.modules || [];
+    var totalH = Math.floor((res.totalActiveSeconds || 0) / 3600);
+    var totalM = Math.floor(((res.totalActiveSeconds || 0) % 3600) / 60);
+    var timeStr = totalH > 0 ? totalH + 'h ' + totalM + 'm' : (totalM + 'm');
+    var completedCount = mods.filter(function(m) { return m.completed; }).length;
+    var overallPct = mods.length ? Math.round((completedCount / mods.length) * 100) : 0;
+    var dateStr = new Date().toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' });
+
+    function pct(val) { return val !== null && val !== undefined ? val + '%' : '—'; }
+    function bar(val) {
+      if (val === null || val === undefined) return '<div style="height:8px;background:#e5e7eb;border-radius:4px;"></div>';
+      var c = val >= 85 ? '#16a34a' : val >= 60 ? '#d97706' : '#dc2626';
+      return '<div style="height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;"><div style="width:' + val + '%;height:100%;background:' + c + ';border-radius:4px;"></div></div>';
+    }
+
+    var moduleRows = mods.map(function(m, i) {
+      var status = m.completed ? 'Complete' : (m.quizBest !== null || m.grammarBest !== null || m.listeningBest !== null || m.evalBest !== null) ? 'In Progress' : 'Not Started';
+      var statusColor = m.completed ? '#16a34a' : status === 'In Progress' ? '#0ea5e9' : '#9ca3af';
+      return '<tr style="border-bottom:1px solid #e5e7eb;">' +
+        '<td style="padding:10px 12px;font-weight:600;font-size:13px;">' + (i+1) + '. ' + m.title + '</td>' +
+        '<td style="padding:10px 12px;text-align:center;"><span style="font-size:11px;font-weight:700;color:' + statusColor + ';">' + status + '</span></td>' +
+        '<td style="padding:10px 12px;min-width:80px;">' + bar(m.quizBest) + '<div style="font-size:10px;text-align:center;margin-top:2px;color:#6b7280;">' + pct(m.quizBest) + '</div></td>' +
+        '<td style="padding:10px 12px;min-width:80px;">' + bar(m.grammarBest) + '<div style="font-size:10px;text-align:center;margin-top:2px;color:#6b7280;">' + pct(m.grammarBest) + '</div></td>' +
+        '<td style="padding:10px 12px;min-width:80px;">' + bar(m.listeningBest) + '<div style="font-size:10px;text-align:center;margin-top:2px;color:#6b7280;">' + pct(m.listeningBest) + '</div></td>' +
+        '<td style="padding:10px 12px;min-width:80px;">' + bar(m.evalBest) + '<div style="font-size:10px;text-align:center;margin-top:2px;color:#6b7280;">' + pct(m.evalBest) + '</div></td>' +
+      '</tr>';
+    }).join('');
+
+    var html = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+      '<title>AEROCOMMS Progress Report</title>' +
+      '<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;color:#111;background:#fff;padding:40px;}' +
+      'h1{font-size:22px;font-weight:800;color:#0f172a;margin-bottom:4px;}' +
+      '.sub{font-size:13px;color:#6b7280;margin-bottom:28px;}' +
+      '.summary{display:flex;gap:16px;margin-bottom:28px;}' +
+      '.card{flex:1;padding:14px 18px;border:1px solid #e5e7eb;border-radius:8px;}' +
+      '.card-label{font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}' +
+      '.card-value{font-size:26px;font-weight:800;color:#0f172a;}' +
+      'table{width:100%;border-collapse:collapse;}' +
+      'thead th{padding:10px 12px;text-align:left;font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid #e5e7eb;}' +
+      '@media print{body{padding:20px;}button{display:none!important;}}' +
+      '</style></head><body>' +
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;">' +
+        '<div>' +
+          '<h1>AEROCOMMS — Progress Report</h1>' +
+          '<div class="sub">' + safeText(res.userName || '') + ' · Generated ' + dateStr + '</div>' +
+        '</div>' +
+        '<button onclick="window.print()" style="padding:8px 18px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;">Print / Save PDF</button>' +
+      '</div>' +
+      '<div class="summary">' +
+        '<div class="card"><div class="card-label">Active Time</div><div class="card-value">' + timeStr + '</div></div>' +
+        '<div class="card"><div class="card-label">Modules Completed</div><div class="card-value">' + completedCount + ' / ' + mods.length + '</div></div>' +
+        '<div class="card"><div class="card-label">Overall Progress</div><div class="card-value">' + overallPct + '%</div></div>' +
+      '</div>' +
+      '<table>' +
+        '<thead><tr>' +
+          '<th>Module</th><th style="text-align:center;">Status</th>' +
+          '<th>Quiz</th><th>Grammar</th><th>Listening</th><th>Evaluation</th>' +
+        '</tr></thead>' +
+        '<tbody>' + moduleRows + '</tbody>' +
+      '</table>' +
+      '</body></html>';
+
+    var win = window.open('', '_blank');
+    if (win) { win.document.write(html); win.document.close(); }
+  }
+
+  // ── Admin Progress tab ────────────────────────────────────────────────────────
+
+  function renderAdminProgress() {
+    setActiveNav('Admin');
+    byId('contentArea').innerHTML =
+      '<div class="panel">' +
+        renderAdminTabs('progress') +
+        '<h3 style="margin-bottom:16px;">Student Progress</h3>' +
+        '<div style="display:flex;gap:10px;margin-bottom:20px;">' +
+          '<input id="progSearchInput" class="input" style="max-width:320px;" placeholder="Search by name or email..." oninput="_progSearch(this.value)">' +
+        '</div>' +
+        '<div id="progSearchResults" style="margin-bottom:16px;"></div>' +
+        '<div id="progReportArea"></div>' +
+      '</div>';
+  }
+
+  function _progSearch(query) {
+    var el = byId('progSearchResults');
+    if (!el) return;
+    if (!query || query.trim().length < 2) { el.innerHTML = ''; return; }
+    el.innerHTML = _spinnerHtml('Searching...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { el.innerHTML = ''; return; }
+        var users = res.users || [];
+        if (!users.length) { el.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;">No users found.</p>'; return; }
+        el.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+          users.map(function(u) {
+            return '<button class="btn secondary" style="font-size:0.8rem;padding:5px 12px;" onclick="_progLoadStudent(\'' + safeJs(u.userId) + '\',\'' + safeJs(u.name || u.email) + '\')">' +
+              safeText(u.name || u.email) + (u.role !== 'STUDENT' ? ' (' + u.role + ')' : '') +
+            '</button>';
+          }).join('') +
+        '</div>';
+      })
+      .withFailureHandler(function() { el.innerHTML = ''; })
+      .apiProgressSearchUsers(AppState.sessionToken, query);
+  }
+
+  function _progLoadStudent(userId, name) {
+    var area = byId('progReportArea');
+    if (!area) return;
+    area.innerHTML = _spinnerHtml('Loading ' + safeText(name) + '\'s progress...');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) { area.innerHTML = '<p style="color:var(--red);">Could not load progress.</p>'; return; }
+        area.innerHTML = '';
+        _renderProgressReport(res, true);
+        // Scroll to report
+        area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      })
+      .withFailureHandler(function(err) { area.innerHTML = '<p style="color:var(--red);">' + safeText(String(err)) + '</p>'; })
+      .apiGetProgressReport(AppState.sessionToken, userId);
+  }
+
+  window.renderMyProgress      = renderMyProgress;
+  window.renderAdminProgress   = renderAdminProgress;
+  window._progSearch           = _progSearch;
+  window._progLoadStudent      = _progLoadStudent;
+  window._downloadProgressPdf  = _downloadProgressPdf;
 
   window.renderModules          = renderModules;
   window.renderModuleDetail     = renderModuleDetail;

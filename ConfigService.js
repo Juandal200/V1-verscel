@@ -388,6 +388,11 @@ var DB_SCHEMA = {
     'evalLastAttemptAt',
     'evalAttempts',
     'evalPassed',
+    'evalBestScore',
+    'quizBestScore',
+    'grammarBestScore',
+    'listeningShortBestScore',
+    'listeningLongBestScore',
     'badgeEarned',
     'badgeEarnedAt',
     'timeSpentIntroSec',
@@ -395,6 +400,12 @@ var DB_SCHEMA = {
     'timeSpentApplicationSec',
     'timeSpentEvalSec',
     'completedAt',
+    'updatedAt'
+  ],
+
+  UserActivity: [
+    'userId',
+    'totalActiveSeconds',
     'updatedAt'
   ],
 

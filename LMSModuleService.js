@@ -35,7 +35,7 @@ function setupLMSModuleSheets() {
   var sheets = [
     'Modules', 'ModuleVideos', 'ModuleQuiz', 'ModuleQuizAnswers',
     'ModuleScenarios', 'ModuleForum', 'ModuleForumLikes', 'ModuleProgress',
-    'ModuleGrammar', 'ModuleListening', 'ModuleSpeakingPrompt', 'ModuleSpeakingSubmission', 'LmsXp', 'UserStreaks'
+    'ModuleGrammar', 'ModuleListening', 'ModuleSpeakingPrompt', 'ModuleSpeakingSubmission', 'LmsXp', 'UserStreaks', 'UserActivity'
   ];
 
   sheets.forEach(function(name) {
@@ -57,6 +57,7 @@ function setupLMSModuleSheets() {
   _lmsRepairSheetHeaders_(ss, 'ModuleProgress');
   _lmsRepairSheetHeaders_(ss, 'ModuleQuiz');
   _lmsRepairSheetHeaders_(ss, 'Modules');
+  _lmsRepairSheetHeaders_(ss, 'UserActivity');
 }
 
 // Run this once from the GAS editor to force-rewrite ModuleQuiz headers to the new schema.
@@ -1267,6 +1268,7 @@ function apiModuleSubmitQuiz(sessionToken, payload) {
         patch.quizScore         = score;
         patch.quizLastAttemptAt = now;
         patch.quizAttempts      = Number(prog.quizAttempts || 0) + 1;
+        if (score > Number(prog.quizBestScore || 0)) patch.quizBestScore = score;
         if (passed && !lmsBool_(prog.quizPassed)) {
           patch.quizPassed = true;
           if (lmsBool_(prog.explanationForumPosted)) patch.explanationCompleted = true;
@@ -1276,6 +1278,7 @@ function apiModuleSubmitQuiz(sessionToken, payload) {
         patch.evalScore         = score;
         patch.evalLastAttemptAt = now;
         patch.evalAttempts      = Number(prog.evalAttempts || 0) + 1;
+        if (score > Number(prog.evalBestScore || 0)) patch.evalBestScore = score;
         if (passed && !lmsBool_(prog.evalPassed)) {
           patch.evalPassed    = true;
           patch.badgeEarned   = true;
@@ -1413,6 +1416,7 @@ function apiGrammarSubmit(sessionToken, payload) {
     };
 
     var lmsXpTotal;
+    if (score > Number(prog.grammarBestScore || 0)) patch.grammarBestScore = score;
     if (passed && !lmsBool_(prog.grammarPassed)) {
       patch.grammarPassed      = true;
       patch.grammarCompletedAt = now;
@@ -1611,11 +1615,13 @@ function apiListeningSubmit(sessionToken, payload) {
     var attempts = Number(prog[attField] || 0) + 1;
     var now      = now_();
 
+    var bestField = format === 'short' ? 'listeningShortBestScore' : 'listeningLongBestScore';
     var patch = {};
     patch[scoField] = score;
     patch[attField] = attempts;
     patch[cdField]  = now;
     patch.updatedAt = now;
+    if (score > Number(prog[bestField] || 0)) patch[bestField] = score;
 
     var lmsXpTotal;
     if (passed && !lmsBool_(prog[pasField])) {
@@ -1766,6 +1772,119 @@ function apiEvalGetQuestionAudio(sessionToken, questionId) {
     return { ok: true, audioBase64: result.audioBase64, mimeType: 'audio/mp3', voiceName: result.voiceName };
   } catch(err) {
     return apiError_('apiEvalGetQuestionAudio', err);
+  }
+}
+
+// ── Active time tracking ──────────────────────────────────────────────────────
+
+function apiTrackActiveTime(sessionToken, seconds) {
+  try {
+    var caller = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    seconds = Math.max(0, Math.min(Number(seconds) || 0, 3600));
+    if (!seconds) return { ok: true };
+
+    dbWithScriptLock_(function() {
+      var existing = dbFindOne_('UserActivity', 'userId', caller.userId);
+      var now = now_();
+      if (existing) {
+        dbUpdateByRow_('UserActivity', existing.__rowNumber, {
+          totalActiveSeconds: Number(existing.totalActiveSeconds || 0) + seconds,
+          updatedAt: now
+        });
+      } else {
+        dbAppend_('UserActivity', { userId: caller.userId, totalActiveSeconds: seconds, updatedAt: now });
+      }
+    });
+    return { ok: true };
+  } catch(err) {
+    return apiError_('apiTrackActiveTime', err);
+  }
+}
+
+// ── Progress report ───────────────────────────────────────────────────────────
+
+function apiGetProgressReport(sessionToken, targetUserId) {
+  try {
+    var caller = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    var isAdmin = caller.role === 'ADMIN' || caller.role === 'INSTRUCTOR';
+
+    // Students can only fetch their own report
+    var userId = (isAdmin && targetUserId) ? String(targetUserId) : String(caller.userId);
+
+    var modules   = dbReadAll_('Modules')
+      .filter(function(m) { return String(m.status || '') === 'ACTIVE'; })
+      .sort(function(a, b) { return Number(a.moduleOrder || 0) - Number(b.moduleOrder || 0); });
+
+    var allProgress = dbReadAll_('ModuleProgress')
+      .filter(function(p) { return String(p.userId || '') === userId; });
+
+    var progMap = {};
+    allProgress.forEach(function(p) { progMap[String(p.moduleId)] = p; });
+
+    var activity = dbFindOne_('UserActivity', 'userId', userId);
+    var totalActiveSeconds = Number((activity || {}).totalActiveSeconds || 0);
+
+    // Resolve target user name
+    var targetUser = null;
+    if (isAdmin && targetUserId) {
+      try {
+        var users = dbReadAll_('Users');
+        targetUser = users.find(function(u) { return String(u.userId) === String(userId); }) || null;
+      } catch(e) {}
+    }
+
+    var moduleRows = modules.map(function(m) {
+      var p = progMap[String(m.moduleId)] || {};
+      var lisBest = (Number(p.listeningShortBestScore || 0) + Number(p.listeningLongBestScore || 0));
+      var lisCount = (p.listeningShortBestScore ? 1 : 0) + (p.listeningLongBestScore ? 1 : 0);
+      var listeningBest = lisCount > 0 ? Math.round(lisBest / lisCount) : null;
+
+      return {
+        moduleId:      m.moduleId,
+        title:         m.title,
+        topic:         m.topic || '',
+        badgeImageUrl: m.badgeImageUrl || '',
+        completed:     lmsBool_(p.evalPassed),
+        quizBest:      p.quizBestScore      ? Number(p.quizBestScore)      : null,
+        grammarBest:   p.grammarBestScore    ? Number(p.grammarBestScore)   : null,
+        listeningBest: listeningBest,
+        evalBest:      p.evalBestScore       ? Number(p.evalBestScore)      : null,
+        grammarPassed:        lmsBool_(p.grammarPassed),
+        listeningShortPassed: lmsBool_(p.listeningShortPassed),
+        listeningLongPassed:  lmsBool_(p.listeningLongPassed),
+        evalPassed:           lmsBool_(p.evalPassed),
+        completedAt:   p.completedAt || p.badgeEarnedAt || ''
+      };
+    });
+
+    return {
+      ok:                 true,
+      userId:             userId,
+      userName:           targetUser ? (targetUser.name || targetUser.email || '') : (caller.name || caller.email || ''),
+      totalActiveSeconds: totalActiveSeconds,
+      modules:            moduleRows
+    };
+  } catch(err) {
+    return apiError_('apiGetProgressReport', err);
+  }
+}
+
+// ── Admin: list users for progress lookup ─────────────────────────────────────
+
+function apiProgressSearchUsers(sessionToken, query) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
+    query = String(query || '').toLowerCase().trim();
+    var users = dbReadAll_('Users')
+      .filter(function(u) {
+        if (!query) return true;
+        return (String(u.name || '') + ' ' + String(u.email || '')).toLowerCase().indexOf(query) !== -1;
+      })
+      .slice(0, 30)
+      .map(function(u) { return { userId: u.userId, name: u.name || '', email: u.email || '', role: u.role || '' }; });
+    return { ok: true, users: users };
+  } catch(err) {
+    return apiError_('apiProgressSearchUsers', err);
   }
 }
 
