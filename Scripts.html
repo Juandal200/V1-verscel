@@ -4176,8 +4176,8 @@
               '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
                 '<span class="vr-event-badge">' + vr.icon + ' ' + vr.label + '</span>' +
                 '<span style="display:flex;gap:5px;flex-shrink:0;">' +
-                  '<span style="font-size:0.68rem;font-weight:800;background:rgba(255,255,255,0.12);border-radius:4px;padding:2px 6px;letter-spacing:0.04em;">' + vr.xpLabel + '</span>' +
-                  '<span style="font-size:0.68rem;font-weight:800;background:rgba(255,215,0,0.18);color:#DAA520;border-radius:4px;padding:2px 6px;letter-spacing:0.04em;">+' + vr.cp + ' CP</span>' +
+                  '<span style="font-size:0.75rem;font-weight:800;background:rgba(255,255,255,0.12);border-radius:4px;padding:2px 6px;letter-spacing:0.04em;">' + vr.xpLabel + '</span>' +
+                  '<span style="font-size:0.75rem;font-weight:800;background:rgba(255,215,0,0.18);color:#DAA520;border-radius:4px;padding:2px 6px;letter-spacing:0.04em;">+' + vr.cp + ' CP</span>' +
                 '</span>' +
               '</div>' +
               '<span class="vr-event-desc">' +
@@ -4290,8 +4290,8 @@
             '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
               '<span class="vr-event-badge">' + olVr.icon + ' ' + olVr.label + '</span>' +
               '<span style="display:flex;gap:5px;flex-shrink:0;">' +
-                '<span style="font-size:0.68rem;font-weight:800;background:rgba(255,255,255,0.12);border-radius:4px;padding:2px 6px;letter-spacing:0.04em;">' + olVr.xpLabel + '</span>' +
-                '<span style="font-size:0.68rem;font-weight:800;background:rgba(255,215,0,0.18);color:#DAA520;border-radius:4px;padding:2px 6px;letter-spacing:0.04em;">+' + olVr.cp + ' CP</span>' +
+                '<span style="font-size:0.75rem;font-weight:800;background:rgba(255,255,255,0.12);border-radius:4px;padding:2px 6px;letter-spacing:0.04em;">' + olVr.xpLabel + '</span>' +
+                '<span style="font-size:0.75rem;font-weight:800;background:rgba(255,215,0,0.18);color:#DAA520;border-radius:4px;padding:2px 6px;letter-spacing:0.04em;">+' + olVr.cp + ' CP</span>' +
               '</span>' +
             '</div>' +
             '<span class="vr-event-desc">' +
@@ -6144,7 +6144,7 @@
               '<div class="sim-section-title"><span>ATC RADIO</span>' +
                 '<div style="display:flex;gap:6px;align-items:center;">' +
                   '<span class="sim-live-dot" id="simAtcLiveDot" style="display:none;">PLAYING</span>' +
-                  '<span id="atcVoiceBadge" style="font-size:0.62rem;color:#8c8c8c;letter-spacing:.02em;align-self:center;">loading…</span>' +
+                  '<span id="atcVoiceBadge" style="font-size:0.72rem;color:#8c8c8c;letter-spacing:.02em;align-self:center;">loading…</span>' +
                   '<button class="btn primary" id="atcReplayBtn" onclick="immersivePlayAtcAudio(event)">&#8635; Replay ATC</button>' +
                 '</div>' +
               '</div>' +
@@ -7538,7 +7538,7 @@
             '</p>' +
           '</div>' +
           '<div style="display:flex;gap:8px;align-items:center;">' +
-            '<span id="icaoVoiceBadge" style="font-size:0.62rem;color:#8c8c8c;"></span>' +
+            '<span id="icaoVoiceBadge" style="font-size:0.72rem;color:#8c8c8c;"></span>' +
             '<button class="btn primary" id="icaoPlayBtn" onclick="icaoTestPlayAtc()">▶ Play clearance</button>' +
           '</div>' +
         '</div>' +
@@ -9092,11 +9092,11 @@
           var cardShadow = popular ? '0 0 0 4px rgba(0,212,142,0.08)' : 'none';
 
           var topBadge = popular
-            ? '<div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#00d48e;color:#000;font-size:0.62rem;font-weight:800;letter-spacing:0.1em;padding:4px 14px;border-radius:20px;white-space:nowrap;">MÁS POPULAR</div>'
+            ? '<div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#00d48e;color:#000;font-size:0.75rem;font-weight:800;letter-spacing:0.1em;padding:4px 14px;border-radius:20px;white-space:nowrap;">MÁS POPULAR</div>'
             : '';
 
           var savingsBadge = m.savings
-            ? '<div style="display:inline-block;background:rgba(0,212,142,0.12);border:1px solid rgba(0,212,142,0.3);color:#00d48e;font-size:0.62rem;font-weight:800;letter-spacing:0.06em;padding:3px 10px;border-radius:20px;margin-bottom:14px;">' + m.savings + '</div>'
+            ? '<div style="display:inline-block;background:rgba(0,212,142,0.12);border:1px solid rgba(0,212,142,0.3);color:#00d48e;font-size:0.75rem;font-weight:800;letter-spacing:0.06em;padding:3px 10px;border-radius:20px;margin-bottom:14px;">' + m.savings + '</div>'
             : '<div style="height:22px;margin-bottom:14px;"></div>';
 
           var subtext = plan.id === '15d' ? 'Acceso total por 15 d&iacute;as'
@@ -9114,7 +9114,7 @@
             : 'width:100%;padding:12px;font-size:0.9rem;font-weight:700;background:transparent;color:#dde6f0;border:1px solid rgba(255,255,255,0.2);border-radius:10px;cursor:pointer;transition:background 0.2s,border-color 0.2s;';
 
           var flagsRow =
-            '<p style="margin:0 0 6px;font-size:0.65rem;font-weight:700;letter-spacing:0.1em;color:#4d6070;text-transform:uppercase;">Accents included</p>' +
+            '<p style="margin:0 0 6px;font-size:0.75rem;font-weight:700;letter-spacing:0.1em;color:#4d6070;text-transform:uppercase;">Accents included</p>' +
             '<div style="display:flex;justify-content:center;gap:6px;margin-bottom:16px;">' +
               '<span title="USA" style="font-size:1.3rem;">&#127482;&#127480;</span>' +
               '<span title="UK"  style="font-size:1.3rem;">&#127468;&#127463;</span>' +
@@ -10863,11 +10863,11 @@
         '<button onclick="event.stopPropagation();_rankUpDismiss();" style="position:absolute;top:20px;right:24px;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.5);font-size:1.1rem;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;">✕</button>' +
         // Content
         '<div id="_rankUpCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform .55s cubic-bezier(0.34,1.56,0.64,1),opacity .4s ease;padding:0 24px;pointer-events:none;">' +
-          '<div style="font-size:0.65rem;font-weight:800;letter-spacing:.2em;color:' + color + ';text-transform:uppercase;margin-bottom:18px;">Rank Up</div>' +
+          '<div style="font-size:0.75rem;font-weight:800;letter-spacing:.2em;color:' + color + ';text-transform:uppercase;margin-bottom:18px;">Rank Up</div>' +
           (stripes ? '<div style="display:flex;justify-content:center;margin-bottom:22px;gap:6px;">' + stripes + '</div>' : '') +
           '<div style="font-size:4rem;font-weight:900;color:#fff;letter-spacing:-0.02em;line-height:1;text-shadow:0 0 40px ' + color + ',0 0 80px ' + color + '55;margin-bottom:12px;">' + label.toUpperCase() + '</div>' +
           '<div style="font-size:1rem;color:rgba(255,255,255,.45);margin-bottom:52px;font-weight:500;">You\'ve earned your wings</div>' +
-          '<div style="font-size:0.62rem;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,.2);text-transform:uppercase;">Tap anywhere to continue</div>' +
+          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,.2);text-transform:uppercase;">Tap anywhere to continue</div>' +
         '</div>' +
         // Countdown bar
         '<div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.06);">' +
@@ -10997,22 +10997,22 @@
             '<div style="width:34px;height:34px;border-radius:50%;background:' + accentColor + ';border:2px solid rgba(255,255,255,.45);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.95rem;color:#fff;">' +
               (completed ? '✓' : String(idx+1)) +
             '</div>' +
-            '<span style="font-size:0.62rem;font-weight:800;letter-spacing:.13em;color:rgba(255,255,255,.7);text-transform:uppercase;">Module</span>' +
+            '<span style="font-size:0.75rem;font-weight:800;letter-spacing:.13em;color:rgba(255,255,255,.7);text-transform:uppercase;">Module</span>' +
           '</div>' +
           // Lock overlay
           (locked ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2rem;background:rgba(0,0,0,.25);">🔒</div>' : '') +
           // Completed ribbon
-          (completed ? '<div style="position:absolute;top:10px;right:10px;background:#16a34a;border-radius:20px;padding:2px 10px;font-size:0.65rem;font-weight:800;letter-spacing:.07em;color:#fff;">✓ DONE</div>' : '') +
+          (completed ? '<div style="position:absolute;top:10px;right:10px;background:#16a34a;border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:800;letter-spacing:.07em;color:#fff;">✓ DONE</div>' : '') +
         '</div>';
 
       // Status chip
       var chip = completed
-        ? '<span style="font-size:0.67rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.12);border:1px solid rgba(22,163,74,.25);padding:2px 8px;border-radius:20px;letter-spacing:.05em;">✓ COMPLETED</span>'
+        ? '<span style="font-size:0.75rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.12);border:1px solid rgba(22,163,74,.25);padding:2px 8px;border-radius:20px;letter-spacing:.05em;">✓ COMPLETED</span>'
         : locked
-          ? '<span style="font-size:0.67rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:2px 8px;border-radius:20px;">LOCKED</span>'
+          ? '<span style="font-size:0.75rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:2px 8px;border-radius:20px;">LOCKED</span>'
           : sectionsDone > 0
-            ? '<span style="font-size:0.67rem;font-weight:700;color:var(--cyan);background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.25);padding:2px 8px;border-radius:20px;">▶ IN PROGRESS</span>'
-            : '<span style="font-size:0.67rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:2px 8px;border-radius:20px;">NOT STARTED</span>';
+            ? '<span style="font-size:0.75rem;font-weight:700;color:var(--cyan);background:rgba(14,165,233,.1);border:1px solid rgba(14,165,233,.25);padding:2px 8px;border-radius:20px;">▶ IN PROGRESS</span>'
+            : '<span style="font-size:0.75rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:2px 8px;border-radius:20px;">NOT STARTED</span>';
 
       // Mini step indicators
       var miniSteps = sects.map(function(k, i) {
@@ -11020,13 +11020,13 @@
         var done = s && s.completed;
         var avail = s && s.unlocked;
         return '<div style="display:flex;flex-direction:column;align-items:center;gap:3px;">' +
-          '<div style="width:22px;height:22px;border-radius:50%;font-size:0.62rem;font-weight:700;display:flex;align-items:center;justify-content:center;' +
+          '<div style="width:22px;height:22px;border-radius:50%;font-size:0.68rem;font-weight:700;display:flex;align-items:center;justify-content:center;' +
             (done  ? 'background:var(--green);color:#fff;'
                    : avail ? 'background:rgba(14,165,233,.15);color:var(--cyan);border:1px solid rgba(14,165,233,.35);'
                            : 'background:var(--panel-soft);color:var(--muted);border:1px solid var(--line);') + '">' +
             (done ? '✓' : String(i+1)) +
           '</div>' +
-          '<span style="font-size:0.56rem;color:' + (done ? 'var(--green)' : avail ? 'var(--text)' : 'var(--muted)') + ';white-space:nowrap;">' + stepLabels[i] + '</span>' +
+          '<span style="font-size:0.68rem;color:' + (done ? 'var(--green)' : avail ? 'var(--text)' : 'var(--muted)') + ';white-space:nowrap;">' + stepLabels[i] + '</span>' +
         '</div>';
       });
       var stepsRow = '<div style="display:flex;align-items:flex-start;gap:0;margin-bottom:12px;">';
