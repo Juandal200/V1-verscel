@@ -11970,9 +11970,9 @@
           // Mobile-only horizontal section picker
           '<div class="lms-mobile-section-nav">' +
             '<button class="lms-msn-btn' + (defaultSection==='intro'?' active':'') + '" data-section="intro" onclick="_lmsShowSection(\'intro\')">📖 Intro</button>' +
-            '<button class="lms-msn-btn' + (defaultSection==='explanation'?' active':'') + '" data-section="explanation"' + (!expUnlocked?' disabled':'') + ' onclick="_lmsShowSection(\'explanation\')">🎓 Explain</button>' +
-            '<button class="lms-msn-btn' + (defaultSection==='application'?' active':'') + '" data-section="application"' + (!appUnlocked?' disabled':'') + ' onclick="_lmsShowSection(\'application\')">🛫 Apply</button>' +
-            '<button class="lms-msn-btn' + (defaultSection==='evaluation'?' active':'') + '" data-section="evaluation"' + (!evalUnlocked?' disabled':'') + ' onclick="_lmsShowSection(\'evaluation\')">🏆 Eval</button>' +
+            '<button class="lms-msn-btn' + (defaultSection==='explanation'?' active':'') + '" data-section="explanation"' + (!expUnlocked?' disabled':' onclick="_lmsShowSection(\'explanation\')"') + '>🎓 Explain</button>' +
+            '<button class="lms-msn-btn' + (defaultSection==='application'?' active':'') + '" data-section="application"' + (!appUnlocked?' disabled':' onclick="_lmsShowSection(\'application\')"') + '>🛫 Apply</button>' +
+            '<button class="lms-msn-btn' + (defaultSection==='evaluation'?' active':'') + '" data-section="evaluation"' + (!evalUnlocked?' disabled':' onclick="_lmsShowSection(\'evaluation\')"') + '>🏆 Eval</button>' +
           '</div>' +
           introPanelHtml + expPanelHtml + appPanelHtml + evalPanelHtml +
         '</div>' +
