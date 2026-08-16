@@ -70,8 +70,7 @@ function doPost(e) {
                   action === 'sendChallenge' ||
                   action === 'acceptRequest' ||
                   action === 'acceptChallenge' ||
-                  action === 'searchPilot' ||
-                  action === 'apiModuleForumLikePost';
+                  action === 'searchPilot';
 
     var output = ContentService.createTextOutput();
     output.setMimeType(ContentService.MimeType.JSON);
@@ -8419,7 +8418,12 @@ function apiAdminRevokeSubscription(sessionToken, subscriptionId) {
 
 // ─── LMS MODULE FUNCTIONS ─────────────────────────────────────────────────────
 
+var _FETCH_LMS_ALLOWED_SHEETS_ = ['Admin_Engines', 'Admin_NonRoutine', 'Admin_HumanFactors'];
+
 function fetchLMSData(sheetName) {
+  if (_FETCH_LMS_ALLOWED_SHEETS_.indexOf(String(sheetName || '')) === -1) {
+    throw new Error('Sheet not allowed: ' + sheetName);
+  }
   var ss    = SpreadsheetApp.openById('15Za2QsPmUcDwN92qzY1SMpihUCyLh3zeuZwcnmb9H1E');
   var sheet = ss.getSheetByName(sheetName);
   if (!sheet) return [];

@@ -528,7 +528,7 @@ function getLeaderboard(limit) {
         userId:          uid,
         name:            String(u['name'] || u['email'] || uid),
         email:           String(u['email'] || ''),
-        profession:      String(u['licenseType'] || 'PILOT'),
+        profession:      String(u['profession'] || u['licenseType'] || 'PILOT'),
         lmsXp:           xp.lmsXp,
         mergedXp:        xp.lmsXp,
         weeklyXp:        xp.weeklyXp,
@@ -650,7 +650,7 @@ function getMyCompletedLevels(sessionToken) {
       var required = levelCountryMap[lvl] || 1;
       if (levelDoneCounts[lvl] >= required) completedCount++;
     });
-    var lmsXp = 0, weeklyXp = 0, streakDays = 0, streakProtected = false;
+    var lmsXp = 0, weeklyXp = 0, streakDays = 0, streakProtected = false, lastActiveAt = '';
     try {
       var xpData = lmsGetXpData_(user.userId);
       lmsXp = xpData.lmsXp;
@@ -660,6 +660,7 @@ function getMyCompletedLevels(sessionToken) {
       var streakData = lmsGetStreak_(user.userId);
       streakDays = streakData.streakDays;
       streakProtected = streakData.streakProtected;
+      lastActiveAt = streakData.lastActiveAt || '';
     } catch(e) {}
     return {
       ok: true,
@@ -669,7 +670,7 @@ function getMyCompletedLevels(sessionToken) {
       weeklyXp: weeklyXp,
       streakDays: streakDays,
       streakProtected: streakProtected,
-      lastActiveAt: streakData.lastActiveAt || ''
+      lastActiveAt: lastActiveAt
     };
   } catch(e) {
     return { ok: false, completedLevels: 0, lmsXp: 0, mergedXp: 0, weeklyXp: 0, streakDays: 0, streakProtected: false };

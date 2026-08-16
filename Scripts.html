@@ -904,6 +904,7 @@
   }
 
   function enterApplication() {
+    if (!AppState.user) return;
     if (window.LoginAudio) LoginAudio.stop();
     showScreen('appScreen');
 
@@ -929,7 +930,7 @@
           try { localStorage.setItem('_aero_xp_' + (AppState.user.userId || ''), mxp); } catch(e) {}
         }
       })
-      .withFailureHandler(function() {})
+      .withFailureHandler(function(err) { console.error('[getMyCompletedLevels]', err); })
       .getMyCompletedLevels(AppState.sessionToken);
 
     // Fire a silent TTS call on login to warm up GAS server + Google TTS API,
@@ -10676,8 +10677,9 @@
   window.saveAdminRoute = saveAdminRoute;
   window.adminSetRouteActive = adminSetRouteActive;
   window.adminDeleteRoute = adminDeleteRoute;
-  window.adminUpdateUser = adminUpdateUser;
-  window.adminDeleteUser = adminDeleteUser;
+  window.adminUpdateUser       = adminUpdateUser;
+  window.adminDeleteUser       = adminDeleteUser;
+  window.adminResetPlacement   = adminResetPlacement;
 
   // ── Subscription (Wompi) ──────────────────────────────────────
   window.openSubscriptionModal  = openSubscriptionModal;

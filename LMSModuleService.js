@@ -25,7 +25,7 @@ function lmsBool_(v) {
 
 var LMS_QUIZ_COOLDOWN_MS   = 15 * 60 * 1000; // 15-minute cooldown between quiz retries
 var LMS_MIN_PASS_SCORE     = 85;              // % required to pass quiz / evaluation
-var LMS_MIN_SCENARIOS      = 3;              // scenarios needed to unlock evaluation
+var LMS_MIN_SCENARIOS      = 3;              // target scenarios shown in progress bar (evaluation gated by grammar+listening, not scenarios)
 var LMS_FORUM_MIN_WORDS    = 3;              // minimum words in a forum post
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ function _lmsRepairSheetHeaders_(ss, sheetName) {
         sheet.getRange(1, i + 1).setValue(col);
       }
     });
-  } catch(e) {}
+  } catch(e) { console.error('[_lmsRepairSheetHeaders_] ' + sheetName + ':', e); }
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -267,9 +267,9 @@ function lmsCheckCooldown_(lastAttemptAt) {
 
 function lmsSectionUnlocked_(progress, section) {
   if (section === 'intro')        return true;
-  if (section === 'explanation')  return !!progress.introCompleted;
-  if (section === 'application')  return !!progress.explanationCompleted;
-  if (section === 'evaluation')   return !!progress.applicationCompleted;
+  if (section === 'explanation')  return lmsBool_(progress.introCompleted);
+  if (section === 'application')  return lmsBool_(progress.explanationCompleted);
+  if (section === 'evaluation')   return lmsBool_(progress.applicationCompleted);
   return false;
 }
 
@@ -833,9 +833,9 @@ function apiModuleForumSavePost(sessionToken, payload) {
     if (!moduleId) throw new Error('moduleId required.');
     if (!body)     throw new Error('Post body required.');
 
-    // Enforce 3-word minimum
-    if (body.split(/\s+/).filter(function(w) { return w.length > 0; }).length <= LMS_FORUM_MIN_WORDS) {
-      throw new Error('Post must be more than ' + LMS_FORUM_MIN_WORDS + ' words.');
+    // Enforce 3-word minimum (at least LMS_FORUM_MIN_WORDS words required)
+    if (body.split(/\s+/).filter(function(w) { return w.length > 0; }).length < LMS_FORUM_MIN_WORDS) {
+      throw new Error('Post must be at least ' + LMS_FORUM_MIN_WORDS + ' words.');
     }
 
     var result = dbWithScriptLock_(function() {
@@ -870,16 +870,16 @@ function apiModuleForumSavePost(sessionToken, payload) {
         lmsAddXp_(caller.userId, xpForPost);
 
         if (!parentPostId && (!section || section === 'intro')) {
-          var progForForum = lmsGetProgress_(caller.userId, moduleId);
-          if (progForForum && !lmsBool_(progForForum.introForumPosted)) {
+          var progForForum = lmsEnsureProgress_(caller.userId, moduleId);
+          if (!lmsBool_(progForForum.introForumPosted)) {
             var fp = { introForumPosted: true, updatedAt: now };
             if (lmsBool_(progForForum.introVideoWatched)) fp.introCompleted = true;
             dbUpdateByRow_('ModuleProgress', progForForum.__rowNumber, fp);
           }
         }
         if (!parentPostId && section === 'explanation') {
-          var progExp = lmsGetProgress_(caller.userId, moduleId);
-          if (progExp && !lmsBool_(progExp.explanationForumPosted)) {
+          var progExp = lmsEnsureProgress_(caller.userId, moduleId);
+          if (!lmsBool_(progExp.explanationForumPosted)) {
             var fpExp = { explanationForumPosted: true, updatedAt: now };
             if (!lmsBool_(progExp.explanationCompleted)) {
               var hasExpQuiz = dbReadAll_('ModuleQuiz').some(function(q) {
@@ -972,13 +972,13 @@ function apiModuleGetAll(sessionToken) {
         badgeImageUrl: m.badgeImageUrl,
         unlocked:      unlocked,
         completed:     !!(prog && prog.completedAt),
-        badgeEarned:   !!(prog && prog.badgeEarned),
+        badgeEarned:   !!(prog && lmsBool_(prog.badgeEarned)),
         score:         moduleScore,
         sections: {
-          intro:       { unlocked: unlocked,                                   completed: !!(prog && prog.introCompleted) },
-          explanation: { unlocked: !!(prog && prog.introCompleted),             completed: !!(prog && prog.explanationCompleted) },
-          application: { unlocked: !!(prog && prog.explanationCompleted),       completed: !!(prog && prog.applicationCompleted) },
-          evaluation:  { unlocked: !!(prog && prog.applicationCompleted),       completed: !!(prog && prog.evalPassed) }
+          intro:       { unlocked: unlocked,                                              completed: !!(prog && lmsBool_(prog.introCompleted)) },
+          explanation: { unlocked: !!(prog && lmsBool_(prog.introCompleted)),             completed: !!(prog && lmsBool_(prog.explanationCompleted)) },
+          application: { unlocked: !!(prog && lmsBool_(prog.explanationCompleted)),       completed: !!(prog && lmsBool_(prog.applicationCompleted)) },
+          evaluation:  { unlocked: !!(prog && lmsBool_(prog.applicationCompleted)),       completed: !!(prog && lmsBool_(prog.evalPassed)) }
         }
       };
     });
@@ -1279,7 +1279,7 @@ function apiModuleSubmitQuiz(sessionToken, payload) {
         patch.evalLastAttemptAt = now;
         patch.evalAttempts      = Number(prog.evalAttempts || 0) + 1;
         if (score > Number(prog.evalBestScore || 0)) patch.evalBestScore = score;
-        if (passed && !lmsBool_(prog.evalPassed)) {
+        if (passed && !lmsBool_(prog.evalPassed) && lmsBool_(prog.applicationCompleted)) {
           patch.evalPassed    = true;
           patch.badgeEarned   = true;
           patch.badgeEarnedAt = now;
@@ -1375,69 +1375,67 @@ function apiGrammarSubmit(sessionToken, payload) {
     var answers  = (payload || {}).answers || {}; // { exerciseId: rawAnswer, ... }
     if (!moduleId) throw new Error('moduleId required.');
 
-    var prog = lmsEnsureProgress_(caller.userId, moduleId);
-    if (!lmsSectionUnlocked_(prog, 'application')) throw new Error('Application section not yet unlocked.');
-
-    // Cooldown check
-    var cooldown = lmsCheckCooldown_(prog.grammarLastAttemptAt);
-    if (cooldown) return { ok: false, error: 'Cooldown active until ' + cooldown, grammarCooldownUntil: cooldown };
-
     var exercises = dbReadAll_('ModuleGrammar')
       .filter(function(g) { return String(g.moduleId || '') === moduleId; });
 
     if (!exercises.length) return { ok: false, error: 'No grammar exercises found for this module.' };
 
-    var totalQ  = exercises.length;
-    var correct = 0;
-    var results = [];
+    var result = dbWithScriptLock_(function() {
+      var prog = lmsEnsureProgress_(caller.userId, moduleId);
+      if (!lmsSectionUnlocked_(prog, 'application')) throw new Error('Application section not yet unlocked.');
 
-    exercises.forEach(function(ex) {
-      var raw    = answers[ex.exerciseId];
-      var passed = _gradeGrammarAnswer_(ex, raw);
-      if (passed) correct++;
-      results.push({
-        exerciseId:    ex.exerciseId,
-        correct:       passed,
-        correctAnswer: ex.correctAnswer,
-        explanation:   ex.explanation
+      var cooldown = lmsCheckCooldown_(prog.grammarLastAttemptAt);
+      if (cooldown) return { blocked: true, cooldown: cooldown };
+
+      var totalQ = exercises.length;
+      var correct = 0;
+      var results = [];
+      exercises.forEach(function(ex) {
+        var raw    = answers[ex.exerciseId];
+        var passed = _gradeGrammarAnswer_(ex, raw);
+        if (passed) correct++;
+        results.push({ exerciseId: ex.exerciseId, correct: passed, correctAnswer: ex.correctAnswer, explanation: ex.explanation });
       });
+
+      var score    = Math.round((correct / totalQ) * 100);
+      var passed   = score >= LMS_GRAMMAR_PASS_SCORE;
+      var attempts = Number(prog.grammarAttempts || 0) + 1;
+      var now      = now_();
+      var patch    = { grammarScore: score, grammarAttempts: attempts, grammarLastAttemptAt: now, updatedAt: now };
+
+      if (score > Number(prog.grammarBestScore || 0)) patch.grammarBestScore = score;
+      var xpAwarded = 0;
+      if (passed && !lmsBool_(prog.grammarPassed)) {
+        patch.grammarPassed      = true;
+        patch.grammarCompletedAt = now;
+        if (lmsBool_(prog.listeningShortPassed) && lmsBool_(prog.listeningLongPassed)) {
+          patch.applicationCompleted = true;
+        }
+        xpAwarded = LMS_GRAMMAR_XP;
+      }
+      dbUpdateByRow_('ModuleProgress', prog.__rowNumber, patch);
+      return { score: score, passed: passed, correct: correct, total: totalQ, attempts: attempts,
+               results: results, xpAwarded: xpAwarded,
+               applicationCompleted: !!(patch.applicationCompleted || lmsBool_(prog.applicationCompleted)) };
     });
 
-    var score    = Math.round((correct / totalQ) * 100);
-    var passed   = score >= LMS_GRAMMAR_PASS_SCORE;
-    var attempts = Number(prog.grammarAttempts || 0) + 1;
-    var now      = now_();
+    if (result.blocked) return { ok: false, error: 'Cooldown active until ' + result.cooldown, grammarCooldownUntil: result.cooldown };
 
-    var patch = {
-      grammarScore:          score,
-      grammarAttempts:       attempts,
-      grammarLastAttemptAt:  now,
-      updatedAt:             now
-    };
-
-    var lmsXpTotal;
-    if (score > Number(prog.grammarBestScore || 0)) patch.grammarBestScore = score;
-    if (passed && !lmsBool_(prog.grammarPassed)) {
-      patch.grammarPassed      = true;
-      patch.grammarCompletedAt = now;
-      if (lmsBool_(prog.listeningShortPassed) && lmsBool_(prog.listeningLongPassed)) {
-        patch.applicationCompleted = true;
-      }
-      try { lmsXpTotal = lmsAddXp_(caller.userId, LMS_GRAMMAR_XP); lmsUpdateStreak_(caller.userId); } catch(e) {}
+    var lmsXpTotal = null;
+    if (result.xpAwarded > 0) {
+      try { lmsXpTotal = lmsAddXp_(caller.userId, result.xpAwarded); lmsUpdateStreak_(caller.userId); } catch(e) {}
     }
 
-    dbUpdateByRow_('ModuleProgress', prog.__rowNumber, patch);
-
     return {
-      ok:              true,
-      score:           score,
-      passed:          passed,
-      correct:         correct,
-      total:           totalQ,
-      attempts:        attempts,
-      results:         results,
-      lmsXpTotal:      lmsXpTotal,
-      applicationCompleted: !!(patch.applicationCompleted || lmsBool_(prog.applicationCompleted))
+      ok:                   true,
+      score:                result.score,
+      passed:               result.passed,
+      correct:              result.correct,
+      total:                result.total,
+      attempts:             result.attempts,
+      results:              result.results,
+      lmsXpTotal:           lmsXpTotal,
+      applicationCompleted: result.applicationCompleted
     };
   } catch(err) {
     return apiError_('apiGrammarSubmit', err);
@@ -1580,21 +1578,12 @@ function apiListeningSubmit(sessionToken, payload) {
     if (!moduleId) throw new Error('moduleId required.');
     if (format !== 'short' && format !== 'long') throw new Error('format must be short or long.');
 
-    var prog = lmsEnsureProgress_(caller.userId, moduleId);
-    if (!lmsSectionUnlocked_(prog, 'application')) throw new Error('Application section not yet unlocked.');
-    if (!lmsBool_(prog.grammarPassed)) throw new Error('Grammar station must be completed first.');
-
-    var cdField   = format === 'short' ? 'listeningShortLastAttemptAt' : 'listeningLongLastAttemptAt';
-    var cooldown  = lmsCheckCooldown_(prog[cdField]);
-    if (cooldown) return { ok: false, error: 'Cooldown active.', cooldownUntil: cooldown };
-
     var clips = dbReadAll_('ModuleListening').filter(function(c) {
       return String(c.moduleId || '') === moduleId && String(c.format || '') === format;
     });
     if (!clips.length) return { ok: false, error: 'No ' + format + ' listening clips found for this module.' };
 
-    var totalQ = 0;
-    var correct = 0;
+    var totalQ = 0, correct = 0;
     clips.forEach(function(clip) {
       var qs = [];
       try { qs = JSON.parse(clip.questionsJson || '[]'); } catch(e) {}
@@ -1604,51 +1593,64 @@ function apiListeningSubmit(sessionToken, payload) {
         if (given === String(q.correctIndex)) correct++;
       });
     });
-
     if (!totalQ) return { ok: false, error: 'No questions found for this format.' };
 
-    var score    = Math.round((correct / totalQ) * 100);
-    var passed   = score >= LMS_LISTENING_PASS_SCORE;
-    var attField = format === 'short' ? 'listeningShortAttempts'  : 'listeningLongAttempts';
-    var scoField = format === 'short' ? 'listeningShortScore'     : 'listeningLongScore';
-    var pasField = format === 'short' ? 'listeningShortPassed'    : 'listeningLongPassed';
-    var attempts = Number(prog[attField] || 0) + 1;
-    var now      = now_();
+    var result = dbWithScriptLock_(function() {
+      var prog = lmsEnsureProgress_(caller.userId, moduleId);
+      if (!lmsSectionUnlocked_(prog, 'application')) throw new Error('Application section not yet unlocked.');
+      if (!lmsBool_(prog.grammarPassed)) throw new Error('Grammar station must be completed first.');
 
-    var bestField = format === 'short' ? 'listeningShortBestScore' : 'listeningLongBestScore';
-    var patch = {};
-    patch[scoField] = score;
-    patch[attField] = attempts;
-    patch[cdField]  = now;
-    patch.updatedAt = now;
-    if (score > Number(prog[bestField] || 0)) patch[bestField] = score;
+      var cdField  = format === 'short' ? 'listeningShortLastAttemptAt' : 'listeningLongLastAttemptAt';
+      var cooldown = lmsCheckCooldown_(prog[cdField]);
+      if (cooldown) return { blocked: true, cooldown: cooldown };
 
-    var lmsXpTotal;
-    if (passed && !lmsBool_(prog[pasField])) {
-      patch[pasField] = true;
-      // Check if both formats now passed to set listeningCompletedAt
-      var shortPassed = format === 'short' ? true : lmsBool_(prog.listeningShortPassed);
-      var longPassed  = format === 'long'  ? true : lmsBool_(prog.listeningLongPassed);
-      if (shortPassed && longPassed) {
-        patch.listeningCompletedAt = now;
-        if (lmsBool_(prog.grammarPassed)) {
-          patch.applicationCompleted = true;
+      var score    = Math.round((correct / totalQ) * 100);
+      var passed   = score >= LMS_LISTENING_PASS_SCORE;
+      var attField = format === 'short' ? 'listeningShortAttempts'  : 'listeningLongAttempts';
+      var scoField = format === 'short' ? 'listeningShortScore'     : 'listeningLongScore';
+      var pasField = format === 'short' ? 'listeningShortPassed'    : 'listeningLongPassed';
+      var bestField= format === 'short' ? 'listeningShortBestScore' : 'listeningLongBestScore';
+      var attempts = Number(prog[attField] || 0) + 1;
+      var now      = now_();
+      var patch    = { updatedAt: now };
+      patch[scoField] = score;
+      patch[attField] = attempts;
+      patch[cdField]  = now;
+      if (score > Number(prog[bestField] || 0)) patch[bestField] = score;
+
+      var xpAwarded = 0;
+      if (passed && !lmsBool_(prog[pasField])) {
+        patch[pasField] = true;
+        var shortPassed = format === 'short' ? true : lmsBool_(prog.listeningShortPassed);
+        var longPassed  = format === 'long'  ? true : lmsBool_(prog.listeningLongPassed);
+        if (shortPassed && longPassed) {
+          patch.listeningCompletedAt = now;
+          if (lmsBool_(prog.grammarPassed)) patch.applicationCompleted = true;
         }
+        xpAwarded = LMS_LISTENING_XP;
       }
-      try { lmsXpTotal = lmsAddXp_(caller.userId, LMS_LISTENING_XP); lmsUpdateStreak_(caller.userId); } catch(e) {}
+      dbUpdateByRow_('ModuleProgress', prog.__rowNumber, patch);
+      return { score: score, passed: passed, correct: correct, total: totalQ, attempts: attempts,
+               xpAwarded: xpAwarded,
+               applicationCompleted: !!(patch.applicationCompleted || lmsBool_(prog.applicationCompleted)) };
+    });
+
+    if (result.blocked) return { ok: false, error: 'Cooldown active.', cooldownUntil: result.cooldown };
+
+    var lmsXpTotal = null;
+    if (result.xpAwarded > 0) {
+      try { lmsXpTotal = lmsAddXp_(caller.userId, result.xpAwarded); lmsUpdateStreak_(caller.userId); } catch(e) {}
     }
 
-    dbUpdateByRow_('ModuleProgress', prog.__rowNumber, patch);
-
     return {
-      ok:          true,
-      score:       score,
-      passed:      passed,
-      correct:     correct,
-      total:       totalQ,
-      attempts:    attempts,
-      lmsXpTotal:  lmsXpTotal,
-      applicationCompleted: passed && patch.applicationCompleted ? true : lmsBool_(prog.applicationCompleted)
+      ok:                   true,
+      score:                result.score,
+      passed:               result.passed,
+      correct:              result.correct,
+      total:                result.total,
+      attempts:             result.attempts,
+      lmsXpTotal:           lmsXpTotal,
+      applicationCompleted: result.applicationCompleted
     };
   } catch(err) {
     return apiError_('apiListeningSubmit', err);
@@ -1847,9 +1849,15 @@ function apiGetProgressReport(sessionToken, targetUserId) {
 
     var moduleRows = modules.map(function(m) {
       var p = progMap[String(m.moduleId)] || {};
-      var lisBest = (Number(p.listeningShortBestScore || 0) + Number(p.listeningLongBestScore || 0));
-      var lisCount = (p.listeningShortBestScore ? 1 : 0) + (p.listeningLongBestScore ? 1 : 0);
+      var hasShort = p.listeningShortBestScore !== '' && p.listeningShortBestScore !== null && p.listeningShortBestScore !== undefined;
+      var hasLong  = p.listeningLongBestScore  !== '' && p.listeningLongBestScore  !== null && p.listeningLongBestScore  !== undefined;
+      var lisCount = (hasShort ? 1 : 0) + (hasLong ? 1 : 0);
+      var lisBest  = (hasShort ? Number(p.listeningShortBestScore) : 0) + (hasLong ? Number(p.listeningLongBestScore) : 0);
       var listeningBest = lisCount > 0 ? Math.round(lisBest / lisCount) : null;
+
+      var hasQuizBest   = p.quizBestScore    !== '' && p.quizBestScore    !== null && p.quizBestScore    !== undefined;
+      var hasGrammarBest= p.grammarBestScore !== '' && p.grammarBestScore !== null && p.grammarBestScore !== undefined;
+      var hasEvalBest   = p.evalBestScore    !== '' && p.evalBestScore    !== null && p.evalBestScore    !== undefined;
 
       return {
         moduleId:      m.moduleId,
@@ -1857,10 +1865,10 @@ function apiGetProgressReport(sessionToken, targetUserId) {
         topic:         m.topic || '',
         badgeImageUrl: m.badgeImageUrl || '',
         completed:     lmsBool_(p.evalPassed),
-        quizBest:      p.quizBestScore      ? Number(p.quizBestScore)      : null,
-        grammarBest:   p.grammarBestScore    ? Number(p.grammarBestScore)   : null,
+        quizBest:      hasQuizBest    ? Number(p.quizBestScore)    : null,
+        grammarBest:   hasGrammarBest ? Number(p.grammarBestScore) : null,
         listeningBest: listeningBest,
-        evalBest:      p.evalBestScore       ? Number(p.evalBestScore)      : null,
+        evalBest:      hasEvalBest    ? Number(p.evalBestScore)    : null,
         grammarPassed:        lmsBool_(p.grammarPassed),
         listeningShortPassed: lmsBool_(p.listeningShortPassed),
         listeningLongPassed:  lmsBool_(p.listeningLongPassed),

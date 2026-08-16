@@ -41,7 +41,10 @@ var DB_SCHEMA = {
     'updatedAt',
     'lastLoginAt',
     'companyId',
-    'licenseType'
+    'licenseType',
+    'profession',
+    'trialStartDate',
+    'firstFlightDone'
   ],
 
   Groups: [

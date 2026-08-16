@@ -47,7 +47,10 @@ var UserService = {
         totalLearningSeconds: 0,
         createdAt: now,
         updatedAt: now,
-        lastLoginAt: ''
+        lastLoginAt: '',
+        profession: 'PILOT',
+        trialStartDate: now,
+        firstFlightDone: false
       };
 
       dbAppend_('Users', newUser);
@@ -502,7 +505,7 @@ var UserService = {
       createdAt:            user.createdAt || '',
       lastLoginAt:          user.lastLoginAt || '',
       trialStartDate:       user.trialStartDate || '',
-      firstFlightDone:      !(user.firstFlightDone === false || String(user.firstFlightDone || '').toUpperCase() === 'FALSE'),
+      firstFlightDone:      lmsBool_(user.firstFlightDone),
       profession:   String(user.profession  || 'PILOT').toUpperCase(),
       // B2B enrichment — empty string for standard B2C accounts
       companyId:    String(user.companyId   || ''),
