@@ -7848,6 +7848,59 @@ button, .btn, .nav-item, input, textarea, select {
   .panel, .metric-card { padding: 13px !important; }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHASE 10 — Navigation & Admin
+   ─────────────────────────────────────────────────────────────────────────
+   • Admin tab strip: horizontal-scrolling row on mobile (was wrapping 17 btns)
+   • Landscape compact mode: tighter nav + hidden labels when height < 500px
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Admin tab strip — wraps on desktop, scrolls horizontally on mobile */
+.admin-tab-strip {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 768px) {
+  .admin-tab-strip {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 6px;
+    /* Extend to edges so active indicator isn't clipped */
+    margin-left: -4px;
+    margin-right: -4px;
+    padding-left: 4px;
+    padding-right: 12px;
+  }
+  .admin-tab-strip::-webkit-scrollbar { display: none; }
+  .admin-tab-strip .btn { flex-shrink: 0; }
+}
+
+/* Landscape compact mode — phone rotated (height < 500px, width < 900px) */
+@media (max-height: 500px) and (max-width: 900px) {
+  /* Slim down the bottom nav */
+  .mobile-bottom-nav {
+    height: 50px !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+  }
+  .mob-nav-btn { gap: 2px !important; }
+  .mob-nav-btn svg { width: 18px !important; height: 18px !important; }
+  /* Hide tab labels in landscape — icons alone are enough in a narrow band */
+  .mob-nav-lbl { display: none !important; }
+  /* Reclaim bottom padding now that nav is slimmer */
+  .main {
+    padding-bottom: calc(50px + env(safe-area-inset-bottom)) !important;
+  }
+  /* Shrink topnav to a single slim bar */
+  .app-topnav { padding-top: 4px !important; padding-bottom: 4px !important; }
+  /* Tighten content area */
+  .main { padding-top: 8px !important; }
+}
+
 /* ── Safe-area insets — iPhone Dynamic Island / notch ────────── */
 @supports (padding: max(0px)) {
   @media (max-width: 900px) {
