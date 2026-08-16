@@ -442,6 +442,10 @@
       btn.classList.remove('active');
       if (btn.textContent.trim() === label) btn.classList.add('active');
     });
+    Array.prototype.slice.call(document.querySelectorAll('.mob-nav-btn')).forEach(function(btn) {
+      btn.classList.remove('active');
+      if (btn.getAttribute('data-nav') === label) btn.classList.add('active');
+    });
     var gamMod     = byId('gamification-module');
     var contentArea = byId('contentArea');
     var isSquadron  = (label === 'Squadron' || label === 'Crew');
@@ -983,15 +987,14 @@
     }, 300);
 
     var role = AppState.user.role;
-    if (role === 'ADMIN') {
+    if (role === 'ADMIN' || role === 'INSTRUCTOR') {
       byId('adminNavButton').classList.remove('hidden');
       if (byId('analyticsNavButton')) byId('analyticsNavButton').classList.remove('hidden');
-    } else if (role === 'INSTRUCTOR') {
-      byId('adminNavButton').classList.remove('hidden');
-      if (byId('analyticsNavButton')) byId('analyticsNavButton').classList.remove('hidden');
+      if (byId('mobAdminNavBtn')) byId('mobAdminNavBtn').classList.remove('hidden');
     } else {
       byId('adminNavButton').classList.add('hidden');
       if (byId('analyticsNavButton')) byId('analyticsNavButton').classList.add('hidden');
+      if (byId('mobAdminNavBtn')) byId('mobAdminNavBtn').classList.add('hidden');
     }
 
     AppState.viewAs = role;
@@ -19130,13 +19133,16 @@
 
   // ── Nav badge + background polling ──────────────────────────────────────────
   function _gamUpdateNavBadge(total) {
+    var text = total > 99 ? '99+' : String(total);
     var badge = _gEl('gamNavBadge');
-    if (!badge) return;
-    if (total > 0) {
-      badge.textContent = total > 99 ? '99+' : String(total);
-      badge.style.display = '';
-    } else {
-      badge.style.display = 'none';
+    if (badge) {
+      badge.textContent = text;
+      badge.style.display = total > 0 ? '' : 'none';
+    }
+    var mobBadge = byId('mobGamNavBadge');
+    if (mobBadge) {
+      mobBadge.textContent = text;
+      mobBadge.style.display = total > 0 ? '' : 'none';
     }
   }
 
