@@ -10388,6 +10388,41 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   PHASE 3 — Touch quality + table scroll
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Quiz option labels — enforce 44px minimum tap target on mobile */
+@media (max-width: 768px) {
+  .quiz-opt {
+    min-height: 44px !important;
+    align-items: center !important;
+  }
+
+  /* Grammar multiple-choice buttons — same 44px minimum */
+  .gram-opt {
+    min-height: 44px !important;
+    width: 100%;
+    display: flex !important;
+    align-items: center;
+  }
+
+  /* Admin/data tables without a .table-wrap: make them self-scrolling */
+  #contentArea table:not(.no-scroll) {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    max-width: 100%;
+  }
+
+  /* Restore proper table display for tables already inside .table-wrap */
+  #contentArea .table-wrap table {
+    display: table;
+    width: 100%;
+  }
+}
+
 /* SVG child elements inherit stroke/fill from .mob-nav-btn svg */
 .mob-nav-btn svg path,
 .mob-nav-btn svg rect,

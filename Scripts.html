@@ -10787,6 +10787,14 @@
    * LMS MODULES — STUDENT UI
    ***********************/
 
+  window._lmsWcCount = function(ta, labelId) {
+    var words = (ta.value || '').trim().split(/\s+/).filter(Boolean).length;
+    var el = document.getElementById(labelId);
+    if (!el) return;
+    el.textContent = words + ' word' + (words === 1 ? '' : 's');
+    el.style.color = words >= 4 ? 'var(--green)' : 'var(--muted)';
+  };
+
   // ── Course roadmap ────────────────────────────────────────────────────────────
 
   function renderModules() {
@@ -11447,7 +11455,7 @@
       } else {
         body += '<div style="display:flex;flex-direction:column;gap:6px;">';
         (ex.options || []).forEach(function(opt, oi) {
-          body += '<button id="gr-' + safeText(ex.exerciseId) + '-' + oi + '" ' + dis +
+          body += '<button id="gr-' + safeText(ex.exerciseId) + '-' + oi + '" class="gram-opt" ' + dis +
             ' onclick="if(!this.disabled)_lmsGrSelect(this,\'' + safeText(ex.exerciseId) + '\',' + oi + ')"' +
             ' style="text-align:left;padding:9px 14px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--text);font-size:0.86rem;cursor:pointer;transition:background .12s,border-color .12s;">' +
             '<span style="font-weight:700;margin-right:8px;color:var(--muted);">' + String.fromCharCode(65+oi) + '.</span>' + safeText(opt) +
@@ -11929,9 +11937,10 @@
               '<div style="width:28px;height:28px;border-radius:50%;background:var(--cyan);display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:800;color:#fff;flex-shrink:0;">' +
                 safeText(((AppState.user && AppState.user.name) || 'U').charAt(0).toUpperCase()) +
               '</div>' +
-              '<textarea id="rpForumInput" rows="2" data-section="intro" style="flex:1;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:0.8rem;color:var(--text);resize:none;" placeholder="Share your thoughts (min 4 words)..."></textarea>' +
+              '<textarea id="rpForumInput" rows="2" data-section="intro" oninput="_lmsWcCount(this,\'rpForumWc\')" style="flex:1;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:0.8rem;color:var(--text);resize:none;" placeholder="Share your thoughts (min 4 words)..."></textarea>' +
             '</div>' +
-            '<div style="display:flex;justify-content:flex-end;margin-top:6px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">' +
+              '<span id="rpForumWc" style="font-size:0.72rem;color:var(--muted);">0 words</span>' +
               '<button class="btn primary" style="font-size:0.76rem;padding:4px 12px;" onclick="moduleForumPostRP(\'' + m.moduleId + '\')">Post</button>' +
             '</div>' +
             '<div id="rpForumMsg" style="font-size:0.76rem;margin-top:3px;"></div>' +
@@ -12018,7 +12027,7 @@
     var inputs = questions.map(function(q, i) {
       var opts = (q.options || []).map(function(opt, j) {
         var inputId = formId + '_q' + i + '_o' + j;
-        return '<label for="' + inputId + '" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:11px 14px;border-radius:8px;border:1.5px solid var(--line);margin-bottom:6px;transition:border-color .15s,background .15s;" onmouseenter="this.style.borderColor=\'var(--cyan)\';this.style.background=\'rgba(14,165,233,.05)\'" onmouseleave="this.style.borderColor=\'var(--line)\';this.style.background=\'\'">' +
+        return '<label for="' + inputId + '" class="quiz-opt" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:11px 14px;border-radius:8px;border:1.5px solid var(--line);margin-bottom:6px;transition:border-color .15s,background .15s;" onmouseenter="this.style.borderColor=\'var(--cyan)\';this.style.background=\'rgba(14,165,233,.05)\'" onmouseleave="this.style.borderColor=\'var(--line)\';this.style.background=\'\'">' +
           '<input id="' + inputId + '" type="radio" name="' + formId + '_q' + i + '" value="' + j + '" style="margin-top:2px;accent-color:var(--cyan);flex-shrink:0;">' +
           '<span style="font-size:0.88rem;line-height:1.45;">' + safeText(opt) + '</span>' +
         '</label>';
