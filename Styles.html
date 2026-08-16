@@ -10481,5 +10481,58 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   fill: inherit;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   PHASE 7 — Typography Foundation
+   Raises all sub-12px text to a readable floor (≥0.72rem) on mobile.
+   These declarations intentionally override the base values for screen sizes
+   where legibility matters most and layout space allows the larger size.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Bottom nav tab labels: was 0.59rem */
+  .mob-nav-lbl { font-size: 0.7rem; }
+
+  /* Module phase/step pills and scenario tier chips */
+  .lc-phase-pill             { font-size: 0.72rem; }
+  .ops-divider-label         { font-size: 0.75rem; }
+  .sim-tier-badge            { font-size: 0.72rem; }
+  .sim-hero-incentive-pill   { font-size: 0.72rem; }
+  .sim-hero-incentive-closes { font-size: 0.72rem; }
+
+  /* Gamification: XP badges, streak chips */
+  .gam-dxp-badge             { font-size: 0.68rem; }
+  .gam-streak-chip           { font-size: 0.72rem; }
+  .gam-lb-row .gam-streak-chip { font-size: 0.65rem; }
+
+  /* Simulator panel stat labels */
+  .sim-side-item span        { font-size: 0.72rem; }
+  .sim-side-item--live small { font-size: 0.68rem; }
+  .flight-target-sub         { font-size: 0.68rem; }
+
+  /* Progress page — all sub-12px labels */
+  .prog-stat-label           { font-size: 0.75rem; }
+  .prog-section-sub          { font-size: 0.75rem; }
+  .prog-badge                { font-size: 0.72rem; }
+  .prog-tier-labels span     { font-size: 0.68rem; }
+  .prog-route-done-badge     { font-size: 0.72rem; }
+  .prog-route-inprog-badge   { font-size: 0.72rem; }
+  .prog-route-lvl-badge      { font-size: 0.72rem; }
+  .prog-perf-chip-label      { font-size: 0.68rem; }
+  .prog-phase-summary-label  { font-size: 0.72rem; }
+  .prog-phase-count          { font-size: 0.72rem; }
+  .prog-kw-chip em           { font-size: 0.68rem; }
+  .prog-trend-chip           { font-size: 0.72rem; }
+  .prog-entry-status         { font-size: 0.72rem; }
+
+  /* Analytics / overview small labels */
+  .ov-summary-label          { font-size: 0.72rem; }
+  .kpi-bench                 { font-size: 0.68rem; }
+  .aviation-health-item-label{ font-size: 0.72rem; }
+  .aviation-health-item-sub  { font-size: 0.75rem; }
+  .analytics-session-date    { font-size: 0.73rem; }
+
+  /* VR / event log rows */
+  .vr-event-desc, .vr-event-slot { font-size: 0.75rem; }
+}
+
 
 </style>
