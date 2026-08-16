@@ -615,6 +615,30 @@
       .apiRegisterUser({ name: name, email: email, profession: profession });
   }
 
+  var _otpCooldownTimer = null;
+
+  function _startOtpCooldown(seconds) {
+    var btn = byId('requestCodeBtn');
+    if (!btn) return;
+    if (_otpCooldownTimer) clearInterval(_otpCooldownTimer);
+
+    var remaining = seconds;
+    btn.disabled = true;
+    btn.textContent = 'Try again in ' + remaining + 's';
+
+    _otpCooldownTimer = setInterval(function() {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(_otpCooldownTimer);
+        _otpCooldownTimer = null;
+        btn.disabled = false;
+        btn.textContent = 'Send access code';
+      } else {
+        btn.textContent = 'Try again in ' + remaining + 's';
+      }
+    }, 1000);
+  }
+
   function requestLoginCode() {
     var email = byId('loginEmail').value.trim().toLowerCase();
 
@@ -628,19 +652,35 @@
       return;
     }
 
-    setLoginMessage('Signing in...');
+    setLoginMessage('Sending access code...');
     setLoginButtonsDisabled(true);
 
     google.script.run
       .withSuccessHandler(function(res) {
         setLoginButtonsDisabled(false);
-        handleLoginResponse(res);
+
+        if (!res || !res.ok) {
+          if (res && res.cooldown) {
+            _startOtpCooldown(res.cooldown);
+            setLoginMessage(res.message || 'Please wait before requesting a new code.');
+          } else {
+            setLoginMessage(res && res.message ? res.message : 'Failed to send code.');
+          }
+          return;
+        }
+
+        setLoginMessage(res.message || 'Access code sent. Check your email.');
+        var otpBox = byId('otpBox');
+        if (otpBox) otpBox.classList.remove('hidden');
+
+        if (res.alreadySent) return;
+        _startOtpCooldown(60);
       })
       .withFailureHandler(function(err) {
         setLoginButtonsDisabled(false);
         handleServerError(err);
       })
-      .apiDirectLogin({ email: email });
+      .apiRequestLoginCode({ email: email });
   }
 
   function verifyLoginCode() {

@@ -84,6 +84,34 @@ var AuthService = {
       throw new Error('Your account is not active.');
     }
 
+    var nowMs = new Date().getTime();
+    var existingCodes = dbReadAll_('LoginCodes')
+      .filter(function(r) {
+        return normalizeEmail_(r.email) === email &&
+               r.status === 'PENDING' &&
+               new Date(r.expiresAt).getTime() > nowMs;
+      })
+      .sort(function(a, b) {
+        return String(b.createdAt).localeCompare(String(a.createdAt));
+      });
+
+    if (existingCodes.length) {
+      var latest = existingCodes[0];
+      var createdMs = new Date(latest.createdAt).getTime();
+      var ageSeconds = Math.floor((nowMs - createdMs) / 1000);
+      var expiresMs = new Date(latest.expiresAt).getTime();
+
+      if (ageSeconds < 60) {
+        var wait = 60 - ageSeconds;
+        return { ok: false, cooldown: wait, message: 'Please wait ' + wait + ' second' + (wait === 1 ? '' : 's') + ' before requesting a new code.' };
+      }
+
+      if (ageSeconds < 300) {
+        var minsLeft = Math.ceil((expiresMs - nowMs) / 60000);
+        return { ok: true, alreadySent: true, message: 'A code was already sent to ' + email + '. Check your inbox — it expires in ' + minsLeft + ' minute' + (minsLeft === 1 ? '' : 's') + '.' };
+      }
+    }
+
     var code = String(Math.floor(100000 + Math.random() * 900000));
     var codeHash = this.hashCode_(email, code);
     var nowDate = new Date();
