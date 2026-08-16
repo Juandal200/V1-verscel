@@ -137,11 +137,8 @@ var AuthService = {
       to: email,
       subject: 'AEROCOMMS — Your login code',
       htmlBody: _emailWrap_(
-        '<table width="100%" cellpadding="0" cellspacing="0" style="text-align:center;margin-bottom:24px;">' +
-          '<tr><td><img src="' + getLogoDataUrl() + '" alt="AEROCOMMS" style="width:72px;height:72px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.35);"></td></tr>' +
-          '<tr><td style="padding-top:14px;font-size:11px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#00d48e;">AEROCOMMS</td></tr>' +
-          '<tr><td style="padding-top:3px;font-size:12px;color:#4a6280;letter-spacing:1px;">ICAO Trainer Pro</td></tr>' +
-        '</table>' +
+        '<p style="margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#00d48e;text-align:center;">AEROCOMMS</p>' +
+        '<p style="margin:0 0 20px;font-size:12px;color:#4a6280;letter-spacing:1px;text-align:center;">ICAO Trainer Pro</p>' +
         '<p style="margin:0 0 6px;font-size:13px;color:#8fa3bb;text-align:center;letter-spacing:0.5px;">YOUR LOGIN CODE</p>' +
         '<div style="background:rgba(0,212,142,0.07);border:1px solid rgba(0,212,142,0.22);border-radius:14px;padding:22px 16px;margin:12px 0 24px;text-align:center;">' +
           '<span style="font-size:44px;font-weight:900;letter-spacing:14px;color:#00d48e;font-family:\'Courier New\',monospace;">' + code + '</span>' +
