@@ -11136,6 +11136,10 @@
         var head = document.getElementById('outlineHead-' + k);
         if (head && !head.dataset.forumGate) head.style.background = k === key ? 'rgba(14,165,233,.12)' : '';
       });
+      // Sync mobile section nav pills
+      Array.prototype.slice.call(document.querySelectorAll('.lms-msn-btn')).forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-section') === key);
+      });
       // Scroll left content area to top
       var leftCol = document.querySelector('#contentArea .lms-left-col');
       if (leftCol) leftCol.scrollTop = 0;
@@ -11891,7 +11895,7 @@
     };
 
     var forumPanel =
-      '<div style="width:280px;min-width:280px;flex-shrink:0;border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;">' +
+      '<div class="lms-right-panel">' +
 
         // Toggle tabs — Forum LEFT (default), Progress RIGHT
         '<div style="display:flex;border-bottom:1px solid var(--line);flex-shrink:0;">' +
@@ -11960,9 +11964,16 @@
       '</div>' +
 
       // Two-column: one section at a time + right panel
-      '<div style="display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel);min-height:600px;">' +
-        // Left: active section only (others display:none)
+      '<div class="lms-module-layout">' +
+        // Left: mobile section nav + active section panels (others display:none)
         '<div class="lms-left-col" style="flex:1;min-width:0;overflow-y:auto;">' +
+          // Mobile-only horizontal section picker
+          '<div class="lms-mobile-section-nav">' +
+            '<button class="lms-msn-btn' + (defaultSection==='intro'?' active':'') + '" data-section="intro" onclick="_lmsShowSection(\'intro\')">📖 Intro</button>' +
+            '<button class="lms-msn-btn' + (defaultSection==='explanation'?' active':'') + '" data-section="explanation"' + (!expUnlocked?' disabled':'') + ' onclick="_lmsShowSection(\'explanation\')">🎓 Explain</button>' +
+            '<button class="lms-msn-btn' + (defaultSection==='application'?' active':'') + '" data-section="application"' + (!appUnlocked?' disabled':'') + ' onclick="_lmsShowSection(\'application\')">🛫 Apply</button>' +
+            '<button class="lms-msn-btn' + (defaultSection==='evaluation'?' active':'') + '" data-section="evaluation"' + (!evalUnlocked?' disabled':'') + ' onclick="_lmsShowSection(\'evaluation\')">🏆 Eval</button>' +
+          '</div>' +
           introPanelHtml + expPanelHtml + appPanelHtml + evalPanelHtml +
         '</div>' +
         // Right panel

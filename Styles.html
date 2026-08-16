@@ -10285,6 +10285,111 @@ p, li, td, th, .sim-atc-text, .feedback-text,
 body.sim-focus-mode .mobile-bottom-nav,
 body.cabina-mode .mobile-bottom-nav { display: none !important; }
 
+/* ═══════════════════════════════════════════════════════════════════
+   LMS MODULE LAYOUT — Phase 2 mobile
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Desktop: two-column */
+.lms-module-layout {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--panel);
+  min-height: 600px;
+}
+
+/* Right forum/outline panel */
+.lms-right-panel {
+  width: 280px;
+  min-width: 280px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Mobile section pill nav — hidden on desktop */
+.lms-mobile-section-nav { display: none; }
+
+@media (max-width: 768px) {
+  /* Stack content above forum panel */
+  .lms-module-layout {
+    flex-direction: column;
+    min-height: 0;
+    border-radius: 10px;
+    overflow: visible;
+  }
+
+  /* Left column: normal flow on mobile so page scroll works */
+  .lms-left-col {
+    overflow-y: visible !important;
+    overflow-x: hidden;
+    border-radius: 10px 10px 0 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* Right panel: full width, bounded height with inner scroll */
+  .lms-right-panel {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-left: none;
+    border-top: 1px solid var(--line);
+    max-height: 420px;
+  }
+
+  /* Mobile section nav strip */
+  .lms-mobile-section-nav {
+    display: flex;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 6px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel-soft);
+    flex-shrink: 0;
+  }
+  .lms-mobile-section-nav::-webkit-scrollbar { display: none; }
+
+  .lms-msn-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 14px;
+    border: 1.5px solid var(--line);
+    border-radius: 20px;
+    background: var(--panel);
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    flex-shrink: 0;
+  }
+
+  .lms-msn-btn.active {
+    background: var(--cyan);
+    border-color: var(--cyan);
+    color: #000;
+    font-weight: 700;
+  }
+
+  .lms-msn-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  /* Reduce section panel body padding on mobile */
+  .lms-left-col [style*="padding:0 20px 20px 70px"] {
+    padding: 0 14px 16px 14px !important;
+  }
+}
+
 /* SVG child elements inherit stroke/fill from .mob-nav-btn svg */
 .mob-nav-btn svg path,
 .mob-nav-btn svg rect,
