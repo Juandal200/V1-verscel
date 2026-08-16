@@ -10677,10 +10677,23 @@
   window._renderPaywall             = _renderPaywall;
   window._paywallVerify             = _paywallVerify;
   window._showTrialBanner           = _showTrialBanner;
+  var _navToTimer = null;
   window._navTo = function(fn) {
+    if (_navToTimer) { clearTimeout(_navToTimer); _navToTimer = null; }
     var a = AppState.accessStatus;
     if (a && a.status === 'expired') { _renderPaywall(); return; }
-    if (typeof fn === 'function') fn();
+    if (typeof fn !== 'function') return;
+
+    var ca = byId('contentArea');
+    if (!ca) { fn(); return; }
+
+    ca.classList.add('nav-out');
+    _navToTimer = setTimeout(function() {
+      _navToTimer = null;
+      try { fn(); } finally {
+        requestAnimationFrame(function() { ca.classList.remove('nav-out'); });
+      }
+    }, 120);
   };
   window.adminSubSavePrices         = adminSubSavePrices;
   window.adminSubGrant              = adminSubGrant;
@@ -11886,7 +11899,12 @@
       }
       // Store section on the input so moduleForumPost knows which section to post to
       var inp = document.getElementById('rpForumInput');
-      if (inp) inp.dataset.section = sectionKey;
+      if (inp) {
+        inp.dataset.section = sectionKey;
+        inp.value = '';
+      }
+      var wcEl = document.getElementById('rpForumWc');
+      if (wcEl) { wcEl.textContent = '0 words'; wcEl.style.color = 'var(--muted)'; }
 
       if (hasForumSections && forumEl) {
         forumEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:0.82rem;">Loading...</div>';
@@ -12249,18 +12267,22 @@
     var msg     = byId('rpForumMsg');
     if (!input || !msg) return;
     var section = input.dataset.section || 'intro';
+    var body    = input.value.trim();
     msg.innerHTML = _spinnerHtml('Posting...');
 
     google.script.run
       .withSuccessHandler(function(res) {
         if (!res || !res.ok) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error ? res.error : 'Error posting.') + '</span>'; return; }
         if (window._lmsAwardXp) _lmsAwardXp(20, 'Forum post', 0.15, 2, res.lmsXpTotal);
-        input.value = '';
+        var freshInput = byId('rpForumInput');
+        var freshWc    = byId('rpForumWc');
+        if (freshInput) freshInput.value = '';
+        if (freshWc) { freshWc.textContent = '0 words'; freshWc.style.color = 'var(--muted)'; }
         msg.innerHTML = '';
         renderModuleDetail(moduleId, { silent: true });
       })
       .withFailureHandler(function(err) { msg.innerHTML = '<span style="color:var(--red);">' + safeText(String(err)) + '</span>'; })
-      .apiModuleForumSavePost(AppState.sessionToken, { moduleId: moduleId, section: section, body: input.value.trim() });
+      .apiModuleForumSavePost(AppState.sessionToken, { moduleId: moduleId, section: section, body: body });
   };
 
   window.moduleForumDelete = function(postId, moduleId) {

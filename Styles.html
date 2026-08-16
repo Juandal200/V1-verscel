@@ -461,11 +461,13 @@
     font-weight: 650;
   }
 
-  .nav-item:hover,
-  .btn:hover {
-    border-color: rgba(175, 175, 175, 0.80);
-    background: rgba(168, 168, 168, 0.12);
-    transform: translateY(-1px);
+  @media (hover: hover) {
+    .nav-item:hover,
+    .btn:hover {
+      border-color: rgba(175, 175, 175, 0.80);
+      background: rgba(168, 168, 168, 0.12);
+      transform: translateY(-1px);
+    }
   }
 
   .nav-item.active {
@@ -3218,7 +3220,8 @@ body.sim-paused #simMediaPauseBtn {
   border: 1px solid rgba(148,148,148,0.18);
   border-radius: 16px;
   padding: 28px 28px 22px;
-  width: 300px;
+  max-width: 300px;
+  width: calc(100% - 32px);
   box-shadow: 0 8px 32px rgba(0,0,0,0.5);
 }
 .back-confirm-x {
@@ -7580,7 +7583,7 @@ html {
 }
 body {
   -webkit-tap-highlight-color: transparent;
-  overscroll-behavior-y: none;
+  overscroll-behavior: none;
   overflow-x: clip;
 }
 button, .btn, .nav-item, input, textarea, select {
@@ -7766,6 +7769,7 @@ button, .btn, .nav-item, input, textarea, select {
 
   .sub-modal-card { border-radius: 14px !important; padding: 26px 18px 18px !important; }
   .sub-price-amount { font-size: 1.6rem !important; }
+  #subPlanCards { grid-template-columns: 1fr !important; }
 
   .login-card { padding: 24px 16px !important; border-radius: 20px !important; }
 
@@ -7909,6 +7913,10 @@ button, .btn, .nav-item, input, textarea, select {
   max-width: 420px;
   width: 100%;
   box-shadow: 0 24px 64px rgba(0,0,0,0.7);
+  max-height: calc(90vh  - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  max-height: calc(90dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .sub-modal-header { text-align: center; margin-bottom: 20px; }
@@ -8155,7 +8163,8 @@ button, .btn, .nav-item, label, .chip {
 }
 
 /* ── 6. Long words / URLs break instead of overflowing ───── */
-p, li, td, th, .sim-atc-text, .feedback-text,
+p, li, td, th, h1, h2, h3, h4,
+.sim-atc-text, .feedback-text,
 .level-card-body, .panel, .metric-card {
   word-break: break-word;
   overflow-wrap: break-word;
@@ -9571,6 +9580,12 @@ p, li, td, th, .sim-atc-text, .feedback-text,
 }
 .ff-skip-btn:hover { color: #6e7a88; }
 
+@media (max-width: 480px) {
+  .ff-briefing-content { padding: 28px 20px; }
+  .ff-title { font-size: 1.7rem; }
+  .ff-card-guided { padding: 20px 16px; }
+}
+
 /* ── Guided ── */
 .ff-card-guided { padding: 28px; }
 .ff-guided-header {
@@ -10244,7 +10259,7 @@ p, li, td, th, .sim-atc-text, .feedback-text,
   /* Smaller avatar */
   .topbar-avatar { width: 40px; height: 40px; }
   .topbar-avatar-img { width: 36px; height: 36px; }
-  .topbar-avatar-rank { font-size: 0.46rem; }
+  .topbar-avatar-rank { font-size: 0.58rem; }
 
   /* Make the theme toggle icon-only size */
   .topnav-btn { padding: 6px 10px !important; }
@@ -10396,7 +10411,6 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 @media (max-width: 768px) {
   .quiz-opt {
     min-height: 44px !important;
-    align-items: center !important;
   }
 
   /* Grammar multiple-choice buttons — same 44px minimum */
@@ -10414,12 +10428,44 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
     max-width: 100%;
+    min-width: 0 !important;
   }
 
   /* Restore proper table display for tables already inside .table-wrap */
   #contentArea .table-wrap table {
     display: table;
     width: 100%;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PHASE 4 — TRANSITIONS & MICRO-INTERACTIONS
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Content area cross-fade on navigation */
+#contentArea {
+  transition: opacity 0.12s ease;
+}
+#contentArea.nav-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Active bottom-nav tab icon spring-pop */
+@keyframes mob-tab-pop {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.28); }
+  100% { transform: scale(1); }
+}
+.mob-nav-btn.active svg {
+  animation: mob-tab-pop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Button touch-press scale feedback on mobile */
+@media (max-width: 768px) {
+  .btn:not(:disabled):active {
+    transform: scale(0.97);
+    transition: transform 0.1s ease;
   }
 }
 
