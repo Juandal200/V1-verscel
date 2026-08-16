@@ -7124,7 +7124,8 @@ body.sim-paused #simMediaPauseBtn {
 
 @media (max-width: 500px) {
   .admin-stat-grid { grid-template-columns: 1fr; }
-  .feedback-card   { left: 12px; right: 12px; min-width: 0; }
+  .feedback-card   { left: 12px; right: 12px; min-width: 0;
+                     bottom: calc(72px + env(safe-area-inset-bottom) + 12px); }
 }
 
 /* ── Onboarding Demo ────────────────────────────────────────────────── */

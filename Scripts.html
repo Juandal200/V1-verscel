@@ -10690,6 +10690,7 @@
     ca.classList.add('nav-out');
     _navToTimer = setTimeout(function() {
       _navToTimer = null;
+      window.scrollTo(0, 0);
       try { fn(); } finally {
         requestAnimationFrame(function() { ca.classList.remove('nav-out'); });
       }
@@ -10913,8 +10914,12 @@
 
       var xpLbl = document.getElementById('topnavXpLabel');
       var rect  = xpLbl ? xpLbl.getBoundingClientRect() : null;
-      var tx = rect ? (rect.left + rect.width / 2) : window.innerWidth - 80;
-      var ty = rect ? (rect.top  + rect.height / 2) : 28;
+      if (!rect || rect.width === 0) {
+        var avatarEl = document.getElementById('topbarAvatar');
+        rect = avatarEl ? avatarEl.getBoundingClientRect() : null;
+      }
+      var tx = rect ? (rect.left + rect.width  / 2) : window.innerWidth - 40;
+      var ty = rect ? (rect.top  + rect.height / 2) : 30;
 
       // Phase 1 — pop in at center (visible, readable)
       requestAnimationFrame(function() {
@@ -19154,8 +19159,11 @@
     if (old && old.parentNode) old.parentNode.removeChild(old);
     var t = document.createElement('div');
     t.id = '_gamToastEl';
+    var _toastBottom = window.innerWidth <= 768
+      ? 'calc(72px + env(safe-area-inset-bottom) + 12px)'
+      : '24px';
     t.style.cssText =
-      'position:fixed;bottom:24px;right:24px;z-index:99999;' +
+      'position:fixed;bottom:' + _toastBottom + ';right:24px;z-index:99999;' +
       'padding:12px 18px;border-radius:10px;font-size:0.82rem;font-weight:600;' +
       'color:#fff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);' +
       'box-shadow:0 8px 24px rgba(0,0,0,.4);pointer-events:none;' +

@@ -44,14 +44,14 @@
         </div>
 
         <div id="loginForm" class="login-form">
-          <input id="loginEmail" class="input" type="email" placeholder="Email address">
+          <input id="loginEmail" class="input" type="email" placeholder="Email address" autocomplete="email">
 
           <button id="requestCodeBtn" class="btn primary full" onclick="requestLoginCode()">
             Send access code
           </button>
 
           <div id="otpBox" class="otp-box hidden">
-            <input id="loginCode" class="input code-input" type="text" placeholder="6-digit code" maxlength="6">
+            <input id="loginCode" class="input code-input" type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="6-digit code" maxlength="6" autocomplete="one-time-code">
 
             <button class="btn primary full" onclick="verifyLoginCode()">
               Verify and enter
@@ -60,8 +60,8 @@
         </div>
 
         <div id="registerForm" class="login-form hidden">
-          <input id="registerName" class="input" type="text" placeholder="Full name">
-          <input id="registerEmail" class="input" type="email" placeholder="Email address">
+          <input id="registerName" class="input" type="text" placeholder="Full name" autocomplete="name">
+          <input id="registerEmail" class="input" type="email" placeholder="Email address" autocomplete="email">
           <select id="registerProfession" class="input">
             <option value="">Select your profession</option>
             <option value="PILOT">Pilot</option>
