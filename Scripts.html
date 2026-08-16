@@ -11076,7 +11076,7 @@
                   var scColor = sc >= 85 ? '#16a34a' : sc >= 70 ? '#d97706' : '#ef4444';
                   return '<div style="margin-bottom:12px;">' +
                     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">' +
-                      '<span style="font-size:0.63rem;font-weight:700;letter-spacing:.06em;color:var(--muted);text-transform:uppercase;">Module Score</span>' +
+                      '<span style="font-size:0.72rem;font-weight:700;letter-spacing:.06em;color:var(--muted);text-transform:uppercase;">Module Score</span>' +
                       '<span style="font-size:0.78rem;font-weight:900;color:' + scColor + ';">' + sc + '%</span>' +
                     '</div>' +
                     '<div style="background:var(--line);border-radius:4px;height:5px;overflow:hidden;">' +
@@ -11193,7 +11193,7 @@
         '<div style="display:flex;align-items:center;gap:14px;padding:14px 20px;">' +
           '<div style="width:36px;height:36px;border-radius:8px;background:var(--panel-soft);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">' + typeIcon + '</div>' +
           '<div style="flex:1;min-width:0;">' +
-            '<p style="margin:0;font-size:0.62rem;color:var(--muted);letter-spacing:.08em;font-weight:700;text-transform:uppercase;">' + typeLabel + '</p>' +
+            '<p style="margin:0;font-size:0.72rem;color:var(--muted);letter-spacing:.08em;font-weight:700;text-transform:uppercase;">' + typeLabel + '</p>' +
             '<p style="margin:0;font-size:0.93rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + title + '</p>' +
           '</div>' +
           statusHtml +
@@ -11791,7 +11791,7 @@
         '<div style="display:flex;align-items:center;gap:12px;padding:13px 20px;background:var(--panel-soft);border-bottom:1px solid var(--line);">' +
           '<span style="font-size:1.25rem;">' + meta.icon + '</span>' +
           '<div style="flex:1;">' +
-            '<p style="margin:0;font-size:0.58rem;color:var(--muted);font-weight:700;letter-spacing:.1em;text-transform:uppercase;">Section ' + meta.num + '</p>' +
+            '<p style="margin:0;font-size:0.72rem;color:var(--muted);font-weight:700;letter-spacing:.1em;text-transform:uppercase;">Section ' + meta.num + '</p>' +
             '<p style="margin:0;font-size:0.92rem;font-weight:700;color:' + (completed ? '#16a34a' : unlocked ? 'var(--text)' : 'var(--muted)') + ';">' + meta.label + '</p>' +
           '</div>' +
           (completed ? '<span style="font-size:0.72rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:2px 8px;border-radius:10px;">✓ Done</span>' : (!unlocked ? '<span style="font-size:0.85rem;color:var(--muted);">🔒</span>' : '')) +
@@ -11814,7 +11814,7 @@
           (done ? '✓' : isNext ? '▶' : typeIcon.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim() || '·') +
         '</div>' +
         '<span style="font-size:0.78rem;font-weight:' + (isNext?'700':'400') + ';color:' + (done ? '#16a34a' : isNext ? 'var(--cyan)' : 'var(--text)') + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">' + safeText(title) + '</span>' +
-        (isNext ? '<span style="font-size:0.58rem;font-weight:800;letter-spacing:.05em;color:var(--cyan);white-space:nowrap;flex-shrink:0;">UP NEXT →</span>' : '') +
+        (isNext ? '<span style="font-size:0.7rem;font-weight:800;letter-spacing:.05em;color:var(--cyan);white-space:nowrap;flex-shrink:0;">UP NEXT →</span>' : '') +
       '</div>';
     }
 
@@ -19380,7 +19380,7 @@
       var rowCls  = isMe ? ' gam-lb-row--me' : '';
       var barW    = Math.min(100, Math.round((p.totalCp / maxCp) * 100));
       var nameTag = _gEsc(p.name) + (isMe
-        ? ' <span style="color:var(--gam-green);font-size:0.62rem;font-weight:700;margin-left:5px;">YOU</span>'
+        ? ' <span style="color:var(--gam-green);font-size:0.72rem;font-weight:700;margin-left:5px;">YOU</span>'
         : '');
       var streakTxt = p.maxStreak >= 2
         ? '<span class="gam-streak-chip">🔥 ' + p.maxStreak + '</span>' : '';

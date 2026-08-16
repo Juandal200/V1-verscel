@@ -7891,14 +7891,13 @@ button, .btn, .nav-item, input, textarea, select {
   .mob-nav-btn svg { width: 18px !important; height: 18px !important; }
   /* Hide tab labels in landscape — icons alone are enough in a narrow band */
   .mob-nav-lbl { display: none !important; }
-  /* Reclaim bottom padding now that nav is slimmer */
+  /* Reclaim vertical space: slimmer padding top and bottom */
   .main {
+    padding-top: 8px !important;
     padding-bottom: calc(50px + env(safe-area-inset-bottom)) !important;
   }
   /* Shrink topnav to a single slim bar */
   .app-topnav { padding-top: 4px !important; padding-bottom: 4px !important; }
-  /* Tighten content area */
-  .main { padding-top: 8px !important; }
 }
 
 /* ── Safe-area insets — iPhone Dynamic Island / notch ────────── */
@@ -10674,6 +10673,9 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 
   /* VR / event log rows */
   .vr-event-desc, .vr-event-slot { font-size: 0.75rem; }
+
+  /* Country-level compact metric labels */
+  .ccm-label { font-size: 0.7rem; }
 }
 
 
