@@ -1213,8 +1213,8 @@
       function _homeCard(opts) {
         // opts: { gradient, icon, badge, title, subtitle, statusHtml, bodyHtml, btnLabel, btnClass, onClick }
         return '<div onclick="' + opts.onClick + '" style="flex:1;min-width:280px;cursor:pointer;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:box-shadow .2s;" onmouseenter="this.style.boxShadow=\'0 8px 32px rgba(0,0,0,.28)\'" onmouseleave="this.style.boxShadow=\'\'">' +
-          // 16:9 header
-          '<div style="position:relative;padding-bottom:42%;background:' + opts.gradient + ';overflow:hidden;">' +
+          // image header — reduced to 28% on narrow phones via .home-card-img CSS override
+          '<div class="home-card-img" style="position:relative;padding-bottom:42%;background:' + opts.gradient + ';overflow:hidden;">' +
             '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 55%);"></div>' +
             '<div style="position:absolute;bottom:12px;left:14px;display:flex;align-items:center;gap:10px;">' +
               '<div style="width:38px;height:38px;border-radius:50%;background:' + opts.icon.bg + ';border:2px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-size:1.1rem;">' + opts.icon.emoji + '</div>' +
@@ -1308,6 +1308,21 @@
         onClick:    '_navTo(renderTeaExam)'
       });
 
+      // ── Hero quick-access bar (mobile only — hidden on desktop via CSS) ──
+      var heroBar =
+        '<div class="home-hero-bar">' +
+          '<div>' +
+            '<div class="home-hero-label">Current Practice</div>' +
+            '<div class="home-hero-meta">' +
+              'Lvl <strong>' + level + '</strong>' +
+              '<span class="home-hero-sep">·</span>' +
+              safeText(country) +
+              (successRate ? '<span class="home-hero-sep">·</span>' + successRate + '% success' : '') +
+            '</div>' +
+          '</div>' +
+          '<button class="btn primary home-hero-cta" onclick="_navTo(renderSimulatorPlaceholder)">Continue →</button>' +
+        '</div>';
+
       var cardsRow =
         '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:28px;">' +
           simCard + teaCard + streakCard +
@@ -1319,7 +1334,7 @@
           '<div id="homeModulesArea"><div style="text-align:center;padding:32px;color:var(--muted);">Loading modules…</div></div>' +
         '</div>';
 
-      byId('contentArea').innerHTML = cardsRow + modulesSection;
+      byId('contentArea').innerHTML = heroBar + cardsRow + modulesSection;
 
       // Load modules into home
       google.script.run
@@ -11086,7 +11101,7 @@
       '</div>';
     }).join('');
 
-    var html = header + _progressModuleToggle(false) + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">' + cards + '</div>';
+    var html = header + _progressModuleToggle(false) + '<div class="module-roadmap-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">' + cards + '</div>';
     if (returnHtml) return html;
     byId('contentArea').innerHTML = html;
   }

@@ -10482,6 +10482,66 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   PHASE 8 — Home Screen Redesign
+   ─────────────────────────────────────────────────────────────────────────
+   • Hero quick-action bar: desktop hidden, mobile flex — gives users one
+     obvious CTA above the card grid without scrolling through 3 tall cards
+   • Home card image banner reduced from 42% → 28% on ≤480px narrow phones
+   • Module roadmap grid forced to 1-column on ≤480px as a defensive override
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Hero bar — hidden on desktop, shown only on mobile */
+.home-hero-bar { display: none; }
+
+@media (max-width: 768px) {
+  .home-hero-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: rgba(0, 212, 142, 0.06);
+    border: 1px solid rgba(0, 212, 142, 0.18);
+    border-radius: 14px;
+    padding: 12px 16px;
+    margin-bottom: 14px;
+  }
+  .home-hero-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(0, 212, 142, 0.8);
+    margin-bottom: 3px;
+  }
+  .home-hero-meta {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .home-hero-meta strong { font-weight: 800; color: var(--cyan); }
+  .home-hero-sep { opacity: 0.35; }
+  .home-hero-cta { flex-shrink: 0; white-space: nowrap; }
+}
+
+/* Light theme adjustments for hero bar */
+.light-theme .home-hero-bar {
+  background: rgba(0, 158, 106, 0.07);
+  border-color: rgba(0, 158, 106, 0.22);
+}
+.light-theme .home-hero-label { color: #009e6a; }
+
+@media (max-width: 480px) {
+  /* Reduce home card image banner height: 42% → 28% of card width */
+  .home-card-img { padding-bottom: 28% !important; }
+
+  /* Module roadmap: explicit 1-column override at narrow widths */
+  .module-roadmap-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    PHASE 7 — Typography Foundation
    Raises all sub-12px text to a readable floor (≥0.72rem) on mobile.
    These declarations intentionally override the base values for screen sizes
