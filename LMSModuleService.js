@@ -1806,10 +1806,22 @@ function apiTrackActiveTime(sessionToken, seconds) {
 function apiGetProgressReport(sessionToken, targetUserId) {
   try {
     var caller = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
-    var isAdmin = caller.role === 'ADMIN' || caller.role === 'INSTRUCTOR';
+    var isElevated = caller.role === 'ADMIN' || caller.role === 'INSTRUCTOR';
 
     // Students can only fetch their own report
-    var userId = (isAdmin && targetUserId) ? String(targetUserId) : String(caller.userId);
+    var userId = (isElevated && targetUserId) ? String(targetUserId) : String(caller.userId);
+
+    // Instructors may only view students in their own groups
+    if (caller.role === 'INSTRUCTOR' && targetUserId && String(targetUserId) !== String(caller.userId)) {
+      var myGroups = dbReadAll_('Groups').filter(function(g) {
+        return String(g.instructorId || '') === String(caller.userId);
+      });
+      var myGroupIds = myGroups.map(function(g) { return String(g.groupId); });
+      var targetUser_ = dbFindOne_('Users', 'userId', userId);
+      if (!targetUser_ || myGroupIds.indexOf(String(targetUser_.assignedGroupId || '')) === -1) {
+        throw new Error('Access denied: student is not in your groups.');
+      }
+    }
 
     var modules   = dbReadAll_('Modules')
       .filter(function(m) { return String(m.status || '') === 'ACTIVE'; })
@@ -1826,7 +1838,7 @@ function apiGetProgressReport(sessionToken, targetUserId) {
 
     // Resolve target user name
     var targetUser = null;
-    if (isAdmin && targetUserId) {
+    if (isElevated && targetUserId) {
       try {
         var users = dbReadAll_('Users');
         targetUser = users.find(function(u) { return String(u.userId) === String(userId); }) || null;

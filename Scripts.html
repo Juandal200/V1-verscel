@@ -12798,9 +12798,11 @@
     '</div>';
   }
 
+  var _lastProgressReportData = null;
+
   function _renderProgressReport(res, backFnOrBool) {
     var backFn = typeof backFnOrBool === 'string' ? backFnOrBool : (backFnOrBool ? 'renderAdminProgress()' : null);
-    var isAdmin = !!backFn;
+    _lastProgressReportData = res;
     var mods   = res.modules || [];
     var totalH = Math.floor((res.totalActiveSeconds || 0) / 3600);
     var totalM = Math.floor(((res.totalActiveSeconds || 0) % 3600) / 60);
@@ -12870,7 +12872,7 @@
             '<div style="font-size:1.8rem;font-weight:800;color:' + (overallPct >= 85 ? '#16a34a' : overallPct >= 50 ? '#d97706' : 'var(--text)') + ';">' + overallPct + '%</div>' +
           '</div>' +
           '<div style="flex:0;display:flex;align-items:center;">' +
-            '<button class="btn primary" style="padding:10px 18px;font-size:0.82rem;" onclick="_downloadProgressPdf(' + JSON.stringify(res) + ')">⬇ Download PDF</button>' +
+            '<button class="btn primary" style="padding:10px 18px;font-size:0.82rem;" onclick="_downloadProgressPdf()">⬇ Download PDF</button>' +
           '</div>' +
         '</div>' +
         // Skills table
@@ -12894,7 +12896,9 @@
 
   // ── PDF Report ────────────────────────────────────────────────────────────────
 
-  function _downloadProgressPdf(res) {
+  function _downloadProgressPdf() {
+    var res = _lastProgressReportData;
+    if (!res) return;
     var mods   = res.modules || [];
     var totalH = Math.floor((res.totalActiveSeconds || 0) / 3600);
     var totalM = Math.floor(((res.totalActiveSeconds || 0) % 3600) / 60);
