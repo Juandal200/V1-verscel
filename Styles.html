@@ -10252,14 +10252,16 @@ p, li, td, th, .sim-atc-text, .feedback-text,
   /* Bottom padding so content never hides behind the tab bar */
   .main { padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important; }
 
-  /* Show the bottom nav */
+  /* Show the bottom nav — use !important + high-specificity to beat
+     the #appScreen > * { position: relative; z-index: 1 } rule */
+  #appScreen > .mobile-bottom-nav,
   .mobile-bottom-nav {
     display: flex;
-    position: fixed;
+    position: fixed !important;
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 300;
+    z-index: 300 !important;
     background: rgba(8,8,8,0.97);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -10277,6 +10279,21 @@ p, li, td, th, .sim-atc-text, .feedback-text,
     background: linear-gradient(90deg, transparent 0%, rgba(0,212,142,0.45) 30%, rgba(59,130,246,0.3) 65%, transparent 100%);
     pointer-events: none;
   }
+}
+
+/* Hide bottom nav in immersive simulator modes */
+body.sim-focus-mode .mobile-bottom-nav,
+body.cabina-mode .mobile-bottom-nav { display: none !important; }
+
+/* SVG child elements inherit stroke/fill from .mob-nav-btn svg */
+.mob-nav-btn svg path,
+.mob-nav-btn svg rect,
+.mob-nav-btn svg circle,
+.mob-nav-btn svg line,
+.mob-nav-btn svg polyline,
+.mob-nav-btn svg polygon {
+  stroke: inherit;
+  fill: inherit;
 }
 
 
