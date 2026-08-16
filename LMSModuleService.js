@@ -1873,10 +1873,29 @@ function apiGetProgressReport(sessionToken, targetUserId) {
 
 function apiProgressSearchUsers(sessionToken, query) {
   try {
-    AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
+    var caller = AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
     query = String(query || '').toLowerCase().trim();
-    var users = dbReadAll_('Users')
+
+    var allUsers = dbReadAll_('Users');
+
+    // Instructors can only search students in their own groups
+    var allowedUserIds = null;
+    if (caller.role === 'INSTRUCTOR') {
+      var myGroups = dbReadAll_('Groups').filter(function(g) {
+        return String(g.instructorId || '') === String(caller.userId);
+      });
+      var myGroupIds = myGroups.map(function(g) { return String(g.groupId); });
+      allowedUserIds = {};
+      allUsers.forEach(function(u) {
+        if (myGroupIds.indexOf(String(u.assignedGroupId || '')) !== -1) {
+          allowedUserIds[String(u.userId)] = true;
+        }
+      });
+    }
+
+    var users = allUsers
       .filter(function(u) {
+        if (allowedUserIds && !allowedUserIds[String(u.userId)]) return false;
         if (!query) return true;
         return (String(u.name || '') + ' ' + String(u.email || '')).toLowerCase().indexOf(query) !== -1;
       })

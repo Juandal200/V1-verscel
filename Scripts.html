@@ -1481,6 +1481,11 @@
         if (res.groups.length === 1) {
           renderGroupDetail(res.groups[0].groupId);
         } else {
+          var instrNav =
+            '<div style="display:flex;gap:10px;margin-bottom:20px;">' +
+              '<button class="btn primary" style="padding:6px 14px;font-size:0.82rem;" disabled>Groups</button>' +
+              '<button class="btn secondary" style="padding:6px 14px;font-size:0.82rem;" onclick="renderInstructorProgress()">📊 Progress</button>' +
+            '</div>';
           var rows = res.groups.map(function(g) {
             return '<tr>' +
               '<td><strong>' + safeText(g.groupName) + '</strong></td>' +
@@ -1490,6 +1495,7 @@
           }).join('');
           byId('contentArea').innerHTML =
             '<div class="panel">' +
+              instrNav +
               '<h3 style="margin:0 0 4px;">My Groups</h3>' +
               '<p class="subtitle" style="margin-bottom:16px;">Groups assigned to you.</p>' +
               '<div class="table-wrap"><table>' +
@@ -1632,10 +1638,12 @@
           '<td style="text-align:center;font-weight:700;color:' + scoreColor + ';">' + (u.avgScore || 0) + '%</td>' +
           '<td style="text-align:center;color:#8a929c;font-size:0.82rem;">' + safeText(u.totalAttempts || 0) + '</td>' +
           '<td style="text-align:center;color:#8a929c;font-size:0.82rem;">' + safeText(u.lastActivity || '—') + '</td>' +
-          (isInstructor ? '' : '<td><button class="btn danger" style="padding:4px 10px;font-size:0.78rem;" onclick="adminMoveStudentGroup(\'' + safeJs(groupId) + '\',\'' + safeJs(u.userId) + '\',\'remove\')">Remove</button></td>') +
+          (isInstructor
+            ? '<td><button class="btn secondary" style="padding:4px 10px;font-size:0.78rem;" onclick="_progLoadStudent(\'' + safeJs(u.userId) + '\',\'' + safeJs(u.name || u.email) + '\',\'renderGroupDetail(\\\'' + safeJs(groupId) + '\\\')\')">📊 Progress</button></td>'
+            : '<td><button class="btn danger" style="padding:4px 10px;font-size:0.78rem;" onclick="adminMoveStudentGroup(\'' + safeJs(groupId) + '\',\'' + safeJs(u.userId) + '\',\'remove\')">Remove</button></td>') +
         '</tr>';
     });
-    if (!memberRows) memberRows = '<tr><td colspan="' + (isInstructor ? 7 : 8) + '" style="color:#5e666e;">No students in this group yet.</td></tr>';
+    if (!memberRows) memberRows = '<tr><td colspan="8" style="color:#5e666e;">No students in this group yet.</td></tr>';
 
     var availRows = '';
     available.forEach(function(u) {
@@ -1658,13 +1666,14 @@
         (isInstructor ? '' : renderAdminTabs('groups')) +
         '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
           '<button class="btn secondary" style="padding:6px 12px;font-size:12px;" onclick="' + backFn + '">' + backLabel + '</button>' +
+          (isInstructor ? '<button class="btn secondary" style="padding:6px 12px;font-size:12px;" onclick="renderInstructorProgress()">📊 Progress Search</button>' : '') +
         '</div>' +
 
         '<h3 style="margin:0 0 4px;">Group members (' + members.length + ')</h3>' +
         '<p class="subtitle" style="margin-bottom:12px;">Students currently in this group.</p>' +
         '<div class="table-wrap" style="margin-bottom:28px;">' +
           '<table>' +
-            '<thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Level</th><th>Avg Score</th><th>Attempts</th><th>Last Active</th>' + (isInstructor ? '' : '<th>Action</th>') + '</tr></thead>' +
+            '<thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Level</th><th>Avg Score</th><th>Attempts</th><th>Last Active</th><th>Action</th></tr></thead>' +
             '<tbody id="membersTbody">' + memberRows + '</tbody>' +
           '</table>' +
         '</div>' +
@@ -12789,7 +12798,9 @@
     '</div>';
   }
 
-  function _renderProgressReport(res, isAdmin) {
+  function _renderProgressReport(res, backFnOrBool) {
+    var backFn = typeof backFnOrBool === 'string' ? backFnOrBool : (backFnOrBool ? 'renderAdminProgress()' : null);
+    var isAdmin = !!backFn;
     var mods   = res.modules || [];
     var totalH = Math.floor((res.totalActiveSeconds || 0) / 3600);
     var totalM = Math.floor(((res.totalActiveSeconds || 0) % 3600) / 60);
@@ -12842,8 +12853,8 @@
 
     var html =
       '<div class="panel">' +
-        (!isAdmin ? _progressModuleToggle(true) : '') +
-        (isAdmin ? '<div style="margin-bottom:16px;"><button class="btn secondary" onclick="renderAdminProgress()">← Back</button></div>' : '') +
+        (!backFn ? _progressModuleToggle(true) : '') +
+        (backFn ? '<div style="margin-bottom:16px;"><button class="btn secondary" onclick="' + backFn + '">← Back</button></div>' : '') +
         // Summary bar
         '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px;">' +
           '<div style="flex:1;min-width:140px;padding:16px 20px;background:var(--panel-soft);border:1px solid var(--line);border-radius:10px;">' +
@@ -12989,28 +13000,61 @@
       .apiProgressSearchUsers(AppState.sessionToken, query);
   }
 
-  function _progLoadStudent(userId, name) {
+  function _progLoadStudent(userId, name, backFn) {
+    var role = (AppState.user || {}).role || '';
+    backFn = backFn || (role === 'INSTRUCTOR' ? 'renderInstructorProgress()' : 'renderAdminProgress()');
+
     var area = byId('progReportArea');
-    if (!area) return;
-    area.innerHTML = _spinnerHtml('Loading ' + safeText(name) + '\'s progress...');
+    if (!area) {
+      // Called from a context without progReportArea (e.g. group detail) — replace full content
+      byId('contentArea').innerHTML = '<div class="panel">' + _spinnerHtml('Loading ' + safeText(name) + '\'s progress...') + '</div>';
+    } else {
+      area.innerHTML = _spinnerHtml('Loading ' + safeText(name) + '\'s progress...');
+    }
 
     google.script.run
       .withSuccessHandler(function(res) {
-        if (!res || !res.ok) { area.innerHTML = '<p style="color:var(--red);">Could not load progress.</p>'; return; }
-        area.innerHTML = '';
-        _renderProgressReport(res, true);
-        // Scroll to report
-        area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (!res || !res.ok) {
+          var errHtml = '<p style="color:var(--red);">Could not load progress.</p>';
+          if (byId('progReportArea')) byId('progReportArea').innerHTML = errHtml;
+          else byId('contentArea').innerHTML = '<div class="panel">' + errHtml + '</div>';
+          return;
+        }
+        if (byId('progReportArea')) byId('progReportArea').innerHTML = '';
+        _renderProgressReport(res, backFn);
+        if (byId('progReportArea')) byId('progReportArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
       })
-      .withFailureHandler(function(err) { area.innerHTML = '<p style="color:var(--red);">' + safeText(String(err)) + '</p>'; })
+      .withFailureHandler(function(err) {
+        var errHtml = '<p style="color:var(--red);">' + safeText(String(err)) + '</p>';
+        if (byId('progReportArea')) byId('progReportArea').innerHTML = errHtml;
+        else byId('contentArea').innerHTML = '<div class="panel">' + errHtml + '</div>';
+      })
       .apiGetProgressReport(AppState.sessionToken, userId);
   }
 
-  window.renderMyProgress      = renderMyProgress;
-  window.renderAdminProgress   = renderAdminProgress;
-  window._progSearch           = _progSearch;
-  window._progLoadStudent      = _progLoadStudent;
-  window._downloadProgressPdf  = _downloadProgressPdf;
+  function renderInstructorProgress() {
+    setActiveNav('Admin');
+    byId('contentArea').innerHTML =
+      '<div class="panel">' +
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">' +
+          '<button class="btn secondary" style="padding:6px 12px;font-size:12px;" onclick="renderInstructorGroupView()">← Back to groups</button>' +
+          '<h3 style="margin:0;">Student Progress</h3>' +
+        '</div>' +
+        '<p class="subtitle" style="margin-bottom:16px;">Search students assigned to your groups to view their progress report.</p>' +
+        '<div style="display:flex;gap:10px;margin-bottom:20px;">' +
+          '<input id="progSearchInput" class="input" style="max-width:320px;" placeholder="Search by name or email..." oninput="_progSearch(this.value)">' +
+        '</div>' +
+        '<div id="progSearchResults" style="margin-bottom:16px;"></div>' +
+        '<div id="progReportArea"></div>' +
+      '</div>';
+  }
+
+  window.renderMyProgress          = renderMyProgress;
+  window.renderAdminProgress       = renderAdminProgress;
+  window.renderInstructorProgress  = renderInstructorProgress;
+  window._progSearch               = _progSearch;
+  window._progLoadStudent          = _progLoadStudent;
+  window._downloadProgressPdf      = _downloadProgressPdf;
 
   window.renderModules          = renderModules;
   window.renderModuleDetail     = renderModuleDetail;
