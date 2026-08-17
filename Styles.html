@@ -224,11 +224,7 @@
     transform: none;
   }
 
-  .topnav-nav .nav-item.active {
-    background: rgba(175, 175, 175, 0.14);
-    border-color: rgba(175, 175, 175, 0.45);
-    color: var(--silver);
-  }
+  /* duplicate removed — green active state defined above at line 171 */
 
   .topnav-actions {
     display: flex;
@@ -849,7 +845,14 @@
   .avm-item:active { background: var(--line); }
   .avm-icon { font-size: 1rem; flex-shrink: 0; }
   .avm-signout { color: var(--muted); }
-  [data-theme="light"] .avm { box-shadow: 0 12px 40px rgba(0,0,0,0.14); }
+  [data-theme="light"] .avm { box-shadow: 0 12px 40px rgba(0,0,0,0.14); background: var(--panel); border-color: var(--line); }
+  [data-theme="light"] .avm-header { border-bottom-color: var(--line); }
+  [data-theme="light"] .avm-name { color: var(--text); }
+  [data-theme="light"] .avm-rank { color: var(--muted); }
+  [data-theme="light"] .avm-item { color: var(--text); }
+  [data-theme="light"] .avm-item:hover { background: var(--panel-soft); }
+  [data-theme="light"] .avm-divider { background: var(--line); }
+  [data-theme="light"] .avm-signout { color: var(--muted); }
 
   /* ── Slim topbar (only shows admin VIEW AS when present) ────────── */
   .topbar-slim {
@@ -9414,7 +9417,10 @@ p, li, td, th, h1, h2, h3, h4,
 @media (hover: hover) { .lms-module-card:hover { border-color: rgba(0,212,142,0.3); transform: translateY(-2px); } }
 @media (hover: hover) { .streak-hero-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,.4); } }
 @media (hover: hover) { .quiz-opt:hover { border-color: var(--cyan) !important; background: rgba(14,165,233,.05); } }
+[data-theme="light"] .quiz-opt { border-color: var(--line); }
+[data-theme="light"] .quiz-opt:hover { background: rgba(0,158,106,.06) !important; border-color: #009e6a !important; }
 .streak-hero-card:active { transform: scale(0.985); opacity: 0.9; }
+[data-theme="light"] .streak-hero-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,.18); }
 @media (hover: hover) { .lms-module-card-wrap:hover > div { box-shadow: 0 6px 28px rgba(0,0,0,.25); } }
 .lms-module-card-wrap:active > div { transform: scale(0.985); }
 .lms-module-card--soon { opacity: 0.55; pointer-events: none; }
@@ -10351,6 +10357,7 @@ p, li, td, th, h1, h2, h3, h4,
   gap: 3px;
   padding: 6px 12px 8px;
   min-width: 56px;
+  min-height: 44px;
   flex: 1;
   background: none;
   border: none;
@@ -10398,8 +10405,8 @@ p, li, td, th, h1, h2, h3, h4,
 }
 
 .mob-nav-lbl {
-  font-size: 0.6rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1;
   white-space: nowrap;
@@ -10412,8 +10419,8 @@ p, li, td, th, h1, h2, h3, h4,
 
 .mob-nav-badge {
   position: absolute;
-  top: 3px;
-  right: calc(50% - 20px);
+  top: 2px;
+  right: 4px;
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
@@ -10803,8 +10810,8 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
    where legibility matters most and layout space allows the larger size.
    ═══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-  /* Bottom nav tab labels: was 0.59rem */
-  .mob-nav-lbl { font-size: 0.7rem; }
+  /* Bottom nav tab labels: locked at readable floor */
+  .mob-nav-lbl { font-size: 0.75rem; }
 
   /* Module phase/step pills and scenario tier chips */
   .lc-phase-pill             { font-size: 0.72rem; }
