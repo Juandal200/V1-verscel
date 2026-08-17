@@ -10810,5 +10810,66 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   border-color: rgba(0,0,0,0.10);
 }
 
+/* =====================================================================
+   PHASE 14 — Light theme completion: remaining screens
+   ===================================================================== */
+
+/* --- Levels screen --- */
+[data-theme="light"] .level-card-pro { background: var(--panel); border-color: var(--line); }
+
+/* --- Countries screen --- */
+[data-theme="light"] .country-card-pro { background: var(--panel); border-color: var(--line); }
+[data-theme="light"] .ccm-value { color: var(--text); }
+
+/* --- Simulator: hero / chips / info column --- */
+[data-theme="light"] .sim-hero-pct { color: var(--muted); }
+[data-theme="light"] .sim-tier-badge { background: var(--panel-soft); border-color: var(--line); }
+[data-theme="light"] .sim-tier-name { color: var(--text); }
+[data-theme="light"] .sim-chip { background: var(--panel-soft); color: var(--text); border-color: var(--line); }
+
+/* --- Simulator: session panel --- */
+[data-theme="light"] .sim-atc-text { color: var(--text); }
+[data-theme="light"] .sim-side-item { background: var(--panel-soft); }
+[data-theme="light"] .sim-side-item strong { color: var(--text); }
+[data-theme="light"] .sim-briefing-box { background: var(--panel-soft); color: var(--text); border-color: var(--line); }
+
+/* --- Analytics screen --- */
+[data-theme="light"] .analytics-hero { background: var(--panel); border-color: var(--line); }
+[data-theme="light"] .analytics-hero h2 { color: var(--text); }
+
+/* --- Progress screen --- */
+[data-theme="light"] .prog-stat-card { background: var(--panel); border-color: var(--line); }
+[data-theme="light"] .prog-section { background: var(--panel); border-color: var(--line); }
+[data-theme="light"] .prog-section-header h3 { color: var(--text); }
+
+/* --- LMS modules --- */
+[data-theme="light"] .lms-module-card { background: var(--panel); border-color: var(--line); }
+[data-theme="light"] .lms-module-title { color: var(--text); }
+[data-theme="light"] .lms-module-desc { color: var(--muted); }
+
+/* --- Gamification: leaderboard + tournament --- */
+[data-theme="light"] .gam-lb-tabs { background: var(--panel-soft); border-color: var(--line); }
+[data-theme="light"] .gam-lb-tab { color: var(--muted); }
+[data-theme="light"] .gam-lb-tab.active { color: var(--text); }
+[data-theme="light"] .gam-tour-countdown { color: var(--muted); }
+
+/* --- Subscription modal --- */
+[data-theme="light"] .sub-modal-card {
+  background: var(--panel) !important;
+  border-color: var(--line);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.12);
+}
+[data-theme="light"] .sub-modal-header h2 { color: var(--text); }
+[data-theme="light"] .sub-price-amount { color: var(--text); }
+
+/* Modal header description + plan card text + borders (inline-styled by JS) */
+[data-theme="light"] .sub-modal-card > p { color: var(--muted) !important; }
+[data-theme="light"] #subPlanCards p { color: var(--text) !important; }
+[data-theme="light"] #subPlanCards > div:not([style*="#00d48e"]) { border-color: var(--line) !important; }
+[data-theme="light"] #subPlanCards button[style*="background:transparent"] {
+  color: var(--text) !important;
+  border-color: var(--line) !important;
+}
+
 
 </style>
