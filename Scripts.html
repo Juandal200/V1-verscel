@@ -470,7 +470,7 @@
 
   function setActiveNav(label) {
     if (label !== _navLabel) {
-      _navToken++; _navLabel = label; window._navToken = _navToken;
+      _navToken++; _navLabel = label; window._navToken = _navToken; window._navLabel = label;
       if (label !== 'Simulator' && typeof window.stopFlightDrift === 'function') window.stopFlightDrift();
     }
     Array.prototype.slice.call(document.querySelectorAll('.nav-item')).forEach(function(btn) {
@@ -1316,15 +1316,15 @@
         '<div style="display:flex;gap:0;margin-bottom:4px;">' +
           '<div style="flex:1;border-right:1px solid var(--line);padding-right:12px;">' +
             '<p style="margin:0;font-size:0.75rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Level</p>' +
-            '<p style="margin:0;font-size:1.4rem;font-weight:800;color:var(--cyan);">' + level + '</p>' +
+            '<p class="home-stat-val" style="margin:0;font-size:1.4rem;font-weight:800;color:var(--cyan);">' + level + '</p>' +
           '</div>' +
           '<div style="flex:1;padding-left:12px;border-right:1px solid var(--line);padding-right:12px;">' +
             '<p style="margin:0;font-size:0.75rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Country</p>' +
-            '<p style="margin:0;font-size:1.4rem;font-weight:800;">' + safeText(country) + '</p>' +
+            '<p class="home-stat-val" style="margin:0;font-size:1.4rem;font-weight:800;">' + safeText(country) + '</p>' +
           '</div>' +
           '<div style="flex:1;padding-left:12px;">' +
             '<p style="margin:0;font-size:0.75rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Success</p>' +
-            '<p style="margin:0;font-size:1.4rem;font-weight:800;color:' + (successRate >= 80 ? '#16a34a' : 'var(--text)') + ';">' + successRate + '%</p>' +
+            '<p class="home-stat-val" style="margin:0;font-size:1.4rem;font-weight:800;color:' + (successRate >= 80 ? '#16a34a' : 'var(--text)') + ';">' + successRate + '%</p>' +
           '</div>' +
         '</div>';
 
@@ -14806,7 +14806,8 @@
 
     if (login && login.classList.contains('active')) return true;
     if (!app || !app.classList.contains('active')) return true;
-    if (_navLabel === 'Home' || _navLabel === 'Progress' || _navLabel === 'Crew' || _navLabel === 'Squadron') return true;
+    var _nl = (typeof window._navLabel === 'string' ? window._navLabel : '');
+    if (_nl === 'Home' || _nl === 'Progress' || _nl === 'Crew' || _nl === 'Squadron') return true;
 
     return false;
   }

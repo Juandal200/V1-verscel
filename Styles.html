@@ -10796,8 +10796,10 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 [data-theme="light"] .home-hero-label { color: #009e6a; }
 
 @media (max-width: 480px) {
-  /* Reduce home card image banner height: 42% → 28% of card width */
-  .home-card-img { padding-bottom: 28% !important; }
+  /* Reduce home card image banner height: 42% → 20% of card width */
+  .home-card-img { padding-bottom: 20% !important; }
+  /* Compact stat numbers inside home cards */
+  .home-stat-val { font-size: 1.05rem !important; }
 
   /* Module roadmap: explicit 1-column override at narrow widths */
   .module-roadmap-grid { grid-template-columns: 1fr !important; }
