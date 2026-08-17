@@ -185,6 +185,42 @@
 (function() {
   'use strict';
 
+  /* ── Global error boundary ────────────────────────────────────────── */
+  (function() {
+    var _errShown = false;
+    function _showCrashOverlay(msg) {
+      if (_errShown) return;
+      _errShown = true;
+      var d = document.createElement('div');
+      d.id = '_crashOverlay';
+      d.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg,#0d0d0d);';
+      d.innerHTML =
+        '<div style="background:var(--panel,#1c1c1a);border:1px solid var(--line,rgba(255,255,255,0.08));border-radius:20px;padding:36px 32px;max-width:340px;width:100%;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,0.5);">' +
+          '<p style="font-size:2rem;margin:0 0 12px;">⚙️</p>' +
+          '<h3 style="color:var(--text,#f0f0ee);margin:0 0 8px;font-size:1.1rem;font-weight:700;">Something went wrong</h3>' +
+          '<p style="color:var(--muted,#5c5c58);font-size:0.85rem;margin:0 0 6px;line-height:1.5;">An unexpected error occurred. Your progress is saved.</p>' +
+          (msg ? '<p style="color:var(--muted,#5c5c58);font-size:0.72rem;margin:0 0 24px;opacity:0.6;font-family:monospace;word-break:break-word;">' + String(msg).slice(0, 120) + '</p>' : '<div style="margin-bottom:24px;"></div>') +
+          '<button onclick="location.reload()" style="width:100%;padding:12px;background:#00d48e;color:#000;border:none;border-radius:10px;font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:10px;font-family:inherit;">Reload app</button>' +
+          '<button onclick="document.getElementById(\'_crashOverlay\').remove();try{renderHome();}catch(e){}" style="width:100%;padding:10px;background:transparent;color:var(--muted,#5c5c58);border:1px solid var(--line,rgba(255,255,255,0.08));border-radius:10px;font-size:0.85rem;cursor:pointer;font-family:inherit;">Try going home</button>' +
+        '</div>';
+      document.body ? document.body.appendChild(d) : document.addEventListener('DOMContentLoaded', function() { document.body.appendChild(d); });
+    }
+    window.onerror = function(msg, src, line, col, err) {
+      if (!msg || msg === 'Script error.' || String(src || '').indexOf('extension') !== -1) return false;
+      if (String(src || '').indexOf('google.com') !== -1) return false;
+      console.error('[AEROCOMMS crash]', msg, src, line);
+      _showCrashOverlay(err ? err.message : msg);
+      return false;
+    };
+    window.onunhandledrejection = function(e) {
+      var reason = e && e.reason;
+      if (!reason) return;
+      var msg = reason && reason.message ? reason.message : String(reason);
+      if (msg.indexOf('Session expired') !== -1 || msg.indexOf('network') !== -1) return;
+      console.error('[AEROCOMMS unhandled rejection]', reason);
+      _showCrashOverlay(msg);
+    };
+  })();
 
   var PHASES = [
     { code: 'STARTUP',   name: 'Taxi Out',  label: 'Taxi Out',  order: 0 },
@@ -7364,7 +7400,8 @@
       '</div>' +
       ratingWidget;
 
-    if (ok) SimAudio.correct(); else SimAudio.wrong();
+    if (ok) { SimAudio.correct(); if (navigator.vibrate) navigator.vibrate(8); }
+    else     { SimAudio.wrong();   if (navigator.vibrate) navigator.vibrate([10, 60, 15]); }
     setImmersiveFeedback(html, ok ? 'success' : 'danger', true);
 
     var input = byId('pilotReadback');
@@ -10899,6 +10936,7 @@
   }
 
   window._showRankUpCelebration = function(newTierKey) {
+    if (navigator.vibrate) navigator.vibrate([20, 80, 20, 80, 40]);
     try {
       var tiers   = window.GAM_TIERS || [];
       var tier    = tiers.filter(function(t) { return t.key === newTierKey; })[0] || null;
