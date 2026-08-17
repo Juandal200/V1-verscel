@@ -510,6 +510,29 @@
   }
   window._spinnerHtml = _spinnerHtml;
 
+  function _skeletonCards(count, wide) {
+    var out = '<div style="display:flex;flex-direction:column;gap:14px;">';
+    for (var i = 0; i < (count || 3); i++) {
+      out += '<div class="skeleton-card">' +
+        '<div class="skeleton-line" style="height:15px;width:' + (wide ? 55 : 45) + '%;"></div>' +
+        '<div class="skeleton-line" style="height:11px;width:85%;"></div>' +
+        '<div class="skeleton-line" style="height:11px;width:' + (65 + (i % 3) * 8) + '%;"></div>' +
+      '</div>';
+    }
+    return out + '</div>';
+  }
+  window._skeletonCards = _skeletonCards;
+
+  function _skeletonStats() {
+    var statCard = '<div class="skeleton-stat-card">' +
+      '<div class="skeleton-line" style="height:28px;width:55%;"></div>' +
+      '<div class="skeleton-line" style="height:10px;width:75%;"></div>' +
+    '</div>';
+    return '<div class="skeleton-stat-row">' + statCard + statCard + statCard + '</div>' +
+      '<div class="skeleton-card" style="height:140px;margin-bottom:14px;"></div>' +
+      _skeletonCards(2);
+  }
+
   function showGasLoadingSkeleton(title, sub) {
     var el = byId('contentArea');
     if (!el) return;
@@ -3775,7 +3798,7 @@
 
     byId('contentArea').innerHTML =
       _simTabStrip('flight') +
-      '<div class="panel">' + _spinnerHtml('Loading level map...') + '</div>';
+      '<div class="panel">' + _skeletonCards(4, true) + '</div>';
 
     // Fetch VR config (admin panel use) and today's server-side assignments (rendering)
     google.script.run
@@ -10727,14 +10750,19 @@
     var ca = byId('contentArea');
     if (!ca) { fn(); return; }
 
+    ca.classList.remove('nav-in');
     ca.classList.add('nav-out');
     _navToTimer = setTimeout(function() {
       _navToTimer = null;
       window.scrollTo(0, 0);
       try { fn(); } finally {
-        requestAnimationFrame(function() { ca.classList.remove('nav-out'); });
+        requestAnimationFrame(function() {
+          ca.classList.remove('nav-out');
+          void ca.offsetWidth;
+          ca.classList.add('nav-in');
+        });
       }
-    }, 120);
+    }, 110);
   };
   window.adminSubSavePrices         = adminSubSavePrices;
   window.adminSubGrant              = adminSubGrant;
@@ -10854,7 +10882,7 @@
   function renderModules() {
     setActiveNav('Modules');
     var _tok = _navToken;
-    byId('contentArea').innerHTML = '<div class="panel">' + _spinnerHtml('Loading modules...') + '</div>';
+    byId('contentArea').innerHTML = '<div class="panel">' + _skeletonCards(4) + '</div>';
 
     google.script.run
       .withSuccessHandler(function(res) {
@@ -12911,7 +12939,7 @@
   function renderMyProgress() {
     setActiveNav('Modules');
     var _tok = _navToken;
-    byId('contentArea').innerHTML = '<div class="panel">' + _progressModuleToggle(true) + _spinnerHtml('Loading progress...') + '</div>';
+    byId('contentArea').innerHTML = '<div class="panel">' + _progressModuleToggle(true) + _skeletonStats() + '</div>';
 
     google.script.run
       .withSuccessHandler(function(res) {

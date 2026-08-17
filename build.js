@@ -4,8 +4,9 @@
 // that Vercel can serve. Resolves all <?!= include('X') ?> and logo calls.
 // Output: dist/index.html
 // ─────────────────────────────────────────────────────────────────────────────
-const fs   = require('fs');
-const path = require('path');
+const fs            = require('fs');
+const path          = require('path');
+const { execSync }  = require('child_process');
 
 const ROOT = __dirname;
 const DIST = path.join(ROOT, 'dist');
@@ -74,3 +75,36 @@ fs.writeFileSync(path.join(DIST, 'index.html'), html, 'utf8');
 
 const kb = Math.round(fs.statSync(path.join(DIST, 'index.html')).size / 1024);
 console.log('✓ dist/index.html  (' + kb + ' KB)');
+
+// 6. PWA icons — resize LOGOF.png (2048×2048) via macOS sips
+const logoSrc = path.join(ROOT, 'LOGOF.png');
+if (fs.existsSync(logoSrc)) {
+  try {
+    execSync('sips -z 192 192 "' + logoSrc + '" --out "' + path.join(DIST, 'icon-192.png') + '" > /dev/null 2>&1');
+    execSync('sips -z 512 512 "' + logoSrc + '" --out "' + path.join(DIST, 'icon-512.png') + '" > /dev/null 2>&1');
+    console.log('✓ PWA icons generated (192×192, 512×512)');
+  } catch(e) {
+    console.warn('⚠ Icon generation skipped:', e.message);
+  }
+}
+
+// 7. manifest.json
+fs.writeFileSync(path.join(DIST, 'manifest.json'), JSON.stringify({
+  name: 'AEROCOMMS',
+  short_name: 'AEROCOMMS',
+  description: 'ICAO Language Proficiency Training Platform',
+  start_url: '/',
+  display: 'standalone',
+  background_color: '#0d0d0d',
+  theme_color: '#0d0d0d',
+  orientation: 'any',
+  icons: [
+    { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+    { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+  ]
+}, null, 2));
+console.log('✓ dist/manifest.json');
+
+// 8. Service worker
+fs.copyFileSync(path.join(ROOT, 'sw.js'), path.join(DIST, 'sw.js'));
+console.log('✓ dist/sw.js');

@@ -10575,12 +10575,69 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
    ═══════════════════════════════════════════════════════════════════ */
 
 /* Content area cross-fade on navigation */
+/* ── Content transitions ──────────────────────────────────────────── */
+@keyframes contentReveal {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
 #contentArea {
-  transition: opacity 0.12s ease;
+  transition: opacity 0.1s ease;
 }
 #contentArea.nav-out {
   opacity: 0;
   pointer-events: none;
+}
+#contentArea.nav-in {
+  animation: contentReveal 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  #contentArea.nav-in { animation: none; }
+}
+
+/* ── Skeleton shimmer ─────────────────────────────────────────────── */
+@keyframes skeletonShimmer {
+  0%   { background-position: -500px 0; }
+  100% { background-position: 500px 0; }
+}
+.skeleton-line {
+  border-radius: 6px;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.10) 50%,
+    rgba(255,255,255,0.04) 75%
+  );
+  background-size: 500px 100%;
+  animation: skeletonShimmer 1.6s ease-in-out infinite;
+}
+[data-theme="light"] .skeleton-line {
+  background: linear-gradient(90deg, #e4e4e0 25%, #eeeeed 50%, #e4e4e0 75%);
+  background-size: 500px 100%;
+  animation: skeletonShimmer 1.6s ease-in-out infinite;
+}
+.skeleton-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.skeleton-stat-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+@media (max-width: 560px) { .skeleton-stat-row { grid-template-columns: 1fr 1fr; } }
+.skeleton-stat-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* Active bottom-nav tab icon spring-pop */
