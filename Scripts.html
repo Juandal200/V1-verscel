@@ -185,7 +185,6 @@
 (function() {
   'use strict';
 
-  console.log('[ICAO] Scripts_CORREGIDO_RouteBuilder loaded');
 
   var PHASES = [
     { code: 'STARTUP',   name: 'Taxi Out',  label: 'Taxi Out',  order: 0 },
@@ -902,11 +901,6 @@
       strips.style.display = '';
     }
 
-    // ── Progress to next rank (topnav label, no bar) ──
-    var cfg = null;
-    for (var i = 0; i < _TIER_PROGRESS.length; i++) {
-      if (_TIER_PROGRESS[i].key === tier.key) { cfg = _TIER_PROGRESS[i]; break; }
-    }
     // ── XP label ──
     var xpLbl = byId('topnavXpLabel');
     if (xpLbl) {
@@ -1211,7 +1205,7 @@
       // ── Feature cards row ──
       function _homeCard(opts) {
         // opts: { gradient, icon, badge, title, subtitle, statusHtml, bodyHtml, btnLabel, btnClass, onClick }
-        return '<div class="home-feature-card" onclick="' + opts.onClick + '" style="flex:1;min-width:280px;">' +
+        return '<div class="home-feature-card" role="button" tabindex="0" onclick="' + opts.onClick + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + opts.onClick + '}" style="flex:1;min-width:280px;">' +
           // image header — reduced to 28% on narrow phones via .home-card-img CSS override
           '<div class="home-card-img" style="position:relative;padding-bottom:42%;background:' + opts.gradient + ';overflow:hidden;">' +
             '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 55%);"></div>' +
