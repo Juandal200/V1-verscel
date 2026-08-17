@@ -11411,10 +11411,10 @@
       _lmsStartQuizMusic();
       var ov = document.createElement('div');
       ov.id = '_lmsVqOv';
-      ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+      ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.88);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
       var opts = quiz.options || [];
       ov.innerHTML =
-        '<div style="background:#0d0d0d;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:32px;max-width:500px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.8);">' +
+        '<div style="background:#0d0d0d;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:20px;max-width:500px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.8);max-height:90vh;overflow-y:auto;">' +
           '<div style="font-size:0.67rem;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,.35);margin-bottom:14px;text-transform:uppercase;">✋ Quick check</div>' +
           '<p style="font-size:1rem;font-weight:600;margin:0 0 20px;line-height:1.5;color:#fff;">' + safeText(quiz.question) + '</p>' +
           '<div id="_lmsVqOpts" style="display:grid;gap:10px;">' +
@@ -14745,6 +14745,7 @@
 
     if (login && login.classList.contains('active')) return true;
     if (!app || !app.classList.contains('active')) return true;
+    if (_navLabel === 'Home' || _navLabel === 'Progress' || _navLabel === 'Crew' || _navLabel === 'Squadron') return true;
 
     return false;
   }
