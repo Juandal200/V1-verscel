@@ -10282,6 +10282,26 @@ p, li, td, th, h1, h2, h3, h4,
 
 .mob-nav-btn.active { color: #00d48e; }
 
+.mob-nav-btn.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 2px;
+  background: #00d48e;
+  border-radius: 0 0 3px 3px;
+  animation: mob-tab-line-in 0.22s ease;
+}
+
+@keyframes mob-tab-line-in {
+  from { width: 0; opacity: 0; }
+  to   { width: 24px; opacity: 1; }
+}
+
+[data-theme="light"] .mob-nav-btn.active::before { background: #009e6a; }
+
 .mob-nav-btn svg {
   width: 22px;
   height: 22px;
@@ -10296,6 +10316,10 @@ p, li, td, th, h1, h2, h3, h4,
   letter-spacing: 0.04em;
   text-transform: uppercase;
   line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .mob-nav-badge {
@@ -10318,16 +10342,16 @@ p, li, td, th, h1, h2, h3, h4,
 }
 
 /* Light theme overrides */
-.light-theme .mobile-bottom-nav {
+[data-theme="light"] .mobile-bottom-nav {
   background: rgba(252,252,252,0.97);
   border-top-color: rgba(0,0,0,0.07);
 }
-.light-theme .mob-nav-btn { color: rgba(0,0,0,0.32); }
-.light-theme .mob-nav-btn.active { color: #009e6a; }
-.light-theme .mobile-bottom-nav::before {
+[data-theme="light"] .mob-nav-btn { color: rgba(0,0,0,0.32); }
+[data-theme="light"] .mob-nav-btn.active { color: #009e6a; }
+[data-theme="light"] .mobile-bottom-nav::before {
   background: linear-gradient(90deg, transparent 0%, rgba(0,158,106,0.35) 35%, rgba(59,130,246,0.25) 65%, transparent 100%);
 }
-.light-theme .mob-nav-badge { border-color: #fcfcfc; }
+[data-theme="light"] .mob-nav-badge { border-color: #fcfcfc; }
 
 @media (max-width: 768px) {
   /* Hide topnav nav pills — they move to the bottom bar */
@@ -10610,11 +10634,11 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 }
 
 /* Light theme adjustments for hero bar */
-.light-theme .home-hero-bar {
+[data-theme="light"] .home-hero-bar {
   background: rgba(0, 158, 106, 0.07);
   border-color: rgba(0, 158, 106, 0.22);
 }
-.light-theme .home-hero-label { color: #009e6a; }
+[data-theme="light"] .home-hero-label { color: #009e6a; }
 
 @media (max-width: 480px) {
   /* Reduce home card image banner height: 42% → 28% of card width */
