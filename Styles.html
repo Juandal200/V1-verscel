@@ -1384,7 +1384,7 @@
   background-position: center;
   transition: transform 0.5s ease;
 }
-.level-card-pro:hover .lc-bg { transform: scale(1.04); }
+@media (hover: hover) { .level-card-pro:hover .lc-bg { transform: scale(1.04); } }
 
 /* Dark gradient overlay — stronger at bottom for text legibility */
 .lc-overlay {
@@ -6707,10 +6707,12 @@ body.sim-paused #simMediaPauseBtn {
   transition: border-color 0.18s, box-shadow 0.18s, transform 0.14s;
 }
 
-.ops-scenario-card:hover {
-  border-color: rgba(155, 155, 155, 0.55);
-  box-shadow: 0 0 0 1px rgba(155, 155, 155, 0.18), 0 24px 56px rgba(0, 0, 0, 0.28);
-  transform: translateY(-2px);
+@media (hover: hover) {
+  .ops-scenario-card:hover {
+    border-color: rgba(155, 155, 155, 0.55);
+    box-shadow: 0 0 0 1px rgba(155, 155, 155, 0.18), 0 24px 56px rgba(0, 0, 0, 0.28);
+    transform: translateY(-2px);
+  }
 }
 
 .ops-scenario-card:focus-visible {
@@ -7498,9 +7500,11 @@ body.sim-paused #simMediaPauseBtn {
   box-shadow: 0 4px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.07);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
-.tm-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 40px rgba(99,102,241,0.25), inset 0 1px 0 rgba(255,255,255,0.1);
+@media (hover: hover) {
+  .tm-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 40px rgba(99,102,241,0.25), inset 0 1px 0 rgba(255,255,255,0.1);
+  }
 }
 .tm-card-skeleton {
   background: rgba(255,255,255,0.04);
@@ -9353,7 +9357,7 @@ p, li, td, th, h1, h2, h3, h4,
   gap: 14px;
   transition: border-color 0.18s, transform 0.15s;
 }
-.lms-module-card:hover { border-color: rgba(0,212,142,0.3); transform: translateY(-2px); }
+@media (hover: hover) { .lms-module-card:hover { border-color: rgba(0,212,142,0.3); transform: translateY(-2px); } }
 .lms-module-card--soon { opacity: 0.55; pointer-events: none; }
 .lms-module-icon { font-size: 28px; line-height: 1; }
 .lms-module-body { flex: 1; }
@@ -10809,6 +10813,33 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   background: rgba(0,0,0,0.06);
   border-color: rgba(0,0,0,0.10);
 }
+
+/* =====================================================================
+   PHASE 15 — Touch interaction quality
+   ===================================================================== */
+
+/* Home feature cards — base + hover (pointer-only) + press */
+.home-feature-card {
+  flex: 1;
+  min-width: 280px;
+  cursor: pointer;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease, transform 0.1s ease, opacity 0.1s ease;
+}
+@media (hover: hover) {
+  .home-feature-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,0.28); }
+}
+
+/* Press-down states — tactile feedback on touch and mouse */
+.home-feature-card:active    { transform: scale(0.985); opacity: 0.88; }
+.ops-scenario-card:active    { transform: scale(0.985); opacity: 0.9; }
+.level-card-pro:active       { transform: scale(0.985); }
+.lms-module-card:active      { transform: scale(0.985); }
+.tm-card:active              { transform: scale(0.985); }
+.hf-concept-card:active      { transform: scale(0.985); }
 
 /* =====================================================================
    PHASE 14 — Light theme completion: remaining screens

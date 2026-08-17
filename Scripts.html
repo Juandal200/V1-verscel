@@ -1211,7 +1211,7 @@
       // ── Feature cards row ──
       function _homeCard(opts) {
         // opts: { gradient, icon, badge, title, subtitle, statusHtml, bodyHtml, btnLabel, btnClass, onClick }
-        return '<div onclick="' + opts.onClick + '" style="flex:1;min-width:280px;cursor:pointer;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:box-shadow .2s;" onmouseenter="this.style.boxShadow=\'0 8px 32px rgba(0,0,0,.28)\'" onmouseleave="this.style.boxShadow=\'\'">' +
+        return '<div class="home-feature-card" onclick="' + opts.onClick + '" style="flex:1;min-width:280px;">' +
           // image header — reduced to 28% on narrow phones via .home-card-img CSS override
           '<div class="home-card-img" style="position:relative;padding-bottom:42%;background:' + opts.gradient + ';overflow:hidden;">' +
             '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 55%);"></div>' +
@@ -8377,14 +8377,17 @@
     var html    = document.documentElement;
     var isLight = html.getAttribute('data-theme') === 'light';
     var btn     = document.getElementById('themeToggleBtn');
+    var metaTheme = document.querySelector('meta[name="theme-color"]');
     if (isLight) {
       html.removeAttribute('data-theme');
       try { localStorage.setItem('aerocomms-theme', 'dark'); } catch(e) {}
       if (btn) btn.textContent = '☀';
+      if (metaTheme) metaTheme.setAttribute('content', '#0d0d0d');
     } else {
       html.setAttribute('data-theme', 'light');
       try { localStorage.setItem('aerocomms-theme', 'light'); } catch(e) {}
       if (btn) btn.textContent = '🌙';
+      if (metaTheme) metaTheme.setAttribute('content', '#f4f4f0');
     }
   }
 
