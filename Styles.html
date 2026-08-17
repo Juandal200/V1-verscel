@@ -472,6 +472,20 @@
     }
   }
 
+  /* ── Keyboard focus rings (WCAG 2.1) ── */
+  .btn:focus-visible,
+  .nav-item:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+    border-radius: 14px;
+  }
+
+  .mob-nav-btn:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 3px;
+    border-radius: 8px;
+  }
+
   .nav-item.active {
     background: linear-gradient(135deg, rgba(175, 175, 175, 0.20), rgba(148, 148, 148, 0.10));
     border-color: rgba(175, 175, 175, 0.65);
@@ -6699,6 +6713,12 @@ body.sim-paused #simMediaPauseBtn {
   transform: translateY(-2px);
 }
 
+.ops-scenario-card:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+  border-radius: 22px;
+}
+
 .ops-scenario-card-header {
   display: flex;
   align-items: flex-start;
@@ -9716,7 +9736,7 @@ p, li, td, th, h1, h2, h3, h4,
   box-sizing: border-box; transition: border-color 0.2s;
   font-family: inherit;
 }
-.ff-readback-input:focus { outline: none; border-color: rgba(255,255,255,0.28); }
+.ff-readback-input:focus { outline: none; border-color: rgba(255,255,255,0.45); box-shadow: 0 0 0 3px rgba(255,255,255,0.10); }
 .ff-submit-btn { width: 100%; padding: 13px; font-size: 0.93rem; border-radius: 12px; }
 
 .ff-spotlight {
@@ -9952,7 +9972,7 @@ p, li, td, th, h1, h2, h3, h4,
   padding: 11px 13px; font-size: 0.91rem; resize: none;
   font-family: inherit; box-sizing: border-box;
 }
-.exam-readback-input:focus { outline: none; border-color: rgba(251,191,36,0.5); }
+.exam-readback-input:focus { outline: none; border-color: rgba(251,191,36,0.7); box-shadow: 0 0 0 3px rgba(251,191,36,0.12); }
 .exam-next-btn { margin-top: 4px; }
 
 /* Result */

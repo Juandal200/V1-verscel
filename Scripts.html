@@ -4632,7 +4632,9 @@
       var phaseCount   = group.scenarios.length;
 
       cards +=
-        '<article class="ops-scenario-card" onclick="launchOperationalScenario(' + idx + ')">' +
+        '<article class="ops-scenario-card" role="button" tabindex="0"' +
+          ' onclick="launchOperationalScenario(' + idx + ')"' +
+          ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();launchOperationalScenario(' + idx + ')}">' +
           '<div class="ops-scenario-card-header">' +
             '<div class="ops-airport-badge">' +
               '<div class="ops-badge-flag">' + getFlagHtml(country, 'flag-sm') + '</div>' +
