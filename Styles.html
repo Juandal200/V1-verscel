@@ -67,7 +67,8 @@
   }
 
   /* Smooth theme transition */
-  body, .app-topnav, .panel, .score-card, .btn, .login-card, .nav-item, .topnav-btn {
+  body, .app-topnav, .panel, .score-card, .btn, .login-card, .nav-item, .topnav-btn,
+  .mobile-bottom-nav, .trial-banner, .back-confirm-card {
     transition: background 0.22s ease, color 0.22s ease,
                 border-color 0.22s ease, box-shadow 0.22s ease;
   }
@@ -3224,13 +3225,13 @@ body.sim-paused #simMediaPauseBtn {
 }
 .back-confirm-card {
   position: relative;
-  background: #1a1a2e;
-  border: 1px solid rgba(148,148,148,0.18);
+  background: var(--panel);
+  border: 1px solid var(--line);
   border-radius: 16px;
   padding: 28px 28px 22px;
   max-width: 300px;
   width: calc(100% - 32px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35);
 }
 .back-confirm-x {
   position: absolute;
@@ -3238,7 +3239,7 @@ body.sim-paused #simMediaPauseBtn {
   right: 14px;
   background: none;
   border: none;
-  color: #8c8c8c;
+  color: var(--muted);
   font-size: 1.3rem;
   line-height: 1;
   cursor: pointer;
@@ -3246,16 +3247,16 @@ body.sim-paused #simMediaPauseBtn {
   border-radius: 6px;
   transition: color 0.15s, background 0.15s;
 }
-.back-confirm-x:hover { color: #f4f4f4; background: rgba(255,255,255,0.08); }
+.back-confirm-x:hover { color: var(--text); background: var(--panel-soft); }
 .back-confirm-title {
   font-size: 1rem;
   font-weight: 600;
-  color: #f4f4f4;
+  color: var(--text);
   margin: 0 0 6px;
 }
 .back-confirm-sub {
   font-size: 0.78rem;
-  color: #8c8c8c;
+  color: var(--muted);
   margin: 0 0 20px;
   line-height: 1.45;
 }
@@ -10681,6 +10682,88 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   /* ICAO test card badge + psychological difficulty badges */
   .icao-test-badge { font-size: 0.72rem; }
   .psy-diff-hardest-badge, .psy-diff-easy-badge { font-size: 0.72rem; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   PHASE 11 — LIGHT THEME CRITICAL FIXES
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Session expired overlay */
+.session-expired-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0,0,0,0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: ffFadeIn 0.18s ease;
+}
+.session-expired-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  padding: 36px 40px;
+  text-align: center;
+  max-width: 360px;
+  width: 90%;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.32);
+}
+.session-expired-card h3 {
+  margin: 0 0 8px;
+  color: var(--text);
+  font-size: 1.1rem;
+}
+.session-expired-card p {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+
+/* Trial banner */
+.trial-banner {
+  background: var(--panel-soft);
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  text-align: center;
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.trial-banner-btn {
+  background: #00d48e;
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+.trial-banner-btn:hover { opacity: 0.88; }
+[data-theme="light"] .trial-banner-btn { background: #009e6a; color: #fff; }
+
+/* Topnav streak chip */
+.topnav-streak-chip {
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-left: 5px;
+  color: rgba(255,255,255,0.7);
+}
+[data-theme="light"] .topnav-streak-chip { color: var(--muted); }
+
+/* Avatar circle — light theme background */
+[data-theme="light"] .topbar-avatar {
+  background: rgba(0,0,0,0.06);
+  border-color: rgba(0,0,0,0.10);
 }
 
 

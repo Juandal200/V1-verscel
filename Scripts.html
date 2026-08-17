@@ -756,11 +756,11 @@
     var overlay = document.createElement('div');
     overlay.id = 'sessionExpiredOverlay';
     overlay.innerHTML =
-      '<div style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;">' +
-        '<div style="background:#111;border:1px solid rgba(184,184,184,0.18);border-radius:22px;padding:36px 40px;text-align:center;max-width:360px;width:90%;">' +
+      '<div class="session-expired-backdrop">' +
+        '<div class="session-expired-card">' +
           '<p style="font-size:2rem;margin:0 0 12px;">✈</p>' +
-          '<h3 style="margin:0 0 8px;color:#f4f4f4;">Session expired</h3>' +
-          '<p style="color:#808080;font-size:0.85rem;margin:0 0 24px;line-height:1.5;">Your login session has timed out. Sign in again to continue — your progress is saved.</p>' +
+          '<h3>Session expired</h3>' +
+          '<p>Your login session has timed out. Sign in again to continue — your progress is saved.</p>' +
           '<button class="btn primary full" onclick="document.getElementById(\'sessionExpiredOverlay\').remove();showScreen(\'loginScreen\');setLoginMessage(\'\');">Sign in again</button>' +
         '</div>' +
       '</div>';
@@ -1136,11 +1136,11 @@
           '<h2 style="margin:0 0 10px;font-size:1.8rem;">Your free trial has ended</h2>' +
           '<p class="subtitle" style="margin:0 0 28px;line-height:1.6;">Subscribe to keep practising. Get full access to all simulators, routes, evaluations and certificates.</p>' +
           '<ul style="list-style:none;padding:0;margin:0 0 32px;text-align:left;display:inline-block;">' +
-            '<li style="padding:6px 0;color:#dde6f0;font-size:0.92rem;">&#10003;&nbsp; All ATC radio simulators</li>' +
-            '<li style="padding:6px 0;color:#dde6f0;font-size:0.92rem;">&#10003;&nbsp; Complete training routes</li>' +
-            '<li style="padding:6px 0;color:#dde6f0;font-size:0.92rem;">&#10003;&nbsp; Official ICAO AI evaluation</li>' +
-            '<li style="padding:6px 0;color:#dde6f0;font-size:0.92rem;">&#10003;&nbsp; Downloadable level certificates</li>' +
-            '<li style="padding:6px 0;color:#dde6f0;font-size:0.92rem;">&#10003;&nbsp; Detailed performance analytics</li>' +
+            '<li style="padding:6px 0;color:var(--text);font-size:0.92rem;">&#10003;&nbsp; All ATC radio simulators</li>' +
+            '<li style="padding:6px 0;color:var(--text);font-size:0.92rem;">&#10003;&nbsp; Complete training routes</li>' +
+            '<li style="padding:6px 0;color:var(--text);font-size:0.92rem;">&#10003;&nbsp; Official ICAO AI evaluation</li>' +
+            '<li style="padding:6px 0;color:var(--text);font-size:0.92rem;">&#10003;&nbsp; Downloadable level certificates</li>' +
+            '<li style="padding:6px 0;color:var(--text);font-size:0.92rem;">&#10003;&nbsp; Detailed performance analytics</li>' +
           '</ul>' +
           '<button class="btn btn-cta-pulse" style="width:100%;padding:14px;font-size:1rem;margin-bottom:12px;" onclick="openSubscriptionModal()">Get full access</button>' +
           '<button class="btn secondary" style="width:100%;padding:12px;" onclick="_paywallVerify()">I already paid — activate my plan</button>' +
@@ -1169,11 +1169,10 @@
     if (existing) return;
     var bar = document.createElement('div');
     bar.id = 'trialBanner';
-    bar.style.cssText = 'background:#000000;border-bottom:1px solid rgba(255,255,255,0.1);color:#fff;text-align:center;padding:10px 16px;font-size:0.85rem;display:flex;align-items:center;justify-content:center;gap:16px;';
+    bar.className = 'trial-banner';
     bar.innerHTML =
       '<span>&#9200; <strong>' + daysLeft + ' day' + (daysLeft !== 1 ? 's' : '') + ' left</strong> in your free trial</span>' +
-      '<button onclick="openSubscriptionModal();document.getElementById(\'trialBanner\').remove();" ' +
-        'style="background:#00d48e;color:#000;border:none;border-radius:6px;padding:5px 14px;font-size:0.8rem;font-weight:700;cursor:pointer;">Subscribe now</button>';
+      '<button class="trial-banner-btn" onclick="openSubscriptionModal();document.getElementById(\'trialBanner\').remove();">Subscribe now</button>';
     var content = byId('contentArea');
     if (content && content.parentNode) content.parentNode.insertBefore(bar, content);
   }
