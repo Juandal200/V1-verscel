@@ -129,7 +129,7 @@
               <span id="topnavStreakChip" class="topnav-streak-chip" style="display:none;"></span>
               <small id="topnavLevelsLabel" class="topnav-levels-lbl" style="display:none;"></small>
             </div>
-            <div class="topbar-avatar" id="topbarAvatar">
+            <div class="topbar-avatar" id="topbarAvatar" onclick="toggleAvatarMenu()" role="button" tabindex="0" aria-label="Account menu" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleAvatarMenu()}" style="cursor:pointer;">
               <img src="<?!= getPilotAvatarUrl() ?>" class="topbar-avatar-img" alt="Pilot" draggable="false">
             </div>
           </div>
@@ -170,10 +170,7 @@
           <span class="mob-nav-lbl">Shop</span>
         </button>
 
-        <button class="mob-nav-btn hidden" data-nav="Admin" onclick="renderAdminNav()" id="mobAdminNavBtn">
-          <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-          <span class="mob-nav-lbl">Admin</span>
-        </button>
+        <!-- Admin removed from bottom bar — accessible via avatar tap -->
       </nav>
     </section>
 

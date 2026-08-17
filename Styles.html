@@ -797,6 +797,60 @@
     white-space: nowrap;
   }
 
+  /* ── Avatar dropdown menu ───────────────────────────────────────── */
+  @keyframes avmIn {
+    from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+    to   { opacity: 1; transform: none; }
+  }
+  .avm {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    min-width: 196px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.38);
+    overflow: hidden;
+    animation: avmIn 0.18s cubic-bezier(0.22,1,0.36,1) both;
+  }
+  .avm-header {
+    padding: 14px 16px 12px;
+  }
+  .avm-name {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0 0 2px;
+  }
+  .avm-rank {
+    font-size: 0.72rem;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .avm-divider {
+    height: 1px;
+    background: var(--line);
+  }
+  .avm-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 11px 16px;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    font-family: inherit;
+    transition: background 0.12s;
+  }
+  @media (hover: hover) { .avm-item:hover { background: var(--panel-soft); } }
+  .avm-item:active { background: var(--line); }
+  .avm-icon { font-size: 1rem; flex-shrink: 0; }
+  .avm-signout { color: var(--muted); }
+  [data-theme="light"] .avm { box-shadow: 0 12px 40px rgba(0,0,0,0.14); }
+
   /* ── Slim topbar (only shows admin VIEW AS when present) ────────── */
   .topbar-slim {
     margin-bottom: 0;
@@ -9358,6 +9412,11 @@ p, li, td, th, h1, h2, h3, h4,
   transition: border-color 0.18s, transform 0.15s;
 }
 @media (hover: hover) { .lms-module-card:hover { border-color: rgba(0,212,142,0.3); transform: translateY(-2px); } }
+@media (hover: hover) { .streak-hero-card:hover { box-shadow: 0 8px 32px rgba(0,0,0,.4); } }
+@media (hover: hover) { .quiz-opt:hover { border-color: var(--cyan) !important; background: rgba(14,165,233,.05); } }
+.streak-hero-card:active { transform: scale(0.985); opacity: 0.9; }
+@media (hover: hover) { .lms-module-card-wrap:hover > div { box-shadow: 0 6px 28px rgba(0,0,0,.25); } }
+.lms-module-card-wrap:active > div { transform: scale(0.985); }
 .lms-module-card--soon { opacity: 0.55; pointer-events: none; }
 .lms-module-icon { font-size: 28px; line-height: 1; }
 .lms-module-body { flex: 1; }
@@ -10289,42 +10348,44 @@ p, li, td, th, h1, h2, h3, h4,
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 6px 10px;
-  min-width: 52px;
+  gap: 3px;
+  padding: 6px 12px 8px;
+  min-width: 56px;
+  flex: 1;
   background: none;
   border: none;
   cursor: pointer;
-  color: rgba(255,255,255,0.38);
+  color: rgba(255,255,255,0.28);
   transition: color 0.15s ease, transform 0.1s ease;
   position: relative;
   -webkit-tap-highlight-color: transparent;
   font-family: inherit;
 }
 
-.mob-nav-btn:active { transform: scale(0.92); }
+.mob-nav-btn:active { transform: scale(0.9); }
 
 .mob-nav-btn.active { color: #00d48e; }
 
+/* Active pill behind icon */
 .mob-nav-btn.active::before {
   content: '';
   position: absolute;
-  top: 0;
+  top: 5px;
   left: 50%;
   transform: translateX(-50%);
-  width: 24px;
-  height: 2px;
-  background: #00d48e;
-  border-radius: 0 0 3px 3px;
-  animation: mob-tab-line-in 0.22s ease;
+  width: 44px;
+  height: 28px;
+  background: rgba(0,212,142,0.12);
+  border-radius: 14px;
+  animation: mob-tab-pill-in 0.22s cubic-bezier(0.22,1,0.36,1);
 }
 
-@keyframes mob-tab-line-in {
-  from { width: 0; opacity: 0; }
-  to   { width: 24px; opacity: 1; }
+@keyframes mob-tab-pill-in {
+  from { opacity: 0; transform: translateX(-50%) scale(0.7); }
+  to   { opacity: 1; transform: translateX(-50%) scale(1); }
 }
 
-[data-theme="light"] .mob-nav-btn.active::before { background: #009e6a; }
+[data-theme="light"] .mob-nav-btn.active::before { background: rgba(0,158,106,0.1); }
 
 .mob-nav-btn svg {
   width: 22px;
@@ -10332,18 +10393,21 @@ p, li, td, th, h1, h2, h3, h4,
   flex-shrink: 0;
   stroke: currentColor;
   fill: none;
+  position: relative;
+  z-index: 1;
 }
 
 .mob-nav-lbl {
-  font-size: 0.59rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   line-height: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .mob-nav-badge {
@@ -10370,7 +10434,7 @@ p, li, td, th, h1, h2, h3, h4,
   background: rgba(252,252,252,0.97);
   border-top-color: rgba(0,0,0,0.07);
 }
-[data-theme="light"] .mob-nav-btn { color: rgba(0,0,0,0.32); }
+[data-theme="light"] .mob-nav-btn { color: rgba(0,0,0,0.28); }
 [data-theme="light"] .mob-nav-btn.active { color: #009e6a; }
 [data-theme="light"] .mobile-bottom-nav::before {
   background: linear-gradient(90deg, transparent 0%, rgba(0,158,106,0.35) 35%, rgba(59,130,246,0.25) 65%, transparent 100%);
@@ -10381,20 +10445,23 @@ p, li, td, th, h1, h2, h3, h4,
   /* Hide topnav nav pills — they move to the bottom bar */
   .topnav-nav { display: none !important; }
 
-  /* Condense the top bar */
-  .app-topnav { padding: 8px 14px; gap: 8px; }
+  /* Condense the top bar — clean logo-left / avatar-right layout */
+  .app-topnav { padding: 10px 16px; gap: 0; justify-content: space-between; }
 
-  /* Hide XP/streak/levels text — keep avatar only */
+  /* Hide XP/streak/levels text and rank stripes — avatar only on mobile */
   .topnav-rank-meta { display: none !important; }
 
-  /* Smaller avatar + logo */
+  /* Hide theme toggle in topbar on mobile — it lives in the avatar menu */
+  #themeToggleBtn { display: none !important; }
+
+  /* Smaller avatar */
   .topbar-avatar { width: 40px; height: 40px; }
   .topbar-avatar-img { width: 36px; height: 36px; }
   .topbar-avatar-rank { font-size: 0.58rem; }
-  .brand-logo-topnav { height: 36px; }
 
-  /* Make the theme toggle icon-only size */
-  .topnav-btn { padding: 6px 10px !important; }
+  /* Logo: just the image, no text label on mobile */
+  .brand-logo-topnav { height: 32px; }
+  .topnav-brand > div { display: none; }
 
   /* Bottom padding so content never hides behind the tab bar */
   .main { padding-bottom: calc(72px + env(safe-area-inset-bottom)) !important; }

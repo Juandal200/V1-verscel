@@ -1043,12 +1043,11 @@
     if (role === 'ADMIN' || role === 'INSTRUCTOR') {
       byId('adminNavButton').classList.remove('hidden');
       if (byId('analyticsNavButton')) byId('analyticsNavButton').classList.remove('hidden');
-      if (byId('mobAdminNavBtn')) byId('mobAdminNavBtn').classList.remove('hidden');
     } else {
       byId('adminNavButton').classList.add('hidden');
       if (byId('analyticsNavButton')) byId('analyticsNavButton').classList.add('hidden');
-      if (byId('mobAdminNavBtn')) byId('mobAdminNavBtn').classList.add('hidden');
     }
+    // Admin is accessible via avatar tap on mobile — never show in bottom bar
 
     AppState.viewAs = role;
     if (role === 'ADMIN') {
@@ -1303,7 +1302,7 @@
           ? '<style>@keyframes _lmsFlicker{0%,100%{opacity:.72;transform:scale(1) rotate(-2deg)}50%{opacity:.38;transform:scale(.88) rotate(2deg)}}</style>'
           : '';
         streakCard = flicker +
-          '<div onclick="_navTo(renderSimulatorPlaceholder)" style="flex:1;min-width:280px;cursor:pointer;background:' + gradient + ';border-radius:14px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 24px 28px;text-align:center;transition:box-shadow .2s;" onmouseenter="this.style.boxShadow=\'0 8px 32px rgba(0,0,0,.4)\'" onmouseleave="this.style.boxShadow=\'\'">' +
+          '<div onclick="_navTo(renderSimulatorPlaceholder)" class="streak-hero-card" style="flex:1;min-width:280px;cursor:pointer;background:' + gradient + ';border-radius:14px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 24px 28px;text-align:center;">' +
             '<div style="font-size:4.2rem;line-height:1;margin-bottom:14px;filter:' + flameFilter + ';transition:filter 1s;' + (hour >= 19 ? 'animation:_lmsFlicker 1.6s ease-in-out infinite;' : '') + '">🔥</div>' +
             '<div style="font-size:4.5rem;font-weight:900;color:#fff;line-height:1;letter-spacing:-0.02em;">' + days + '</div>' +
             '<div style="font-size:1rem;font-weight:700;color:rgba(255,255,255,.75);margin-top:2px;margin-bottom:6px;">day streak</div>' +
@@ -10747,6 +10746,63 @@
   window.logout      = logout;
   window.toggleTheme = toggleTheme;
 
+  window.toggleAvatarMenu = function() {
+    var existing = byId('_avatarMenu');
+    if (existing) { existing.remove(); return; }
+
+    var avatar = byId('topbarAvatar');
+    if (!avatar) return;
+    var rect = avatar.getBoundingClientRect();
+
+    var user = AppState.user || {};
+    var role = user.role || '';
+    var isAdmin = role === 'ADMIN' || role === 'INSTRUCTOR';
+
+    var tierLabel = '';
+    if (window._gamTierOf) {
+      var lvl = Number(user.currentLevel || 1);
+      var tier = window._gamTierOf(Math.max(0, lvl - 1), user.profession || 'PILOT');
+      if (tier) tierLabel = tier.label;
+    }
+
+    var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    var themeLabel = isLight ? '🌙 Dark mode' : '☀️ Light mode';
+
+    var adminHtml = isAdmin ?
+      '<div class="avm-divider"></div>' +
+      '<button class="avm-item" onclick="renderAdminNav();window.toggleAvatarMenu()"><span class="avm-icon">⚙️</span>Admin Panel</button>' +
+      (typeof renderAdminAnalytics === 'function' ? '<button class="avm-item" onclick="renderAdminAnalytics();window.toggleAvatarMenu()"><span class="avm-icon">📊</span>Analytics</button>' : '') : '';
+
+    var menu = document.createElement('div');
+    menu.id = '_avatarMenu';
+    menu.className = 'avm';
+    menu.innerHTML =
+      '<div class="avm-header">' +
+        '<div class="avm-name">' + safeText(user.name || 'Pilot') + '</div>' +
+        (tierLabel ? '<div class="avm-rank">' + safeText(tierLabel) + '</div>' : '') +
+      '</div>' +
+      adminHtml +
+      '<div class="avm-divider"></div>' +
+      '<button class="avm-item" onclick="toggleTheme();var m=byId(\'_avatarMenu\');if(m)m.remove();"><span class="avm-icon">🌓</span>' + themeLabel + '</button>' +
+      '<div class="avm-divider"></div>' +
+      '<button class="avm-item avm-signout" onclick="logout()"><span class="avm-icon">↪</span>Sign out</button>';
+
+    var rightEdge = window.innerWidth - rect.right;
+    menu.style.cssText = 'position:fixed;top:' + (rect.bottom + 8) + 'px;right:' + Math.max(8, rightEdge) + 'px;z-index:1000;';
+    document.body.appendChild(menu);
+
+    setTimeout(function() {
+      document.addEventListener('click', function _avmClose(e) {
+        var m = byId('_avatarMenu');
+        var av = byId('topbarAvatar');
+        if (m && !m.contains(e.target) && av && !av.contains(e.target)) {
+          m.remove();
+          document.removeEventListener('click', _avmClose);
+        }
+      });
+    }, 20);
+  };
+
   // Sync icon on load in case theme was already active from localStorage
   (function() {
     var btn = document.getElementById('themeToggleBtn');
@@ -11148,8 +11204,8 @@
           '</button>'
         : '<button class="btn secondary" style="font-size:0.8rem;padding:7px 16px;width:100%;opacity:0.5;cursor:not-allowed;" disabled>🔒 Locked</button>';
 
-      return '<div style="' + (!locked ? 'cursor:pointer;' : 'opacity:0.65;') + '"' +
-        (!locked ? ' onclick="renderModuleDetail(\'' + m.moduleId + '\')" onmouseenter="this.querySelector(\'div\').style.boxShadow=\'0 6px 28px rgba(0,0,0,.25)\'" onmouseleave="this.querySelector(\'div\').style.boxShadow=\'\'"' : '') + '>' +
+      return '<div class="lms-module-card-wrap" style="' + (!locked ? 'cursor:pointer;' : 'opacity:0.65;') + '"' +
+        (!locked ? ' onclick="renderModuleDetail(\'' + m.moduleId + '\')"' : '') + '>' +
         '<div style="border:1px solid ' + (completed ? 'rgba(22,163,74,.3)' : inProgress ? 'rgba(14,165,233,.2)' : 'var(--line)') + ';border-radius:14px;overflow:hidden;background:var(--panel);transition:box-shadow .2s;">' +
 
           thumb +
@@ -12156,7 +12212,7 @@
     var inputs = questions.map(function(q, i) {
       var opts = (q.options || []).map(function(opt, j) {
         var inputId = formId + '_q' + i + '_o' + j;
-        return '<label for="' + inputId + '" class="quiz-opt" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:11px 14px;border-radius:8px;border:1.5px solid var(--line);margin-bottom:6px;transition:border-color .15s,background .15s;" onmouseenter="this.style.borderColor=\'var(--cyan)\';this.style.background=\'rgba(14,165,233,.05)\'" onmouseleave="this.style.borderColor=\'var(--line)\';this.style.background=\'\'">' +
+        return '<label for="' + inputId + '" class="quiz-opt" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:11px 14px;border-radius:8px;border:1.5px solid var(--line);margin-bottom:6px;transition:border-color .15s,background .15s;">' +
           '<input id="' + inputId + '" type="radio" name="' + formId + '_q' + i + '" value="' + j + '" style="margin-top:2px;accent-color:var(--cyan);flex-shrink:0;">' +
           '<span style="font-size:0.88rem;line-height:1.45;">' + safeText(opt) + '</span>' +
         '</label>';
@@ -12502,9 +12558,7 @@
 
       var opts = (q.options || []).map(function(opt, j) {
         var inputId = 'evalQ_' + i + '_o' + j;
-        return '<label for="' + inputId + '" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:11px 14px;border-radius:8px;border:1.5px solid var(--line);margin-bottom:6px;transition:border-color .15s,background .15s;" ' +
-          'onmouseenter="this.style.borderColor=\'var(--cyan)\';this.style.background=\'rgba(14,165,233,.05)\'" ' +
-          'onmouseleave="this.style.borderColor=\'var(--line)\';this.style.background=\'\'">' +
+        return '<label for="' + inputId + '" class="quiz-opt" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:11px 14px;border-radius:8px;border:1.5px solid var(--line);margin-bottom:6px;transition:border-color .15s,background .15s;">' +
           '<input id="' + inputId + '" type="radio" name="evalQ_' + i + '" value="' + j + '" style="margin-top:2px;accent-color:var(--cyan);flex-shrink:0;">' +
           '<span style="font-size:0.88rem;line-height:1.45;">' + safeText(opt) + '</span>' +
         '</label>';
