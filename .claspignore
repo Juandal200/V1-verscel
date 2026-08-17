@@ -1,5 +1,6 @@
 build.js
 shim.js
+sw.js
 package.json
 vercel.json
 dist/**
