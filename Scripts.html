@@ -10759,11 +10759,14 @@
     var isAdmin = role === 'ADMIN' || role === 'INSTRUCTOR';
 
     var tierLabel = '';
+    var tierColor = 'var(--cyan)';
     if (window._gamTierOf) {
       var lvl = Number(user.currentLevel || 1);
       var tier = window._gamTierOf(Math.max(0, lvl - 1), user.profession || 'PILOT');
-      if (tier) tierLabel = tier.label;
+      if (tier) { tierLabel = tier.label; tierColor = tier.color || tierColor; }
     }
+    var xpText   = (byId('topnavXpLabel')    || {}).textContent || '';
+    var nextText = (byId('topnavLevelsLabel') || {}).textContent || '';
 
     var isLight = document.documentElement.getAttribute('data-theme') === 'light';
     var themeLabel = isLight ? '🌙 Dark mode' : '☀️ Light mode';
@@ -10779,7 +10782,9 @@
     menu.innerHTML =
       '<div class="avm-header">' +
         '<div class="avm-name">' + safeText(user.name || 'Pilot') + '</div>' +
-        (tierLabel ? '<div class="avm-rank">' + safeText(tierLabel) + '</div>' : '') +
+        (tierLabel ? '<div class="avm-rank" style="color:' + tierColor + ';">' + safeText(tierLabel) + '</div>' : '') +
+        (xpText ? '<div style="font-size:0.78rem;font-weight:700;color:' + tierColor + ';margin-top:4px;">' + safeText(xpText) + '</div>' : '') +
+        (nextText ? '<div style="font-size:0.7rem;color:var(--muted);margin-top:1px;">' + safeText(nextText) + '</div>' : '') +
       '</div>' +
       adminHtml +
       '<div class="avm-divider"></div>' +
