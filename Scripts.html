@@ -1116,7 +1116,7 @@
           '<p class="subtitle">Your aviation communication workspace is ready. Start simulator practice, review progress and check training updates from this home page.</p>' +
           '<div class="welcome-actions">' +
             '<button class="btn primary" onclick="renderSimulatorPlaceholder()">Start simulator</button>' +
-            '<button class="btn secondary" onclick="renderHome()">Refresh</button>' +
+            '<button class="btn secondary" onclick="_navTo(renderHome)">Refresh</button>' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -4746,8 +4746,15 @@
           safeText(countryMeta.label) + ' · Connecting to route database.</p>' +
       '</div>';
 
+    var _routeLoadTimer = setTimeout(function() {
+      _routeLoadTimer = null;
+      showContentError('Connection timed out. Check your network and try again.');
+    }, 15000);
+
     google.script.run
       .withSuccessHandler(function (res) {
+        if (!_routeLoadTimer) return; // already timed out
+        clearTimeout(_routeLoadTimer);
         console.log('[ICAO] apiGetTrainingRouteV7_ROUTE_ADMIN response:', res);
 
         if (!res || !res.ok) {
@@ -4784,6 +4791,7 @@
           .apiGetLevelConfig(AppState.sessionToken, selectedLevel);
       })
       .withFailureHandler(function (err) {
+        clearTimeout(_routeLoadTimer);
         showContentError(err && err.message ? err.message : 'Server error loading training route.');
       })
       .apiGetTrainingRouteV7_ROUTE_ADMIN(AppState.sessionToken, {
@@ -6631,6 +6639,25 @@
       host.innerHTML = buildScenarioVisualHtml(videoUrl);
       var _norm = normalizeScenarioVideoUrl(videoUrl);
       if (_norm.type === 'drive-preview') { _driveLoopInstall(host.querySelector('iframe'), _norm.url); }
+      if (_norm.type === 'youtube') {
+        var _ytErrHandler = function(e) {
+          try {
+            var d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+            if (d && d.event === 'onError') {
+              window.removeEventListener('message', _ytErrHandler);
+              var h = byId('simVisualHost');
+              if (h) h.innerHTML =
+                '<div class="sim-video-frame" style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--muted);font-size:0.82rem;">' +
+                  '<span style="font-size:1.8rem;">&#128225;</span>' +
+                  '<span>Video unavailable</span>' +
+                  '<span style="font-size:0.72rem;opacity:0.6;">Training continues without visual</span>' +
+                '</div>';
+            }
+          } catch(e2) {}
+        };
+        window.addEventListener('message', _ytErrHandler);
+        setTimeout(function() { window.removeEventListener('message', _ytErrHandler); }, 30000);
+      }
       return;
     }
 
