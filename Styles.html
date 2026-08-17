@@ -10795,9 +10795,12 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 }
 [data-theme="light"] .home-hero-label { color: #009e6a; }
 
+/* Home card image banner height — CSS owns this, no inline style conflict */
+.home-card-img { padding-bottom: 42%; }
+@media (max-width: 768px) { .home-card-img { padding-bottom: 30%; } }
+
 @media (max-width: 480px) {
-  /* Reduce home card image banner height: 42% → 20% of card width */
-  .home-card-img { padding-bottom: 20% !important; }
+  .home-card-img { padding-bottom: 22%; }
   /* Compact stat numbers inside home cards */
   .home-stat-val { font-size: 1.05rem !important; }
 

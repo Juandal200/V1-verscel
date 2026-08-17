@@ -1265,7 +1265,7 @@
         // opts: { gradient, icon, badge, title, subtitle, statusHtml, bodyHtml, btnLabel, btnClass, onClick }
         return '<div class="home-feature-card" role="button" tabindex="0" onclick="' + opts.onClick + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + opts.onClick + '}" style="flex:1;min-width:280px;">' +
           // image header — reduced to 28% on narrow phones via .home-card-img CSS override
-          '<div class="home-card-img" style="position:relative;padding-bottom:42%;background:' + opts.gradient + ';overflow:hidden;">' +
+          '<div class="home-card-img" style="position:relative;background:' + opts.gradient + ';overflow:hidden;">' +
             '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 55%);"></div>' +
             '<div style="position:absolute;bottom:12px;left:14px;display:flex;align-items:center;gap:10px;">' +
               '<div style="width:38px;height:38px;border-radius:50%;background:' + opts.icon.bg + ';border:2px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-size:1.1rem;">' + opts.icon.emoji + '</div>' +
