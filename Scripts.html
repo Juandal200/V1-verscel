@@ -13637,11 +13637,13 @@
   }
 
   function _renderQuizBuilder(moduleId, moduleTitle, questions) {
-    var expQs  = questions.filter(function(q) { return (q.section || 'explanation') === 'explanation'; });
-    var evalQs = questions.filter(function(q) { return q.section === 'evaluation'; });
+    var introQs = questions.filter(function(q) { return q.section === 'intro'; });
+    var expQs   = questions.filter(function(q) { return (q.section || 'explanation') === 'explanation'; });
+    var evalQs  = questions.filter(function(q) { return q.section === 'evaluation'; });
 
     function sectionBadge(q) {
       if (q.section === 'evaluation') return '<span style="font-size:0.65rem;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(234,179,8,.12);color:#ca8a04;border:1px solid rgba(234,179,8,.3);">EVAL</span>';
+      if (q.section === 'intro')      return '<span style="font-size:0.65rem;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(29,78,216,.12);color:#60a5fa;border:1px solid rgba(29,78,216,.3);">INTRO</span>';
       return '<span style="font-size:0.65rem;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(14,165,233,.1);color:var(--cyan);border:1px solid rgba(14,165,233,.25);">EXP</span>';
     }
     function typeBadge(q) {
@@ -13677,7 +13679,8 @@
       '<div class="panel">' +
         renderAdminTabs('modules') +
         _moduleBuilderSubnav(moduleId, moduleTitle, 'quiz', '+ Add Question', 'adminShowQuestionForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',null)') +
-        '<div style="display:flex;gap:10px;margin-bottom:12px;font-size:0.78rem;color:var(--muted);">' +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;font-size:0.78rem;color:var(--muted);">' +
+          '<span style="padding:3px 10px;border-radius:6px;background:rgba(29,78,216,.08);border:1px solid rgba(29,78,216,.2);">INTRO = Intro video quiz (' + introQs.length + ')</span>' +
           '<span style="padding:3px 10px;border-radius:6px;background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.2);">EXP = Explanation quiz (' + expQs.length + ')</span>' +
           '<span style="padding:3px 10px;border-radius:6px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);">EVAL = Evaluation exam (' + evalQs.length + ')</span>' +
         '</div>' +
@@ -13761,7 +13764,8 @@
             '<div style="flex:1;">' +
               '<label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px;">Section</label>' +
               '<select id="qfSection" class="input" onchange="_qfToggleSection(this.value)">' +
-                '<option value="explanation"' + (qSection === 'explanation' ? ' selected' : '') + '>Explanation Quiz</option>' +
+                '<option value="intro"'       + (qSection === 'intro'       ? ' selected' : '') + '>Introduction Video Quiz</option>' +
+                '<option value="explanation"' + (qSection === 'explanation' ? ' selected' : '') + '>Explanation Video Quiz</option>' +
                 '<option value="evaluation"'  + (qSection === 'evaluation'  ? ' selected' : '') + '>Evaluation Exam</option>' +
               '</select>' +
             '</div>' +
@@ -13849,13 +13853,13 @@
       questionOrder:  Number((byId('qfOrder') || {}).value) || 0,
       questionType:   (byId('qfType') || {}).value || 'standard',
       audioScript:    (byId('qfAudioScript') || {}).value || '',
-      videoId:        section === 'explanation' ? ((byId('qfVideoId') || {}).value || '') : '',
+      videoId:        (section === 'explanation' || section === 'intro') ? ((byId('qfVideoId') || {}).value || '') : '',
       question:       (byId('qfQuestion') || {}).value.trim(),
       options:        opts,
       correctIndex:   correctIdx,
       explanation:    (byId('qfExplanation') || {}).value.trim(),
       xpReward:       Number((byId('qfXp') || {}).value) || 5,
-      videoTimestamp: section === 'explanation' ? _mmssToSecs((byId('qfTimestamp') || {}).value) : 0
+      videoTimestamp: (section === 'explanation' || section === 'intro') ? _mmssToSecs((byId('qfTimestamp') || {}).value) : 0
     };
     if (questionId) payload.questionId = questionId;
     byId('qfMsg').innerHTML = _spinnerHtml('Saving...');
