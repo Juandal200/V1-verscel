@@ -10787,8 +10787,15 @@
       '<div class="avm-divider"></div>' +
       '<button class="avm-item avm-signout" onclick="logout()"><span class="avm-icon">↪</span>Sign out</button>';
 
+    var menuWidth = 196;
     var rightEdge = window.innerWidth - rect.right;
-    menu.style.cssText = 'position:fixed;top:' + (rect.bottom + 8) + 'px;right:' + Math.max(8, rightEdge) + 'px;z-index:1000;';
+    var safeRight = Math.max(8, rightEdge);
+    // If menu would overflow left edge, anchor to left instead
+    var wouldClipLeft = (window.innerWidth - safeRight - menuWidth) < 8;
+    var posStyle = wouldClipLeft
+      ? 'left:8px;'
+      : 'right:' + safeRight + 'px;';
+    menu.style.cssText = 'position:fixed;top:' + (rect.bottom + 8) + 'px;' + posStyle + 'z-index:1000;max-width:calc(100vw - 16px);';
     document.body.appendChild(menu);
 
     setTimeout(function() {
@@ -11381,7 +11388,7 @@
 
         var player = new YT.Player(elId, {
           videoId: ytId,
-          playerVars: { rel: 0, autoplay: 1, modestbranding: 1 },
+          playerVars: { rel: 0, autoplay: 1, modestbranding: 1, playsinline: 1 },
           events: {
             onReady: function() {
               if (!window._lmsVidQuizzes[videoId]) {
@@ -11467,7 +11474,7 @@
       _lmsStartQuizMusic();
       var ov = document.createElement('div');
       ov.id = '_lmsVqOv';
-      ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.88);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+      ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.88);z-index:10000;display:flex;align-items:flex-start;justify-content:center;padding:max(24px,env(safe-area-inset-top)) 16px 24px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
       var opts = quiz.options || [];
       ov.innerHTML =
         '<div style="background:#0d0d0d;border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:20px;max-width:500px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.8);max-height:90vh;overflow-y:auto;">' +
