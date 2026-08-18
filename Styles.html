@@ -10593,27 +10593,28 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   /* Mobile section nav strip */
   .lms-mobile-section-nav {
     display: flex;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    gap: 6px;
-    padding: 10px 14px;
+    overflow: hidden;
+    gap: 0;
+    padding: 8px 10px;
     border-bottom: 1px solid var(--line);
     background: var(--panel-soft);
     flex-shrink: 0;
   }
-  .lms-mobile-section-nav::-webkit-scrollbar { display: none; }
 
   .lms-msn-btn {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 8px 14px;
+    justify-content: center;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+    padding: 8px 4px;
     border: 1.5px solid var(--line);
     border-radius: 20px;
+    margin: 0 3px;
     background: var(--panel);
     font-family: inherit;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
     color: var(--text);
     white-space: nowrap;

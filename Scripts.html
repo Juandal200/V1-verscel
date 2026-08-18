@@ -12164,8 +12164,6 @@
         '<div class="lms-left-col" style="flex:1;min-width:0;overflow-y:auto;">' +
           // Mobile-only horizontal section picker
           '<div class="lms-mobile-section-nav">' +
-            '<button onclick="renderModules()" style="background:none;border:1.5px solid var(--line);border-radius:20px;padding:7px 12px;font-family:inherit;font-size:0.78rem;font-weight:600;color:var(--cyan);cursor:pointer;white-space:nowrap;flex-shrink:0;-webkit-tap-highlight-color:transparent;">← Back</button>' +
-            '<div style="width:1px;height:20px;background:var(--line);flex-shrink:0;margin:0 2px;"></div>' +
             '<button class="lms-msn-btn' + (defaultSection==='intro'?' active':'') + '" data-section="intro" onclick="_lmsShowSection(\'intro\')">📖 Intro' + (lmsBool_(prog.introCompleted) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
             '<button class="lms-msn-btn' + (defaultSection==='explanation'?' active':'') + '" data-section="explanation"' + (!expUnlocked?' disabled':' onclick="_lmsShowSection(\'explanation\')"') + '>🎓 Explain' + (lmsBool_(prog.explanationCompleted) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
             '<button class="lms-msn-btn' + (defaultSection==='application'?' active':'') + '" data-section="application"' + (!appUnlocked?' disabled':' onclick="_lmsShowSection(\'application\')"') + '>🛫 Apply' + (lmsBool_(prog.applicationCompleted) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
