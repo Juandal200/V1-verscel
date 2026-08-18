@@ -979,7 +979,7 @@
       var sd = streakDays || 0;
       if (sd > 0) {
         var _freezes = window._lmsStreakFreezes || 0;
-        streakChip.textContent = '🔥 ' + sd + 'd' + (_freezes > 0 ? '  🧊' + _freezes : '');
+        streakChip.textContent = '🔥 ' + sd + 'd' + (_freezes > 0 ? '  🧊 ' + _freezes : '');
         streakChip.style.display = '';
       } else {
         streakChip.style.display = 'none';
@@ -21953,6 +21953,7 @@ var _dcItemIndex          = 0;
 var _dcSelected           = null;
 var _dcAnsweredCorrectly  = false;
 var _dcAudio              = null;
+var _dcNavGen             = 0; // incremented on each player render or nav-away to abort stale audio
 
 function _dcHomeBannerHtml(challenge) {
   if (challenge.alreadyDone) {
@@ -22011,9 +22012,16 @@ function openDailyChallenge() {
     .apiGetDailyChallenge(AppState.sessionToken);
 }
 
+function _dcStopAudio() {
+  _dcNavGen++;
+  if (_dcAudio) { try { _dcAudio.pause(); } catch(e) {} _dcAudio = null; }
+}
+
 function _dcRenderPlayer() {
   var ch = _dcChallenge;
   if (!ch || !ch.items || !ch.items.length) return;
+  _dcNavGen++;
+  var _myGen           = _dcNavGen;
   _dcSelected          = null;
   _dcAnsweredCorrectly = false;
   if (_dcAudio) { try { _dcAudio.pause(); } catch(e) {} _dcAudio = null; }
@@ -22031,7 +22039,7 @@ function _dcRenderPlayer() {
   byId('contentArea').innerHTML =
     '<div class="dc-player">' +
       '<div class="dc-player-topbar">' +
-        '<button class="btn secondary" onclick="_navTo(renderHome)" style="font-size:0.8rem;padding:5px 12px;">← Home</button>' +
+        '<button class="btn secondary" onclick="_dcStopAudio();_navTo(renderHome)" style="font-size:0.8rem;padding:5px 12px;">← Home</button>' +
         '<div class="dc-player-header-title">Daily Challenge</div>' +
         '<div class="dc-player-counter">' + pos + ' / ' + total + '</div>' +
       '</div>' +
@@ -22056,7 +22064,7 @@ function _dcRenderPlayer() {
       '</div>' +
     '</div>';
 
-  setTimeout(_dcPlayAudio, 350);
+  setTimeout(function() { if (_dcNavGen === _myGen) _dcPlayAudio(); }, 350);
 }
 
 function _dcOptHtml(letter, text) {
@@ -22067,6 +22075,7 @@ function _dcOptHtml(letter, text) {
 }
 
 function _dcPlayAudio() {
+  var _myGen = _dcNavGen; // capture gen at call time
   var btn   = byId('dcPlayBtn');
   var label = byId('dcPlayLabel');
   if (!btn || btn.disabled) return;
@@ -22074,10 +22083,12 @@ function _dcPlayAudio() {
   btn.disabled = true;
 
   var ch   = _dcChallenge;
+  if (!ch) return;
   var item = ch.items[_dcItemIndex];
 
   google.script.run
     .withSuccessHandler(function(res) {
+      if (_dcNavGen !== _myGen) return; // user navigated away
       var b = byId('dcPlayBtn');
       var l = byId('dcPlayLabel');
       if (b) b.disabled = false;
@@ -22115,7 +22126,7 @@ function _dcSelectOpt(letter) {
 }
 
 function _dcSubmitAnswer() {
-  if (!_dcSelected || _dcAnsweredCorrectly) return;
+  if (!_dcSelected || _dcAnsweredCorrectly || !_dcChallenge) return;
   var ab = byId('dcActionBtn');
   if (ab) ab.disabled = true;
 
@@ -22160,6 +22171,7 @@ function _dcSubmitAnswer() {
 }
 
 function _dcShowCompletion(res) {
+  _dcStopAudio();
   if (res.newFreezes !== null && res.newFreezes !== undefined) {
     window._lmsStreakFreezes = res.newFreezes;
   }
@@ -22173,6 +22185,7 @@ function _dcShowCompletion(res) {
       '<p class="dc-complete-msg">Come back tomorrow for a new challenge.</p>' +
       '<button class="btn primary" style="margin-top:24px;min-width:180px;" onclick="_navTo(renderHome)">← Home</button>' +
     '</div>';
+  try { window.scrollTo(0, 0); byId('contentArea').scrollTop = 0; } catch(e) {}
 
   if (res.xpAwarded)    setTimeout(function() { _gToast('+' + res.xpAwarded + ' XP earned!', 'ok'); }, 300);
   if (res.freezeAwarded) setTimeout(function() { _gToast('🧊 Streak freeze earned!', 'ok'); }, 900);
@@ -22244,9 +22257,10 @@ window._adminDcDelete = function(challengeId, title) {
 };
 
 function _adminDcShowForm(challenge) {
-  var isNew  = !challenge;
-  var cId    = isNew ? '' : challenge.challengeId;
-  var cTitle = isNew ? '' : challenge.title;
+  var isNew      = !challenge;
+  var cId        = isNew ? '' : challenge.challengeId;
+  var cTitle     = isNew ? '' : challenge.title;
+  var cDayIndex  = isNew ? null : (challenge.dayIndex !== undefined ? challenge.dayIndex : null);
   var cItems = isNew
     ? [{ audioScript: '', questionText: '', optionA: '', optionB: '', optionC: '', optionD: '', correctOption: 'A' }]
     : (challenge.items || []);
@@ -22315,6 +22329,7 @@ function _adminDcShowForm(challenge) {
       })
       .apiAdminSaveDailyChallenge(AppState.sessionToken, {
         challengeId: cId || undefined,
+        dayIndex:    cDayIndex,
         title:       title,
         items:       window._dcFormItems
       });

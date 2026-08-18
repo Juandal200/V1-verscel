@@ -196,13 +196,21 @@ function apiSubmitDailyChallengeAnswer(sessionToken, challengeId, itemOrder, ans
     var newFreezes    = _dcGetFreezes_(user.userId);
 
     if (correct && isLast) {
+      // Script lock prevents concurrent double-completion (race condition on last item)
+      var lock = LockService.getScriptLock();
+      var acquired = false;
+      try { lock.tryLock(4000); acquired = true; } catch(e) {}
+
       var today = _dcTodayStr_();
-      var logs  = dbReadAll_(DC_SHEETS.LOG);
-      var alreadyDone = logs.some(function(r) {
-        return String(r.User_ID)      === String(user.userId) &&
-               String(r.Challenge_ID) === String(challengeId) &&
-               String(r.Date)         === today &&
-               String(r.Completed)    === 'true';
+      // Count existing completions BEFORE appending (used for first-completion freeze)
+      var allLogsBefore = dbReadAll_(DC_SHEETS.LOG).filter(function(r) {
+        return String(r.User_ID) === String(user.userId) && String(r.Completed) === 'true';
+      });
+      var prevCompletionCount = allLogsBefore.length;
+
+      var alreadyDone = allLogsBefore.some(function(r) {
+        return String(r.Challenge_ID) === String(challengeId) &&
+               String(r.Date)         === today;
       });
 
       if (!alreadyDone) {
@@ -220,11 +228,8 @@ function apiSubmitDailyChallengeAnswer(sessionToken, challengeId, itemOrder, ans
         xpAwarded    = DC_XP_REWARD;
         newStreakDays = lmsUpdateStreak_(user.userId);
 
-        // Freeze: first completion ever
-        var allUserLogs = dbReadAll_(DC_SHEETS.LOG).filter(function(r) {
-          return String(r.User_ID) === String(user.userId) && String(r.Completed) === 'true';
-        });
-        if (allUserLogs.length === 1) {
+        // Freeze: first completion ever (use pre-append count)
+        if (prevCompletionCount === 0) {
           _dcAddFreezes_(user.userId, 1);
           freezeAwarded = 1;
         } else if (newStreakDays > 0 && newStreakDays % 3 === 0) {
@@ -234,6 +239,8 @@ function apiSubmitDailyChallengeAnswer(sessionToken, challengeId, itemOrder, ans
         }
         newFreezes = _dcGetFreezes_(user.userId);
       }
+
+      if (acquired) { try { lock.releaseLock(); } catch(e) {} }
     }
 
     return {
