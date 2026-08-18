@@ -11947,18 +11947,15 @@
       var meta    = _sectionMeta[key] || { icon: '', label: key, num: '' };
       var isActive = key === (defaultSection || 'intro');
       return '<div id="lmsPanel-' + key + '" style="display:' + (isActive ? 'block' : 'none') + ';">' +
-        '<div style="display:flex;align-items:center;gap:12px;padding:13px 20px;background:var(--panel-soft);border-bottom:1px solid var(--line);">' +
-          '<span style="font-size:1.25rem;">' + meta.icon + '</span>' +
-          '<div style="flex:1;">' +
-            '<p style="margin:0;font-size:0.72rem;color:var(--muted);font-weight:700;letter-spacing:.1em;text-transform:uppercase;">Section ' + meta.num + '</p>' +
-            '<p style="margin:0;font-size:0.92rem;font-weight:700;color:' + (completed ? '#16a34a' : unlocked ? 'var(--text)' : 'var(--muted)') + ';">' + meta.label + '</p>' +
-          '</div>' +
-          (completed ? '<span style="font-size:0.72rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:2px 8px;border-radius:10px;">✓ Done</span>' : (!unlocked ? '<span style="font-size:0.85rem;color:var(--muted);">🔒</span>' : '')) +
+        '<div style="display:flex;align-items:center;gap:7px;padding:7px 16px;background:var(--panel-soft);border-bottom:1px solid var(--line);">' +
+          '<span style="font-size:0.85rem;">' + meta.icon + '</span>' +
+          '<span style="font-size:0.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;">Section ' + meta.num + ' · ' + meta.label + '</span>' +
+          (completed ? '<span style="margin-left:auto;font-size:0.65rem;font-weight:700;color:#16a34a;background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 7px;border-radius:8px;">✓ Done</span>' : (!unlocked ? '<span style="margin-left:auto;font-size:0.78rem;">🔒</span>' : '')) +
         '</div>' +
         (unlocked ? bodyHtml :
-          '<div style="padding:48px 32px;text-align:center;">' +
-            '<div style="font-size:2.8rem;margin-bottom:16px;">🔒</div>' +
-            '<p style="margin:0;font-size:0.95rem;font-weight:600;color:var(--muted);">' + (lockMsgs[key] || 'Locked') + '</p>' +
+          '<div style="padding:28px 24px;text-align:center;">' +
+            '<div style="font-size:2rem;margin-bottom:10px;">🔒</div>' +
+            '<p style="margin:0;font-size:0.85rem;font-weight:600;color:var(--muted);">' + (lockMsgs[key] || 'Locked') + '</p>' +
           '</div>') +
       '</div>';
     }
@@ -12160,13 +12157,23 @@
     var evalPanelHtml   = sectionPanel('evaluation',  evalUnlocked,  evalBody,  lmsBool_(prog.evalPassed));
 
     byId('contentArea').innerHTML =
-      // Breadcrumb
-      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;font-size:0.8rem;flex-wrap:nowrap;overflow:hidden;">' +
-        '<button onclick="renderModules()" style="background:none;border:none;padding:0;color:var(--cyan);font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;">← All Modules</button>' +
-        '<span style="color:var(--muted);flex-shrink:0;">›</span>' +
-        (m.topic ? '<span style="color:var(--muted);white-space:nowrap;flex-shrink:0;">' + safeText(m.topic) + '</span><span style="color:var(--muted);flex-shrink:0;">›</span>' : '') +
-        '<span style="color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0;">' + safeText(m.title) + '</span>' +
-        '<span style="margin-left:6px;flex-shrink:0;font-size:0.7rem;font-weight:700;background:' + (overallPct===100?'rgba(22,163,74,.15)':'rgba(14,165,233,.12)') + ';border:1px solid ' + (overallPct===100?'rgba(22,163,74,.3)':'rgba(14,165,233,.25)') + ';color:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';padding:2px 8px;border-radius:10px;white-space:nowrap;">' + sectionsDone + '/4 · ' + overallPct + '%</span>' +
+      // Module hero header
+      '<div class="lms-module-hdr">' +
+        '<button onclick="renderModules()" style="background:none;border:none;padding:0;color:var(--cyan);font-size:0.75rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:.02em;-webkit-tap-highlight-color:transparent;">← All Modules</button>' +
+        '<div style="display:flex;align-items:center;gap:12px;margin-top:10px;">' +
+          '<div style="width:48px;height:48px;border-radius:12px;background:var(--panel-soft);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:1.55rem;flex-shrink:0;">' + safeText(m.icon || '📚') + '</div>' +
+          '<div style="flex:1;min-width:0;">' +
+            (m.topic ? '<p style="margin:0 0 2px;font-size:0.65rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.1em;">' + safeText(m.topic) + '</p>' : '') +
+            '<p style="margin:0;font-size:1.05rem;font-weight:800;color:var(--text);line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + safeText(m.title) + '</p>' +
+          '</div>' +
+          '<div style="flex-shrink:0;text-align:right;">' +
+            '<p style="margin:0;font-size:1.1rem;font-weight:800;color:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';line-height:1;">' + overallPct + '%</p>' +
+            '<p style="margin:2px 0 0;font-size:0.6rem;color:var(--muted);font-weight:600;white-space:nowrap;">' + sectionsDone + ' / 4 done</p>' +
+          '</div>' +
+        '</div>' +
+        '<div style="margin-top:12px;height:6px;background:var(--line);border-radius:3px;overflow:hidden;">' +
+          '<div style="height:100%;width:' + overallPct + '%;background:' + (overallPct===100?'linear-gradient(90deg,#16a34a,#22c55e)':'linear-gradient(90deg,#0ea5e9,#00d48e)') + ';border-radius:3px;transition:width .4s ease;"></div>' +
+        '</div>' +
       '</div>' +
 
       // Two-column: one section at a time + right panel
@@ -12175,10 +12182,10 @@
         '<div class="lms-left-col" style="flex:1;min-width:0;overflow-y:auto;">' +
           // Mobile-only horizontal section picker
           '<div class="lms-mobile-section-nav">' +
-            '<button class="lms-msn-btn' + (defaultSection==='intro'?' active':'') + '" data-section="intro" onclick="_lmsShowSection(\'intro\')">📖 Intro</button>' +
-            '<button class="lms-msn-btn' + (defaultSection==='explanation'?' active':'') + '" data-section="explanation"' + (!expUnlocked?' disabled':' onclick="_lmsShowSection(\'explanation\')"') + '>🎓 Explain</button>' +
-            '<button class="lms-msn-btn' + (defaultSection==='application'?' active':'') + '" data-section="application"' + (!appUnlocked?' disabled':' onclick="_lmsShowSection(\'application\')"') + '>🛫 Apply</button>' +
-            '<button class="lms-msn-btn' + (defaultSection==='evaluation'?' active':'') + '" data-section="evaluation"' + (!evalUnlocked?' disabled':' onclick="_lmsShowSection(\'evaluation\')"') + '>🏆 Eval</button>' +
+            '<button class="lms-msn-btn' + (defaultSection==='intro'?' active':'') + '" data-section="intro" onclick="_lmsShowSection(\'intro\')">📖 Intro' + (lmsBool_(prog.introCompleted) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
+            '<button class="lms-msn-btn' + (defaultSection==='explanation'?' active':'') + '" data-section="explanation"' + (!expUnlocked?' disabled':' onclick="_lmsShowSection(\'explanation\')"') + '>🎓 Explain' + (lmsBool_(prog.explanationCompleted) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
+            '<button class="lms-msn-btn' + (defaultSection==='application'?' active':'') + '" data-section="application"' + (!appUnlocked?' disabled':' onclick="_lmsShowSection(\'application\')"') + '>🛫 Apply' + (lmsBool_(prog.applicationCompleted) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
+            '<button class="lms-msn-btn' + (defaultSection==='evaluation'?' active':'') + '" data-section="evaluation"' + (!evalUnlocked?' disabled':' onclick="_lmsShowSection(\'evaluation\')"') + '>🏆 Eval' + (lmsBool_(prog.evalPassed) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
           '</div>' +
           introPanelHtml + expPanelHtml + appPanelHtml + evalPanelHtml +
         '</div>' +
