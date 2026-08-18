@@ -7,6 +7,7 @@
 const fs            = require('fs');
 const path          = require('path');
 const { execSync }  = require('child_process');
+const { minify }    = require('terser');
 
 const ROOT = __dirname;
 const DIST = path.join(ROOT, 'dist');
@@ -132,41 +133,69 @@ html = html.replace(/(<script(?:\s[^>]*)?>)([\s\S]*?)(<\/script>)/gi, function(_
   return open + stripJsComments(js) + close;
 });
 
-// 6. Write output
-fs.writeFileSync(path.join(DIST, 'index.html'), html, 'utf8');
-
-const kb = Math.round(fs.statSync(path.join(DIST, 'index.html')).size / 1024);
-console.log('✓ dist/index.html  (' + kb + ' KB)');
-
-// 7. PWA icons — resize LOGOF.png (2048×2048) via macOS sips
-const logoSrc = path.join(ROOT, 'LOGOF.png');
-if (fs.existsSync(logoSrc)) {
-  try {
-    execSync('sips -z 192 192 "' + logoSrc + '" --out "' + path.join(DIST, 'icon-192.png') + '" > /dev/null 2>&1');
-    execSync('sips -z 512 512 "' + logoSrc + '" --out "' + path.join(DIST, 'icon-512.png') + '" > /dev/null 2>&1');
-    console.log('✓ PWA icons generated (192×192, 512×512)');
-  } catch(e) {
-    console.warn('⚠ Icon generation skipped:', e.message);
+// 6. Minify JS blocks with Terser, then write output
+(async function() {
+  // Replace each inline <script> block with its minified version
+  const scriptRe = /(<script(?:\s[^>]*)?>)([\s\S]*?)(<\/script>)/gi;
+  const parts = [];
+  let last = 0, match;
+  scriptRe.lastIndex = 0;
+  while ((match = scriptRe.exec(html)) !== null) {
+    parts.push(html.slice(last, match.index));
+    const open = match[1], js = match[2], close = match[3];
+    if (/\bsrc\s*=/.test(open) || js.trim().length < 20) {
+      parts.push(match[0]);
+    } else {
+      try {
+        const result = await minify(js, {
+          compress: { drop_console: false, passes: 2 },
+          mangle: false,  // keep names — GAS window.xxx pattern requires it
+          format: { comments: false }
+        });
+        parts.push(open + (result.code || js) + close);
+      } catch(e) {
+        parts.push(match[0]); // fallback to original on error
+      }
+    }
+    last = match.index + match[0].length;
   }
-}
+  parts.push(html.slice(last));
+  html = parts.join('');
 
-// 8. manifest.json
-fs.writeFileSync(path.join(DIST, 'manifest.json'), JSON.stringify({
-  name: 'AEROCOMMS',
-  short_name: 'AEROCOMMS',
-  description: 'ICAO Language Proficiency Training Platform',
-  start_url: '/',
-  display: 'standalone',
-  background_color: '#0d0d0d',
-  theme_color: '#0d0d0d',
-  orientation: 'any',
-  icons: [
-    { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-    { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
-  ]
-}, null, 2));
-console.log('✓ dist/manifest.json');
+  fs.writeFileSync(path.join(DIST, 'index.html'), html, 'utf8');
+  const kb = Math.round(fs.statSync(path.join(DIST, 'index.html')).size / 1024);
+  console.log('✓ dist/index.html  (' + kb + ' KB)');
 
-// 9. Service worker
-fs.copyFileSync(path.join(ROOT, 'sw.js'), path.join(DIST, 'sw.js'));
-console.log('✓ dist/sw.js');
+  // 7. PWA icons — resize LOGOF.png (2048×2048) via macOS sips
+  const logoSrc = path.join(ROOT, 'LOGOF.png');
+  if (fs.existsSync(logoSrc)) {
+    try {
+      execSync('sips -z 192 192 "' + logoSrc + '" --out "' + path.join(DIST, 'icon-192.png') + '" > /dev/null 2>&1');
+      execSync('sips -z 512 512 "' + logoSrc + '" --out "' + path.join(DIST, 'icon-512.png') + '" > /dev/null 2>&1');
+      console.log('✓ PWA icons generated (192×192, 512×512)');
+    } catch(e) {
+      console.warn('⚠ Icon generation skipped:', e.message);
+    }
+  }
+
+  // 8. manifest.json
+  fs.writeFileSync(path.join(DIST, 'manifest.json'), JSON.stringify({
+    name: 'AEROCOMMS',
+    short_name: 'AEROCOMMS',
+    description: 'ICAO Language Proficiency Training Platform',
+    start_url: '/',
+    display: 'standalone',
+    background_color: '#0d0d0d',
+    theme_color: '#0d0d0d',
+    orientation: 'any',
+    icons: [
+      { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+    ]
+  }, null, 2));
+  console.log('✓ dist/manifest.json');
+
+  // 9. Service worker
+  fs.copyFileSync(path.join(ROOT, 'sw.js'), path.join(DIST, 'sw.js'));
+  console.log('✓ dist/sw.js');
+})();

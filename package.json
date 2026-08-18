@@ -10,7 +10,8 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
-    "@types/google-apps-script": "^2.0.8"
+    "@types/google-apps-script": "^2.0.8",
+    "terser": "^5.50.0"
   },
   "engines": {
     "node": ">=18"
