@@ -116,7 +116,8 @@ function getClientConfigJson() {
   return JSON.stringify({
     appName: getAppConfigValue_('APP_NAME', 'Icao Aerocomms'),
     appVersion: getAppConfigValue_('APP_VERSION', '2.0.0'),
-    googleClientId: props.getProperty(getAppConfigValue_('PROP_GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_ID')) || ''
+    googleClientId: props.getProperty(getAppConfigValue_('PROP_GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_ID')) || '',
+    vapidPublicKey: 'BJK-LMuMcS3KgR8UgCDrrXZXxWfMxHUEPOHfccZe1X--zup0w6usmuTxfCgLrVFe_ncg3ei0Lt-XDfqrY4QaBbA'
   });
 }
 

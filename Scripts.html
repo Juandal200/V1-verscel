@@ -1025,6 +1025,7 @@
           window._lmsLastActiveAt  = res.lastActiveAt || '';
           _renderTopbarRank(mxp, res.streakDays || 0);
           try { localStorage.setItem('_aero_xp_' + (AppState.user.userId || ''), mxp); } catch(e) {}
+          if ((res.streakDays || 0) >= 2) _initPushNotifications();
         }
       })
       .withFailureHandler(function(err) { console.error('[getMyCompletedLevels]', err); })
@@ -1290,6 +1291,14 @@
         var today = new Date().toDateString();
         var lastActive = window._lmsLastActiveAt ? new Date(window._lmsLastActiveAt).toDateString() : '';
         if (days < 2 || lastActive === today) return;
+        var pushBtn = (function() {
+          try {
+            if (!('Notification' in window) || !('PushManager' in window)) return '';
+            if (Notification.permission === 'denied') return '';
+            if (localStorage.getItem('_aeroPushSub')) return '';
+            return '<button class="btn secondary" style="width:100%;font-size:0.78rem;margin-top:8px;opacity:0.8;" onclick="event.stopPropagation();_enablePushNotifications();this.textContent=\'✓ Reminders on\';this.disabled=true;">🔔 Enable streak reminders</button>';
+          } catch(e) { return ''; }
+        })();
         var hour = new Date().getHours();
         var hoursLeft = 23 - hour;
         var gradient = hour >= 19
@@ -1308,6 +1317,7 @@
             '<div style="font-size:1rem;font-weight:700;color:rgba(255,255,255,.75);margin-top:2px;margin-bottom:6px;">day streak</div>' +
             '<div style="font-size:0.75rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:28px;">' + hoursLeft + ' hour' + (hoursLeft === 1 ? '' : 's') + ' left tonight</div>' +
             '<button class="btn primary" style="width:100%;font-size:0.85rem;" onclick="event.stopPropagation();_navTo(renderSimulatorPlaceholder)">Protect streak →</button>' +
+            pushBtn +
           '</div>';
       })();
 
@@ -21639,4 +21649,54 @@
 
 
 }());
+
+// ── Web Push Notifications ──────────────────────────────────────────────────
+
+function _urlBase64ToUint8Array(base64String) {
+  var padding = '='.repeat((4 - base64String.length % 4) % 4);
+  var base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var raw     = atob(base64);
+  var arr     = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+
+function _subscribePush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  var vapidKey = window.APP_CONFIG && window.APP_CONFIG.vapidPublicKey;
+  if (!vapidKey) return;
+  navigator.serviceWorker.ready.then(function(reg) {
+    return reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: _urlBase64ToUint8Array(vapidKey)
+    });
+  }).then(function(sub) {
+    try { localStorage.setItem('_aeroPushSub', '1'); } catch(e) {}
+    var token = AppState && AppState.sessionToken;
+    if (!token) return;
+    google.script.run
+      .withSuccessHandler(function() {})
+      .withFailureHandler(function() {})
+      .apiSavePushSubscription({ sessionToken: token, subscription: sub.toJSON() });
+  }).catch(function(err) {
+    console.warn('[push] subscribe failed', err);
+  });
+}
+
+function _initPushNotifications() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (Notification.permission === 'granted') {
+    _subscribePush();
+  }
+}
+
+function _enablePushNotifications() {
+  if (!('Notification' in window)) return;
+  Notification.requestPermission().then(function(perm) {
+    if (perm === 'granted') _subscribePush();
+  });
+}
+
+window._initPushNotifications  = _initPushNotifications;
+window._enablePushNotifications = _enablePushNotifications;
 </script>
