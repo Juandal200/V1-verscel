@@ -126,12 +126,8 @@ html = html.replace(/(<style[^>]*>)([\s\S]*?)(<\/style>)/gi, function(_, open, c
   return open + stripCssComments(css) + close;
 });
 
-// 5b. Strip comments from inlined JS blocks
-html = html.replace(/(<script(?:\s[^>]*)?>)([\s\S]*?)(<\/script>)/gi, function(_, open, js, close) {
-  // Skip externally-sourced scripts (src="...")
-  if (/\bsrc\s*=/.test(open)) return _ ;
-  return open + stripJsComments(js) + close;
-});
+// 5b. JS comment stripping is handled by Terser (step 6) which correctly
+//     parses regex literals and strings — no pre-pass needed.
 
 // 6. Minify JS blocks with Terser, then write output
 (async function() {
