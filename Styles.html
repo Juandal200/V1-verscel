@@ -11095,6 +11095,30 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 [data-theme="light"] .lms-module-card { background: var(--panel); border-color: var(--line); }
 [data-theme="light"] .lms-module-title { color: var(--text); }
 [data-theme="light"] .lms-module-desc { color: var(--muted); }
+[data-theme="light"] .lms-coming-soon { color: var(--muted); background: var(--panel-soft); border-color: var(--line); }
+
+/* LMS matching game */
+[data-theme="light"] .lms-col-label { color: var(--muted); }
+[data-theme="light"] .lms-card { background: var(--panel); border-color: var(--line); color: var(--text); }
+[data-theme="light"] .lms-card:hover:not(.lms-card--matched):not(.lms-card--selected) { background: var(--panel-soft); border-color: rgba(0,0,0,0.18); }
+[data-theme="light"] .lms-card-idx { background: var(--panel-soft); border-color: var(--line); color: var(--muted); }
+[data-theme="light"] .lms-card--img-term { background: var(--panel-soft); border-color: var(--line); }
+[data-theme="light"] .lms-card--img-term:hover:not(.lms-card--matched):not(.lms-card--selected) { background: var(--panel); }
+[data-theme="light"] .lms-card--img-term.lms-card--selected { background: var(--panel-soft); }
+[data-theme="light"] .lms-term-label { color: var(--text); }
+
+/* LMS non-routine drag game */
+[data-theme="light"] .nr-pool-panel { background: var(--panel); border-color: var(--line); }
+[data-theme="light"] .nr-zone { background: var(--panel-soft); border-color: rgba(0,0,0,0.15); }
+[data-theme="light"] .nr-zone.drag-over { border-color: rgba(0,0,0,0.3); background: var(--panel); }
+
+/* LMS Human Factors cards */
+[data-theme="light"] .hf-concept-card { background: var(--panel); border-color: var(--line); }
+[data-theme="light"] .hf-concept-name { color: var(--text); }
+[data-theme="light"] .hf-concept-desc { color: var(--muted); }
+[data-theme="light"] .hf-search-input { background: var(--panel); border-color: var(--line); color: var(--text); }
+[data-theme="light"] .hf-search-input::placeholder { color: var(--muted); }
+[data-theme="light"] .hf-spinner { border-color: var(--line); border-top-color: #a855f7; }
 
 /* --- Gamification: leaderboard + tournament --- */
 [data-theme="light"] .gam-lb-tabs { background: var(--panel-soft); border-color: var(--line); }
