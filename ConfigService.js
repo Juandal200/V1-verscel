@@ -476,6 +476,19 @@ var DB_SCHEMA = {
     'streakDays',
     'lastActiveAt',
     'longestStreak'
+  ],
+  DailyChallenge: [
+    'Challenge_ID', 'Day_Index', 'Title'
+  ],
+  DailyChallengeItems: [
+    'Item_ID', 'Challenge_ID', 'Item_Order', 'Audio_Script',
+    'Question_Text', 'Option_A', 'Option_B', 'Option_C', 'Option_D', 'Correct_Option'
+  ],
+  DailyChallengeLog: [
+    'Log_ID', 'User_ID', 'Date', 'Challenge_ID', 'Completed', 'Items_Done', 'Timestamp'
+  ],
+  StreakFreezes: [
+    'User_ID', 'Freezes', 'Updated_At'
   ]
 };
 

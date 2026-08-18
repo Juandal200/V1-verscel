@@ -978,7 +978,8 @@
     if (streakChip) {
       var sd = streakDays || 0;
       if (sd > 0) {
-        streakChip.textContent = '🔥 ' + sd + 'd';
+        var _freezes = window._lmsStreakFreezes || 0;
+        streakChip.textContent = '🔥 ' + sd + 'd' + (_freezes > 0 ? '  🧊' + _freezes : '');
         streakChip.style.display = '';
       } else {
         streakChip.style.display = 'none';
@@ -1028,6 +1029,7 @@
           window._lmsSimXp = mxp - (res.lmsXp || 0);
           window._lmsStreakDays    = res.streakDays || 0;
           window._lmsLastActiveAt  = res.lastActiveAt || '';
+          window._lmsStreakFreezes = res.streakFreezes || 0;
           _renderTopbarRank(mxp, res.streakDays || 0);
           try { localStorage.setItem('_aero_xp_' + (AppState.user.userId || ''), mxp); } catch(e) {}
           if ((res.streakDays || 0) >= 2) _initPushNotifications();
@@ -1394,13 +1396,37 @@
           simCard + teaCard + streakCard +
         '</div>';
 
+      // ── Daily challenge banner placeholder ──
+      var dcBannerHtml =
+        '<div id="dcBanner" style="margin-bottom:16px;">' +
+          '<div class="dc-home-card dc-home-card--loading">Loading today\'s challenge…</div>' +
+        '</div>';
+
       // ── Modules section ──
       var modulesSection =
         '<div style="margin-bottom:8px;">' +
           '<div id="homeModulesArea"><div style="text-align:center;padding:32px;color:var(--muted);">Loading modules…</div></div>' +
         '</div>';
 
-      byId('contentArea').innerHTML = heroBar + cardsRow + modulesSection;
+      byId('contentArea').innerHTML = heroBar + dcBannerHtml + cardsRow + modulesSection;
+
+      // Load daily challenge banner
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (_navToken !== _tok) return;
+          var el = byId('dcBanner');
+          if (!el) return;
+          if (res && res.streakFreezes !== undefined) {
+            window._lmsStreakFreezes = res.streakFreezes;
+          }
+          if (!res || !res.ok || !res.challenge) { el.style.display = 'none'; return; }
+          el.innerHTML = _dcHomeBannerHtml(res.challenge);
+        })
+        .withFailureHandler(function() {
+          var el = byId('dcBanner');
+          if (el) el.style.display = 'none';
+        })
+        .apiGetDailyChallenge(AppState.sessionToken);
 
       // Load modules into home
       google.script.run
@@ -1440,6 +1466,7 @@
         '<button class="btn ' + (activeTab === 'modules'       ? 'primary' : 'secondary') + '" onclick="renderAdminModules()">📚 Modules</button>' +
         '<button class="btn ' + (activeTab === 'speakingqueue' ? 'primary' : 'secondary') + '" onclick="renderAdminSpeakingQueue()">🎙 Speaking Queue</button>' +
         '<button class="btn ' + (activeTab === 'progress'      ? 'primary' : 'secondary') + '" onclick="renderAdminProgress()">📊 Progress</button>' +
+        '<button class="btn ' + (activeTab === 'challenges'    ? 'primary' : 'secondary') + '" onclick="renderAdminDailyChallenges()">⚡ Daily</button>' +
       '</div>';
   }
 
@@ -11275,7 +11302,7 @@
       '</div>';
     }).join('');
 
-    var html = header + _progressModuleToggle(false) + '<div class="module-roadmap-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">' + cards + '</div>';
+    var html = header + '<div class="module-roadmap-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">' + cards + '</div>';
     if (returnHtml) return html;
     byId('contentArea').innerHTML = html;
   }
@@ -13047,7 +13074,7 @@
   function renderMyProgress() {
     setActiveNav('Modules');
     var _tok = _navToken;
-    byId('contentArea').innerHTML = '<div class="panel">' + _progressModuleToggle(true) + _skeletonStats() + '</div>';
+    byId('contentArea').innerHTML = '<div class="panel">' + _skeletonStats() + '</div>';
 
     google.script.run
       .withSuccessHandler(function(res) {
@@ -13059,14 +13086,9 @@
       .apiGetProgressReport(AppState.sessionToken, null);
   }
 
-  function _progressModuleToggle(onProgress) {
-    return '<div style="display:flex;gap:8px;margin-bottom:20px;">' +
-      '<button class="btn ' + (!onProgress ? 'primary' : 'secondary') + '" onclick="renderModules()">📚 Modules</button>' +
-      '<button class="btn ' + (onProgress  ? 'primary' : 'secondary') + '" onclick="renderMyProgress()">📊 My Progress</button>' +
-    '</div>';
-  }
-
   var _lastProgressReportData = null;
+  var _progStudentData = null;
+  var _progLmsData = null;
 
   function _renderProgressReport(res, backFnOrBool) {
     var backFn = typeof backFnOrBool === 'string' ? backFnOrBool : (backFnOrBool ? 'renderAdminProgress()' : null);
@@ -13123,7 +13145,6 @@
 
     var html =
       '<div class="panel">' +
-        (!backFn ? _progressModuleToggle(true) : '') +
         (backFn ? '<div style="margin-bottom:16px;"><button class="btn secondary" onclick="' + backFn + '">← Back</button></div>' : '') +
         // Summary bar
         '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px;">' +
@@ -13227,6 +13248,128 @@
         '</tr></thead>' +
         '<tbody>' + moduleRows + '</tbody>' +
       '</table>' +
+      '</body></html>';
+
+    var win = window.open('', '_blank');
+    if (win) { win.document.write(html); win.document.close(); }
+  }
+
+  function _downloadUnifiedProgressPdf() {
+    var atc     = _progStudentData || {};
+    var lms     = _progLmsData     || {};
+    var eff     = atc.effectiveness || {};
+    var student = atc.student       || {};
+
+    var avgScore = Number(eff.avgScore     || 0);
+    var passRate = Number(eff.passRate     || 0);
+    var timeSec  = Number(eff.totalTimeSec || 0);
+    var attempts = Number(eff.totalAttempts|| 0);
+    var name     = student.name || lms.userName || '';
+    var dateStr  = new Date().toLocaleDateString([], { year: 'numeric', month: 'long', day: 'numeric' });
+
+    var timeLabel = _formatTimeSec(timeSec);
+    var scoreColor = avgScore >= 90 ? '#16a34a' : avgScore >= 70 ? '#d97706' : '#dc2626';
+    var rateColor  = passRate >= 80 ? '#16a34a' : '#d97706';
+
+    // LMS data
+    var mods  = lms.modules || [];
+    var done  = mods.filter(function(m) { return m.completed; }).length;
+    var lmsH  = Math.floor((lms.totalActiveSeconds || 0) / 3600);
+    var lmsM  = Math.floor(((lms.totalActiveSeconds || 0) % 3600) / 60);
+    var lmsTimeLabel = lmsH > 0 ? lmsH + 'h ' + lmsM + 'm' : lmsM + 'm';
+
+    function bar(val) {
+      if (val === null || val === undefined) return '<div style="height:7px;background:#e5e7eb;border-radius:4px;"></div>';
+      var c = val >= 85 ? '#16a34a' : val >= 60 ? '#d97706' : '#dc2626';
+      return '<div style="height:7px;background:#e5e7eb;border-radius:4px;overflow:hidden;">' +
+        '<div style="width:' + val + '%;height:100%;background:' + c + ';border-radius:4px;"></div></div>' +
+        '<div style="font-size:10px;text-align:center;margin-top:2px;color:#6b7280;">' + (val !== null && val !== undefined ? val + '%' : '—') + '</div>';
+    }
+
+    var moduleRows = mods.length ? mods.map(function(m, i) {
+      var inProg = !m.completed && (m.quizBest !== null || m.grammarBest !== null || m.listeningBest !== null || m.evalBest !== null);
+      var status = m.completed ? 'Complete' : inProg ? 'In Progress' : 'Not Started';
+      var sc = m.completed ? '#16a34a' : inProg ? '#0ea5e9' : '#9ca3af';
+      return '<tr style="border-bottom:1px solid #e5e7eb;">' +
+        '<td style="padding:9px 12px;font-weight:600;font-size:12px;">' + (i+1) + '. ' + (m.title||'') + (m.topic ? '<div style="font-size:10px;color:#6b7280;font-weight:400;margin-top:1px;">' + m.topic + '</div>' : '') + '</td>' +
+        '<td style="padding:9px 12px;text-align:center;"><span style="font-size:10px;font-weight:700;color:' + sc + ';">' + status + '</span></td>' +
+        '<td style="padding:9px 12px;min-width:72px;">' + bar(m.quizBest)      + '</td>' +
+        '<td style="padding:9px 12px;min-width:72px;">' + bar(m.grammarBest)   + '</td>' +
+        '<td style="padding:9px 12px;min-width:72px;">' + bar(m.listeningBest) + '</td>' +
+        '<td style="padding:9px 12px;min-width:72px;">' + bar(m.evalBest)      + '</td>' +
+      '</tr>';
+    }).join('') : '<tr><td colspan="6" style="padding:20px;text-align:center;color:#9ca3af;font-size:12px;">No modules attempted yet.</td></tr>';
+
+    var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>AEROCOMMS Progress Report</title>' +
+      '<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,Helvetica,sans-serif;color:#111;background:#fff;padding:40px 48px;}' +
+      'h1{font-size:20px;font-weight:800;color:#0f172a;margin:0;}' +
+      'h2{font-size:13px;font-weight:800;color:#0f172a;letter-spacing:.06em;text-transform:uppercase;margin:0 0 14px;}' +
+      '.sub{font-size:12px;color:#6b7280;margin-top:4px;}' +
+      '.section{margin-bottom:32px;}' +
+      '.stats{display:flex;gap:12px;margin-bottom:18px;}' +
+      '.card{flex:1;padding:12px 16px;border:1px solid #e5e7eb;border-radius:8px;}' +
+      '.card-label{font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;}' +
+      '.card-value{font-size:22px;font-weight:800;}' +
+      'table{width:100%;border-collapse:collapse;}' +
+      'thead th{padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid #e5e7eb;}' +
+      'hr{border:none;border-top:1px solid #e5e7eb;margin:28px 0;}' +
+      '@media print{body{padding:20px 24px;}button{display:none!important;}}' +
+      '</style></head><body>' +
+
+      // ── Report header ──────────────────────────────────────────────
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px;">' +
+        '<div>' +
+          '<div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#0ea5e9;margin-bottom:6px;">AEROCOMMS</div>' +
+          '<h1>Progress Report</h1>' +
+          (name ? '<div class="sub">' + name + '</div>' : '') +
+          '<div class="sub">Generated ' + dateStr + '</div>' +
+        '</div>' +
+        '<button onclick="window.print()" style="padding:9px 20px;background:#0f172a;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:.04em;">Print / Save PDF</button>' +
+      '</div>' +
+
+      // ── ATC Training section ───────────────────────────────────────
+      '<div class="section">' +
+        '<h2>ATC Communication Training</h2>' +
+        '<div class="stats">' +
+          '<div class="card"><div class="card-label">Avg Score</div><div class="card-value" style="color:' + scoreColor + '">' + avgScore + '%</div></div>' +
+          '<div class="card"><div class="card-label">Pass Rate</div><div class="card-value" style="color:' + rateColor + '">' + passRate + '%</div></div>' +
+          '<div class="card"><div class="card-label">Time Trained</div><div class="card-value" style="color:#0369a1">' + timeLabel + '</div></div>' +
+          '<div class="card"><div class="card-label">Read-backs</div><div class="card-value" style="color:#0f172a">' + attempts + '</div></div>' +
+        '</div>' +
+      '</div>' +
+
+      '<hr>' +
+
+      // ── Course Modules section ─────────────────────────────────────
+      '<div class="section">' +
+        '<h2>Course Modules</h2>' +
+        '<div class="stats" style="margin-bottom:14px;">' +
+          '<div class="card"><div class="card-label">Completed</div><div class="card-value" style="color:#0f172a">' + done + ' <span style="font-size:14px;color:#9ca3af;">/ ' + mods.length + '</span></div></div>' +
+          '<div class="card"><div class="card-label">Overall Progress</div><div class="card-value" style="color:' + (done === mods.length && mods.length ? '#16a34a' : '#0f172a') + '">' + (mods.length ? Math.round(done/mods.length*100) : 0) + '%</div></div>' +
+          '<div class="card"><div class="card-label">Module Time</div><div class="card-value" style="color:#0369a1">' + lmsTimeLabel + '</div></div>' +
+        '</div>' +
+        (function() {
+          var pdfSkills = [
+            { key: 'quizBest', label: 'Quiz' }, { key: 'grammarBest', label: 'Grammar' },
+            { key: 'listeningBest', label: 'Listening' }, { key: 'evalBest', label: 'Evaluation' }
+          ];
+          var skillCards = pdfSkills.map(function(s) {
+            var vals = mods.map(function(m) { return m[s.key]; }).filter(function(v) { return v !== null && v !== undefined; });
+            var avg = vals.length ? Math.round(vals.reduce(function(a,b){return a+b;},0)/vals.length) : null;
+            var c = avg !== null ? (avg >= 85 ? '#16a34a' : avg >= 60 ? '#d97706' : '#dc2626') : '#9ca3af';
+            return '<div class="card" style="text-align:center;">' +
+              '<div class="card-label">' + s.label + ' Avg</div>' +
+              '<div class="card-value" style="color:' + c + '">' + (avg !== null ? avg + '%' : '—') + '</div>' +
+            '</div>';
+          }).join('');
+          return '<div class="stats" style="margin-bottom:18px;">' + skillCards + '</div>';
+        })() +
+        (mods.length ? '<table>' +
+          '<thead><tr><th>Module</th><th style="text-align:center;">Status</th><th>Quiz</th><th>Grammar</th><th>Listening</th><th>Evaluation</th></tr></thead>' +
+          '<tbody>' + moduleRows + '</tbody>' +
+        '</table>' : '') +
+      '</div>' +
+
       '</body></html>';
 
     var win = window.open('', '_blank');
@@ -15714,7 +15857,19 @@
   // ══════════════════════════════════════════════════════════════
   //  STUDENT PROGRESS
   // ══════════════════════════════════════════════════════════════
+  function _progPillarDivider(label) {
+    return '<div class="prog-pillar-divider"><span class="prog-pillar-label">' + label + '</span></div>';
+  }
+
+  function _lmsLoadingSkeleton() {
+    var card = '<div class="skeleton-stat-card"><div class="skeleton-line" style="height:26px;width:50%;"></div><div class="skeleton-line" style="height:8px;width:72%;"></div></div>';
+    return '<div class="prog-stats-row">' + card + card + card + card + '</div>' + _skeletonCards(2);
+  }
+
   function _renderStudentProgress(data, content) {
+    _progStudentData = data;
+    _progLmsData = null;
+
     var eff     = data.effectiveness || {};
     var student = data.student       || {};
     var charts  = data.charts        || {};
@@ -15722,16 +15877,15 @@
     var avgScore  = Number(eff.avgScore           || 0);
     var passRate  = Number(eff.passRate            || 0);
     var attempts  = Number(eff.totalAttempts       || 0);
-    var respSec   = Number(eff.avgResponseTimeSec  || 0);
-    var respLabel = respSec >= 60 ? (respSec / 60).toFixed(1) + ' min' : respSec + ' s';
+    var timeSec   = Number(eff.totalTimeSec        || 0);
 
-    // Stats
-    var statsHtml =
+    // ATC stat cards
+    var atcStats =
       '<div class="prog-stats-row">' +
-        _pStat('Avg Score',    avgScore + '%', avgScore >= 90 ? 'Excellent' : avgScore >= 70 ? 'Good' : 'Keep going', _progScoreColor(avgScore)) +
-        _pStat('Pass Rate',    passRate + '%', 'Read-backs accepted', passRate >= 80 ? '#22c55e' : '#f59e0b') +
-        _pStat('Read-backs',   attempts,       'Total submitted', 'var(--silver)') +
-        _pStat('Avg Response', respLabel,      'Time to answer',  'var(--cyan)') +
+        _pStat('Avg Score',    avgScore + '%',          avgScore >= 90 ? 'Excellent' : avgScore >= 70 ? 'Good' : 'Keep going', _progScoreColor(avgScore)) +
+        _pStat('Pass Rate',    passRate + '%',          'Read-backs accepted', passRate >= 80 ? '#22c55e' : '#f59e0b') +
+        _pStat('Time Trained', _formatTimeSec(timeSec), 'Total training time', 'var(--cyan)') +
+        _pStat('Read-backs',   attempts,                'Total submitted', 'var(--silver)') +
       '</div>';
 
     // Level map skeleton
@@ -15783,11 +15937,26 @@
 
     var phaseSection = _renderPhaseBreakdown(charts.phaseBreakdown);
 
+    var pageHeader =
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">' +
+        '<div>' +
+          '<h2 style="font-size:1.05rem;font-weight:700;color:var(--text);margin:0;">My Progress</h2>' +
+          (student.name ? '<div style="font-size:0.78rem;color:var(--muted);margin-top:3px;">' + h(student.name) + '</div>' : '') +
+        '</div>' +
+        '<button class="btn secondary" style="font-size:0.8rem;padding:8px 16px;flex-shrink:0;" onclick="_downloadUnifiedProgressPdf()">⬇ Download Report</button>' +
+      '</div>';
+
     content.innerHTML =
       '<div class="prog-shell">' +
-        statsHtml +
+        pageHeader +
+
+        _progPillarDivider('Course Learning') +
+        '<div id="progLmsCol"><div class="prog-section">' + _lmsLoadingSkeleton() + '</div></div>' +
+
+        _progPillarDivider('ATC Communication Training') +
+        atcStats +
         levelMap +
-        '<div id="progRoutesCol">' + _progSection('Routes', null, '<p class="subtitle">Loading…</p>') + '</div>' +
+        '<div id="progRoutesCol">' + _progSection('ATC Routes', null, _skeletonCards(2)) + '</div>' +
         bottomCols +
         phaseSection +
         recentSection +
@@ -15795,6 +15964,7 @@
       '</div>';
 
     _hydrateProgressView();
+    _hydrateProgressLms();
     _hydrateCertsSection();
     hydrateSubscriptionStatus();
   }
@@ -16295,6 +16465,117 @@
       })
       .withFailureHandler(function() {})
       .apiGetMyProgress(AppState.sessionToken);
+  }
+
+  function _hydrateProgressLms() {
+    var col = byId('progLmsCol');
+    if (!col || !AppState.sessionToken || typeof google === 'undefined' || !google.script || !google.script.run) return;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        var col = byId('progLmsCol');
+        if (!col) return;
+        var statCard = byId('progModuleStatCard');
+        if (!res || !res.ok) {
+          col.innerHTML = '';
+          return;
+        }
+        _progLmsData = res;
+        var mods = res.modules || [];
+        if (!mods.length) {
+          col.innerHTML = '';
+          return;
+        }
+        col.innerHTML = '<div class="prog-section">' +
+          _renderLmsSkillsSummary(mods) +
+          _renderLmsModuleCards(mods) +
+        '</div>';
+      })
+      .withFailureHandler(function() {
+        var col = byId('progLmsCol');
+        if (col) col.innerHTML = '';
+      })
+      .apiGetProgressReport(AppState.sessionToken, null);
+  }
+
+  function _renderLmsSkillsSummary(mods) {
+    var skills = [
+      { key: 'quizBest',      label: 'Quiz'       },
+      { key: 'grammarBest',   label: 'Grammar'    },
+      { key: 'listeningBest', label: 'Listening'  },
+      { key: 'evalBest',      label: 'Evaluation' }
+    ];
+    var rows = skills.map(function(s) {
+      var vals = mods.map(function(m) { return m[s.key]; }).filter(function(v) { return v !== null && v !== undefined; });
+      var avg  = vals.length ? Math.round(vals.reduce(function(a, b) { return a + b; }, 0) / vals.length) : null;
+      return { label: s.label, avg: avg, count: vals.length };
+    });
+    var hasData = rows.some(function(r) { return r.avg !== null; });
+    if (!hasData) return '';
+    return '<div class="prog-lms-skill-summary">' +
+      rows.map(function(r) {
+        var color = r.avg !== null ? (r.avg >= 85 ? '#22c55e' : r.avg >= 60 ? '#f59e0b' : '#ef4444') : 'var(--muted)';
+        var sublabel = r.avg !== null ? (r.avg >= 85 ? 'Excellent' : r.avg >= 60 ? 'Good' : 'Keep going') + ' · ' + r.count + ' module' + (r.count !== 1 ? 's' : '') : 'No data yet';
+        return '<div class="prog-skill-avg-card">' +
+          '<span class="prog-skill-avg-label">' + r.label + '</span>' +
+          '<strong class="prog-skill-avg-value" style="color:' + color + '">' + (r.avg !== null ? r.avg + '%' : '—') + '</strong>' +
+          (r.avg !== null
+            ? '<div class="prog-skill-avg-bar"><div style="width:' + r.avg + '%;height:100%;background:' + color + ';border-radius:3px;transition:width .5s ease;"></div></div>'
+            : '') +
+          '<small class="prog-skill-avg-sub">' + sublabel + '</small>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+  }
+
+  function _renderLmsModuleCards(mods) {
+    if (!mods || !mods.length) return '<p class="prog-empty-hint">No modules available yet.</p>';
+    var skills = [
+      { key: 'quizBest',      label: 'Quiz'       },
+      { key: 'grammarBest',   label: 'Grammar'    },
+      { key: 'listeningBest', label: 'Listening'  },
+      { key: 'evalBest',      label: 'Evaluation' }
+    ];
+    function skillBar(val) {
+      if (val === null || val === undefined) {
+        return '<div style="flex:1;height:5px;background:var(--line);border-radius:3px;"></div>' +
+               '<span style="font-size:0.63rem;color:var(--muted);min-width:22px;text-align:right;">—</span>';
+      }
+      var pct   = Math.min(100, Math.max(0, val));
+      var color = pct >= 85 ? '#22c55e' : pct >= 60 ? '#f59e0b' : '#ef4444';
+      return '<div style="flex:1;height:5px;background:var(--line);border-radius:3px;overflow:hidden;">' +
+               '<div style="width:' + pct + '%;height:100%;background:' + color + ';border-radius:3px;"></div>' +
+             '</div>' +
+             '<span style="font-size:0.63rem;font-weight:700;color:' + color + ';min-width:22px;text-align:right;">' + pct + '%</span>';
+    }
+    return '<div class="prog-routes-list">' +
+      mods.map(function(m) {
+        var inProg = !m.completed && (m.quizBest !== null || m.grammarBest !== null || m.listeningBest !== null || m.evalBest !== null);
+        var tierColor = m.completed ? '#22c55e' : inProg ? '#0ea5e9' : 'rgba(155,155,155,0.3)';
+        var statusLabel = m.completed ? '✓ Complete' : inProg ? 'In Progress' : 'Not Started';
+        var statusStyle = m.completed
+          ? 'color:#22c55e;background:rgba(34,197,94,0.10);border:1px solid rgba(34,197,94,0.25);'
+          : inProg
+            ? 'color:#0ea5e9;background:rgba(14,165,233,0.10);border:1px solid rgba(14,165,233,0.25);'
+            : 'color:var(--muted);background:rgba(155,155,155,0.07);border:1px solid rgba(155,155,155,0.18);';
+        return '<div class="prog-route-card" style="--tier-color:' + tierColor + '">' +
+          '<div class="prog-route-card-header">' +
+            '<div>' +
+              '<div style="font-weight:700;font-size:0.88rem;color:var(--text);">' + h(m.title || '') + '</div>' +
+              (m.topic ? '<div style="font-size:0.72rem;color:var(--muted);margin-top:2px;">' + h(m.topic) + '</div>' : '') +
+            '</div>' +
+            '<span style="margin-left:auto;font-size:0.65rem;font-weight:700;border-radius:6px;padding:3px 9px;' + statusStyle + '">' + statusLabel + '</span>' +
+          '</div>' +
+          '<div class="prog-lms-skills-grid">' +
+            skills.map(function(s) {
+              return '<div>' +
+                '<div style="font-size:0.62rem;color:var(--muted);margin-bottom:5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">' + s.label + '</div>' +
+                '<div style="display:flex;align-items:center;gap:5px;">' + skillBar(m[s.key]) + '</div>' +
+              '</div>';
+            }).join('') +
+          '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
   }
 
   function _hydrateCertsSection() {
@@ -18951,7 +19232,7 @@
             var b = _gEl('gamSearchResults');
             if (b) b.innerHTML = '<div class="gam-search-status gam-search-status--err">Connection error. Try again.</div>';
           })
-          .searchPilot(q, _gam.myEmail);
+          .searchPilot(AppState.sessionToken, q);
       }, 500);
     });
   }
@@ -19008,7 +19289,7 @@
         btn.textContent = '&#10133; Add';
         _gToast('Connection error. Try again.', 'err');
       })
-      .sendRequest(_gam.myEmail, toEmail);
+      .sendRequest(AppState.sessionToken, toEmail);
   }
 
   // ── Squadron roster ──────────────────────────────────────────────────────────
@@ -19021,7 +19302,7 @@
         var r = _gEl('gamRoster');
         if (r) r.innerHTML = '<div class="gam-empty-state">Could not load squadron.</div>';
       })
-      .getSquadron(_gam.myEmail);
+      .getSquadron(AppState.sessionToken);
   }
 
   function _gamRenderRoster(pilots) {
@@ -19079,7 +19360,7 @@
         if (res.status === 'success') _gamRenderPending(res.data || []);
       })
       .withFailureHandler(function () {})
-      .getPendingRequests(_gam.myEmail);
+      .getPendingRequests(AppState.sessionToken);
   }
 
   function _gamRenderPending(requests) {
@@ -19152,7 +19433,7 @@
         btn.textContent = '✓';
         _gToast('Connection error. Try again.', 'err');
       })
-      .acceptRequest(reqId);
+      .acceptRequest(AppState.sessionToken, reqId);
   }
 
   function _gamDismissRequest(btn) {
@@ -19169,7 +19450,7 @@
         if (res.status === 'success') _gamRenderChallenges(res.data || []);
       })
       .withFailureHandler(function () {})
-      .getIncomingChallenges(_gam.myEmail);
+      .getIncomingChallenges(AppState.sessionToken);
   }
 
   function _gamRenderChallenges(challenges) {
@@ -19223,14 +19504,14 @@
         _gam.chalCount = Math.max(0, _gam.chalCount - 1);
         _gamSyncBadge(_gEl('gamTrophyBadge'), _gam.chalCount);
         _gamSyncChalCount(_gEl('gamChalCount'), _gam.chalCount);
-        alert('Simulation starting...');
+        _gToast('Challenge accepted — good luck, pilot!', 'ok');
       })
       .withFailureHandler(function () {
         btn.disabled = false;
         btn.textContent = 'Accept';
         _gToast('Connection error. Try again.', 'err');
       })
-      .acceptChallenge(chalId);
+      .acceptChallenge(AppState.sessionToken, chalId);
   }
 
   function _gamDismissChallenge(btn) {
@@ -19290,13 +19571,13 @@
         _gamCloseModal();
         if (scEl)    scEl.selectedIndex = 0;
         if (scoreEl) scoreEl.value = '';
-        alert('Challenge sent!');
+        _gToast('Challenge sent to ' + (_gam.targetName || _gam.targetEmail) + '!', 'ok');
       })
       .withFailureHandler(function () {
         if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send Challenge ✈'; }
         _gToast('Connection error. Try again.', 'err');
       })
-      .sendChallenge(_gam.myEmail, _gam.targetEmail, scenario, score);
+      .sendChallenge(AppState.sessionToken, _gam.targetEmail, scenario, score);
   }
 
   // ── Sync helpers ─────────────────────────────────────────────────────────────
@@ -19395,10 +19676,7 @@
   }
 
   function _gamPoll() {
-    var email = _gam.myEmail ||
-      (window.AppState && AppState.user && AppState.user.email) || null;
-    if (!email) return;
-    _gam.myEmail = email;
+    if (!window.AppState || !AppState.sessionToken) return;
     google.script.run
       .withSuccessHandler(function (res) {
         if (res.status !== 'success') return;
@@ -19411,7 +19689,7 @@
         if (trophyBadge) _gamSyncBadge(trophyBadge, res.data.challenges || 0);
       })
       .withFailureHandler(function () {})
-      .getNotificationCounts(email);
+      .getNotificationCounts(AppState.sessionToken);
 
     // Keep topbar rank in sync with latest weekly completed levels
     _refreshTopbarRank();
@@ -21664,6 +21942,409 @@ function _urlBase64ToUint8Array(base64String) {
   var arr     = new Uint8Array(raw.length);
   for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
   return arr;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  DAILY CHALLENGE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+var _dcChallenge          = null;
+var _dcItemIndex          = 0;
+var _dcSelected           = null;
+var _dcAnsweredCorrectly  = false;
+var _dcAudio              = null;
+
+function _dcHomeBannerHtml(challenge) {
+  if (challenge.alreadyDone) {
+    return '<div class="dc-home-card dc-home-card--done">' +
+      '<div class="dc-home-card-icon">✓</div>' +
+      '<div class="dc-home-card-body">' +
+        '<div class="dc-home-card-label">Daily Challenge</div>' +
+        '<div class="dc-home-card-title">Challenge complete</div>' +
+        '<div class="dc-home-card-sub">Come back tomorrow for a new challenge</div>' +
+      '</div>' +
+    '</div>';
+  }
+  var dotsHtml = '';
+  for (var i = 0; i < (challenge.totalItems || 5); i++) {
+    dotsHtml += '<span class="dc-home-dot"></span>';
+  }
+  return '<div class="dc-home-card" onclick="openDailyChallenge()" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openDailyChallenge()}">' +
+    '<div class="dc-home-card-icon">⚡</div>' +
+    '<div class="dc-home-card-body">' +
+      '<div class="dc-home-card-label">Daily Challenge · ~3 min</div>' +
+      '<div class="dc-home-card-title">' + safeText(challenge.title) + '</div>' +
+      '<div class="dc-home-dots">' + dotsHtml + '</div>' +
+    '</div>' +
+    '<div class="dc-home-card-arrow">→</div>' +
+  '</div>';
+}
+
+function openDailyChallenge() {
+  var _tok = _navToken;
+  byId('contentArea').innerHTML = '<div style="text-align:center;padding:48px 24px;color:var(--muted);">Loading challenge…</div>';
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (_navToken !== _tok) return;
+      if (!res || !res.ok || !res.challenge) {
+        byId('contentArea').innerHTML = '<div class="panel" style="text-align:center;padding:32px;"><p>No challenge available today. Check back later!</p><button class="btn secondary" style="margin-top:16px;" onclick="_navTo(renderHome)">← Home</button></div>';
+        return;
+      }
+      if (res.challenge.alreadyDone) {
+        byId('contentArea').innerHTML =
+          '<div class="dc-complete">' +
+            '<div class="dc-complete-icon">✓</div>' +
+            '<h2 class="dc-complete-title">Already done!</h2>' +
+            '<p class="dc-complete-msg">You\'ve completed today\'s challenge. Come back tomorrow!</p>' +
+            '<button class="btn primary" style="margin-top:24px;min-width:180px;" onclick="_navTo(renderHome)">← Home</button>' +
+          '</div>';
+        return;
+      }
+      _dcChallenge = res.challenge;
+      _dcItemIndex = 0;
+      _dcRenderPlayer();
+    })
+    .withFailureHandler(function() {
+      if (_navToken !== _tok) return;
+      byId('contentArea').innerHTML = '<div class="panel" style="text-align:center;padding:32px;"><p style="color:var(--muted);">Could not load challenge. Please try again.</p><button class="btn secondary" onclick="_navTo(renderHome)">← Home</button></div>';
+    })
+    .apiGetDailyChallenge(AppState.sessionToken);
+}
+
+function _dcRenderPlayer() {
+  var ch = _dcChallenge;
+  if (!ch || !ch.items || !ch.items.length) return;
+  _dcSelected          = null;
+  _dcAnsweredCorrectly = false;
+  if (_dcAudio) { try { _dcAudio.pause(); } catch(e) {} _dcAudio = null; }
+
+  var item  = ch.items[_dcItemIndex];
+  var pos   = _dcItemIndex + 1;
+  var total = ch.items.length;
+
+  var dotsHtml = '';
+  for (var i = 0; i < total; i++) {
+    var cls = i < _dcItemIndex ? 'dc-dot--done' : i === _dcItemIndex ? 'dc-dot--active' : '';
+    dotsHtml += '<span class="dc-dot ' + cls + '"></span>';
+  }
+
+  byId('contentArea').innerHTML =
+    '<div class="dc-player">' +
+      '<div class="dc-player-topbar">' +
+        '<button class="btn secondary" onclick="_navTo(renderHome)" style="font-size:0.8rem;padding:5px 12px;">← Home</button>' +
+        '<div class="dc-player-header-title">Daily Challenge</div>' +
+        '<div class="dc-player-counter">' + pos + ' / ' + total + '</div>' +
+      '</div>' +
+      '<div class="dc-player-dots">' + dotsHtml + '</div>' +
+      '<div class="dc-player-body">' +
+        '<div class="dc-audio-section">' +
+          '<button class="dc-play-btn" id="dcPlayBtn" onclick="_dcPlayAudio()">' +
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><polygon points="5,3 19,12 5,21"/></svg>' +
+            '<span id="dcPlayLabel">Play Audio</span>' +
+          '</button>' +
+          '<div class="dc-audio-script" id="dcAudioScript">' + safeText(item.audioScript) + '</div>' +
+        '</div>' +
+        '<div class="dc-question">' + safeText(item.questionText) + '</div>' +
+        '<div class="dc-options" id="dcOptions">' +
+          _dcOptHtml('A', item.optionA) +
+          _dcOptHtml('B', item.optionB) +
+          _dcOptHtml('C', item.optionC) +
+          _dcOptHtml('D', item.optionD) +
+        '</div>' +
+        '<div class="dc-feedback" id="dcFeedback"></div>' +
+        '<button class="btn primary dc-action-btn" id="dcActionBtn" onclick="_dcSubmitAnswer()" disabled>Check Answer</button>' +
+      '</div>' +
+    '</div>';
+
+  setTimeout(_dcPlayAudio, 350);
+}
+
+function _dcOptHtml(letter, text) {
+  return '<div class="dc-opt" id="dcOpt' + letter + '" onclick="_dcSelectOpt(\'' + letter + '\')" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();_dcSelectOpt(\'' + letter + '\')}">' +
+    '<span class="dc-opt-letter">' + letter + '</span>' +
+    '<span class="dc-opt-text">' + safeText(text) + '</span>' +
+  '</div>';
+}
+
+function _dcPlayAudio() {
+  var btn   = byId('dcPlayBtn');
+  var label = byId('dcPlayLabel');
+  if (!btn || btn.disabled) return;
+  if (label) label.textContent = 'Loading…';
+  btn.disabled = true;
+
+  var ch   = _dcChallenge;
+  var item = ch.items[_dcItemIndex];
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      var b = byId('dcPlayBtn');
+      var l = byId('dcPlayLabel');
+      if (b) b.disabled = false;
+      if (l) l.textContent = 'Replay';
+      if (!res || !res.ok || !res.audioBase64) return;
+      if (_dcAudio) { try { _dcAudio.pause(); } catch(e) {} }
+      _dcAudio = new Audio('data:audio/mp3;base64,' + res.audioBase64);
+      _dcAudio.volume = 1;
+      _dcAudio.play().catch(function() {});
+      if (b) {
+        b.classList.add('dc-play-btn--playing');
+        _dcAudio.onended = function() { if (b) b.classList.remove('dc-play-btn--playing'); };
+      }
+    })
+    .withFailureHandler(function() {
+      var b = byId('dcPlayBtn');
+      var l = byId('dcPlayLabel');
+      if (b) b.disabled = false;
+      if (l) l.textContent = 'Play Audio';
+    })
+    .apiGetDailyChallengeAudio(AppState.sessionToken, ch.challengeId, item.itemOrder);
+}
+
+function _dcSelectOpt(letter) {
+  if (_dcAnsweredCorrectly) return;
+  _dcSelected = letter;
+  ['A','B','C','D'].forEach(function(l) {
+    var el = byId('dcOpt' + l);
+    if (!el) return;
+    el.classList.remove('dc-opt--selected', 'dc-opt--wrong');
+    if (l === letter) el.classList.add('dc-opt--selected');
+  });
+  var ab = byId('dcActionBtn');
+  if (ab) { ab.disabled = false; ab.textContent = 'Check Answer'; ab.onclick = _dcSubmitAnswer; }
+}
+
+function _dcSubmitAnswer() {
+  if (!_dcSelected || _dcAnsweredCorrectly) return;
+  var ab = byId('dcActionBtn');
+  if (ab) ab.disabled = true;
+
+  var ch   = _dcChallenge;
+  var item = ch.items[_dcItemIndex];
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (!res || !res.ok) { if (ab) ab.disabled = false; return; }
+      if (res.correct) {
+        _dcAnsweredCorrectly = true;
+        var optEl = byId('dcOpt' + _dcSelected);
+        if (optEl) { optEl.classList.remove('dc-opt--selected'); optEl.classList.add('dc-opt--correct'); }
+        var fb = byId('dcFeedback');
+        if (fb) fb.innerHTML = '<div class="dc-feedback--correct">Correct!</div>';
+
+        if (res.isLast) {
+          setTimeout(function() { _dcShowCompletion(res); }, 700);
+        } else {
+          if (ab) {
+            ab.textContent  = 'Next →';
+            ab.disabled     = false;
+            ab.onclick      = function() { _dcItemIndex++; _dcRenderPlayer(); };
+          }
+        }
+      } else {
+        var optEl2 = byId('dcOpt' + _dcSelected);
+        if (optEl2) {
+          optEl2.classList.remove('dc-opt--selected');
+          optEl2.classList.add('dc-opt--wrong');
+          optEl2.style.animation = 'dc-shake 0.4s ease';
+          setTimeout(function() { if (optEl2) optEl2.style.animation = ''; }, 460);
+        }
+        var fb2 = byId('dcFeedback');
+        if (fb2) fb2.innerHTML = '<div class="dc-feedback--wrong">Incorrect — try again</div>';
+        _dcSelected = null;
+        if (ab) ab.disabled = true;
+      }
+    })
+    .withFailureHandler(function() { if (ab) ab.disabled = false; })
+    .apiSubmitDailyChallengeAnswer(AppState.sessionToken, ch.challengeId, item.itemOrder, _dcSelected);
+}
+
+function _dcShowCompletion(res) {
+  if (res.newFreezes !== null && res.newFreezes !== undefined) {
+    window._lmsStreakFreezes = res.newFreezes;
+  }
+  byId('contentArea').innerHTML =
+    '<div class="dc-complete">' +
+      '<div class="dc-complete-icon">⚡</div>' +
+      '<h2 class="dc-complete-title">Challenge Complete!</h2>' +
+      (res.xpAwarded ? '<div class="dc-complete-xp">+' + res.xpAwarded + ' XP</div>' : '') +
+      (res.newStreakDays ? '<div class="dc-complete-streak">Streak: <strong>' + res.newStreakDays + ' days</strong></div>' : '') +
+      (res.freezeAwarded ? '<div class="dc-complete-badge" style="color:#38bdf8;">🧊 Streak freeze earned!</div>' : '') +
+      '<p class="dc-complete-msg">Come back tomorrow for a new challenge.</p>' +
+      '<button class="btn primary" style="margin-top:24px;min-width:180px;" onclick="_navTo(renderHome)">← Home</button>' +
+    '</div>';
+
+  if (res.xpAwarded)    setTimeout(function() { _gToast('+' + res.xpAwarded + ' XP earned!', 'ok'); }, 300);
+  if (res.freezeAwarded) setTimeout(function() { _gToast('🧊 Streak freeze earned!', 'ok'); }, 900);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  ADMIN: Daily Challenges Builder
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function renderAdminDailyChallenges() {
+  setActiveNav('Admin');
+  var _tok = _navToken;
+  byId('contentArea').innerHTML =
+    '<div class="panel">' + renderAdminTabs('challenges') + _spinnerHtml('Loading…') + '</div>';
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (_navToken !== _tok) return;
+      _renderAdminDcList((res && res.ok && res.challenges) ? res.challenges : []);
+    })
+    .withFailureHandler(function() {
+      byId('contentArea').innerHTML = '<div class="panel">' + renderAdminTabs('challenges') + '<p style="color:var(--muted)">Could not load challenges.</p></div>';
+    })
+    .apiAdminListDailyChallenges(AppState.sessionToken);
+}
+
+function _renderAdminDcList(list) {
+  var rows = list.map(function(c, i) {
+    var safeId    = safeText(c.challengeId);
+    var safeTitle = safeText(c.title);
+    return '<tr>' +
+      '<td style="width:40px;color:var(--muted);font-size:0.8rem;">' + (i + 1) + '</td>' +
+      '<td><strong>' + safeTitle + '</strong></td>' +
+      '<td style="color:var(--muted);font-size:0.8rem;">' + c.items.length + ' questions</td>' +
+      '<td style="white-space:nowrap;">' +
+        '<button class="btn secondary" style="font-size:0.78rem;padding:4px 10px;margin-right:4px;" onclick="_adminDcEdit(window._dcAdminList[' + i + '])">Edit</button>' +
+        '<button class="btn secondary" style="font-size:0.78rem;padding:4px 10px;color:#ef4444;" onclick="_adminDcDelete(\'' + safeId + '\',\'' + safeTitle + '\')">Delete</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  window._dcAdminList = list;
+
+  byId('contentArea').innerHTML =
+    '<div class="panel">' +
+      renderAdminTabs('challenges') +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
+        '<h2 style="margin:0;">Daily Challenges</h2>' +
+        '<button class="btn primary" onclick="_adminDcNew()">+ New Challenge</button>' +
+      '</div>' +
+      (list.length === 0
+        ? '<p style="color:var(--muted);text-align:center;padding:32px 0;">No challenges yet — create the first one!</p>'
+        : '<div class="table-wrap"><table class="data-table"><thead><tr><th>#</th><th>Title</th><th>Questions</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table></div>') +
+      '<div id="dcFormWrap"></div>' +
+    '</div>';
+}
+
+window._adminDcNew = function() { _adminDcShowForm(null); };
+window._adminDcEdit = function(challenge) { _adminDcShowForm(challenge); };
+window._adminDcDelete = function(challengeId, title) {
+  if (!confirm('Delete "' + title + '"? This cannot be undone.')) return;
+  google.script.run
+    .withSuccessHandler(function(res) {
+      if (res && res.ok) { _gToast('Deleted.', 'ok'); renderAdminDailyChallenges(); }
+      else _gToast((res && res.message) || 'Delete failed.', 'err');
+    })
+    .withFailureHandler(function() { _gToast('Delete failed.', 'err'); })
+    .apiAdminDeleteDailyChallenge(AppState.sessionToken, challengeId);
+};
+
+function _adminDcShowForm(challenge) {
+  var isNew  = !challenge;
+  var cId    = isNew ? '' : challenge.challengeId;
+  var cTitle = isNew ? '' : challenge.title;
+  var cItems = isNew
+    ? [{ audioScript: '', questionText: '', optionA: '', optionB: '', optionC: '', optionD: '', correctOption: 'A' }]
+    : (challenge.items || []);
+
+  window._dcFormItems = cItems.map(function(it) {
+    return { audioScript: it.audioScript || '', questionText: it.questionText || '',
+             optionA: it.optionA || '', optionB: it.optionB || '',
+             optionC: it.optionC || '', optionD: it.optionD || '',
+             correctOption: it.correctOption || 'A' };
+  });
+
+  function _renderItems() {
+    var html = window._dcFormItems.map(function(it, idx) {
+      return '<div class="dc-form-item">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
+          '<strong style="font-size:0.85rem;">Question ' + (idx + 1) + '</strong>' +
+          (window._dcFormItems.length > 1
+            ? '<button class="btn secondary" style="font-size:0.75rem;padding:3px 8px;color:#ef4444;" onclick="window._dcRemItem(' + idx + ')">Remove</button>'
+            : '') +
+        '</div>' +
+        '<label class="dc-form-label">Audio Script (ATC radio call)</label>' +
+        '<textarea class="input dc-form-textarea" placeholder="e.g. Tower, Iberia 432, request pushback." oninput="window._dcFormItems[' + idx + '].audioScript=this.value">' + safeText(it.audioScript) + '</textarea>' +
+        '<label class="dc-form-label">Question</label>' +
+        '<input class="input" style="margin-bottom:4px;" placeholder="What is the aircraft requesting?" value="' + safeText(it.questionText) + '" oninput="window._dcFormItems[' + idx + '].questionText=this.value">' +
+        '<div class="dc-form-opts-grid">' +
+          _dcAdminOptRow(idx, 'A', it.optionA, it.correctOption) +
+          _dcAdminOptRow(idx, 'B', it.optionB, it.correctOption) +
+          _dcAdminOptRow(idx, 'C', it.optionC, it.correctOption) +
+          _dcAdminOptRow(idx, 'D', it.optionD, it.correctOption) +
+        '</div>' +
+      '</div>';
+    }).join('');
+    var area = byId('dcItemsArea');
+    if (area) area.innerHTML = html;
+  }
+
+  window._dcRemItem = function(idx) { window._dcFormItems.splice(idx, 1); _renderItems(); };
+  window._dcAddItem = function() {
+    if (window._dcFormItems.length >= 10) return;
+    window._dcFormItems.push({ audioScript:'', questionText:'', optionA:'', optionB:'', optionC:'', optionD:'', correctOption:'A' });
+    _renderItems();
+  };
+  window._dcSetCorrect = function(idx, letter) { window._dcFormItems[idx].correctOption = letter; _renderItems(); };
+  window._dcFormSave = function() {
+    var title = (byId('dcFormTitle') ? byId('dcFormTitle').value.trim() : '');
+    if (!title) { _gToast('Challenge title is required.', 'err'); return; }
+    for (var i = 0; i < window._dcFormItems.length; i++) {
+      var it = window._dcFormItems[i];
+      if (!it.audioScript || !it.questionText || !it.optionA || !it.optionB || !it.optionC || !it.optionD) {
+        _gToast('Question ' + (i + 1) + ': all fields required.', 'err'); return;
+      }
+    }
+    var btn = byId('dcSaveBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.ok) { _gToast('Saved!', 'ok'); renderAdminDailyChallenges(); }
+        else {
+          _gToast((res && res.message) || 'Save failed.', 'err');
+          if (btn) { btn.disabled = false; btn.textContent = 'Save Challenge'; }
+        }
+      })
+      .withFailureHandler(function() {
+        _gToast('Save failed.', 'err');
+        if (btn) { btn.disabled = false; btn.textContent = 'Save Challenge'; }
+      })
+      .apiAdminSaveDailyChallenge(AppState.sessionToken, {
+        challengeId: cId || undefined,
+        title:       title,
+        items:       window._dcFormItems
+      });
+  };
+
+  var wrap = byId('dcFormWrap');
+  if (!wrap) return;
+  wrap.innerHTML =
+    '<div class="dc-form-card">' +
+      '<h3 style="margin:0 0 16px;">' + (isNew ? 'New Challenge' : 'Edit: ' + safeText(cTitle)) + '</h3>' +
+      '<label class="dc-form-label">Challenge Title</label>' +
+      '<input id="dcFormTitle" class="input" style="margin-bottom:16px;" placeholder="e.g. Departure Sequences" value="' + safeText(cTitle) + '">' +
+      '<div id="dcItemsArea"></div>' +
+      '<button class="btn secondary" style="margin-top:8px;width:100%;" onclick="window._dcAddItem()">+ Add Question</button>' +
+      '<div style="display:flex;gap:8px;margin-top:16px;">' +
+        '<button id="dcSaveBtn" class="btn primary" style="flex:1;" onclick="window._dcFormSave()">Save Challenge</button>' +
+        '<button class="btn secondary" onclick="renderAdminDailyChallenges()">Cancel</button>' +
+      '</div>' +
+    '</div>';
+
+  _renderItems();
+  wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function _dcAdminOptRow(idx, letter, value, correct) {
+  var isCorr = (correct || 'A').toUpperCase() === letter;
+  return '<div class="dc-form-opt-row' + (isCorr ? ' dc-form-opt-row--correct' : '') + '">' +
+    '<span class="dc-form-opt-letter" title="Click to mark as correct answer" onclick="window._dcSetCorrect(' + idx + ',\'' + letter + '\')" style="cursor:pointer;">' + letter + '</span>' +
+    '<input class="input" style="flex:1;" placeholder="Option ' + letter + '" value="' + safeText(value) + '" oninput="window._dcFormItems[' + idx + '].option' + letter + '=this.value">' +
+  '</div>';
 }
 
 function _subscribePush() {

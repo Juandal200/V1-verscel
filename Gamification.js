@@ -119,13 +119,16 @@ function ensureGamificationSheets() {
 //  SQUADRON LOGIC
 // =============================================================================
 
-// 1. searchPilot(query, myEmail)
+// 1. searchPilot(sessionToken, query)
 //    Search Users for text matches. Excludes self, existing friends,
 //    and anyone with a Pending request in either direction.
 // -----------------------------------------------------------------------------
-function searchPilot(query, myEmail) {
+function searchPilot(sessionToken, query) {
   try {
-    if (!query || !myEmail) return _gamErr_('query and myEmail are required.', 'MISSING_PARAMS');
+    var user = AuthService.requireSession(sessionToken);
+    var myEmail = user.email;
+
+    if (!query) return _gamErr_('query is required.', 'MISSING_PARAMS');
 
     var q            = String(query).toLowerCase().trim();
     if (q.length < 2) return _gamErr_('Search query must be at least 2 characters.', 'QUERY_TOO_SHORT');
@@ -165,12 +168,15 @@ function searchPilot(query, myEmail) {
   }
 }
 
-// 2. sendRequest(myEmail, friendEmail)
+// 2. sendRequest(sessionToken, friendEmail)
 //    Insert a Pending row into Network. Rejects duplicates in both directions.
 // -----------------------------------------------------------------------------
-function sendRequest(myEmail, friendEmail) {
+function sendRequest(sessionToken, friendEmail) {
   try {
-    if (!myEmail || !friendEmail) return _gamErr_('myEmail and friendEmail are required.', 'MISSING_PARAMS');
+    var user = AuthService.requireSession(sessionToken);
+    var myEmail = user.email;
+
+    if (!friendEmail) return _gamErr_('friendEmail is required.', 'MISSING_PARAMS');
 
     var from = String(myEmail).toLowerCase();
     var to   = String(friendEmail).toLowerCase();
@@ -230,13 +236,14 @@ function sendRequest(myEmail, friendEmail) {
   }
 }
 
-// 3. getPendingRequests(myEmail)
-//    Return all Pending requests addressed TO myEmail.
+// 3. getPendingRequests(sessionToken)
+//    Return all Pending requests addressed TO the authenticated user.
 //    Cross-references Users to resolve the sender's display name.
 // -----------------------------------------------------------------------------
-function getPendingRequests(myEmail) {
+function getPendingRequests(sessionToken) {
   try {
-    if (!myEmail) return _gamErr_('myEmail is required.', 'MISSING_PARAMS');
+    var user = AuthService.requireSession(sessionToken);
+    var myEmail = user.email;
 
     var myLower  = String(myEmail).toLowerCase();
     var network  = _gamReadAll_(GAM_SHEETS.NETWORK);
@@ -263,12 +270,22 @@ function getPendingRequests(myEmail) {
   }
 }
 
-// 4. acceptRequest(requestId)
+// 4. acceptRequest(sessionToken, requestId)
 //    Update the matching Network row status to Accepted.
+//    Verifies the authenticated user is the intended recipient.
 // -----------------------------------------------------------------------------
-function acceptRequest(requestId) {
+function acceptRequest(sessionToken, requestId) {
   try {
+    var user = AuthService.requireSession(sessionToken);
     if (!requestId) return _gamErr_('requestId is required.', 'MISSING_PARAMS');
+
+    var myLower = String(user.email).toLowerCase();
+    var network = _gamReadAll_(GAM_SHEETS.NETWORK);
+    var row = network.find(function(r) { return String(r['Request_ID'] || '') === String(requestId); });
+    if (!row) return _gamErr_('Request ID not found.', 'NOT_FOUND');
+    if (String(row['To_Email'] || '').toLowerCase() !== myLower) {
+      return _gamErr_('Not authorized to accept this request.', 'FORBIDDEN');
+    }
 
     var updated = _gamUpdateRow_(
       GAM_SHEETS.NETWORK, 'Request_ID', String(requestId),
@@ -282,13 +299,14 @@ function acceptRequest(requestId) {
   }
 }
 
-// 5. getSquadron(myEmail)
-//    Return all Accepted connections where user appears as From OR To.
+// 5. getSquadron(sessionToken)
+//    Return all Accepted connections where the authenticated user appears as From OR To.
 //    Cross-references Users for display names.
 // -----------------------------------------------------------------------------
-function getSquadron(myEmail) {
+function getSquadron(sessionToken) {
   try {
-    if (!myEmail) return _gamErr_('myEmail is required.', 'MISSING_PARAMS');
+    var user = AuthService.requireSession(sessionToken);
+    var myEmail = user.email;
 
     var myLower = String(myEmail).toLowerCase();
     var network = _gamReadAll_(GAM_SHEETS.NETWORK);
@@ -322,13 +340,16 @@ function getSquadron(myEmail) {
 //  CHALLENGE LOGIC
 // =============================================================================
 
-// 6. sendChallenge(myEmail, targetEmail, scenarioName, myScore)
+// 6. sendChallenge(sessionToken, targetEmail, scenarioName, myScore)
 //    Insert a Pending row into Challenges.
 // -----------------------------------------------------------------------------
-function sendChallenge(myEmail, targetEmail, scenarioName, myScore) {
+function sendChallenge(sessionToken, targetEmail, scenarioName, myScore) {
   try {
-    if (!myEmail || !targetEmail || !scenarioName) {
-      return _gamErr_('myEmail, targetEmail, and scenarioName are required.', 'MISSING_PARAMS');
+    var user = AuthService.requireSession(sessionToken);
+    var myEmail = user.email;
+
+    if (!targetEmail || !scenarioName) {
+      return _gamErr_('targetEmail and scenarioName are required.', 'MISSING_PARAMS');
     }
 
     var challenger = String(myEmail).toLowerCase();
@@ -389,13 +410,14 @@ function sendChallenge(myEmail, targetEmail, scenarioName, myScore) {
   }
 }
 
-// 7. getIncomingChallenges(myEmail)
-//    Return all Pending challenges where Target_Email == myEmail.
+// 7. getIncomingChallenges(sessionToken)
+//    Return all Pending challenges where Target_Email == authenticated user.
 //    Cross-references Users for the challenger's display name.
 // -----------------------------------------------------------------------------
-function getIncomingChallenges(myEmail) {
+function getIncomingChallenges(sessionToken) {
   try {
-    if (!myEmail) return _gamErr_('myEmail is required.', 'MISSING_PARAMS');
+    var user = AuthService.requireSession(sessionToken);
+    var myEmail = user.email;
 
     var myLower    = String(myEmail).toLowerCase();
     var challenges = _gamReadAll_(GAM_SHEETS.CHALLENGES);
@@ -426,12 +448,22 @@ function getIncomingChallenges(myEmail) {
   }
 }
 
-// 8. acceptChallenge(challengeId)
+// 8. acceptChallenge(sessionToken, challengeId)
 //    Update the matching Challenges row status to Accepted_In_Progress.
+//    Verifies the authenticated user is the challenge target.
 // -----------------------------------------------------------------------------
-function acceptChallenge(challengeId) {
+function acceptChallenge(sessionToken, challengeId) {
   try {
+    var user = AuthService.requireSession(sessionToken);
     if (!challengeId) return _gamErr_('challengeId is required.', 'MISSING_PARAMS');
+
+    var myLower    = String(user.email).toLowerCase();
+    var challenges = _gamReadAll_(GAM_SHEETS.CHALLENGES);
+    var row = challenges.find(function(r) { return String(r['Challenge_ID'] || '') === String(challengeId); });
+    if (!row) return _gamErr_('Challenge ID not found.', 'NOT_FOUND');
+    if (String(row['Target_Email'] || '').toLowerCase() !== myLower) {
+      return _gamErr_('Not authorized to accept this challenge.', 'FORBIDDEN');
+    }
 
     var updated = _gamUpdateRow_(
       GAM_SHEETS.CHALLENGES, 'Challenge_ID', String(challengeId),
@@ -445,14 +477,14 @@ function acceptChallenge(challengeId) {
   }
 }
 
-// 9. getNotificationCounts(myEmail)
+// 9. getNotificationCounts(sessionToken)
 //    Returns pending request count + incoming challenge count in one call.
 //    Used by the background poll to keep the nav badge current.
 // -----------------------------------------------------------------------------
-function getNotificationCounts(myEmail) {
+function getNotificationCounts(sessionToken) {
   try {
-    if (!myEmail) return _gamErr_('myEmail is required.', 'MISSING_PARAMS');
-    var myLower  = String(myEmail).toLowerCase();
+    var user = AuthService.requireSession(sessionToken);
+    var myLower  = String(user.email).toLowerCase();
     var network  = _gamReadAll_(GAM_SHEETS.NETWORK);
     var challenges = _gamReadAll_(GAM_SHEETS.CHALLENGES);
 
@@ -662,6 +694,8 @@ function getMyCompletedLevels(sessionToken) {
       streakProtected = streakData.streakProtected;
       lastActiveAt = streakData.lastActiveAt || '';
     } catch(e) {}
+    var streakFreezes = 0;
+    try { streakFreezes = _dcGetFreezes_(user.userId); } catch(e) {}
     return {
       ok: true,
       completedLevels: completedCount,
@@ -670,9 +704,10 @@ function getMyCompletedLevels(sessionToken) {
       weeklyXp: weeklyXp,
       streakDays: streakDays,
       streakProtected: streakProtected,
-      lastActiveAt: lastActiveAt
+      lastActiveAt: lastActiveAt,
+      streakFreezes: streakFreezes
     };
   } catch(e) {
-    return { ok: false, completedLevels: 0, lmsXp: 0, mergedXp: 0, weeklyXp: 0, streakDays: 0, streakProtected: false };
+    return { ok: false, completedLevels: 0, lmsXp: 0, mergedXp: 0, weeklyXp: 0, streakDays: 0, streakProtected: false, streakFreezes: 0 };
   }
 }

@@ -184,8 +184,16 @@ function lmsUpdateStreak_(userId) {
       longest = Math.max(streakDays, longest);
       dbUpdateByRow_('UserStreaks', row.__rowNumber, { streakDays: streakDays, lastActiveAt: now.toISOString(), longestStreak: longest });
     } else {
-      streakDays = 1;
-      dbUpdateByRow_('UserStreaks', row.__rowNumber, { streakDays: 1, lastActiveAt: now.toISOString() });
+      // Use a streak freeze before resetting (DailyChallengeService.js must be deployed)
+      var freezes = 0;
+      try { freezes = _dcGetFreezes_(userId); } catch(e) {}
+      if (freezes > 0) {
+        try { _dcSetFreezes_(userId, freezes - 1); } catch(e) {}
+        dbUpdateByRow_('UserStreaks', row.__rowNumber, { lastActiveAt: now.toISOString() });
+      } else {
+        streakDays = 1;
+        dbUpdateByRow_('UserStreaks', row.__rowNumber, { streakDays: 1, lastActiveAt: now.toISOString() });
+      }
     }
     return streakDays;
   } catch(e) {
