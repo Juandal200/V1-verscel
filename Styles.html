@@ -10371,6 +10371,41 @@ p, li, td, th, h1, h2, h3, h4,
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   ICAO TEST — MOBILE FIXES
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Fix: input bar hidden behind mobile bottom nav (72px) */
+@media (max-width: 768px) {
+  .tea-begin-shell,
+  .tea-exam-shell {
+    height: calc(100vh - 60px - 72px - env(safe-area-inset-bottom)) !important;
+  }
+}
+
+/* Shrink the animated ring + stage on small phones to give chat area more room */
+@media (max-width: 480px) {
+  .tea-ring       { width: 82px !important; height: 82px !important; }
+  .tea-ring-inner { width: 62px !important; height: 62px !important; font-size: 0.88rem !important; }
+  .tea-stage      { padding: 14px 16px 8px !important; gap: 10px !important; }
+  /* Compact exam header */
+  .tea-header     { padding: 9px 14px !important; }
+  .tea-header .tea-part-badge { display: none !important; }
+  .tea-header-title { font-size: 0.62rem !important; letter-spacing: 0.5px !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   ATC SIMULATOR — MOBILE FIXES
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Smaller cards so more levels are visible without scrolling */
+@media (max-width: 480px) {
+  .level-card-pro  { min-height: 200px !important; }
+  .lc-content      { padding: 14px 16px !important; }
+  .lc-level-label  { font-size: 1.8rem !important; }
+  .sim-hero-bar    { padding: 14px 16px !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    MOBILE BOTTOM NAVIGATION
    Hidden on desktop, replaces topnav pills on ≤768px screens
    ═══════════════════════════════════════════════════════════════════ */
