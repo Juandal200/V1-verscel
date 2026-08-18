@@ -12157,24 +12157,6 @@
     var evalPanelHtml   = sectionPanel('evaluation',  evalUnlocked,  evalBody,  lmsBool_(prog.evalPassed));
 
     byId('contentArea').innerHTML =
-      // Module hero header
-      '<div class="lms-module-hdr">' +
-        '<button onclick="renderModules()" style="background:none;border:none;padding:0;color:var(--cyan);font-size:0.75rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:.02em;-webkit-tap-highlight-color:transparent;">← All Modules</button>' +
-        '<div style="display:flex;align-items:center;gap:12px;margin-top:10px;">' +
-          '<div style="width:48px;height:48px;border-radius:12px;background:var(--panel-soft);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:1.55rem;flex-shrink:0;">' + safeText(m.icon || '📚') + '</div>' +
-          '<div style="flex:1;min-width:0;">' +
-            (m.topic ? '<p style="margin:0 0 2px;font-size:0.65rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.1em;">' + safeText(m.topic) + '</p>' : '') +
-            '<p style="margin:0;font-size:1.05rem;font-weight:800;color:var(--text);line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + safeText(m.title) + '</p>' +
-          '</div>' +
-          '<div style="flex-shrink:0;text-align:right;">' +
-            '<p style="margin:0;font-size:1.1rem;font-weight:800;color:' + (overallPct===100?'#16a34a':'var(--cyan)') + ';line-height:1;">' + overallPct + '%</p>' +
-            '<p style="margin:2px 0 0;font-size:0.6rem;color:var(--muted);font-weight:600;white-space:nowrap;">' + sectionsDone + ' / 4 done</p>' +
-          '</div>' +
-        '</div>' +
-        '<div style="margin-top:12px;height:6px;background:var(--line);border-radius:3px;overflow:hidden;">' +
-          '<div style="height:100%;width:' + overallPct + '%;background:' + (overallPct===100?'linear-gradient(90deg,#16a34a,#22c55e)':'linear-gradient(90deg,#0ea5e9,#00d48e)') + ';border-radius:3px;transition:width .4s ease;"></div>' +
-        '</div>' +
-      '</div>' +
 
       // Two-column: one section at a time + right panel
       '<div class="lms-module-layout">' +
@@ -12182,6 +12164,8 @@
         '<div class="lms-left-col" style="flex:1;min-width:0;overflow-y:auto;">' +
           // Mobile-only horizontal section picker
           '<div class="lms-mobile-section-nav">' +
+            '<button onclick="renderModules()" style="background:none;border:1.5px solid var(--line);border-radius:20px;padding:7px 12px;font-family:inherit;font-size:0.78rem;font-weight:600;color:var(--cyan);cursor:pointer;white-space:nowrap;flex-shrink:0;-webkit-tap-highlight-color:transparent;">← Back</button>' +
+            '<div style="width:1px;height:20px;background:var(--line);flex-shrink:0;margin:0 2px;"></div>' +
             '<button class="lms-msn-btn' + (defaultSection==='intro'?' active':'') + '" data-section="intro" onclick="_lmsShowSection(\'intro\')">📖 Intro' + (lmsBool_(prog.introCompleted) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
             '<button class="lms-msn-btn' + (defaultSection==='explanation'?' active':'') + '" data-section="explanation"' + (!expUnlocked?' disabled':' onclick="_lmsShowSection(\'explanation\')"') + '>🎓 Explain' + (lmsBool_(prog.explanationCompleted) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
             '<button class="lms-msn-btn' + (defaultSection==='application'?' active':'') + '" data-section="application"' + (!appUnlocked?' disabled':' onclick="_lmsShowSection(\'application\')"') + '>🛫 Apply' + (lmsBool_(prog.applicationCompleted) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
