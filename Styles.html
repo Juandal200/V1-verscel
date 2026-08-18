@@ -10587,8 +10587,12 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
     width: 100% !important;
     min-width: 0 !important;
     border-left: none;
-    max-height: min(420px, 50vh);
+    max-height: min(560px, 62vh);
   }
+  /* On mobile: hide Forum/Progress toggle tabs and outline — forum only */
+  .lms-rp-tabs { display: none !important; }
+  #rpOutlineView { display: none !important; }
+  #rpForumView { display: flex !important; }
 
   /* Mobile section nav strip */
   .lms-mobile-section-nav {

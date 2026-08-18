@@ -12100,7 +12100,7 @@
       '<div class="lms-right-panel">' +
 
         // Toggle tabs — Forum LEFT (default), Progress RIGHT
-        '<div style="display:flex;border-bottom:1px solid var(--line);flex-shrink:0;">' +
+        '<div class="lms-rp-tabs" style="display:flex;border-bottom:1px solid var(--line);flex-shrink:0;">' +
           '<button id="rpBtnForum"   onclick="_lmsToggleRightPanel(\'forum\')"   style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid var(--cyan);background:none;font-family:inherit;font-size:0.8rem;font-weight:700;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">💬 Forum<span id="rpForumRequired" style="font-size:0.6rem;font-weight:800;color:#92400e;background:#fef3c7;border-radius:6px;padding:1px 6px;' + ((!introForumPosted && defaultSection === 'intro') || (expUnlocked && !expForumPosted && defaultSection === 'explanation') ? '' : 'display:none;') + '">Required</span></button>' +
           '<button id="rpBtnOutline" onclick="_lmsToggleRightPanel(\'outline\')" style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid transparent;background:none;font-family:inherit;font-size:0.8rem;font-weight:400;color:var(--muted);cursor:pointer;">📋 Progress</button>' +
         '</div>' +
