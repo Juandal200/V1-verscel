@@ -2,7 +2,24 @@
  * PushService.js — Web Push Notification support
  * Stores push subscriptions and returns at-risk users
  * for streak reminder notifications.
+ *
+ * ONE-TIME SETUP: Run setupPushSubscriptionsSheet() once
+ * from the GAS editor to create the required sheet.
  *******************************************************/
+
+function setupPushSubscriptionsSheet() {
+  var ss = SpreadsheetApp.openById(
+    PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID')
+  );
+  if (ss.getSheetByName('PushSubscriptions')) {
+    Logger.log('PushSubscriptions sheet already exists.');
+    return;
+  }
+  var sheet = ss.insertSheet('PushSubscriptions');
+  sheet.getRange(1, 1, 1, 5).setValues([['userId','endpoint','p256dh','auth','createdAt']]);
+  sheet.getRange(1, 1, 1, 5).setFontWeight('bold');
+  Logger.log('PushSubscriptions sheet created.');
+}
 
 function apiSavePushSubscription(payload) {
   try {

@@ -19,6 +19,56 @@ function read(filename) {
   return fs.readFileSync(path.join(ROOT, filename), 'utf8');
 }
 
+// Strip CSS block comments and JS block + line comments for size reduction.
+// Skips strings and URLs (http:// etc) to avoid breaking code.
+function stripCssComments(css) {
+  // Remove /* ... */ block comments
+  return css.replace(/\/\*[\s\S]*?\*\//g, '');
+}
+
+function stripJsComments(js) {
+  // Use a state machine to skip strings and regex literals
+  var result = '';
+  var i = 0;
+  var len = js.length;
+  while (i < len) {
+    var ch = js[i];
+
+    // String literals — skip over them unchanged
+    if (ch === '"' || ch === "'" || ch === '`') {
+      var quote = ch;
+      result += ch; i++;
+      while (i < len) {
+        var c = js[i];
+        result += c; i++;
+        if (c === '\\') { if (i < len) { result += js[i]; i++; } continue; }
+        if (c === quote) break;
+      }
+      continue;
+    }
+
+    // Block comment /* ... */
+    if (ch === '/' && js[i+1] === '*') {
+      i += 2;
+      while (i < len && !(js[i] === '*' && js[i+1] === '/')) i++;
+      i += 2;
+      // Preserve newlines so line numbers shift minimally
+      result += ' ';
+      continue;
+    }
+
+    // Line comment // ... (but not http:// or similar)
+    if (ch === '/' && js[i+1] === '/' && (i === 0 || js[i-1] !== ':')) {
+      i += 2;
+      while (i < len && js[i] !== '\n') i++;
+      continue;
+    }
+
+    result += ch; i++;
+  }
+  return result;
+}
+
 // Resolve <?!= include('FileName') ?> — strips .html suffix if needed
 function resolveIncludes(html) {
   return html.replace(/<%!=\s*include\(['"]([^'"]+)['"]\)\s*;?\s*%>/g, function (_, name) {
@@ -70,13 +120,25 @@ html = html.replace(/<\?!=\s*getPilotAvatarUrl\(\)\s*\?>/g, avatarUrl);
 // 4. Resolve all <?!= include('X') ?> tags
 html = resolveIncludes(html);
 
-// 5. Write output
+// 5a. Strip comments from inlined CSS blocks
+html = html.replace(/(<style[^>]*>)([\s\S]*?)(<\/style>)/gi, function(_, open, css, close) {
+  return open + stripCssComments(css) + close;
+});
+
+// 5b. Strip comments from inlined JS blocks
+html = html.replace(/(<script(?:\s[^>]*)?>)([\s\S]*?)(<\/script>)/gi, function(_, open, js, close) {
+  // Skip externally-sourced scripts (src="...")
+  if (/\bsrc\s*=/.test(open)) return _ ;
+  return open + stripJsComments(js) + close;
+});
+
+// 6. Write output
 fs.writeFileSync(path.join(DIST, 'index.html'), html, 'utf8');
 
 const kb = Math.round(fs.statSync(path.join(DIST, 'index.html')).size / 1024);
 console.log('✓ dist/index.html  (' + kb + ' KB)');
 
-// 6. PWA icons — resize LOGOF.png (2048×2048) via macOS sips
+// 7. PWA icons — resize LOGOF.png (2048×2048) via macOS sips
 const logoSrc = path.join(ROOT, 'LOGOF.png');
 if (fs.existsSync(logoSrc)) {
   try {
@@ -88,7 +150,7 @@ if (fs.existsSync(logoSrc)) {
   }
 }
 
-// 7. manifest.json
+// 8. manifest.json
 fs.writeFileSync(path.join(DIST, 'manifest.json'), JSON.stringify({
   name: 'AEROCOMMS',
   short_name: 'AEROCOMMS',
@@ -105,6 +167,6 @@ fs.writeFileSync(path.join(DIST, 'manifest.json'), JSON.stringify({
 }, null, 2));
 console.log('✓ dist/manifest.json');
 
-// 8. Service worker
+// 9. Service worker
 fs.copyFileSync(path.join(ROOT, 'sw.js'), path.join(DIST, 'sw.js'));
 console.log('✓ dist/sw.js');
