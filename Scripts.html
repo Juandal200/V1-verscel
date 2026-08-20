@@ -1068,15 +1068,9 @@
       crewBtn.style.transition = 'box-shadow 0.4s ease';
     }
 
-    // ── Rank label + stripes (now in topnav) ──
+    // Rank label hidden from topbar — shown only on leaderboard
     var strips = byId('userRankStripes');
-    if (strips && window._gamStripesSvg) {
-      strips.innerHTML =
-        window._gamStripesSvg(tier.stripes, tier.color) +
-        '<span style="font-size:0.75rem;font-weight:700;color:' + tier.color +
-        ';margin-left:6px;letter-spacing:0.03em;">' + tier.label + '</span>';
-      strips.style.display = '';
-    }
+    if (strips) strips.style.display = 'none';
 
     // ── XP label ──
     var xpLbl = byId('topnavXpLabel');
