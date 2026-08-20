@@ -428,6 +428,7 @@
       if (_startCache) {
         // Instant: restore from cache, enter app immediately
         _aeroRestoreFromCache(_startCache);
+        window._bootstrapLoaded = true; // data from cache — skip redundant getMyCompletedLevels
         _homeDataFreshAt = Date.now(); // treat as fresh so renderHome skips skeleton
         setLoginMessage('');
         enterApplication();
@@ -448,7 +449,7 @@
             _homeDataFreshAt = Date.now();
             _aeroSaveCache();
           })
-          .withFailureHandler(function() {})
+          .withFailureHandler(function(err) { console.warn('[bootstrap bg]', err); })
           .apiGetAppBootstrap(AppState.sessionToken);
       } else {
         setLoginMessage('Restoring session...');
@@ -906,8 +907,13 @@
       var isAuthError = !res || res.code === 'SESSION_ERROR' || res.code === 'AUTH_ERROR';
       if (isAuthError) {
         _clearSession();
-        showScreen('loginScreen');
-        setLoginMessage('');
+        var _bsAppScreen = byId('appScreen');
+        if (_bsAppScreen && _bsAppScreen.classList.contains('active')) {
+          _showSessionExpiredOverlay();
+        } else {
+          showScreen('loginScreen');
+          setLoginMessage('');
+        }
       } else {
         showContentError(res && res.message ? res.message : 'Could not reach server. Check your connection and refresh.');
       }
