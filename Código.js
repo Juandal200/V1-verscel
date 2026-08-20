@@ -218,6 +218,31 @@ function getUserAccessStatus_(user) {
   return { status: 'expired' };
 }
 
+// Lightweight no-op — called on page load to warm up the GAS runtime before the user logs in.
+function apiPing() { return { ok: true }; }
+
+// Single bootstrap call replacing apiGetMe + getMyCompletedLevels for session-restore path.
+function apiGetAppBootstrap(sessionToken) {
+  try {
+    var meRes = apiGetMe(sessionToken);
+    if (!meRes || !meRes.ok) return meRes;
+    var lvRes = getMyCompletedLevels(sessionToken);
+    return {
+      ok:            true,
+      user:          meRes.user,
+      home:          meRes.home,
+      accessStatus:  meRes.accessStatus,
+      mergedXp:      (lvRes && lvRes.mergedXp)      || 0,
+      lmsXp:         (lvRes && lvRes.lmsXp)         || 0,
+      streakDays:    (lvRes && lvRes.streakDays)    || 0,
+      lastActiveAt:  (lvRes && lvRes.lastActiveAt)  || '',
+      streakFreezes: (lvRes && lvRes.streakFreezes) || 0
+    };
+  } catch(e) {
+    return { ok: false, message: e.message };
+  }
+}
+
 function apiGetMe(sessionToken) {
   try {
     var user = AuthService.requireSession(sessionToken);

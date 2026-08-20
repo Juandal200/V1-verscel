@@ -419,6 +419,10 @@
   window.addEventListener('load', function() {
     bindLoginEnterKeys();
 
+    // Warmup ping — fires immediately to wake the GAS runtime before any user action.
+    // By the time credentials are entered and submitted, the cold-start penalty is gone.
+    google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){}).apiPing();
+
     if (AppState.sessionToken) {
       var _startCache = _aeroReadCache();
       if (_startCache) {
@@ -427,24 +431,31 @@
         _homeDataFreshAt = Date.now(); // treat as fresh so renderHome skips skeleton
         setLoginMessage('');
         enterApplication();
-        // Silent background refresh — updates state and re-saves cache
+        // Silent background bootstrap — updates all state and re-saves cache
         google.script.run
           .withSuccessHandler(function(res) {
             if (!res || !res.ok) return;
-            AppState.user = res.user;
-            AppState.home = res.home;
+            AppState.user         = res.user;
+            AppState.home         = res.home;
             AppState.accessStatus = res.accessStatus || null;
+            window._lmsStreakDays    = res.streakDays    || 0;
+            window._lmsLastActiveAt  = res.lastActiveAt  || '';
+            window._lmsStreakFreezes = res.streakFreezes || 0;
+            window._lmsLmsXp         = res.lmsXp         || 0;
+            window._lmsSimXp         = (res.mergedXp || 0) - (res.lmsXp || 0);
+            _renderTopbarRank(res.mergedXp || 0, res.streakDays || 0);
+            try { localStorage.setItem('_aero_xp_' + (res.user && res.user.userId || ''), res.mergedXp || 0); } catch(e) {}
             _homeDataFreshAt = Date.now();
-            _aeroSaveCache(); // persist refreshed data for next open
+            _aeroSaveCache();
           })
           .withFailureHandler(function() {})
-          .apiGetMe(AppState.sessionToken);
+          .apiGetAppBootstrap(AppState.sessionToken);
       } else {
         setLoginMessage('Restoring session...');
         google.script.run
-          .withSuccessHandler(handleGetMeResponse)
+          .withSuccessHandler(handleBootstrapResponse)
           .withFailureHandler(handleServerError)
-          .apiGetMe(AppState.sessionToken);
+          .apiGetAppBootstrap(AppState.sessionToken);
       }
     }
   });
@@ -888,6 +899,34 @@
     enterApplication();
   }
 
+  // Handles apiGetAppBootstrap response — sets all state in one shot so enterApplication
+  // can skip the separate getMyCompletedLevels call.
+  function handleBootstrapResponse(res) {
+    if (!res || !res.ok) {
+      var isAuthError = !res || res.code === 'SESSION_ERROR' || res.code === 'AUTH_ERROR';
+      if (isAuthError) {
+        _clearSession();
+        showScreen('loginScreen');
+        setLoginMessage('');
+      } else {
+        showContentError(res && res.message ? res.message : 'Could not reach server. Check your connection and refresh.');
+      }
+      return;
+    }
+    AppState.user         = res.user;
+    AppState.home         = res.home;
+    AppState.accessStatus = res.accessStatus || null;
+    window._lmsStreakDays    = res.streakDays    || 0;
+    window._lmsLastActiveAt  = res.lastActiveAt  || '';
+    window._lmsStreakFreezes = res.streakFreezes || 0;
+    window._lmsLmsXp         = res.lmsXp         || 0;
+    window._lmsSimXp         = (res.mergedXp || 0) - (res.lmsXp || 0);
+    window._bootstrapLoaded  = true; // signal enterApplication to skip getMyCompletedLevels
+    _homeDataFreshAt = Date.now();
+    _aeroSaveCache();
+    enterApplication();
+  }
+
   // Tier progress config — XP thresholds for each permanent rank
   var _TIER_PROGRESS = [
     { key: 'junior',     nextKey: 'senior',     nextAt: 300  },
@@ -1046,28 +1085,36 @@
     // Show rank instantly from cache, then update from server in background
     try {
       var _cachedXp = localStorage.getItem('_aero_xp_' + (AppState.user.userId || ''));
-      if (_cachedXp !== null) _renderTopbarRank(parseInt(_cachedXp, 10) || 0, 0);
+      if (_cachedXp !== null) _renderTopbarRank(parseInt(_cachedXp, 10) || 0, window._lmsStreakDays || 0);
     } catch(e) {}
 
     if (window._gamStartPoll) setTimeout(_gamStartPoll, 2000);
 
-    google.script.run
-      .withSuccessHandler(function(res) {
-        if (res && res.ok) {
-          var mxp = res.mergedXp || 0;
-          window._lmsLmsXp = res.lmsXp || 0;
-          window._lmsSimXp = mxp - (res.lmsXp || 0);
-          window._lmsStreakDays    = res.streakDays || 0;
-          window._lmsLastActiveAt  = res.lastActiveAt || '';
-          window._lmsStreakFreezes = res.streakFreezes || 0;
-          _renderTopbarRank(mxp, res.streakDays || 0);
-          try { localStorage.setItem('_aero_xp_' + (AppState.user.userId || ''), mxp); } catch(e) {}
-          _aeroSaveCache();
-          if ((res.streakDays || 0) >= 2) _initPushNotifications();
-        }
-      })
-      .withFailureHandler(function(err) { console.error('[getMyCompletedLevels]', err); })
-      .getMyCompletedLevels(AppState.sessionToken);
+    // Skip the GAS call when bootstrap already loaded this data (session-restore path)
+    if (window._bootstrapLoaded) {
+      window._bootstrapLoaded = false; // reset for future navigations
+      var _mxp = (window._lmsLmsXp || 0) + (window._lmsSimXp || 0);
+      _renderTopbarRank(_mxp, window._lmsStreakDays || 0);
+      if ((window._lmsStreakDays || 0) >= 2) _initPushNotifications();
+    } else {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && res.ok) {
+            var mxp = res.mergedXp || 0;
+            window._lmsLmsXp = res.lmsXp || 0;
+            window._lmsSimXp = mxp - (res.lmsXp || 0);
+            window._lmsStreakDays    = res.streakDays || 0;
+            window._lmsLastActiveAt  = res.lastActiveAt || '';
+            window._lmsStreakFreezes = res.streakFreezes || 0;
+            _renderTopbarRank(mxp, res.streakDays || 0);
+            try { localStorage.setItem('_aero_xp_' + (AppState.user.userId || ''), mxp); } catch(e) {}
+            _aeroSaveCache();
+            if ((res.streakDays || 0) >= 2) _initPushNotifications();
+          }
+        })
+        .withFailureHandler(function(err) { console.error('[getMyCompletedLevels]', err); })
+        .getMyCompletedLevels(AppState.sessionToken);
+    }
 
     // Fire a silent TTS call on login to warm up GAS server + Google TTS API,
     // eliminating the cold-start delay when the student first reaches the simulator.
