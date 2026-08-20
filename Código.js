@@ -183,6 +183,18 @@ function apiVerifyLoginCode(payload) {
       String(payload.code || '').trim()
     );
 
+    // Merge XP/streak data so the frontend can skip a second getMyCompletedLevels call.
+    if (result && result.ok && result.sessionToken) {
+      try {
+        var lvRes = getMyCompletedLevels(result.sessionToken);
+        result.mergedXp      = (lvRes && lvRes.mergedXp)      || 0;
+        result.lmsXp         = (lvRes && lvRes.lmsXp)         || 0;
+        result.streakDays    = (lvRes && lvRes.streakDays)    || 0;
+        result.lastActiveAt  = (lvRes && lvRes.lastActiveAt)  || '';
+        result.streakFreezes = (lvRes && lvRes.streakFreezes) || 0;
+      } catch(e) {}
+    }
+
     return safeResponse_(result);
 
   } catch (err) {

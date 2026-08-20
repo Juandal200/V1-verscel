@@ -416,6 +416,21 @@
 
   window.AppState = AppState;
 
+  // Re-warm GAS when the user returns to the app after it was backgrounded.
+  // GAS goes cold after ~10 min of inactivity; a ping here eliminates the cold-start
+  // delay on the next real action (simulator start, lesson, etc.).
+  var _lastHiddenAt = 0;
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'hidden') {
+      _lastHiddenAt = Date.now();
+    } else if (document.visibilityState === 'visible' && _lastHiddenAt > 0) {
+      if (Date.now() - _lastHiddenAt > 5 * 60 * 1000) {
+        google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){}).apiPing();
+      }
+      _lastHiddenAt = 0;
+    }
+  });
+
   window.addEventListener('load', function() {
     bindLoginEnterKeys();
 
@@ -836,6 +851,19 @@
     AppState.accessStatus  = res.accessStatus || null;
     localStorage.setItem('icao_session_token', AppState.sessionToken);
     sessionStorage.setItem('icao_session_token', AppState.sessionToken);
+
+    // If the login response already includes XP/streak data (merged by apiVerifyLoginCode),
+    // populate vars and skip the separate getMyCompletedLevels call in enterApplication.
+    if (res.mergedXp !== undefined) {
+      window._lmsLmsXp         = res.lmsXp         || 0;
+      window._lmsSimXp         = (res.mergedXp || 0) - (res.lmsXp || 0);
+      window._lmsStreakDays    = res.streakDays    || 0;
+      window._lmsLastActiveAt  = res.lastActiveAt  || '';
+      window._lmsStreakFreezes = res.streakFreezes || 0;
+      window._bootstrapLoaded  = true;
+      _aeroSaveCache();
+    }
+
     enterApplication();
   }
 
@@ -22308,11 +22336,21 @@ function _dcPlayAudio() {
     }
   }
 
-  // Serve from cache if available — avoids a GAS+TTS round-trip on replay
+  // L1: JS object — fastest, survives navigation within session
   if (_dcAudioCache[_cacheKey]) {
     _playBase64(_dcAudioCache[_cacheKey]);
     return;
   }
+  // L2: sessionStorage — survives page refresh within same browser tab
+  try {
+    var _ssKey = '_aero_dca_' + _cacheKey;
+    var _ssAudio = sessionStorage.getItem(_ssKey);
+    if (_ssAudio) {
+      _dcAudioCache[_cacheKey] = _ssAudio; // promote to L1
+      _playBase64(_ssAudio);
+      return;
+    }
+  } catch(e) {}
 
   if (label) label.textContent = 'Loading…';
   btn.disabled = true;
@@ -22325,7 +22363,8 @@ function _dcPlayAudio() {
       if (b) b.disabled = false;
       if (l) l.textContent = 'Replay';
       if (!res || !res.ok || !res.audioBase64) return;
-      _dcAudioCache[_cacheKey] = res.audioBase64; // cache for instant replay
+      _dcAudioCache[_cacheKey] = res.audioBase64;
+      try { sessionStorage.setItem('_aero_dca_' + _cacheKey, res.audioBase64); } catch(e) {}
       _playBase64(res.audioBase64);
     })
     .withFailureHandler(function() {
