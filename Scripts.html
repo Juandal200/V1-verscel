@@ -424,10 +424,10 @@
       if (_startCache) {
         // Instant: restore from cache, enter app immediately
         _aeroRestoreFromCache(_startCache);
-        _homeDataFreshAt = _startCache.cachedAt;
+        _homeDataFreshAt = Date.now(); // treat as fresh so renderHome skips skeleton
         setLoginMessage('');
         enterApplication();
-        // Silent background refresh — updates cache without blocking UI
+        // Silent background refresh — updates state and re-saves cache
         google.script.run
           .withSuccessHandler(function(res) {
             if (!res || !res.ok) return;
@@ -435,6 +435,7 @@
             AppState.home = res.home;
             AppState.accessStatus = res.accessStatus || null;
             _homeDataFreshAt = Date.now();
+            _aeroSaveCache(); // persist refreshed data for next open
           })
           .withFailureHandler(function() {})
           .apiGetMe(AppState.sessionToken);
@@ -829,9 +830,16 @@
   function _clearSession() {
     localStorage.removeItem('icao_session_token');
     sessionStorage.removeItem('icao_session_token');
+    try { localStorage.removeItem(_HOME_CACHE_KEY); } catch(e) {}
     AppState.sessionToken = '';
     AppState.user = null;
     AppState.home = null;
+    _homeDataFreshAt = 0;
+    window._lmsStreakDays    = 0;
+    window._lmsLastActiveAt  = '';
+    window._lmsStreakFreezes = 0;
+    window._lmsLmsXp         = 0;
+    window._lmsSimXp         = 0;
   }
 
   function _showSessionExpiredOverlay() {
@@ -1471,7 +1479,13 @@
     if (_freshData) {
       // Data just arrived — render instantly, refresh silently in background
       _doRenderHome();
-      refreshMeAndHome(function() { /* silent update — don't re-render unless on home */ });
+      // Still run a background refresh to catch subscription expiry or access changes
+      refreshMeAndHome(function() {
+        if (_navToken !== _tok) return;
+        if (AppState.accessStatus && AppState.accessStatus.status === 'expired') {
+          _renderPaywall();
+        }
+      });
     } else {
       showGasLoadingSkeleton('LOADING', 'Getting your dashboard ready...');
       refreshMeAndHome(function() {
@@ -21993,6 +22007,12 @@ var _dcAudio              = null;
 var _HOME_CACHE_KEY = '_aero_home_v2';
 var _HOME_CACHE_TTL = 60 * 60 * 1000; // 60 minutes
 var _homeDataFreshAt = 0; // ms timestamp — set when fresh data arrives from server
+// Initialise so renderHome never reads undefined before GAS first responds
+window._lmsStreakDays    = 0;
+window._lmsLastActiveAt  = '';
+window._lmsStreakFreezes = 0;
+window._lmsLmsXp         = 0;
+window._lmsSimXp         = 0;
 
 function _aeroSaveCache() {
   if (!AppState || !AppState.user || !AppState.user.userId) return;
