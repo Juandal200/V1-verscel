@@ -6249,6 +6249,38 @@
   // Keyed by "atcText||voice||rate"; value is 'pending' or the full TTS response object.
   var _ttsClientCache = {};
 
+  // --- localStorage TTS cache so audio survives page reloads ---
+  var _TTS_LS_PREFIX = 'aero_tts_v1_';
+  var _TTS_LS_MAX    = 15; // max entries; evict quarter when full
+
+  function _ttsLsKey(cacheKey) {
+    var h = 0;
+    for (var i = 0; i < cacheKey.length; i++) { h = Math.imul(31, h) + cacheKey.charCodeAt(i) | 0; }
+    return _TTS_LS_PREFIX + (h >>> 0).toString(36);
+  }
+
+  function _ttsLsGet(cacheKey) {
+    try { var r = localStorage.getItem(_ttsLsKey(cacheKey)); return r ? JSON.parse(r) : null; }
+    catch(e) { return null; }
+  }
+
+  function _ttsLsSet(cacheKey, val) {
+    try {
+      var lsKey = _ttsLsKey(cacheKey);
+      var all = Object.keys(localStorage).filter(function(k){ return k.indexOf(_TTS_LS_PREFIX)===0; });
+      if (all.length >= _TTS_LS_MAX) {
+        all.slice(0, Math.ceil(_TTS_LS_MAX / 4)).forEach(function(k){ localStorage.removeItem(k); });
+      }
+      localStorage.setItem(lsKey, JSON.stringify(val));
+    } catch(e) {
+      try {
+        Object.keys(localStorage).filter(function(k){ return k.indexOf(_TTS_LS_PREFIX)===0; })
+          .forEach(function(k){ localStorage.removeItem(k); });
+        localStorage.setItem(_ttsLsKey(cacheKey), JSON.stringify(val));
+      } catch(e2) {}
+    }
+  }
+
   function _prefetchAudioAt_(scenarios, targetIndex) {
     if (targetIndex < 0 || targetIndex >= scenarios.length) return;
     var sc = scenarios[targetIndex];
@@ -6267,11 +6299,18 @@
     var cacheKey = atcText + '||' + pv.voice + '||' + Math.round(pv.rate * 1000);
 
     if (_ttsClientCache[cacheKey]) return;
+
+    // Warm in-memory cache from localStorage (survives page reload)
+    var lsCached = _ttsLsGet(cacheKey);
+    if (lsCached && lsCached.audioBase64) { _ttsClientCache[cacheKey] = lsCached; return; }
+
     _ttsClientCache[cacheKey] = 'pending';
     google.script.run
       .withSuccessHandler(function(res) {
-        if (res && res.ok && res.audioBase64) { _ttsClientCache[cacheKey] = res; }
-        else { delete _ttsClientCache[cacheKey]; }
+        if (res && res.ok && res.audioBase64) {
+          _ttsClientCache[cacheKey] = res;
+          _ttsLsSet(cacheKey, res);
+        } else { delete _ttsClientCache[cacheKey]; }
       })
       .withFailureHandler(function() { delete _ttsClientCache[cacheKey]; })
       .apiGenerateScenarioVoice(AppState.sessionToken, {
@@ -6290,14 +6329,21 @@
     _prefetchAudioAt_(scenarios, cur + 2);
   }
 
-  // Called from renderScenarioSelector so scenario 0 (and 1) are warm before user clicks Play.
+  // Called from renderScenarioSelector — prefetches all scenarios, first two immediately,
+  // the rest staggered at 800 ms intervals so the network isn't flooded.
   function _prefetchRouteStartAudio(routeScenarios) {
     var scenarios = routeScenarios || [];
-    // Fire immediately — the render completes synchronously before this setTimeout executes.
+    // Scenarios 0 and 1 fire right away so they're warm when the user clicks Play.
     setTimeout(function() {
       _prefetchAudioAt_(scenarios, 0);
       _prefetchAudioAt_(scenarios, 1);
     }, 50);
+    // Remaining scenarios staggered to avoid hammering GAS quota.
+    for (var i = 2; i < scenarios.length; i++) {
+      (function(idx) {
+        setTimeout(function() { _prefetchAudioAt_(scenarios, idx); }, 50 + idx * 800);
+      })(i);
+    }
   }
 
   var _atcAudioGen = 0;  // incremented each call; lets _done detect if it was superseded
@@ -6438,6 +6484,12 @@
     // Client cache keyed by text+voice+rate — serves instant replay of the same combination.
     var cacheKey = atcText + '||' + _voice + '||' + Math.round(_rate * 1000);
 
+    // Warm in-memory cache from localStorage if not already there
+    if (!_ttsClientCache[cacheKey]) {
+      var _lsHit = _ttsLsGet(cacheKey);
+      if (_lsHit && _lsHit.audioBase64) { _ttsClientCache[cacheKey] = _lsHit; }
+    }
+
     var cached = _ttsClientCache[cacheKey];
     if (cached && cached !== 'pending' && cached.audioBase64) {
       if (_isStale()) return;
@@ -6480,6 +6532,7 @@
         if (!byId('simFeedbackBox')) return;
         if (res && res.ok && res.audioBase64) {
           _ttsClientCache[cacheKey] = res;
+          _ttsLsSet(cacheKey, res);
           if (_isStale()) return;
           _playAtcAudio(res, atcText, scenario.country, _onAutoplayDone);
           return;
