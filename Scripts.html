@@ -5520,13 +5520,23 @@
         '<span class="atc-rd-msg">' + _statusMsg() + '</span>';
     }
 
+    function _highlightAtcTargets(text) {
+      if (!text) return '';
+      var s = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      s = s.replace(/\b(HEADING\s+\d{2,3})\b/gi, '<mark class="atc-highlight">$1</mark>');
+      s = s.replace(/\b(FLIGHT\s+LEVEL\s+[\w\s]+?\d)\b/gi, '<mark class="atc-highlight">$1</mark>');
+      s = s.replace(/\b(\d{3,5})\s+(FEET|FT)\b/gi, '<mark class="atc-highlight">$1 $2</mark>');
+      s = s.replace(/\b((?:ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|ELEVEN|TWELVE)\s+THOUSAND)\b/gi, '<mark class="atc-highlight">$1</mark>');
+      return s;
+    }
+
     function _renderText() {
       var el = document.querySelector('.sim-radio-text');
       if (!el) return;
       if (_isRevealed) {
         el.setAttribute('data-atc-revealed', 'true');
         el.classList.add('atc-text-revealed');
-        el.textContent = _origText;
+        el.innerHTML = _highlightAtcTargets(_origText);
       } else {
         el.setAttribute('data-atc-revealed', 'false');
         el.classList.remove('atc-text-revealed');
@@ -6436,12 +6446,32 @@
           '</main>' +
         '</div>' +
         '<aside class="sim-priority-side">' +
-            '<article class="sim-side-card compact"><p class="eyebrow">Flight profile</p><div class="sim-side-grid">' +
-              '<div class="sim-side-item"><span>Country</span><strong>' + safeText(countryMeta.label) + '</strong></div>' +
-              '<div class="sim-side-item sim-side-item--live"><span>ALTITUDE</span><strong><span id="altValue">---</span>&thinsp;<small>ft</small></strong><span class="flight-target-sub" id="altTargetSub"></span></div>' +
-              '<div class="sim-side-item"><span>Scenario</span><strong>' + safeText(scenario.flightScenarioName || scenario.flightScenarioId || '-') + '</strong></div>' +
-              '<div class="sim-side-item sim-side-item--live"><span>HEADING</span><strong><span id="hdgValue">---</span>&thinsp;<small>°</small></strong><span class="flight-target-sub" id="hdgTargetSub"></span></div>' +
-            '</div></article>' +
+            '<article class="sim-side-card compact"><p class="eyebrow">Flight profile</p>' +
+              '<div class="sim-side-grid" style="margin-bottom:8px;">' +
+                '<div class="sim-side-item"><span>Country</span><strong>' + safeText(countryMeta.label) + '</strong></div>' +
+                '<div class="sim-side-item"><span>Scenario</span><strong>' + safeText(scenario.flightScenarioName || scenario.flightScenarioId || '-') + '</strong></div>' +
+              '</div>' +
+              '<div class="sim-instruments-row">' +
+                '<div class="sim-instrument" id="altInstrument">' +
+                  '<span class="sim-instr-label">ALTITUDE</span>' +
+                  '<div class="sim-instr-value"><span id="altValue">---</span><small>ft</small></div>' +
+                  '<div class="sim-instr-target"><span class="sim-instr-arrow" id="altDirArrow"></span><span class="sim-instr-target-val" id="altTargetSub"></span></div>' +
+                  '<div class="sim-instr-btns">' +
+                    '<button class="sim-instr-btn" onclick="_adjAlt(100)">&#x25B2; Climb</button>' +
+                    '<button class="sim-instr-btn" onclick="_adjAlt(-100)">&#x25BC; Descend</button>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="sim-instrument" id="hdgInstrument">' +
+                  '<span class="sim-instr-label">HEADING</span>' +
+                  '<div class="sim-instr-value"><span id="hdgValue">---</span><small>°</small></div>' +
+                  '<div class="sim-instr-target"><span class="sim-instr-arrow" id="hdgDirArrow"></span><span class="sim-instr-target-val" id="hdgTargetSub"></span></div>' +
+                  '<div class="sim-instr-btns">' +
+                    '<button class="sim-instr-btn" onclick="_adjHdg(-5)">&#x25C4; Left</button>' +
+                    '<button class="sim-instr-btn" onclick="_adjHdg(5)">Right &#x25BA;</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+            '</article>' +
             '<article class="sim-radio-card">' +
               '<div class="sim-section-title"><span>ATC RADIO</span>' +
                 '<div style="display:flex;gap:6px;align-items:center;">' +
@@ -6575,17 +6605,44 @@
     if (_hdgBeepInterval) { clearInterval(_hdgBeepInterval); _hdgBeepInterval = null; }
   }
 
-  function _setFlightItemWarn(spanEl, warn) {
-    if (!spanEl) return;
-    // Walk up: span → strong → div.sim-side-item--live
-    var card = spanEl.parentNode && spanEl.parentNode.parentNode;
-    if (warn) {
-      spanEl.style.color = '#f59e0b';
-      if (card) card.classList.add('sim-side-item--warn');
-    } else {
-      spanEl.style.color = '';
-      if (card) card.classList.remove('sim-side-item--warn');
-    }
+  function _playSuccessChime() {
+    var ctx = _getAudioCtx();
+    if (!ctx) return;
+    try {
+      [523, 659, 784].forEach(function(freq, i) {
+        var osc = ctx.createOscillator(), gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sine'; osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, ctx.currentTime + i * 0.09);
+        gain.gain.linearRampToValueAtTime(0.22, ctx.currentTime + i * 0.09 + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.09 + 0.28);
+        osc.start(ctx.currentTime + i * 0.09);
+        osc.stop(ctx.currentTime + i * 0.09 + 0.32);
+      });
+    } catch(e) {}
+  }
+
+  function _adjAlt(delta) {
+    if (!isGameActive) return;
+    currentAltitude = Math.max(500, Math.min(45000, currentAltitude + delta));
+    _updateFlightDisplays();
+  }
+
+  function _adjHdg(delta) {
+    if (!isGameActive) return;
+    currentHeading = _clampHeading(currentHeading + delta);
+    _updateFlightDisplays();
+  }
+
+  window._adjAlt = _adjAlt;
+  window._adjHdg = _adjHdg;
+
+  function _setInstrumentState(cardId, state) {
+    var card = byId(cardId);
+    if (!card) return;
+    card.classList.remove('sim-instrument--warn', 'sim-instrument--ok');
+    if (state === 'warn') card.classList.add('sim-instrument--warn');
+    else if (state === 'ok') card.classList.add('sim-instrument--ok');
   }
 
   function _updateFlightDisplays() {
@@ -6593,29 +6650,60 @@
     var hdgEl    = byId('hdgValue');
     var altSub   = byId('altTargetSub');
     var hdgSub   = byId('hdgTargetSub');
+    var altArrow = byId('altDirArrow');
+    var hdgArrow = byId('hdgDirArrow');
 
     if (!isGameActive) {
-      if (altEl)  { altEl.innerText  = '---'; _setFlightItemWarn(altEl, false); }
-      if (hdgEl)  { hdgEl.innerText  = '---'; _setFlightItemWarn(hdgEl, false); }
+      if (altEl)  altEl.innerText  = '---';
+      if (hdgEl)  hdgEl.innerText  = '---';
       if (altSub) altSub.textContent = '';
       if (hdgSub) hdgSub.textContent = '';
+      if (altArrow) altArrow.textContent = '';
+      if (hdgArrow) hdgArrow.textContent = '';
+      _setInstrumentState('altInstrument', 'none');
+      _setInstrumentState('hdgInstrument', 'none');
       _stopAltBeep();
       _stopHdgBeep();
       return;
     }
 
-    if (altEl)  altEl.innerText  = currentAltitude.toLocaleString();
-    if (hdgEl)  hdgEl.innerText  = String(currentHeading).padStart(3, '0');
+    if (altEl) altEl.innerText = currentAltitude.toLocaleString();
+    if (hdgEl) hdgEl.innerText = String(currentHeading).padStart(3, '0');
 
-    // Show target sub-line only when ATC provided a target
-    if (altSub) altSub.textContent = _hasAtcTargetAlt ? ('→ ' + _targetAltitude.toLocaleString() + ' ft') : '';
-    if (hdgSub) hdgSub.textContent = _hasAtcTargetHdg ? ('→ ' + String(_targetHeading).padStart(3, '0') + '°') : '';
+    // Altitude target display + directional arrow
+    if (_hasAtcTargetAlt) {
+      if (altSub) altSub.textContent = _targetAltitude.toLocaleString() + ' ft target';
+      if (altArrow) {
+        var altDiff = currentAltitude - _targetAltitude;
+        altArrow.textContent = Math.abs(altDiff) <= 100 ? '✓' : (altDiff > 0 ? '↓' : '↑');
+      }
+    } else {
+      if (altSub) altSub.textContent = '';
+      if (altArrow) altArrow.textContent = '';
+    }
+
+    // Heading target display + directional arrow
+    if (_hasAtcTargetHdg) {
+      if (hdgSub) hdgSub.textContent = String(_targetHeading).padStart(3, '0') + '° target';
+      if (hdgArrow) {
+        var hdgDiffVal = _hdgDiff(currentHeading, _targetHeading);
+        if (hdgDiffVal <= 5) {
+          hdgArrow.textContent = '✓';
+        } else {
+          var cwDiff = (_targetHeading - currentHeading + 360) % 360;
+          hdgArrow.textContent = cwDiff <= 180 ? '→' : '←';
+        }
+      }
+    } else {
+      if (hdgSub) hdgSub.textContent = '';
+      if (hdgArrow) hdgArrow.textContent = '';
+    }
 
     var altOff = _hasAtcTargetAlt && Math.abs(currentAltitude - _targetAltitude) > 100;
     var hdgOff = _hasAtcTargetHdg && _hdgDiff(currentHeading, _targetHeading) > 5;
     var nowMs  = Date.now();
 
-    // Altitude warning transitions
+    // Altitude state transitions
     if (altOff && !_altWarning) {
       _warnAltStartTime = nowMs;
       _startAltBeep();
@@ -6624,6 +6712,7 @@
     }
     if (!altOff && _altWarning) {
       _stopAltBeep();
+      _playSuccessChime();
       if (_warnAltStartTime) {
         var corrSec = Math.round((nowMs - _warnAltStartTime) / 1000);
         if (typeof window.analyticsLogEvent === 'function')
@@ -6631,8 +6720,9 @@
         _warnAltStartTime = 0;
       }
     }
+    _setInstrumentState('altInstrument', !_hasAtcTargetAlt ? 'none' : altOff ? 'warn' : 'ok');
 
-    // Heading warning transitions
+    // Heading state transitions
     if (hdgOff && !_hdgWarning) {
       _warnHdgStartTime = nowMs;
       _startHdgBeep();
@@ -6641,6 +6731,7 @@
     }
     if (!hdgOff && _hdgWarning) {
       _stopHdgBeep();
+      _playSuccessChime();
       if (_warnHdgStartTime) {
         var corrSecH = Math.round((nowMs - _warnHdgStartTime) / 1000);
         if (typeof window.analyticsLogEvent === 'function')
@@ -6648,12 +6739,10 @@
         _warnHdgStartTime = 0;
       }
     }
+    _setInstrumentState('hdgInstrument', !_hasAtcTargetHdg ? 'none' : hdgOff ? 'warn' : 'ok');
 
     _altWarning = altOff;
     _hdgWarning = hdgOff;
-
-    _setFlightItemWarn(altEl, altOff);
-    _setFlightItemWarn(hdgEl, hdgOff);
   }
 
   function _getDriftConfig(level) {
@@ -6747,7 +6836,15 @@
         }
         _updateFlightDisplays();
         _bindCommsKeyHandler();
-        startFlightDrift();
+        // Show "locked on target" green state briefly so the student sees the drift happen
+        var _lockA = byId('altInstrument'), _lockH = byId('hdgInstrument');
+        if (_lockA) _lockA.classList.add('sim-instrument--lock');
+        if (_lockH) _lockH.classList.add('sim-instrument--lock');
+        setTimeout(function() {
+          if (_lockA) _lockA.classList.remove('sim-instrument--lock');
+          if (_lockH) _lockH.classList.remove('sim-instrument--lock');
+          startFlightDrift();
+        }, 2000);
       })
       .withFailureHandler(function() { stopFlightDrift(); })
       .getLevelConfig(levelId, phaseCode || '');

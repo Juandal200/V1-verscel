@@ -3320,6 +3320,130 @@ body.sim-paused #simMediaPauseBtn {
 }
 .flight-target-sub:empty { display: none; }
 
+/* ── New instrument cards ────────────────────────────────── */
+.sim-instruments-row {
+  display: flex;
+  gap: 8px;
+}
+.sim-instrument {
+  flex: 1;
+  border-radius: 14px;
+  padding: 10px 10px 8px;
+  background: rgba(59,130,246,0.06);
+  border: 1px solid rgba(59,130,246,0.22);
+  transition: border-color 0.35s, background 0.35s, box-shadow 0.35s;
+}
+.sim-instr-label {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #60a5fa;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.sim-instr-value {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.sim-instr-value span {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+.sim-instr-value small {
+  font-size: 0.6rem;
+  color: #8c8c8c;
+  font-weight: 400;
+}
+.sim-instr-target {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 16px;
+  margin-top: 3px;
+}
+.sim-instr-arrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  min-width: 14px;
+  text-align: center;
+  color: #6ee7b7;
+}
+.sim-instr-target-val {
+  font-size: 0.62rem;
+  color: #6ee7b7;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+.sim-instr-target-val:empty { display: none; }
+.sim-instr-btns {
+  display: flex;
+  gap: 4px;
+  margin-top: 7px;
+}
+.sim-instr-btn {
+  flex: 1;
+  padding: 4px 2px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid rgba(148,148,148,0.2);
+  background: rgba(255,255,255,0.05);
+  color: #c8d0e0;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  letter-spacing: 0.02em;
+}
+.sim-instr-btn:hover { background: rgba(255,255,255,0.12); border-color: rgba(148,148,148,0.4); }
+.sim-instr-btn:active { background: rgba(255,255,255,0.2); }
+
+/* States */
+.sim-instrument--ok {
+  border-color: rgba(34,197,94,0.5) !important;
+  background: rgba(34,197,94,0.07) !important;
+  box-shadow: 0 0 8px 1px rgba(34,197,94,0.12);
+}
+.sim-instrument--ok .sim-instr-label { color: #4ade80; }
+.sim-instrument--ok .sim-instr-arrow { color: #4ade80; }
+.sim-instrument--ok .sim-instr-target-val { color: #4ade80; }
+
+.sim-instrument--warn {
+  border-color: rgba(245,158,11,0.6) !important;
+  background: rgba(245,158,11,0.09) !important;
+  animation: flightWarnPulse 1.2s ease-in-out infinite;
+}
+.sim-instrument--warn .sim-instr-label { color: #fbbf24; }
+.sim-instrument--warn .sim-instr-value span { color: #fde68a; }
+.sim-instrument--warn .sim-instr-arrow { color: #fbbf24; font-size: 0.9rem; }
+.sim-instrument--warn .sim-instr-target-val { color: #fbbf24; }
+
+@keyframes simLockFlash {
+  0%   { border-color: rgba(34,197,94,0.2); box-shadow: none; }
+  50%  { border-color: rgba(34,197,94,0.7); box-shadow: 0 0 14px 3px rgba(34,197,94,0.25); }
+  100% { border-color: rgba(34,197,94,0.2); box-shadow: none; }
+}
+.sim-instrument--lock {
+  border-color: rgba(34,197,94,0.55) !important;
+  background: rgba(34,197,94,0.09) !important;
+  animation: simLockFlash 0.8s ease-in-out 2;
+}
+.sim-instrument--lock .sim-instr-label { color: #4ade80; }
+
+/* ATC text number highlight */
+mark.atc-highlight {
+  background: rgba(99,102,241,0.18);
+  color: #a5b4fc;
+  border-radius: 4px;
+  padding: 0 3px;
+  font-weight: 700;
+  border: 1px solid rgba(99,102,241,0.3);
+}
+
 .back-confirm-overlay {
   position: fixed;
   inset: 0;
