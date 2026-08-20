@@ -553,7 +553,10 @@
 
     if (requestBtn) {
       requestBtn.disabled = disabled;
-      requestBtn.textContent = disabled ? 'Please wait...' : 'Send access code';
+      // Don't overwrite the OTP countdown text — only touch it when there's no timer running
+      if (!disabled || !requestBtn.textContent.match(/\d+s/)) {
+        requestBtn.textContent = disabled ? 'Please wait...' : 'Send access code';
+      }
     }
 
     if (registerBtn) {
@@ -820,12 +823,26 @@
     setLoginMessage('Verifying code...');
     setLoginButtonsDisabled(true);
 
+    var _verifyDone = false;
+    var _verifyTimeout = setTimeout(function() {
+      if (_verifyDone) return;
+      _verifyDone = true;
+      setLoginButtonsDisabled(false);
+      setLoginMessage('Server took too long. Please try again.');
+    }, 30000);
+
     google.script.run
       .withSuccessHandler(function(res) {
+        if (_verifyDone) return;
+        _verifyDone = true;
+        clearTimeout(_verifyTimeout);
         setLoginButtonsDisabled(false);
         handleLoginResponse(res);
       })
       .withFailureHandler(function(err) {
+        if (_verifyDone) return;
+        _verifyDone = true;
+        clearTimeout(_verifyTimeout);
         setLoginButtonsDisabled(false);
         handleServerError(err);
       })
