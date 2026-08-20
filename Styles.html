@@ -2399,7 +2399,25 @@
  *******************************************************/
 
 body.sim-focus-mode .app-topnav {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: auto;
+  width: auto;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 6px 10px;
+  min-height: 0;
+  z-index: 9990;
+}
+body.sim-focus-mode .topnav-brand,
+body.sim-focus-mode .topnav-nav,
+body.sim-focus-mode #themeToggleBtn {
   display: none !important;
+}
+body.sim-focus-mode .topnav-actions {
+  display: flex !important;
 }
 
 body.sim-focus-mode .main {

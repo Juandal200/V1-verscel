@@ -1052,15 +1052,8 @@
     var tier = _getTierFromXp(xp);
     if (!tier) return;
 
-    // ── Rank-up detection ──
-    var prevKey = window._lmsCurrentTierKey;
+    // Track current tier key (used by _lmsAwardXp for rank-up detection)
     window._lmsCurrentTierKey = tier.key;
-    if (prevKey && prevKey !== tier.key) {
-      var _ord = ['junior','senior','instructor','chief'];
-      if (_ord.indexOf(tier.key) > _ord.indexOf(prevKey)) {
-        setTimeout(function() { _showRankUpAnimation(tier); }, 500);
-      }
-    }
 
     // ── Captain avatar ring + rank badge ──
     var avatar = byId('topbarAvatar');
@@ -6469,7 +6462,7 @@
               '<textarea id="pilotReadback" class="sim-readback-priority-input" placeholder="Type your pilot read-back here..."></textarea>' +
               '<button id="simMicBtn" class="demo-mic-btn" onclick="startMicInput(\'pilotReadback\',\'simMicBtn\')">&#127908; Tap to speak</button>' +
               '<div id="simFeedbackBox" class="sim-feedback-box"></div>' +
-              '<div class="sim-action-row"><button class="btn secondary" onclick="_showBackConfirm()">Back to countries</button><button class="btn primary big-action" onclick="immersiveSendReadback()">Send read-back</button></div>' +
+              '<div class="sim-action-row"><button class="btn primary big-action" onclick="immersiveSendReadback()">Send read-back</button></div>' +
               '<textarea id="studentAnswer" class="legacy-bridge-field"></textarea>' +
               '<textarea id="studentReadback" class="legacy-bridge-field"></textarea>' +
               '<textarea id="readbackInput" class="legacy-bridge-field"></textarea>' +
@@ -8427,7 +8420,7 @@
 
     var action = '';
     if (levelCompleted) {
-      action = '<button class="btn primary senior-action" onclick="renderLevelCertificateScreen(AppState.training.lastCompletedLevelInfo, AppState.training.lastCompletedCountryInfo)">View Level Certificate</button>';
+      action = ''; // mini-report injected below by _injectDebriefTable
     } else if (nextCountry) {
       action = '<button class="btn primary senior-action" onclick="startCountryTraining(\'' + safeJs(nextCountry.country) + '\',' + level + ')">Continue next environment · ' + safeText(getCountryUi(nextCountry.country).label) + '</button>';
     }
@@ -8468,7 +8461,7 @@
             '<p class="eyebrow">Operational Debrief</p>' +
             '<h1>' + (levelCompleted ? 'Level completed' : 'Country route completed') + '</h1>' +
             '<p class="senior-lead">' + safeText(pilotName) + ', you completed the ' + safeText(meta.label) + ' ATC communication route for Level ' + safeText(level) + '.</p>' +
-            '<div class="senior-verdict"><span>' + (levelCompleted ? 'LEVEL OPERATIONAL STANDARD ACHIEVED' : 'READ-BACK DISCIPLINE CONFIRMED') + '</span><strong>' + (levelCompleted ? 'Level certificate is now available' : 'Country route cleared') + '</strong></div>' +
+            '<div class="senior-verdict"><span>' + (levelCompleted ? 'LEVEL OPERATIONAL STANDARD ACHIEVED' : 'READ-BACK DISCIPLINE CONFIRMED') + '</span><strong>' + (levelCompleted ? 'Session report loading below…' : 'Country route cleared') + '</strong></div>' +
           '</div>' +
         '</div>' +
         vrPanel +
@@ -11420,15 +11413,15 @@
 
       // Phase 2 — after pause, fly to topbar and shrink away
       setTimeout(function() {
-        chip.style.transition = 'left .9s cubic-bezier(0.4,0,0.2,1),top .9s cubic-bezier(0.4,0,0.2,1),' +
-                                'opacity .7s ease .15s,transform .9s ease';
+        chip.style.transition = 'left 1.3s cubic-bezier(0.4,0,0.2,1),top 1.3s cubic-bezier(0.4,0,0.2,1),' +
+                                'opacity .9s ease .25s,transform 1.3s ease';
         chip.style.left      = tx + 'px';
         chip.style.top       = ty + 'px';
         chip.style.transform = 'translate(-50%,-50%) scale(0.35)';
         chip.style.opacity   = '0';
-      }, 850);
+      }, 1200);
 
-      setTimeout(function() { if (chip.parentNode) chip.parentNode.removeChild(chip); }, 1900);
+      setTimeout(function() { if (chip.parentNode) chip.parentNode.removeChild(chip); }, 2700);
     } catch(e) {}
   }
 
