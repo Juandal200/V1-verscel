@@ -7791,6 +7791,91 @@ function apiAdminSavePhaseFlightConfig(sessionToken, payload) {
   }
 }
 
+function apiAdminApplyDifficultyPreset(sessionToken, payload) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN']);
+    payload = payload || {};
+    var level     = Number(payload.level || 1);
+    var preset    = String(payload.preset || 'off').toLowerCase();
+    var threshold = Number(payload.replayThreshold || 2);
+    if (threshold < 1) threshold = 1;
+
+    var PRESETS = {
+      off: {
+        enableControls: false, startAltitude: 3000, startHeading: 360,
+        phases: {
+          STARTUP:{enableControls:false}, TAXI_OUT:{enableControls:false}, TAKEOFF:{enableControls:false},
+          DEPARTURE:{enableControls:false}, CRUISE:{enableControls:false}, DESCEND:{enableControls:false},
+          APPROACH:{enableControls:false}, LANDING:{enableControls:false}, TAXI_IN:{enableControls:false}
+        }
+      },
+      easy: {
+        enableControls: true, startAltitude: 6000, startHeading: 360,
+        phases: {
+          STARTUP:{enableControls:false}, TAXI_OUT:{enableControls:false},
+          TAKEOFF:{enableControls:true,  startAltitude:1500,  startHeading:360},
+          DEPARTURE:{enableControls:true, startAltitude:4000,  startHeading:360},
+          CRUISE:{enableControls:true,   startAltitude:6000,  startHeading:360},
+          DESCEND:{enableControls:true,  startAltitude:7000,  startHeading:360},
+          APPROACH:{enableControls:true, startAltitude:3500,  startHeading:360},
+          LANDING:{enableControls:false}, TAXI_IN:{enableControls:false}
+        }
+      },
+      medium: {
+        enableControls: true, startAltitude: 11000, startHeading: 360,
+        phases: {
+          STARTUP:{enableControls:false}, TAXI_OUT:{enableControls:false},
+          TAKEOFF:{enableControls:true,  startAltitude:2500,  startHeading:360},
+          DEPARTURE:{enableControls:true, startAltitude:7000,  startHeading:360},
+          CRUISE:{enableControls:true,   startAltitude:11000, startHeading:360},
+          DESCEND:{enableControls:true,  startAltitude:12000, startHeading:270},
+          APPROACH:{enableControls:true, startAltitude:5000,  startHeading:270},
+          LANDING:{enableControls:false}, TAXI_IN:{enableControls:false}
+        }
+      },
+      hard: {
+        enableControls: true, startAltitude: 18000, startHeading: 270,
+        phases: {
+          STARTUP:{enableControls:false}, TAXI_OUT:{enableControls:false},
+          TAKEOFF:{enableControls:true,  startAltitude:3500,  startHeading:270},
+          DEPARTURE:{enableControls:true, startAltitude:10000, startHeading:270},
+          CRUISE:{enableControls:true,   startAltitude:18000, startHeading:180},
+          DESCEND:{enableControls:true,  startAltitude:20000, startHeading:180},
+          APPROACH:{enableControls:true, startAltitude:7000,  startHeading:180},
+          LANDING:{enableControls:false}, TAXI_IN:{enableControls:false}
+        }
+      },
+      expert: {
+        enableControls: true, startAltitude: 28000, startHeading: 90,
+        phases: {
+          STARTUP:{enableControls:false}, TAXI_OUT:{enableControls:false},
+          TAKEOFF:{enableControls:true,  startAltitude:5000,  startHeading:180},
+          DEPARTURE:{enableControls:true, startAltitude:15000, startHeading:90},
+          CRUISE:{enableControls:true,   startAltitude:28000, startHeading:90},
+          DESCEND:{enableControls:true,  startAltitude:30000, startHeading:90},
+          APPROACH:{enableControls:true, startAltitude:10000, startHeading:180},
+          LANDING:{enableControls:false}, TAXI_IN:{enableControls:false}
+        }
+      }
+    };
+
+    var cfg   = PRESETS[preset] || PRESETS.off;
+    var key   = 'LEVEL_CONFIG_' + level;
+    var props = PropertiesService.getScriptProperties();
+    var saved = {
+      replayThreshold: threshold,
+      enableControls:  cfg.enableControls,
+      startAltitude:   cfg.startAltitude,
+      startHeading:    cfg.startHeading,
+      phases:          cfg.phases
+    };
+    props.setProperty(key, JSON.stringify(saved));
+    return { ok: true, level: level, preset: preset };
+  } catch(err) {
+    return apiError_('apiAdminApplyDifficultyPreset', err);
+  }
+}
+
 /*******************************************************
  * TRAINING DEBRIEF — full attempt stats for a completed country/level
  *******************************************************/

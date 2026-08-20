@@ -11628,6 +11628,82 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 }
 
 /* =====================================================================
+   DIFFICULTY PANEL (admin level config)
+   ===================================================================== */
+.diff-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.diff-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--surface-2, rgba(255,255,255,0.04));
+  border: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.diff-row-label {
+  min-width: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.diff-row-label strong { font-size: 0.84rem; }
+.diff-desc {
+  font-size: 0.65rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.diff-pills {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+.diff-pill {
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 8px;
+  border: 1px solid rgba(148,148,148,0.2);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.diff-pill:hover { border-color: rgba(148,148,148,0.5); color: var(--text); }
+.diff-pill--off.diff-pill--active    { background: rgba(107,114,128,0.2); border-color: #6b7280; color: #9ca3af; }
+.diff-pill--easy.diff-pill--active   { background: rgba(34,197,94,0.15);  border-color: #22c55e; color: #4ade80; }
+.diff-pill--medium.diff-pill--active { background: rgba(59,130,246,0.15); border-color: #3b82f6; color: #60a5fa; }
+.diff-pill--hard.diff-pill--active   { background: rgba(245,158,11,0.15); border-color: #f59e0b; color: #fbbf24; }
+.diff-pill--expert.diff-pill--active { background: rgba(239,68,68,0.15);  border-color: #ef4444; color: #f87171; }
+.diff-rt-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.diff-rt-input {
+  width: 46px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2, rgba(255,255,255,0.06));
+  color: var(--text);
+  font-size: 0.8rem;
+  text-align: center;
+}
+.diff-apply-btn { padding: 5px 14px !important; font-size: 0.78rem !important; white-space: nowrap; }
+.diff-status { font-size: 0.75rem; white-space: nowrap; }
+
+/* =====================================================================
    SHOP SCREEN
    ===================================================================== */
 .shop-cards-grid {

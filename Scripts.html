@@ -3056,9 +3056,115 @@
     return '<span style="font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:20px;background:' + color + '20;color:' + color + ';border:1px solid ' + color + '40">' + text + '</span>';
   }
 
+  var _LEVEL_DIFF_STATE = {};
+
+  var _DIFF_META = {
+    off:    { label: 'OFF',    color: '#6b7280', desc: 'Controls disabled — instruments hidden' },
+    easy:   { label: 'Easy',   color: '#22c55e', desc: 'Gentle drift · ground phases off · heading 360°' },
+    medium: { label: 'Medium', color: '#3b82f6', desc: 'Moderate drift · descent adds heading pressure' },
+    hard:   { label: 'Hard',   color: '#f59e0b', desc: 'Fast drift · varied headings · constant correction' },
+    expert: { label: 'Expert', color: '#ef4444', desc: 'Maximum drift · high altitude · all axes active' }
+  };
+
+  function _guessDiff(levelData) {
+    if (!levelData || levelData.enableControls === false) return 'off';
+    var phases  = levelData.phases || {};
+    var cruiseAlt = (phases.CRUISE && phases.CRUISE.startAltitude) || levelData.startAltitude || 0;
+    if (!cruiseAlt || cruiseAlt <= 7000)  return 'easy';
+    if (cruiseAlt <= 13000) return 'medium';
+    if (cruiseAlt <= 22000) return 'hard';
+    return 'expert';
+  }
+
+  function _diffPillsHtml(level, current) {
+    return ['off','easy','medium','hard','expert'].map(function(d) {
+      var m   = _DIFF_META[d];
+      var act = d === current;
+      return '<button class="diff-pill diff-pill--' + d + (act ? ' diff-pill--active' : '') + '" ' +
+             'onclick="adminSelectDiff(' + level + ',\'' + d + '\')">' + m.label + '</button>';
+    }).join('');
+  }
+
+  function adminSelectDiff(level, diff) {
+    _LEVEL_DIFF_STATE[level] = diff;
+    var row = byId('diffRow_' + level);
+    if (row) {
+      row.querySelectorAll('.diff-pill').forEach(function(btn) {
+        btn.classList.toggle('diff-pill--active', btn.classList.contains('diff-pill--' + diff));
+      });
+      var desc = row.querySelector('.diff-desc');
+      if (desc) desc.textContent = (_DIFF_META[diff] || {}).desc || '';
+    }
+  }
+
+  function adminApplyDiff(level) {
+    var diff = _LEVEL_DIFF_STATE[level] || 'off';
+    var rtEl = byId('diffRt_' + level);
+    var threshold = rtEl ? Number(rtEl.value) || 2 : 2;
+    var statusEl = byId('diffStatus_' + level);
+    if (statusEl) statusEl.innerHTML = '<span style="opacity:0.55;">Saving…</span>';
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (statusEl) statusEl.innerHTML = res && res.ok
+          ? '<span style="color:#22c55e;">✓ Saved</span>'
+          : '<span style="color:#ef4444;">' + safeText((res && res.error) || 'Error') + '</span>';
+        setTimeout(function() { if (statusEl) statusEl.innerHTML = ''; }, 2500);
+      })
+      .withFailureHandler(function(err) {
+        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">' + safeText((err && err.message) || 'Error') + '</span>';
+      })
+      .apiAdminApplyDifficultyPreset(AppState.sessionToken, { level: level, preset: diff, replayThreshold: threshold });
+  }
+
+  function adminAutoFillRamp() {
+    var ramp = { 1:'easy', 2:'easy', 3:'medium', 4:'medium', 5:'hard', 6:'hard', 7:'hard', 8:'expert', 9:'expert', 10:'expert' };
+    var msgEl = byId('levelCfgMsg');
+    if (msgEl) msgEl.innerHTML = '<span style="opacity:0.6;">Applying ramp to all levels…</span>';
+    var levels = Object.keys(ramp).map(Number);
+    var done = 0;
+    levels.forEach(function(lvl) {
+      adminSelectDiff(lvl, ramp[lvl]);
+      var rtEl = byId('diffRt_' + lvl);
+      var threshold = rtEl ? Number(rtEl.value) || 2 : 2;
+      google.script.run
+        .withSuccessHandler(function() {
+          done++;
+          if (done === levels.length && msgEl) msgEl.innerHTML = '<span style="color:#22c55e;">✓ Ramp applied to all levels.</span>';
+        })
+        .withFailureHandler(function() {
+          done++;
+          if (msgEl) msgEl.innerHTML = '<span style="color:#ef4444;">One or more levels failed — try again.</span>';
+        })
+        .apiAdminApplyDifficultyPreset(AppState.sessionToken, { level: lvl, preset: ramp[lvl], replayThreshold: threshold });
+    });
+  }
+
+  window.adminSelectDiff    = adminSelectDiff;
+  window.adminApplyDiff     = adminApplyDiff;
+  window.adminAutoFillRamp  = adminAutoFillRamp;
+
   function _renderLevelConfigUI(levels, driftTiers) {
     var thStyle = 'padding:8px 12px;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;';
     var tdStyle = 'padding:10px 12px;vertical-align:middle;border-bottom:1px solid rgba(255,255,255,0.04);';
+
+    // Init difficulty state from saved data
+    levels.forEach(function(l) { _LEVEL_DIFF_STATE[l.level] = _guessDiff(l); });
+
+    // ── Difficulty rows ──────────────────────────────────────────
+    var diffRows = levels.map(function(l) {
+      var lvl  = l.level;
+      var diff = _LEVEL_DIFF_STATE[lvl] || 'off';
+      var meta = _DIFF_META[diff] || _DIFF_META.off;
+      return '<div class="diff-row" id="diffRow_' + lvl + '">' +
+        '<div class="diff-row-label"><strong>Level ' + safeText(lvl) + '</strong>' +
+          '<span class="diff-desc">' + safeText(meta.desc) + '</span>' +
+        '</div>' +
+        '<div class="diff-pills">' + _diffPillsHtml(lvl, diff) + '</div>' +
+        '<label class="diff-rt-label">Replays <input type="number" id="diffRt_' + lvl + '" value="' + safeText(l.replayThreshold || 2) + '" min="1" max="10" class="diff-rt-input"></label>' +
+        '<button class="btn primary diff-apply-btn" onclick="adminApplyDiff(' + lvl + ')">Apply</button>' +
+        '<span class="diff-status" id="diffStatus_' + lvl + '"></span>' +
+      '</div>';
+    }).join('');
 
     // ── Table 1: level defaults ──────────────────────────────────
     var levelRows = levels.map(function(l) {
@@ -3109,45 +3215,53 @@
           '<div>' +
             '<p class="eyebrow">Level Settings</p>' +
             '<h3 style="margin:0 0 4px">Simulator Configuration</h3>' +
-            '<p class="subtitle" style="margin:0">Configure replay thresholds and flight controls per level, then override individually per phase. Blank altitude/heading in phase overrides falls back to the level default.</p>' +
+            '<p class="subtitle" style="margin:0">Set difficulty per level — altitude, heading and phase controls are configured automatically.</p>' +
           '</div>' +
-          '<button class="btn secondary" onclick="renderAdminLevelConfig()">Refresh</button>' +
+          '<div style="display:flex;gap:8px;">' +
+            '<button class="btn primary" onclick="adminAutoFillRamp()" title="Easy→Medium→Hard→Expert across levels 1–10">Auto-fill ramp ↗</button>' +
+            '<button class="btn secondary" onclick="renderAdminLevelConfig()">Refresh</button>' +
+          '</div>' +
         '</div>' +
 
-        '<h4 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin:0 0 8px;">Level Defaults</h4>' +
-        '<div class="table-wrap" style="margin-bottom:28px;">' +
-          '<table style="width:100%;border-collapse:collapse;font-size:0.84rem;">' +
-            '<thead><tr>' +
-              '<th style="' + thStyle + '">Level</th>' +
-              '<th style="' + thStyle + '">Replay Threshold</th>' +
-              '<th style="' + thStyle + ';text-align:center">Controls On</th>' +
-              '<th style="' + thStyle + '">Start Altitude (ft)</th>' +
-              '<th style="' + thStyle + '">Start Heading (°)</th>' +
-              '<th style="' + thStyle + '"></th>' +
-            '</tr></thead>' +
-            '<tbody>' + (levelRows || '<tr><td colspan="6" style="padding:12px;color:var(--muted)">No levels found. Create scenarios first.</td></tr>') + '</tbody>' +
-          '</table>' +
-        '</div>' +
-
-        '<h4 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin:0 0 8px;">Phase Overrides <span style="font-weight:400;font-size:0.72rem;text-transform:none;letter-spacing:0">&mdash; overrides the level default for a specific phase</span></h4>' +
-        '<div class="table-wrap">' +
-          '<table style="width:100%;border-collapse:collapse;font-size:0.84rem;">' +
-            '<thead><tr>' +
-              '<th style="' + thStyle + '">Level</th>' +
-              '<th style="' + thStyle + '">Phase</th>' +
-              '<th style="' + thStyle + '">Status</th>' +
-              '<th style="' + thStyle + ';text-align:center">Controls On</th>' +
-              '<th style="' + thStyle + '">Altitude (ft)</th>' +
-              '<th style="' + thStyle + '">Heading (°)</th>' +
-              '<th style="' + thStyle + '"></th>' +
-            '</tr></thead>' +
-            '<tbody>' + (phaseRows || '<tr><td colspan="7" style="padding:12px;color:var(--muted)">No levels found.</td></tr>') + '</tbody>' +
-          '</table>' +
-        '</div>' +
-
-        _buildDriftTiersHtml(driftTiers, thStyle, tdStyle) +
+        '<div class="diff-panel">' + (diffRows || '<p style="color:var(--muted);">No levels found. Create scenarios first.</p>') + '</div>' +
 
         '<div id="levelCfgMsg" style="margin-top:14px;font-size:0.82rem;"></div>' +
+
+        '<details style="margin-top:28px;">' +
+          '<summary style="cursor:pointer;font-size:0.78rem;color:var(--muted);user-select:none;padding:6px 0;">▸ Advanced — raw level defaults, phase overrides &amp; drift speed</summary>' +
+          '<div style="margin-top:16px;">' +
+            '<h4 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin:0 0 8px;">Level Defaults</h4>' +
+            '<div class="table-wrap" style="margin-bottom:28px;">' +
+              '<table style="width:100%;border-collapse:collapse;font-size:0.84rem;">' +
+                '<thead><tr>' +
+                  '<th style="' + thStyle + '">Level</th>' +
+                  '<th style="' + thStyle + '">Replay Threshold</th>' +
+                  '<th style="' + thStyle + ';text-align:center">Controls On</th>' +
+                  '<th style="' + thStyle + '">Start Altitude (ft)</th>' +
+                  '<th style="' + thStyle + '">Start Heading (°)</th>' +
+                  '<th style="' + thStyle + '"></th>' +
+                '</tr></thead>' +
+                '<tbody>' + (levelRows || '<tr><td colspan="6" style="padding:12px;color:var(--muted)">No levels found.</td></tr>') + '</tbody>' +
+              '</table>' +
+            '</div>' +
+            '<h4 style="font-size:0.8rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin:0 0 8px;">Phase Overrides</h4>' +
+            '<div class="table-wrap">' +
+              '<table style="width:100%;border-collapse:collapse;font-size:0.84rem;">' +
+                '<thead><tr>' +
+                  '<th style="' + thStyle + '">Level</th>' +
+                  '<th style="' + thStyle + '">Phase</th>' +
+                  '<th style="' + thStyle + '">Status</th>' +
+                  '<th style="' + thStyle + ';text-align:center">Controls On</th>' +
+                  '<th style="' + thStyle + '">Altitude (ft)</th>' +
+                  '<th style="' + thStyle + '">Heading (°)</th>' +
+                  '<th style="' + thStyle + '"></th>' +
+                '</tr></thead>' +
+                '<tbody>' + (phaseRows || '<tr><td colspan="7" style="padding:12px;color:var(--muted)">No levels found.</td></tr>') + '</tbody>' +
+              '</table>' +
+            '</div>' +
+            _buildDriftTiersHtml(driftTiers, thStyle, tdStyle) +
+          '</div>' +
+        '</details>' +
       '</div>';
   }
 
