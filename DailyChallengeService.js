@@ -18,7 +18,7 @@ function ensureDailyChallengeSheets() {
   try {
     var ss = dbGetSpreadsheet_();
     [
-      { name: DC_SHEETS.CHALLENGES, headers: ['Challenge_ID', 'Day_Index', 'Title'] },
+      { name: DC_SHEETS.CHALLENGES, headers: ['Challenge_ID', 'Day_Index', 'Title', 'Country'] },
       { name: DC_SHEETS.ITEMS,      headers: ['Item_ID', 'Challenge_ID', 'Item_Order', 'Audio_Script', 'Question_Text', 'Option_A', 'Option_B', 'Option_C', 'Option_D', 'Correct_Option'] },
       { name: DC_SHEETS.LOG,        headers: ['Log_ID', 'User_ID', 'Date', 'Challenge_ID', 'Completed', 'Items_Done', 'Timestamp'] },
       { name: DC_SHEETS.FREEZES,    headers: ['User_ID', 'Freezes', 'Updated_At'] }
@@ -30,6 +30,16 @@ function ensureDailyChallengeSheets() {
              .setFontWeight('bold').setBackground('#1e293b').setFontColor('#ffffff');
       }
     });
+    // Migration: add Country column to DailyChallenge if missing
+    var dcSheet = ss.getSheetByName(DC_SHEETS.CHALLENGES);
+    if (dcSheet && dcSheet.getLastColumn() > 0) {
+      var hdrs = dcSheet.getRange(1, 1, 1, dcSheet.getLastColumn()).getValues()[0].map(String);
+      if (hdrs.indexOf('Country') === -1) {
+        var newCol = hdrs.length + 1;
+        dcSheet.getRange(1, newCol).setValue('Country')
+               .setFontWeight('bold').setBackground('#1e293b').setFontColor('#ffffff');
+      }
+    }
     return { ok: true };
   } catch(e) {
     return { ok: false, message: e.message };
@@ -125,6 +135,7 @@ function apiGetDailyChallenge(sessionToken) {
       challenge: {
         challengeId: String(challengeRow.Challenge_ID),
         title:       String(challengeRow.Title || 'Daily Challenge'),
+        country:     String(challengeRow.Country || 'USA'),
         items:       items,
         totalItems:  items.length,
         alreadyDone: alreadyDone
@@ -141,22 +152,32 @@ function apiGetDailyChallenge(sessionToken) {
 function apiGetDailyChallengeAudio(sessionToken, challengeId, itemOrder) {
   try {
     AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
-    var items = dbReadAll_(DC_SHEETS.ITEMS).filter(function(r) {
+
+    // Look up the item and its parent challenge (for country/accent)
+    var allItems = dbReadAll_(DC_SHEETS.ITEMS);
+    var item = allItems.filter(function(r) {
       return String(r.Challenge_ID) === String(challengeId) &&
              Number(r.Item_Order)   === Number(itemOrder);
-    });
-    if (!items.length) return { ok: false, message: 'Item not found.' };
+    })[0];
+    if (!item) return { ok: false, message: 'Item not found.' };
 
-    var script = String(items[0].Audio_Script || '').trim();
+    var script = String(item.Audio_Script || '').trim();
     if (!script) return { ok: false, message: 'No audio script for this item.' };
 
     var cacheKey = 'dc_' + String(challengeId) + '_' + String(itemOrder);
     var cached   = TTSService.getTtsFromCache_(cacheKey);
     if (cached)  return { ok: true, audioBase64: cached, mimeType: 'audio/mp3', cached: true };
 
-    var profile = TTSService.getProfileByCountry_('USA');
+    // Resolve accent from the parent challenge's Country field
+    var challengeRow = dbReadAll_(DC_SHEETS.CHALLENGES).filter(function(r) {
+      return String(r.Challenge_ID) === String(challengeId);
+    })[0];
+    var country = String((challengeRow && challengeRow.Country) || 'USA').trim().toUpperCase() || 'USA';
+
+    var profile = TTSService.getProfileByCountry_(country);
     var voices  = profile.voiceNames || [];
-    var voice   = voices[0] || '';
+    // Random voice from pool for variety (same call always hits cache on repeat plays)
+    var voice   = voices[Math.floor(Math.random() * voices.length)] || voices[0] || '';
     var rate    = profile.speakingRate || 0.9;
     var ssml    = TTSService.buildAtcSsml_(script, profile, rate, voice);
     var result  = TTSService.callGoogleTtsWithFallbackVoices_(ssml, {
@@ -301,6 +322,7 @@ function apiAdminListDailyChallenges(sessionToken) {
           challengeId: String(c.Challenge_ID),
           dayIndex:    Number(c.Day_Index || 0),
           title:       String(c.Title || ''),
+          country:     String(c.Country || 'USA'),
           items: cItems.map(function(i) {
             return {
               itemOrder:     Number(i.Item_Order),
@@ -332,6 +354,10 @@ function apiAdminSaveDailyChallenge(sessionToken, payload) {
     var isNew       = !payload.challengeId;
     var challengeId = isNew ? ('DC_' + Date.now()) : String(payload.challengeId);
     var title       = String(payload.title || 'Daily Challenge').trim();
+    var country     = String(payload.country || 'USA').trim().toUpperCase() || 'USA';
+
+    // Ensure Country column exists before writing (handles sheets created before migration)
+    ensureDailyChallengeSheets();
 
     var existing = dbReadAll_(DC_SHEETS.CHALLENGES);
     var dayIndex  = (payload.dayIndex !== undefined && payload.dayIndex !== null)
@@ -341,10 +367,10 @@ function apiAdminSaveDailyChallenge(sessionToken, payload) {
           : 1);
 
     if (isNew) {
-      dbAppend_(DC_SHEETS.CHALLENGES, { Challenge_ID: challengeId, Day_Index: dayIndex, Title: title });
+      dbAppend_(DC_SHEETS.CHALLENGES, { Challenge_ID: challengeId, Day_Index: dayIndex, Title: title, Country: country });
     } else {
       var row = dbFindOne_(DC_SHEETS.CHALLENGES, 'Challenge_ID', challengeId);
-      if (row) dbUpdateByRow_(DC_SHEETS.CHALLENGES, row.__rowNumber, { Title: title, Day_Index: dayIndex });
+      if (row) dbUpdateByRow_(DC_SHEETS.CHALLENGES, row.__rowNumber, { Title: title, Day_Index: dayIndex, Country: country });
     }
 
     // Remove existing items for this challenge then re-insert

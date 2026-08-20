@@ -22218,7 +22218,7 @@ function _renderAdminDcList(list) {
     var safeTitle = safeText(c.title);
     return '<tr>' +
       '<td style="width:40px;color:var(--muted);font-size:0.8rem;">' + (i + 1) + '</td>' +
-      '<td><strong>' + safeTitle + '</strong></td>' +
+      '<td><strong>' + safeTitle + '</strong><br><span style="font-size:0.75rem;color:var(--muted);">' + (c.country || 'USA') + ' accent</span></td>' +
       '<td style="color:var(--muted);font-size:0.8rem;">' + c.items.length + ' questions</td>' +
       '<td style="white-space:nowrap;">' +
         '<button class="btn secondary" style="font-size:0.78rem;padding:4px 10px;margin-right:4px;" onclick="_adminDcEdit(window._dcAdminList[' + i + '])">Edit</button>' +
@@ -22260,6 +22260,7 @@ function _adminDcShowForm(challenge) {
   var isNew      = !challenge;
   var cId        = isNew ? '' : challenge.challengeId;
   var cTitle     = isNew ? '' : challenge.title;
+  var cCountry   = isNew ? 'USA' : (challenge.country || 'USA');
   var cDayIndex  = isNew ? null : (challenge.dayIndex !== undefined ? challenge.dayIndex : null);
   var cItems = isNew
     ? [{ audioScript: '', questionText: '', optionA: '', optionB: '', optionC: '', optionD: '', correctOption: 'A' }]
@@ -22315,6 +22316,8 @@ function _adminDcShowForm(challenge) {
     }
     var btn = byId('dcSaveBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    var countryEl = byId('dcFormCountry');
+    var country = countryEl ? countryEl.value : 'USA';
     google.script.run
       .withSuccessHandler(function(res) {
         if (res && res.ok) { _gToast('Saved!', 'ok'); renderAdminDailyChallenges(); }
@@ -22331,6 +22334,7 @@ function _adminDcShowForm(challenge) {
         challengeId: cId || undefined,
         dayIndex:    cDayIndex,
         title:       title,
+        country:     country,
         items:       window._dcFormItems
       });
   };
@@ -22341,7 +22345,14 @@ function _adminDcShowForm(challenge) {
     '<div class="dc-form-card">' +
       '<h3 style="margin:0 0 16px;">' + (isNew ? 'New Challenge' : 'Edit: ' + safeText(cTitle)) + '</h3>' +
       '<label class="dc-form-label">Challenge Title</label>' +
-      '<input id="dcFormTitle" class="input" style="margin-bottom:16px;" placeholder="e.g. Departure Sequences" value="' + safeText(cTitle) + '">' +
+      '<input id="dcFormTitle" class="input" style="margin-bottom:12px;" placeholder="e.g. Departure Sequences" value="' + safeText(cTitle) + '">' +
+      '<label class="dc-form-label">ATC Accent (Country)</label>' +
+      '<select id="dcFormCountry" class="input" style="margin-bottom:16px;">' +
+        ['USA','UK','AUSTRALIA','INDIA','CANADA'].map(function(c) {
+          var labels = { USA:'🇺🇸 American ATC', UK:'🇬🇧 British ATC', AUSTRALIA:'🇦🇺 Australian ATC', INDIA:'🇮🇳 Indian ATC', CANADA:'🇨🇦 Canadian ATC' };
+          return '<option value="' + c + '"' + (cCountry === c ? ' selected' : '') + '>' + labels[c] + '</option>';
+        }).join('') +
+      '</select>' +
       '<div id="dcItemsArea"></div>' +
       '<button class="btn secondary" style="margin-top:8px;width:100%;" onclick="window._dcAddItem()">+ Add Question</button>' +
       '<div style="display:flex;gap:8px;margin-top:16px;">' +

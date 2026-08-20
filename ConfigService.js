@@ -478,7 +478,7 @@ var DB_SCHEMA = {
     'longestStreak'
   ],
   DailyChallenge: [
-    'Challenge_ID', 'Day_Index', 'Title'
+    'Challenge_ID', 'Day_Index', 'Title', 'Country'
   ],
   DailyChallengeItems: [
     'Item_ID', 'Challenge_ID', 'Item_Order', 'Audio_Script',
