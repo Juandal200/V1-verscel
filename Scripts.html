@@ -1239,10 +1239,17 @@
         AppState.home         = res.home;
         _homeDataFreshAt = Date.now();
         AppState.accessStatus = res.accessStatus || AppState.accessStatus || null;
+        // Update XP/streak vars so re-renders show fresh data
+        window._lmsStreakDays    = res.streakDays    || window._lmsStreakDays    || 0;
+        window._lmsLastActiveAt  = res.lastActiveAt  || window._lmsLastActiveAt  || '';
+        window._lmsStreakFreezes = res.streakFreezes || window._lmsStreakFreezes || 0;
+        window._lmsLmsXp         = res.lmsXp         || window._lmsLmsXp         || 0;
+        window._lmsSimXp         = (res.mergedXp || 0) - (res.lmsXp || 0) || window._lmsSimXp || 0;
+        if (res.mergedXp) _renderTopbarRank(res.mergedXp, res.streakDays || 0);
         if (typeof callback === 'function') callback();
       })
       .withFailureHandler(handleServerError)
-      .apiGetMe(AppState.sessionToken);
+      .apiGetAppBootstrap(AppState.sessionToken);
   }
 
   function metricCard(label, value) {
@@ -1495,49 +1502,81 @@
 
       byId('contentArea').innerHTML = heroBar + dcBannerHtml + cardsRow + modulesSection;
 
-      // Load daily challenge banner
-      google.script.run
-        .withSuccessHandler(function(res) {
-          if (_navToken !== _tok) return;
-          var el = byId('dcBanner');
-          if (!el) return;
-          if (res && res.streakFreezes !== undefined) {
-            window._lmsStreakFreezes = res.streakFreezes;
-          }
-          if (!res || !res.ok || !res.challenge) { el.style.display = 'none'; return; }
-          el.innerHTML = _dcHomeBannerHtml(res.challenge);
-        })
-        .withFailureHandler(function() {
-          var el = byId('dcBanner');
-          if (el) el.style.display = 'none';
-        })
-        .apiGetDailyChallenge(AppState.sessionToken);
+      var _HOME_SECTION_TTL = 10 * 60 * 1000; // 10 minutes
 
-      // Load modules into home
-      google.script.run
-        .withSuccessHandler(function(res) {
-          if (_navToken !== _tok) return;
-          var el = byId('homeModulesArea');
-          if (!el) return;
-          if (!res || !res.ok) { el.innerHTML = '<p style="color:var(--muted);">Could not load modules.</p>'; return; }
-          el.innerHTML = _renderModuleRoadmap(res.modules || [], true);
-        })
-        .withFailureHandler(function() {
-          var el = byId('homeModulesArea');
-          if (el) el.innerHTML = '<p style="color:var(--muted);">Could not load modules.</p>';
-        })
-        .apiModuleGetAll(AppState.sessionToken);
+      // Load daily challenge banner — serve from sessionStorage if fresh
+      (function() {
+        try {
+          var _dcCached = JSON.parse(sessionStorage.getItem('_aero_dc_home') || 'null');
+          if (_dcCached && (Date.now() - _dcCached.t) < _HOME_SECTION_TTL) {
+            var el = byId('dcBanner');
+            if (el) {
+              if (_dcCached.challenge) {
+                if (_dcCached.streakFreezes !== undefined) window._lmsStreakFreezes = _dcCached.streakFreezes;
+                el.innerHTML = _dcHomeBannerHtml(_dcCached.challenge);
+              } else {
+                el.style.display = 'none';
+              }
+            }
+            return;
+          }
+        } catch(e) {}
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (_navToken !== _tok) return;
+            var el = byId('dcBanner');
+            if (!el) return;
+            if (res && res.streakFreezes !== undefined) window._lmsStreakFreezes = res.streakFreezes;
+            try { sessionStorage.setItem('_aero_dc_home', JSON.stringify({ t: Date.now(), challenge: (res && res.challenge) || null, streakFreezes: (res && res.streakFreezes) || 0 })); } catch(e) {}
+            if (!res || !res.ok || !res.challenge) { el.style.display = 'none'; return; }
+            el.innerHTML = _dcHomeBannerHtml(res.challenge);
+          })
+          .withFailureHandler(function() {
+            var el = byId('dcBanner');
+            if (el) el.style.display = 'none';
+          })
+          .apiGetDailyChallenge(AppState.sessionToken);
+      })();
+
+      // Load modules into home — serve from sessionStorage if fresh
+      (function() {
+        try {
+          var _modCached = JSON.parse(sessionStorage.getItem('_aero_modules_home') || 'null');
+          if (_modCached && (Date.now() - _modCached.t) < _HOME_SECTION_TTL) {
+            var el = byId('homeModulesArea');
+            if (el) el.innerHTML = _renderModuleRoadmap(_modCached.modules || [], true);
+            return;
+          }
+        } catch(e) {}
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (_navToken !== _tok) return;
+            var el = byId('homeModulesArea');
+            if (!el) return;
+            if (!res || !res.ok) { el.innerHTML = '<p style="color:var(--muted);">Could not load modules.</p>'; return; }
+            try { sessionStorage.setItem('_aero_modules_home', JSON.stringify({ t: Date.now(), modules: res.modules || [] })); } catch(e) {}
+            el.innerHTML = _renderModuleRoadmap(res.modules || [], true);
+          })
+          .withFailureHandler(function() {
+            var el = byId('homeModulesArea');
+            if (el) el.innerHTML = '<p style="color:var(--muted);">Could not load modules.</p>';
+          })
+          .apiModuleGetAll(AppState.sessionToken);
+      })();
     }
 
     if (_freshData) {
       // Data just arrived — render instantly, refresh silently in background
       _doRenderHome();
-      // Still run a background refresh to catch subscription expiry or access changes
+      // Background refresh: catch subscription changes and update hero metrics with server data
       refreshMeAndHome(function() {
         if (_navToken !== _tok) return;
         if (AppState.accessStatus && AppState.accessStatus.status === 'expired') {
           _renderPaywall();
+          return;
         }
+        // Re-render so hero bar reflects any updated level/success rate from server
+        _doRenderHome();
       });
     } else {
       showGasLoadingSkeleton('LOADING', 'Getting your dashboard ready...');
@@ -22056,6 +22095,7 @@ var _dcItemIndex          = 0;
 var _dcSelected           = null;
 var _dcAnsweredCorrectly  = false;
 var _dcAudio              = null;
+var _dcAudioCache         = {}; // keyed by challengeId_itemOrder — avoids re-fetching TTS on replay
 // ── Home state cache (stale-while-revalidate) ─────────────────────────────
 var _HOME_CACHE_KEY = '_aero_home_v2';
 var _HOME_CACHE_TTL = 60 * 60 * 1000; // 60 minutes
@@ -22234,12 +22274,48 @@ function _dcPlayAudio() {
   var btn   = byId('dcPlayBtn');
   var label = byId('dcPlayLabel');
   if (!btn || btn.disabled) return;
-  if (label) label.textContent = 'Loading…';
-  btn.disabled = true;
 
   var ch   = _dcChallenge;
   if (!ch) return;
   var item = ch.items[_dcItemIndex];
+  var _cacheKey = ch.challengeId + '_' + item.itemOrder;
+
+  function _playBase64(b64) {
+    if (_dcNavGen !== _myGen) return;
+    var b = byId('dcPlayBtn');
+    var l = byId('dcPlayLabel');
+    if (b) b.disabled = false;
+    if (l) l.textContent = 'Replay';
+    if (_dcAudio) { try { _dcAudio.pause(); } catch(e) {} }
+    _dcAudio = new Audio('data:audio/mp3;base64,' + b64);
+    _dcAudio.volume = 1;
+    try {
+      var _dctx = (typeof SimMedia !== 'undefined' && SimMedia.bgCtx && SimMedia.bgCtx.state !== 'closed')
+        ? SimMedia.bgCtx
+        : new (window.AudioContext || window.webkitAudioContext)();
+      if (_dctx.state === 'suspended') _dctx.resume();
+      var _dsrc = _dctx.createMediaElementSource(_dcAudio);
+      var _dhp  = _dctx.createBiquadFilter();
+      _dhp.type = 'highpass'; _dhp.frequency.value = 300; _dhp.Q.value = 0.7;
+      var _dlp  = _dctx.createBiquadFilter();
+      _dlp.type = 'lowpass';  _dlp.frequency.value = 3400; _dlp.Q.value = 0.5;
+      _dsrc.connect(_dhp); _dhp.connect(_dlp); _dlp.connect(_dctx.destination);
+    } catch(e) {}
+    _dcAudio.play().catch(function() {});
+    if (b) {
+      b.classList.add('dc-play-btn--playing');
+      _dcAudio.onended = function() { if (b) b.classList.remove('dc-play-btn--playing'); };
+    }
+  }
+
+  // Serve from cache if available — avoids a GAS+TTS round-trip on replay
+  if (_dcAudioCache[_cacheKey]) {
+    _playBase64(_dcAudioCache[_cacheKey]);
+    return;
+  }
+
+  if (label) label.textContent = 'Loading…';
+  btn.disabled = true;
 
   google.script.run
     .withSuccessHandler(function(res) {
@@ -22249,28 +22325,8 @@ function _dcPlayAudio() {
       if (b) b.disabled = false;
       if (l) l.textContent = 'Replay';
       if (!res || !res.ok || !res.audioBase64) return;
-      if (_dcAudio) { try { _dcAudio.pause(); } catch(e) {} }
-      _dcAudio = new Audio('data:audio/mp3;base64,' + res.audioBase64);
-      _dcAudio.volume = 1;
-      // Route through VHF radio bandpass (300–3400 Hz) to simulate ATC radio sound,
-      // matching what the training simulator does in _playAtcAudio.
-      try {
-        var _dctx = (typeof SimMedia !== 'undefined' && SimMedia.bgCtx && SimMedia.bgCtx.state !== 'closed')
-          ? SimMedia.bgCtx
-          : new (window.AudioContext || window.webkitAudioContext)();
-        if (_dctx.state === 'suspended') _dctx.resume();
-        var _dsrc = _dctx.createMediaElementSource(_dcAudio);
-        var _dhp  = _dctx.createBiquadFilter();
-        _dhp.type = 'highpass'; _dhp.frequency.value = 300; _dhp.Q.value = 0.7;
-        var _dlp  = _dctx.createBiquadFilter();
-        _dlp.type = 'lowpass';  _dlp.frequency.value = 3400; _dlp.Q.value = 0.5;
-        _dsrc.connect(_dhp); _dhp.connect(_dlp); _dlp.connect(_dctx.destination);
-      } catch(e) {}
-      _dcAudio.play().catch(function() {});
-      if (b) {
-        b.classList.add('dc-play-btn--playing');
-        _dcAudio.onended = function() { if (b) b.classList.remove('dc-play-btn--playing'); };
-      }
+      _dcAudioCache[_cacheKey] = res.audioBase64; // cache for instant replay
+      _playBase64(res.audioBase64);
     })
     .withFailureHandler(function() {
       var b = byId('dcPlayBtn');
