@@ -111,7 +111,7 @@
           <button class="nav-item active" onclick="_navTo(renderHome)">Home</button>
           <button class="nav-item" onclick="_navTo(renderProgress)">Progress</button>
           <button id="crewNavBtn" class="nav-item" onclick="_navTo(renderSquadron)">Crew <span id="gamNavBadge" class="gam-nav-badge" style="display:none;"></span></button>
-          <button id="planNavBtn" class="nav-item" onclick="openSubscriptionModal()">Shop</button>
+          <button id="planNavBtn" class="nav-item" data-nav="Shop" onclick="_navTo(renderShop)">Shop</button>
           <button id="adminNavButton" class="nav-item hidden" onclick="renderAdminNav()">Admin</button>
           <button id="analyticsNavButton" class="nav-item hidden" onclick="renderAdminAnalytics()">Analytics</button>
         </nav>
@@ -121,8 +121,8 @@
 <div class="topnav-pilot-wrap">
             <div class="topnav-rank-meta" id="topnavRankMeta">
               <div id="userRankStripes" class="topbar-rank-stripes" style="display:none;"></div>
-              <span id="topnavXpLabel" class="topnav-xp-lbl" style="display:none;"></span>
               <span id="topnavStreakChip" class="topnav-streak-chip" style="display:none;"></span>
+              <span id="topnavXpLabel" class="topnav-xp-lbl" style="display:none;"></span>
               <small id="topnavLevelsLabel" class="topnav-levels-lbl" style="display:none;"></small>
             </div>
             <div class="topbar-avatar" id="topbarAvatar" onclick="toggleAvatarMenu()" role="button" tabindex="0" aria-label="Account menu" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleAvatarMenu()}" style="cursor:pointer;">
@@ -152,16 +152,18 @@
 
         <button class="mob-nav-btn" data-nav="Progress" onclick="_navTo(renderProgress)">
           <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="7" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg>
-          <span class="mob-nav-lbl">My Progress</span>
+          <span class="mob-nav-lbl">Progress</span>
         </button>
 
         <button class="mob-nav-btn" data-nav="Crew" onclick="_navTo(renderSquadron)" id="mobCrewNavBtn">
-          <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20v-1a6 6 0 016-6h0"/><circle cx="17" cy="7" r="3"/><path d="M21 20v-1a6 6 0 00-6-6h0"/></svg>
+          <span class="mob-nav-icon-wrap">
+            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 20v-1a6 6 0 016-6h0"/><circle cx="17" cy="7" r="3"/><path d="M21 20v-1a6 6 0 00-6-6h0"/></svg>
+            <span id="mobGamNavBadge" class="mob-nav-badge" style="display:none;"></span>
+          </span>
           <span class="mob-nav-lbl">Crew</span>
-          <span id="mobGamNavBadge" class="mob-nav-badge" style="display:none;"></span>
         </button>
 
-        <button class="mob-nav-btn" data-nav="Shop" onclick="openSubscriptionModal()">
+        <button class="mob-nav-btn" data-nav="Shop" onclick="_navTo(renderShop)">
           <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
           <span class="mob-nav-lbl">Shop</span>
         </button>
