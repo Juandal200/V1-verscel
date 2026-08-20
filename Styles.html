@@ -10512,9 +10512,9 @@ p, li, td, th, h1, h2, h3, h4,
   align-items: center;
   justify-content: center;
   gap: 3px;
-  padding: 6px 4px 8px;
+  padding: 8px 6px 10px;
   min-width: 48px;
-  min-height: 44px;
+  min-height: 48px;
   flex: 1;
   background: none;
   border: none;
@@ -10534,7 +10534,7 @@ p, li, td, th, h1, h2, h3, h4,
 .mob-nav-btn.active::before {
   content: '';
   position: absolute;
-  top: 5px;
+  top: 7px;
   left: 50%;
   transform: translateX(-50%);
   width: 44px;
@@ -10562,7 +10562,7 @@ p, li, td, th, h1, h2, h3, h4,
 }
 
 .mob-nav-lbl {
-  font-size: 0.63rem;
+  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1;
@@ -10574,10 +10574,17 @@ p, li, td, th, h1, h2, h3, h4,
   z-index: 1;
 }
 
+.mob-nav-icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .mob-nav-badge {
   position: absolute;
-  top: 5px;
-  right: calc(50% - 20px);
+  top: -5px;
+  right: -7px;
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
