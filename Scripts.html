@@ -9329,6 +9329,84 @@
       .apiGetSubscriptionStatus(AppState.sessionToken);
   }
 
+  // ── Shop screen ────────────────────────────────────────────────────────────
+  function renderShop() {
+    setActiveNav('Shop');
+    var freezes = window._lmsStreakFreezes || 0;
+    var lmsXp   = window._lmsLmsXp || 0;
+    var canBuy  = (freezes < 5) && (lmsXp >= 500);
+    var atMax   = (freezes >= 5);
+
+    var freezeBtn = atMax
+      ? '<button class="btn primary full" disabled style="opacity:0.45;cursor:not-allowed;">Maxed out (5/5)</button>'
+      : canBuy
+        ? '<button class="btn primary full" id="shopFreezeBtn" onclick="purchaseStreakFreeze()">Buy for 500 XP</button>'
+        : '<button class="btn primary full" disabled style="opacity:0.45;cursor:not-allowed;">Need 500 XP (have ' + lmsXp + ')</button>';
+
+    byId('contentArea').innerHTML =
+      '<div style="max-width:720px;margin:0 auto;padding:0 4px;">' +
+        '<h2 style="margin:0 0 22px;font-size:1.4rem;font-weight:800;">Shop</h2>' +
+        '<div class="shop-cards-grid">' +
+
+          // ── Streak Freeze card ───────────────────────────────────────────
+          '<div class="shop-card">' +
+            '<div class="shop-card-icon">🧊</div>' +
+            '<h3 class="shop-card-title">Streak Freeze</h3>' +
+            '<p class="shop-card-desc">Protects your streak if you miss a day. Activates automatically.</p>' +
+            '<div class="shop-card-count" id="shopFreezeCount">' +
+              '<span style="font-size:1.5rem;font-weight:800;">' + freezes + '</span>' +
+              '<span style="color:var(--muted);font-size:0.82rem;margin-left:6px;">/ 5 owned</span>' +
+            '</div>' +
+            '<div class="shop-card-price">500 XP</div>' +
+            '<div id="shopFreezeAction">' + freezeBtn + '</div>' +
+            '<div id="shopFreezeMsg" class="shop-card-msg"></div>' +
+          '</div>' +
+
+          // ── Full Access card ─────────────────────────────────────────────
+          '<div class="shop-card">' +
+            '<div class="shop-card-icon">🚀</div>' +
+            '<h3 class="shop-card-title">Full Access</h3>' +
+            '<p class="shop-card-desc">Unlock the ATC Simulator, all country routes, immersive scenarios, and more.</p>' +
+            '<div class="shop-card-count">' +
+              '<span style="font-size:0.85rem;color:var(--muted);">Sprint · Training · Full Course</span>' +
+            '</div>' +
+            '<div class="shop-card-price">From COP 20,000</div>' +
+            '<button class="btn primary full" onclick="openSubscriptionModal()">View plans</button>' +
+          '</div>' +
+
+        '</div>' +
+      '</div>';
+  }
+
+  function purchaseStreakFreeze() {
+    var btn = byId('shopFreezeBtn');
+    var msg = byId('shopFreezeMsg');
+    if (btn) { btn.disabled = true; btn.textContent = 'Purchasing…'; }
+    if (msg) { msg.textContent = ''; msg.className = 'shop-card-msg'; }
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) {
+          if (btn) { btn.disabled = false; btn.textContent = 'Buy for 500 XP'; }
+          if (msg) { msg.textContent = res && res.message ? res.message : 'Purchase failed.'; msg.className = 'shop-card-msg shop-card-msg--err'; }
+          return;
+        }
+        window._lmsStreakFreezes = res.newFreezes;
+        window._lmsLmsXp = res.newXp;
+        var newMerged = (window._lmsLmsXp || 0) + (window._lmsSimXp || 0);
+        _renderTopbarRank(newMerged, window._lmsStreakDays || 0);
+        _aeroSaveCache && _aeroSaveCache();
+        _gToast('🧊 Streak freeze purchased!', 'ok');
+        // Re-render card to reflect new count
+        renderShop();
+      })
+      .withFailureHandler(function() {
+        if (btn) { btn.disabled = false; btn.textContent = 'Buy for 500 XP'; }
+        if (msg) { msg.textContent = 'Server error. Try again.'; msg.className = 'shop-card-msg shop-card-msg--err'; }
+      })
+      .apiPurchaseStreakFreeze(AppState.sessionToken);
+  }
+
   function openSubscriptionModal() {
     var existing = byId('subModal');
     if (existing) { existing.style.display = 'flex'; return; }
@@ -11125,6 +11203,10 @@
   window.adminUpdateUser       = adminUpdateUser;
   window.adminDeleteUser       = adminDeleteUser;
   window.adminResetPlacement   = adminResetPlacement;
+
+  // ── Shop ─────────────────────────────────────────────────────
+  window.renderShop             = renderShop;
+  window.purchaseStreakFreeze   = purchaseStreakFreeze;
 
   // ── Subscription (Wompi) ──────────────────────────────────────
   window.openSubscriptionModal  = openSubscriptionModal;

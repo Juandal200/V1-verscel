@@ -11485,5 +11485,45 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   .dc-home-card { padding: 14px 16px; gap: 12px; }
 }
 
+/* =====================================================================
+   SHOP SCREEN
+   ===================================================================== */
+.shop-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+@media (max-width: 540px) {
+  .shop-cards-grid { grid-template-columns: 1fr; }
+}
+
+.shop-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 24px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shop-card-icon { font-size: 2.2rem; line-height: 1; }
+.shop-card-title { margin: 0; font-size: 1.1rem; font-weight: 800; color: var(--text); }
+.shop-card-desc  { margin: 0; font-size: 0.83rem; color: var(--muted); line-height: 1.55; }
+.shop-card-count { display: flex; align-items: baseline; }
+.shop-card-price {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 4px;
+}
+.shop-card-msg { font-size: 0.82rem; min-height: 18px; }
+.shop-card-msg--err { color: #ef4444; }
+
+[data-theme="light"] .shop-card { background: var(--panel); border-color: var(--line); }
+[data-theme="light"] .shop-card-title { color: var(--text); }
+
 
 </style>
