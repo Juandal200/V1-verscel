@@ -980,17 +980,17 @@
 
   // Tier progress config — XP thresholds for each permanent rank
   var _TIER_PROGRESS = [
-    { key: 'junior',     nextKey: 'senior',     nextAt: 300  },
-    { key: 'senior',     nextKey: 'instructor', nextAt: 800  },
-    { key: 'instructor', nextKey: 'chief',      nextAt: 2000 },
+    { key: 'junior',     nextKey: 'senior',     nextAt: 1000 },
+    { key: 'senior',     nextKey: 'instructor', nextAt: 3000 },
+    { key: 'instructor', nextKey: 'chief',      nextAt: 8000 },
     { key: 'chief',      nextKey: null,         nextAt: null }
   ];
 
   function _getTierFromXpKey(mergedXp) {
     var xp = mergedXp || 0;
-    if (xp >= 2000) return 'chief';
-    if (xp >= 800)  return 'instructor';
-    if (xp >= 300)  return 'senior';
+    if (xp >= 8000) return 'chief';
+    if (xp >= 3000) return 'instructor';
+    if (xp >= 1000) return 'senior';
     return 'junior';
   }
 
