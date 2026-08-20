@@ -420,11 +420,31 @@
     bindLoginEnterKeys();
 
     if (AppState.sessionToken) {
-      setLoginMessage('Restoring session...');
-      google.script.run
-        .withSuccessHandler(handleGetMeResponse)
-        .withFailureHandler(handleServerError)
-        .apiGetMe(AppState.sessionToken);
+      var _startCache = _aeroReadCache();
+      if (_startCache) {
+        // Instant: restore from cache, enter app immediately
+        _aeroRestoreFromCache(_startCache);
+        _homeDataFreshAt = _startCache.cachedAt;
+        setLoginMessage('');
+        enterApplication();
+        // Silent background refresh — updates cache without blocking UI
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (!res || !res.ok) return;
+            AppState.user = res.user;
+            AppState.home = res.home;
+            AppState.accessStatus = res.accessStatus || null;
+            _homeDataFreshAt = Date.now();
+          })
+          .withFailureHandler(function() {})
+          .apiGetMe(AppState.sessionToken);
+      } else {
+        setLoginMessage('Restoring session...');
+        google.script.run
+          .withSuccessHandler(handleGetMeResponse)
+          .withFailureHandler(handleServerError)
+          .apiGetMe(AppState.sessionToken);
+      }
     }
   });
 
@@ -799,6 +819,7 @@
     AppState.sessionToken  = res.sessionToken;
     AppState.user          = res.user;
     AppState.home          = res.home;
+    _homeDataFreshAt = Date.now();
     AppState.accessStatus  = res.accessStatus || null;
     localStorage.setItem('icao_session_token', AppState.sessionToken);
     sessionStorage.setItem('icao_session_token', AppState.sessionToken);
@@ -854,6 +875,7 @@
 
     AppState.user         = res.user;
     AppState.home         = res.home;
+    _homeDataFreshAt = Date.now();
     AppState.accessStatus = res.accessStatus || null;
     enterApplication();
   }
@@ -1032,6 +1054,7 @@
           window._lmsStreakFreezes = res.streakFreezes || 0;
           _renderTopbarRank(mxp, res.streakDays || 0);
           try { localStorage.setItem('_aero_xp_' + (AppState.user.userId || ''), mxp); } catch(e) {}
+          _aeroSaveCache();
           if ((res.streakDays || 0) >= 2) _initPushNotifications();
         }
       })
@@ -1153,6 +1176,7 @@
 
         AppState.user         = res.user;
         AppState.home         = res.home;
+        _homeDataFreshAt = Date.now();
         AppState.accessStatus = res.accessStatus || AppState.accessStatus || null;
         if (typeof callback === 'function') callback();
       })
@@ -1247,10 +1271,10 @@
       return;
     }
 
-    showGasLoadingSkeleton('LOADING', 'Getting your dashboard ready...');
     var _tok = _navToken;
+    var _freshData = (Date.now() - _homeDataFreshAt) < 30000;
 
-    refreshMeAndHome(function() {
+    function _doRenderHome() {
       if (_navToken !== _tok) return;
 
       if (AppState.accessStatus && AppState.accessStatus.status === 'expired') {
@@ -1442,7 +1466,19 @@
           if (el) el.innerHTML = '<p style="color:var(--muted);">Could not load modules.</p>';
         })
         .apiModuleGetAll(AppState.sessionToken);
-    });
+    }
+
+    if (_freshData) {
+      // Data just arrived — render instantly, refresh silently in background
+      _doRenderHome();
+      refreshMeAndHome(function() { /* silent update — don't re-render unless on home */ });
+    } else {
+      showGasLoadingSkeleton('LOADING', 'Getting your dashboard ready...');
+      refreshMeAndHome(function() {
+        if (_navToken !== _tok) return;
+        _doRenderHome();
+      });
+    }
   }
 
   function renderAdminTabs(activeTab) {
@@ -21953,6 +21989,52 @@ var _dcItemIndex          = 0;
 var _dcSelected           = null;
 var _dcAnsweredCorrectly  = false;
 var _dcAudio              = null;
+// ── Home state cache (stale-while-revalidate) ─────────────────────────────
+var _HOME_CACHE_KEY = '_aero_home_v2';
+var _HOME_CACHE_TTL = 60 * 60 * 1000; // 60 minutes
+var _homeDataFreshAt = 0; // ms timestamp — set when fresh data arrives from server
+
+function _aeroSaveCache() {
+  if (!AppState || !AppState.user || !AppState.user.userId) return;
+  try {
+    localStorage.setItem(_HOME_CACHE_KEY, JSON.stringify({
+      user:          AppState.user,
+      home:          AppState.home,
+      accessStatus:  AppState.accessStatus,
+      streakDays:    window._lmsStreakDays    || 0,
+      lastActiveAt:  window._lmsLastActiveAt  || '',
+      streakFreezes: window._lmsStreakFreezes || 0,
+      lmsXp:         window._lmsLmsXp || 0,
+      mergedXp:      (window._lmsLmsXp || 0) + (window._lmsSimXp || 0),
+      token:         AppState.sessionToken,
+      cachedAt:      Date.now()
+    }));
+  } catch(e) {}
+}
+
+function _aeroReadCache() {
+  try {
+    var raw = localStorage.getItem(_HOME_CACHE_KEY);
+    if (!raw) return null;
+    var c = JSON.parse(raw);
+    if (!c || !c.user || !c.cachedAt) return null;
+    if (Date.now() - c.cachedAt > _HOME_CACHE_TTL) return null;
+    if (c.token !== AppState.sessionToken) return null; // different session
+    return c;
+  } catch(e) { return null; }
+}
+
+function _aeroRestoreFromCache(c) {
+  AppState.user         = c.user;
+  AppState.home         = c.home;
+  AppState.accessStatus = c.accessStatus || null;
+  window._lmsStreakDays    = c.streakDays    || 0;
+  window._lmsLastActiveAt  = c.lastActiveAt  || '';
+  window._lmsStreakFreezes = c.streakFreezes || 0;
+  window._lmsLmsXp = c.lmsXp || 0;
+  window._lmsSimXp = (c.mergedXp || 0) - (c.lmsXp || 0);
+}
+
 var _dcNavGen             = 0; // incremented on each player render or nav-away to abort stale audio
 
 function _dcHomeBannerHtml(challenge) {

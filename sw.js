@@ -1,5 +1,6 @@
-var CACHE = 'aerocomms-v1';
+var CACHE = 'aerocomms-v3'; // bump version
 
+// install: pre-cache the shell
 self.addEventListener('install', function(e) {
   e.waitUntil(
     caches.open(CACHE).then(function(c) { return c.addAll(['/']); })
@@ -7,6 +8,7 @@ self.addEventListener('install', function(e) {
   self.skipWaiting();
 });
 
+// activate: delete old caches
 self.addEventListener('activate', function(e) {
   e.waitUntil(
     caches.keys().then(function(keys) {
@@ -18,16 +20,20 @@ self.addEventListener('activate', function(e) {
   self.clients.claim();
 });
 
+// fetch: stale-while-revalidate for navigation (the 1.9MB HTML shell)
 self.addEventListener('fetch', function(e) {
   if (e.request.method !== 'GET') return;
   if (e.request.mode === 'navigate') {
     e.respondWith(
-      fetch(e.request).then(function(res) {
-        var clone = res.clone();
-        caches.open(CACHE).then(function(c) { c.put(e.request, clone); });
-        return res;
-      }).catch(function() {
-        return caches.match('/');
+      caches.open(CACHE).then(function(cache) {
+        return cache.match(e.request).then(function(cached) {
+          var networkFetch = fetch(e.request).then(function(res) {
+            if (res && res.status === 200) cache.put(e.request, res.clone());
+            return res;
+          }).catch(function() { return cached; });
+          // Serve cache immediately if available; otherwise wait for network
+          return cached || networkFetch;
+        });
       })
     );
   }
