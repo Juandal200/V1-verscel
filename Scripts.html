@@ -863,7 +863,7 @@
 
     AppState.sessionToken  = res.sessionToken;
     AppState.user          = res.user;
-    AppState.home          = res.home;
+    AppState.home          = res.home || { metrics: {} };
     _homeDataFreshAt = Date.now();
     AppState.accessStatus  = res.accessStatus || null;
     localStorage.setItem('icao_session_token', AppState.sessionToken);
@@ -1610,23 +1610,24 @@
       })();
     }
 
-    if (_freshData) {
-      // Data just arrived — render instantly, refresh silently in background
+    var _hasData = AppState.home && (AppState.home.metrics || AppState.home.modules || AppState.home.dc);
+    if (_freshData || _hasData) {
+      // Render immediately with available data — fresh or stale
       _doRenderHome();
-      // Background refresh: catch subscription changes and update hero metrics with server data
+      // Always refresh in background to catch XP/streak/subscription changes
       refreshMeAndHome(function() {
         if (_navToken !== _tok) return;
         if (AppState.accessStatus && AppState.accessStatus.status === 'expired') {
           _renderPaywall();
           return;
         }
-        // Preserve scroll position across the re-render so the page doesn't snap to top
         var _scrollEl = document.documentElement.scrollTop > 0 ? document.documentElement : document.body;
         var _scrollY = _scrollEl.scrollTop;
         _doRenderHome();
         _scrollEl.scrollTop = _scrollY;
       });
     } else {
+      // First-ever load with absolutely no data — show spinner once
       showGasLoadingSkeleton('LOADING', 'Getting your dashboard ready...');
       refreshMeAndHome(function() {
         if (_navToken !== _tok) return;
