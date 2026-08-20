@@ -4396,9 +4396,14 @@ function apiGenerateIcaoTestVoice(sessionToken, payload) {
     if (!text) throw new Error('No text provided.');
     var profile = TTSService.getProfileByCountry_(country);
     var rate    = Number(payload.speakingRate || profile.speakingRate || 0.91);
-    var ssml    = TTSService.buildAtcSsml_(text, profile, rate);
-    var audio   = TTSService.callGoogleTts_(ssml, voice, profile.languageCode, rate, 0, []);
-    return { ok: true, audioBase64: audio, mimeType: 'audio/mp3', voiceName: voice, speakingRate: rate };
+    var voices  = profile.voiceNames || [];
+    // Use client-chosen voice first; fall back to profile pool
+    var voicesToTry = voice ? [voice].concat(voices.filter(function(v) { return v !== voice; })) : voices;
+    var profileForCall = { languageCode: profile.languageCode, pitch: profile.pitch,
+                           effectsProfileId: profile.effectsProfileId, voiceNames: voicesToTry };
+    var ssml   = TTSService.buildAtcSsml_(text, profile, rate, voicesToTry[0]);
+    var result = TTSService.callGoogleTtsWithFallbackVoices_(ssml, profileForCall, rate);
+    return { ok: true, audioBase64: result.audioBase64, mimeType: 'audio/mp3', voiceName: result.voiceName, speakingRate: rate };
   } catch (err) {
     return apiError_('apiGenerateIcaoTestVoice', err);
   }

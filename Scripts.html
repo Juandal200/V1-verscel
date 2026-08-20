@@ -324,11 +324,11 @@
   ];
 
   var ICAO_TEST_VOICE_POOL = {
-    USA:       ['en-US-Neural2-D','en-US-Neural2-J','en-US-Neural2-I'],
-    UK:        ['en-GB-Neural2-B','en-GB-Neural2-D'],
-    AUSTRALIA: ['en-AU-Neural2-B','en-AU-Neural2-D'],
-    CANADA:    ['en-US-Neural2-D','en-US-Neural2-J','en-US-Wavenet-D'],
-    INDIA:     ['en-IN-Neural2-B','en-IN-Neural2-C']
+    USA:       ['en-US-Chirp3-HD-Achird','en-US-Chirp3-HD-Fenrir','en-US-Chirp3-HD-Puck','en-US-Chirp3-HD-Charon','en-US-Chirp3-HD-Kore','en-US-Chirp3-HD-Despina','en-US-Chirp3-HD-Zephyr'],
+    UK:        ['en-GB-Chirp3-HD-Iapetus','en-GB-Chirp3-HD-Alnilam','en-GB-Chirp3-HD-Schedar','en-GB-Chirp3-HD-Umbriel','en-GB-Chirp3-HD-Sulafat','en-GB-Chirp3-HD-Aoede','en-GB-Chirp3-HD-Leda'],
+    AUSTRALIA: ['en-AU-Chirp3-HD-Algenib','en-AU-Chirp3-HD-Orus','en-AU-Chirp3-HD-Rasalgethi','en-AU-Chirp3-HD-Vindemiatrix','en-AU-Chirp3-HD-Gacrux','en-AU-Chirp3-HD-Callirrhoe'],
+    CANADA:    ['en-CA-Chirp3-HD-Alnilam','en-CA-Chirp3-HD-Fenrir','en-CA-Chirp3-HD-Sadaltager','en-CA-Chirp3-HD-Autonoe','en-CA-Chirp3-HD-Pulcherrima','en-CA-Chirp3-HD-Zephyr'],
+    INDIA:     ['en-IN-Chirp3-HD-Enceladus','en-IN-Chirp3-HD-Sadachbia','en-IN-Chirp3-HD-Algieba','en-IN-Chirp3-HD-Erinome','en-IN-Chirp3-HD-Laomedeia','en-IN-Chirp3-HD-Achernar']
   };
 
   function _pickTestVoice(country) {
@@ -22097,6 +22097,20 @@ function _dcPlayAudio() {
       if (_dcAudio) { try { _dcAudio.pause(); } catch(e) {} }
       _dcAudio = new Audio('data:audio/mp3;base64,' + res.audioBase64);
       _dcAudio.volume = 1;
+      // Route through VHF radio bandpass (300–3400 Hz) to simulate ATC radio sound,
+      // matching what the training simulator does in _playAtcAudio.
+      try {
+        var _dctx = (typeof SimMedia !== 'undefined' && SimMedia.bgCtx && SimMedia.bgCtx.state !== 'closed')
+          ? SimMedia.bgCtx
+          : new (window.AudioContext || window.webkitAudioContext)();
+        if (_dctx.state === 'suspended') _dctx.resume();
+        var _dsrc = _dctx.createMediaElementSource(_dcAudio);
+        var _dhp  = _dctx.createBiquadFilter();
+        _dhp.type = 'highpass'; _dhp.frequency.value = 300; _dhp.Q.value = 0.7;
+        var _dlp  = _dctx.createBiquadFilter();
+        _dlp.type = 'lowpass';  _dlp.frequency.value = 3400; _dlp.Q.value = 0.5;
+        _dsrc.connect(_dhp); _dhp.connect(_dlp); _dlp.connect(_dctx.destination);
+      } catch(e) {}
       _dcAudio.play().catch(function() {});
       if (b) {
         b.classList.add('dc-play-btn--playing');
