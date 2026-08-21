@@ -54,12 +54,12 @@ var CHIRP3_HD_VOICES = {
     'en-IN-Chirp3-HD-Achernar'      // F
   ],
   'en-CA': [
-    'en-CA-Chirp3-HD-Alnilam',      // M
-    'en-CA-Chirp3-HD-Fenrir',       // M
-    'en-CA-Chirp3-HD-Sadaltager',   // M
-    'en-CA-Chirp3-HD-Autonoe',      // F
-    'en-CA-Chirp3-HD-Pulcherrima',  // F
-    'en-CA-Chirp3-HD-Zephyr'        // F
+    'en-US-Chirp3-HD-Puck',         // M — en-CA Chirp3-HD not available; use en-US
+    'en-US-Chirp3-HD-Achird',       // M
+    'en-US-Chirp3-HD-Charon',       // M
+    'en-US-Chirp3-HD-Kore',         // F
+    'en-US-Chirp3-HD-Despina',      // F
+    'en-US-Chirp3-HD-Zephyr'        // F
   ]
 };
 
@@ -139,7 +139,7 @@ var TTSService = {
 
     CANADA: {
       label: 'Canadian ATC',
-      languageCode: 'en-CA',
+      languageCode: 'en-US',
       voiceNames: CHIRP3_HD_VOICES['en-CA'],
       speakingRate: 0.91,
       pitch: 0,
@@ -148,7 +148,7 @@ var TTSService = {
 
     CA: {
       label: 'Canadian ATC',
-      languageCode: 'en-CA',
+      languageCode: 'en-US',
       voiceNames: CHIRP3_HD_VOICES['en-CA'],
       speakingRate: 0.91,
       pitch: 0,
