@@ -1324,10 +1324,13 @@ function apiCompleteRoute(sessionToken, payload) {
 
     // Return all user progress so the client can hydrate every country.
     var allProgress = ProgressService.getUserProgress(user);
+    var streakInfo = { streakDays: 0 };
+    try { streakInfo = lmsGetStreak_(user.userId); } catch(e) {}
     return {
       ok:              true,
       progress:        safeArrayForClient_(allProgress),
-      currentProgress: safeArrayForClient_([currentProgress])[0] || currentProgress
+      currentProgress: safeArrayForClient_([currentProgress])[0] || currentProgress,
+      streakDays:      streakInfo.streakDays || 0
     };
   } catch (err) {
     return apiError_('apiCompleteRoute', err);

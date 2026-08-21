@@ -1463,10 +1463,6 @@
             '<p style="margin:0;font-size:0.75rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Country</p>' +
             '<p class="home-stat-val" style="margin:0;font-size:1.4rem;font-weight:800;">' + safeText(country) + '</p>' +
           '</div>' +
-          '<div style="flex:1;padding-left:12px;">' +
-            '<p style="margin:0;font-size:0.75rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Success</p>' +
-            '<p class="home-stat-val" style="margin:0;font-size:1.4rem;font-weight:800;color:' + (successRate >= 80 ? '#16a34a' : 'var(--text)') + ';">' + successRate + '%</p>' +
-          '</div>' +
         '</div>';
 
       var simCard = _homeCard({
@@ -1509,7 +1505,6 @@
               'Lvl <strong>' + level + '</strong>' +
               '<span class="home-hero-sep">·</span>' +
               safeText(country) +
-              (successRate ? '<span class="home-hero-sep">·</span>' + successRate + '% success' : '') +
             '</div>' +
           '</div>' +
           '<button style="flex-shrink:0;width:auto;white-space:nowrap;background:#00d48e;color:#07101e;border:none;border-radius:10px;padding:7px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;" onclick="_navTo(renderSimulatorPlaceholder)">Continue →</button>' +
@@ -6644,7 +6639,7 @@
               '<textarea id="pilotReadback" class="sim-readback-priority-input" placeholder="Type your pilot read-back here..."></textarea>' +
               '<button id="simMicBtn" class="demo-mic-btn" onclick="startMicInput(\'pilotReadback\',\'simMicBtn\')">&#127908; Tap to speak</button>' +
               '<div id="simFeedbackBox" class="sim-feedback-box"></div>' +
-              '<div class="sim-action-row"><button class="btn primary big-action" onclick="immersiveSendReadback()">Send read-back</button></div>' +
+              '<div class="sim-action-row"><button id="simSendReadbackBtn" class="btn primary big-action" onclick="immersiveSendReadback()">Send read-back</button></div>' +
               '<textarea id="studentAnswer" class="legacy-bridge-field"></textarea>' +
               '<textarea id="studentReadback" class="legacy-bridge-field"></textarea>' +
               '<textarea id="readbackInput" class="legacy-bridge-field"></textarea>' +
@@ -7470,7 +7465,7 @@
       .replace(/\bPOINT\b/g, 'DECIMAL').replace(/\bDOT\b/g, 'DECIMAL')
       .replace(/\./g,        ' DECIMAL ')
       .replace(/\bFT\b/g,    'FEET').replace(/\bKTS?\b/g,   'KNOTS')
-      .replace(/\bRWY\b/g,   'RUNWAY').replace(/\bHDG\b/g,  'HEADING');
+      .replace(/\bRWY\b/g,   'RUNWAY').replace(/\bRW\b/g,   'RUNWAY').replace(/\bHDG\b/g,  'HEADING');
     out = out.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
     out = out
       .replace(/\bTAKE\s*OFF\b/g,   'TAKEOFF').replace(/\bPUSH\s*BACK\b/g,  'PUSHBACK')
@@ -8346,37 +8341,55 @@
           '<p id="completionLoadingHint" style="font-size:.82rem;color:#64748b;margin-top:10px;">Syncing with training server</p>' +
         '</div>' +
       '</div>';
-    // Animate the progress bar while GAS is computing
-    var _msgs = ['Calculating your score…','Grading read-backs…','Updating leaderboard…','Unlocking achievements…'];
+    var _msgs = ['Calculating your score…','Grading read-backs…','Updating leaderboard…','Unlocking achievements…','Loading debrief…'];
     var _mi = 0, _pct = 0;
     var _loadTick = setInterval(function() {
-      _pct = Math.min(_pct + (Math.random() * 14 + 4), 88);
+      _pct = Math.min(_pct + (Math.random() * 10 + 3), 90);
       var fill = byId('completionLoadingFill');
       if (fill) fill.style.width = _pct + '%';
       _mi = (_mi + 1) % _msgs.length;
       var msg = byId('completionLoadingMsg');
       if (msg) msg.textContent = _msgs[_mi];
     }, 900);
-    var _origFinish = _finish;
-    _finish = function(res) { clearInterval(_loadTick); var f = byId('completionLoadingFill'); if (f) f.style.width = '100%'; setTimeout(function(){ _origFinish(res); }, 400); };
+
+    function _finishAndShow(catalog, debriefRows, newStreakDays) {
+      clearInterval(_loadTick);
+      var fill = byId('completionLoadingFill');
+      if (fill) fill.style.width = '100%';
+      setTimeout(function() {
+        // Streak bump animation before showing the completion screen
+        if (newStreakDays && newStreakDays > (window._lmsStreakDays || 0)) {
+          window._lmsStreakDays = newStreakDays;
+          _renderTopbarRank(
+            (window._lmsSimXp || 0) + (window._lmsLmsXp || 0),
+            newStreakDays
+          );
+          var streakEl = byId('topnavStreakChip');
+          if (streakEl) {
+            streakEl.style.transition = 'transform .35s cubic-bezier(.34,1.56,.64,1),box-shadow .35s';
+            streakEl.style.transform  = 'scale(1.55)';
+            streakEl.style.boxShadow  = '0 0 18px rgba(251,146,60,.85)';
+            setTimeout(function() {
+              streakEl.style.transform = 'scale(1)';
+              streakEl.style.boxShadow = '';
+            }, 600);
+          }
+        }
+        renderCompletionExperience(catalog);
+        if (debriefRows) _injectDebriefTable(debriefRows);
+      }, 400);
+    }
 
     function _finish(res) {
       var serverProgressRows = (res && res.progress) ? res.progress : null;
-
-      // Use the server's authoritative progress for this route if available.
-      if (res && res.currentProgress) {
-        AppState.training.lastProgress = res.currentProgress;
-      }
-
+      if (res && res.currentProgress) AppState.training.lastProgress = res.currentProgress;
       if (serverProgressRows) _hydrateAllCountriesFromProgress(serverProgressRows);
-
-      // Now mark route complete using server-confirmed data.
       markCurrentRouteCompletedOnClient();
-
       var catalog = buildCompletionCatalog(AppState.training.catalog);
       AppState.training.catalog = catalog;
+      var newStreakDays = res && res.streakDays ? res.streakDays : null;
 
-      // Auto-save certificate the moment a level is completed.
+      // Auto-save certificate
       var completedLevelInfo = AppState.training.lastCompletedLevelInfo;
       if (completedLevelInfo && completedLevelInfo.completed === true) {
         var certLevel    = Number(completedLevelInfo.level || 1);
@@ -8388,18 +8401,20 @@
         google.script.run
           .withSuccessHandler(function() {})
           .withFailureHandler(function() {})
-          .apiSaveCertificate(AppState.sessionToken, {
-            certificateId: certId,
-            level:         certLevel,
-            country:       certCountries,
-            scoreAvg:      certScore
-          });
+          .apiSaveCertificate(AppState.sessionToken, { certificateId: certId, level: certLevel, country: certCountries, scoreAvg: certScore });
       }
 
-      renderCompletionExperience(catalog);
+      // Update loading message to "Loading debrief…" while we wait for the second call
+      var msg = byId('completionLoadingMsg');
+      if (msg) msg.textContent = 'Loading your debrief…';
+
       google.script.run
-        .withSuccessHandler(function(dr) { if (dr && dr.ok) _injectDebriefTable(dr.debrief); })
-        .withFailureHandler(function() {})
+        .withSuccessHandler(function(dr) {
+          _finishAndShow(catalog, (dr && dr.ok && dr.debrief) ? dr.debrief : null, newStreakDays);
+        })
+        .withFailureHandler(function() {
+          _finishAndShow(catalog, null, newStreakDays);
+        })
         .apiGetTrainingDebrief(AppState.sessionToken, { level: level, country: country });
     }
 
@@ -11646,7 +11661,10 @@
     try {
       var chip = document.createElement('div');
       chip.textContent = '+' + xp + ' XP';
-      var sx = window.innerWidth / 2, sy = window.innerHeight / 2;
+      var _sendBtn = document.getElementById('simSendReadbackBtn');
+      var _sendRect = _sendBtn ? _sendBtn.getBoundingClientRect() : null;
+      var sx = _sendRect ? (_sendRect.left + _sendRect.width / 2) : window.innerWidth / 2;
+      var sy = _sendRect ? (_sendRect.top + _sendRect.height / 2) : window.innerHeight / 2;
       var color = isBonus ? '#16a34a' : '#22c55e';
       // Start scaled down and invisible — pops in at screen center
       chip.style.cssText = 'position:fixed;z-index:99999;pointer-events:none;font-size:1.75rem;font-weight:900;' +
