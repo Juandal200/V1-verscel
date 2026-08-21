@@ -1115,7 +1115,6 @@
 
   function enterApplication() {
     if (!AppState.user) return;
-    if (window.LoginAudio) LoginAudio.stop();
     showScreen('appScreen');
 
     // role/email removed from topbar (avatar used instead)
@@ -1469,7 +1468,7 @@
           '</div>' +
           '<div style="flex:1;padding-left:12px;">' +
             '<p style="margin:0;font-size:0.75rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Country</p>' +
-            '<p class="home-stat-val" style="margin:0;font-size:1.1rem;font-weight:800;display:flex;align-items:center;gap:6px;">' + getFlagHtml(country, 'flag-preview') + '<span>' + safeText(getCountryUi(country).label) + '</span></p>' +
+            '<p class="home-stat-val" style="margin:0;font-size:1.1rem;font-weight:800;display:flex;align-items:center;gap:6px;"><span style="font-size:1.4rem;line-height:1;">' + safeText(getCountryUi(country).emoji || '🌐') + '</span><span>' + safeText(getCountryUi(country).label) + '</span></p>' +
           '</div>' +
         '</div>';
 
@@ -1512,7 +1511,7 @@
             '<div class="home-hero-meta">' +
               'Lvl <strong>' + level + '</strong>' +
               '<span class="home-hero-sep">·</span>' +
-              getFlagHtml(country, 'flag-preview') + ' ' + safeText(getCountryUi(country).label) +
+              '<span style="font-size:1.1rem;">' + safeText(getCountryUi(country).emoji || '🌐') + '</span> ' + safeText(getCountryUi(country).label) +
             '</div>' +
           '</div>' +
           '<button style="flex-shrink:0;width:auto;white-space:nowrap;background:#00d48e;color:#07101e;border:none;border-radius:10px;padding:7px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;" onclick="_navTo(renderSimulatorPlaceholder)">Continue →</button>' +
@@ -5848,93 +5847,6 @@
   }());
   window.SimAudio = SimAudio;
 
-  /* ── LoginAudio: airport radio ambience on login screen ────────────────────
-   * Starts on first user gesture (click/keydown) while login is active.
-   * Synthesizes subtle radio static + occasional ATC-style blips.
-   * Fades out automatically when the user enters the app.
-   ************************************************************************* */
-  (function() {
-    var _ctx = null;
-    var _noiseSource = null;
-    var _noiseGain = null;
-    var _blipTimer = null;
-    var _started = false;
-
-    function _brownNoiseBuf(ctx) {
-      var len = Math.floor(ctx.sampleRate * 3.17);
-      var buf = ctx.createBuffer(1, len, ctx.sampleRate);
-      var d = buf.getChannelData(0);
-      var last = 0;
-      for (var i = 0; i < len; i++) {
-        var w = Math.random() * 2 - 1;
-        d[i] = (last + 0.018 * w) / 1.018;
-        last = d[i];
-        d[i] *= 3.8;
-      }
-      return buf;
-    }
-
-    function _blip() {
-      if (!_ctx) return;
-      var freq = 780 + Math.random() * 340;
-      var dur  = 0.055 + Math.random() * 0.04;
-      var osc  = _ctx.createOscillator();
-      var g    = _ctx.createGain();
-      var filt = _ctx.createBiquadFilter();
-      filt.type = 'bandpass'; filt.frequency.value = freq; filt.Q.value = 2.2;
-      osc.type = 'square'; osc.frequency.value = freq;
-      g.gain.setValueAtTime(0.055, _ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, _ctx.currentTime + dur);
-      osc.connect(filt); filt.connect(g); g.connect(_ctx.destination);
-      osc.start(); osc.stop(_ctx.currentTime + dur + 0.01);
-      _blipTimer = setTimeout(_blip, (5 + Math.random() * 9) * 1000);
-    }
-
-    function start() {
-      if (_started) return;
-      _started = true;
-      try {
-        _ctx = new (window.AudioContext || window.webkitAudioContext)();
-        _noiseGain = _ctx.createGain();
-        _noiseGain.gain.setValueAtTime(0, _ctx.currentTime);
-        _noiseGain.gain.linearRampToValueAtTime(0.038, _ctx.currentTime + 2.0);
-
-        var filt = _ctx.createBiquadFilter();
-        filt.type = 'bandpass'; filt.frequency.value = 1400; filt.Q.value = 0.6;
-
-        _noiseSource = _ctx.createBufferSource();
-        _noiseSource.buffer = _brownNoiseBuf(_ctx);
-        _noiseSource.loop = true;
-        _noiseSource.connect(filt);
-        filt.connect(_noiseGain);
-        _noiseGain.connect(_ctx.destination);
-        _noiseSource.start();
-
-        _blipTimer = setTimeout(_blip, (3 + Math.random() * 6) * 1000);
-      } catch(e) {}
-    }
-
-    function stop() {
-      clearTimeout(_blipTimer);
-      if (_noiseGain && _ctx) {
-        _noiseGain.gain.setTargetAtTime(0, _ctx.currentTime, 0.5);
-      }
-      setTimeout(function() {
-        try { if (_ctx) _ctx.close(); } catch(e) {}
-        _ctx = null; _noiseSource = null; _noiseGain = null; _started = false;
-      }, 1200);
-    }
-
-    function _onGesture() {
-      var ls = document.getElementById('loginScreen');
-      if (ls && ls.classList.contains('active')) start();
-    }
-
-    document.addEventListener('mousedown', _onGesture, { once: true });
-    document.addEventListener('keydown',   _onGesture, { once: true });
-
-    window.LoginAudio = { start: start, stop: stop };
-  }());
 
 
   /* ── SimAmbient: phase-based cockpit ambience ───────────────────────────────
@@ -20937,8 +20849,85 @@
     audioReady:  false,
     audioData:   null,
     submitted:   false,
-    playsUsed:   0      // resets each phase; max 3
+    playsUsed:   0,     // resets each phase; max 3
+    audioCache:  {}     // { phaseIdx: audioBase64 } — pre-fetched for all phases
   };
+
+  // ── Exam audio localStorage cache ────────────────────────────────────────
+  var _EX_LS_PREFIX = 'aero_exam_v1_';
+  var _EX_LS_TTL    = 24 * 60 * 60 * 1000; // 24 h
+  var _EX_LS_MAX    = 30;
+
+  function _examLsKey(phase) {
+    return _EX_LS_PREFIX + String(phase.atcText || '').slice(0, 80) +
+           '|' + (phase.voice || '') + '|' + (phase.country || '') +
+           '|' + String(Math.round((phase.speakingRate || 1.0) * 10));
+  }
+
+  function _examLsGet(phase) {
+    try {
+      var raw = localStorage.getItem(_examLsKey(phase));
+      if (!raw) return null;
+      var e = JSON.parse(raw);
+      if (!e || !e.b64 || !e.t || Date.now() - e.t > _EX_LS_TTL) {
+        localStorage.removeItem(_examLsKey(phase)); return null;
+      }
+      return e.b64;
+    } catch(ex) { return null; }
+  }
+
+  function _examLsSet(phase, b64) {
+    try {
+      var key = _examLsKey(phase);
+      // Evict oldest exam audio entry if at max
+      var keys = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf(_EX_LS_PREFIX) === 0) keys.push(k);
+      }
+      if (keys.length >= _EX_LS_MAX) {
+        var oldest = keys.reduce(function(a, b) {
+          try { return (JSON.parse(localStorage.getItem(a) || '{}').t || 0) <
+                       (JSON.parse(localStorage.getItem(b) || '{}').t || 0) ? a : b; }
+          catch(ex) { return a; }
+        });
+        localStorage.removeItem(oldest);
+      }
+      localStorage.setItem(key, JSON.stringify({ b64: b64, t: Date.now() }));
+    } catch(ex) {}
+  }
+
+  function _examFetchPhaseAudio(phaseIdx) {
+    var phase = (_EX.phases || [])[phaseIdx];
+    if (!phase || !AppState || !AppState.sessionToken) return;
+
+    // Check localStorage first
+    var cached = _examLsGet(phase);
+    if (cached) { _EX.audioCache[phaseIdx] = cached; return; }
+
+    // Fetch from GAS
+    function _doFetch(retryOnFail) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && res.ok && res.audioBase64) {
+            _EX.audioCache[phaseIdx] = res.audioBase64;
+            _examLsSet(phase, res.audioBase64);
+          } else if (retryOnFail) {
+            setTimeout(function() { _doFetch(false); }, 6000);
+          }
+        })
+        .withFailureHandler(function() {
+          if (retryOnFail) setTimeout(function() { _doFetch(false); }, 6000);
+        })
+        .apiGenerateIcaoTestVoice(AppState.sessionToken, {
+          text:         phase.atcText,
+          country:      phase.country,
+          voice:        phase.voice        || '',
+          speakingRate: phase.speakingRate || 1.0
+        });
+    }
+    _doFetch(true);
+  }
 
   function _esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
@@ -21020,6 +21009,11 @@
         _EX.phaseIndex = 0;
         _EX.routeId    = res.routeId || '';
         _EX.submitted  = false;
+        _EX.audioCache = {};
+        // Pre-fetch audio for all phases immediately (staggered to avoid request flood)
+        res.phases.forEach(function(_, i) {
+          setTimeout(function() { _examFetchPhaseAudio(i); }, i * 800);
+        });
         _examPhase();
       })
       .withFailureHandler(function(err) {
@@ -21074,19 +21068,12 @@
         '</div>' +
       '</div>';
 
-    // Pre-fetch audio silently using the phase-assigned voice + rate
-    if (window.AppState && AppState.sessionToken) {
-      google.script.run
-        .withSuccessHandler(function(res) {
-          if (res && res.ok && res.audioBase64) { _EX.audioData = res; _EX.audioReady = true; }
-        })
-        .withFailureHandler(function() {})
-        .apiGenerateIcaoTestVoice(AppState.sessionToken, {
-          text:         phase.atcText,
-          country:      phase.country,
-          voice:        phase.voice        || '',
-          speakingRate: phase.speakingRate || 1.0
-        });
+    // Use audio already cached from bulk pre-fetch, or trigger fetch if not yet ready
+    if (_EX.audioCache[idx]) {
+      _EX.audioData  = { audioBase64: _EX.audioCache[idx] };
+      _EX.audioReady = true;
+    } else {
+      _examFetchPhaseAudio(idx);
     }
 
     var ta = document.getElementById('examReadbackInput');
@@ -21115,49 +21102,57 @@
 
   function _examPlay() {
     if (_EX.playsUsed >= EXAM_MAX_PLAYS) return;
-    var phase  = _EX.phases[_EX.phaseIndex];
-    var btn    = document.getElementById('examPlayBtn');
-    var label  = document.getElementById('examPlayLabel');
-    var status = document.getElementById('examPlayStatus');
-    if (btn)    btn.classList.add('ff-playing');
-    if (label)  label.textContent = _EX.audioReady ? 'Playing...' : 'Loading...';
+    var phaseIdx = _EX.phaseIndex;
+    var phase    = _EX.phases[phaseIdx];
+    var btn      = document.getElementById('examPlayBtn');
+    var label    = document.getElementById('examPlayLabel');
+    var status   = document.getElementById('examPlayStatus');
     if (status) status.textContent = '';
 
-    _EX.playsUsed++;
-    _updatePlayCount();
-
-    function _onEnd() {
-      if (btn) btn.classList.remove('ff-playing');
-      if (_EX.playsUsed < EXAM_MAX_PLAYS) {
-        if (label) label.textContent = 'Play Again';
-      }
-    }
-
-    function _onAudioFail() {
-      if (status) status.textContent = 'Audio unavailable. Try refreshing or check your connection.';
-      _onEnd();
+    // Sync from bulk cache in case it arrived since _examPhase ran
+    if (!_EX.audioReady && _EX.audioCache[phaseIdx]) {
+      _EX.audioData  = { audioBase64: _EX.audioCache[phaseIdx] };
+      _EX.audioReady = true;
     }
 
     if (_EX.audioReady && _EX.audioData) {
+      if (btn)   btn.classList.add('ff-playing');
       if (label) label.textContent = 'Playing...';
-      _playBase64Ex(_EX.audioData.audioBase64, _onEnd);
-    } else {
-      google.script.run
-        .withSuccessHandler(function(res) {
-          if (res && res.ok && res.audioBase64) {
-            _EX.audioData = res; _EX.audioReady = true;
-            if (label) label.textContent = 'Playing...';
-            _playBase64Ex(res.audioBase64, _onEnd);
-          } else { _onAudioFail(); }
-        })
-        .withFailureHandler(_onAudioFail)
-        .apiGenerateIcaoTestVoice(AppState.sessionToken, {
-          text:         phase.atcText,
-          country:      phase.country,
-          voice:        phase.voice        || '',
-          speakingRate: phase.speakingRate || 1.0
-        });
+      _EX.playsUsed++;
+      _updatePlayCount();
+      var b64 = _EX.audioData.audioBase64;
+      _playBase64Ex(b64, function() {
+        if (btn) btn.classList.remove('ff-playing');
+        if (_EX.playsUsed < EXAM_MAX_PLAYS && label) label.textContent = 'Play Again';
+      });
+      return;
     }
+
+    // Audio not ready yet — poll until it arrives (up to 20s) then play
+    if (btn)   { btn.disabled = true; }
+    if (label) label.textContent = 'Loading audio…';
+    var _pollCount = 0;
+    var _pollTimer = setInterval(function() {
+      _pollCount++;
+      if (_EX.audioCache[phaseIdx]) {
+        clearInterval(_pollTimer);
+        _EX.audioData  = { audioBase64: _EX.audioCache[phaseIdx] };
+        _EX.audioReady = true;
+        if (btn) { btn.disabled = false; btn.classList.add('ff-playing'); }
+        if (label) label.textContent = 'Playing...';
+        _EX.playsUsed++;
+        _updatePlayCount();
+        _playBase64Ex(_EX.audioCache[phaseIdx], function() {
+          if (btn) { btn.disabled = false; btn.classList.remove('ff-playing'); }
+          if (_EX.playsUsed < EXAM_MAX_PLAYS && label) label.textContent = 'Play Again';
+        });
+      } else if (_pollCount >= 40) { // 40 × 500ms = 20s
+        clearInterval(_pollTimer);
+        if (btn) btn.disabled = false;
+        if (status) status.textContent = 'Audio unavailable. Check your connection and try again.';
+        if (label) label.textContent = 'Play Transmission';
+      }
+    }, 500);
   }
 
   // ── Advance to next phase (or submit) ────────────────────────────────────
@@ -21307,10 +21302,81 @@
     submitted:  false,
     audioReady: false,
     audioData:  null,
-    playsUsed:  0
+    playsUsed:  0,
+    audioCache: {}
   };
 
   var PLACEMENT_MAX_PLAYS = 3;
+
+  var _PL_LS_PREFIX = 'aero_exam_v1_'; // same prefix — same audio can be shared
+  var _PL_LS_TTL    = 24 * 60 * 60 * 1000;
+  var _PL_LS_MAX    = 30;
+
+  function _plLsKey(phase) {
+    return _PL_LS_PREFIX + String(phase.atcText || '').slice(0, 80) +
+           '|' + (phase.voice || '') + '|' + (phase.country || '') +
+           '|' + String(Math.round((phase.speakingRate || 1.0) * 10));
+  }
+
+  function _plLsGet(phase) {
+    try {
+      var raw = localStorage.getItem(_plLsKey(phase));
+      if (!raw) return null;
+      var e = JSON.parse(raw);
+      if (!e || !e.b64 || !e.t || Date.now() - e.t > _PL_LS_TTL) {
+        localStorage.removeItem(_plLsKey(phase)); return null;
+      }
+      return e.b64;
+    } catch(ex) { return null; }
+  }
+
+  function _plLsSet(phase, b64) {
+    try {
+      var key = _plLsKey(phase);
+      var keys = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf(_PL_LS_PREFIX) === 0) keys.push(k);
+      }
+      if (keys.length >= _PL_LS_MAX) {
+        var oldest = keys.reduce(function(a, b) {
+          try { return (JSON.parse(localStorage.getItem(a) || '{}').t || 0) <
+                       (JSON.parse(localStorage.getItem(b) || '{}').t || 0) ? a : b; }
+          catch(ex) { return a; }
+        });
+        localStorage.removeItem(oldest);
+      }
+      localStorage.setItem(key, JSON.stringify({ b64: b64, t: Date.now() }));
+    } catch(ex) {}
+  }
+
+  function _placementFetchPhaseAudio(phaseIdx) {
+    var phase = (_PL.phases || [])[phaseIdx];
+    if (!phase || !AppState || !AppState.sessionToken) return;
+    var cached = _plLsGet(phase);
+    if (cached) { _PL.audioCache[phaseIdx] = cached; return; }
+    function _doFetch(retry) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && res.ok && res.audioBase64) {
+            _PL.audioCache[phaseIdx] = res.audioBase64;
+            _plLsSet(phase, res.audioBase64);
+          } else if (retry) {
+            setTimeout(function() { _doFetch(false); }, 6000);
+          }
+        })
+        .withFailureHandler(function() {
+          if (retry) setTimeout(function() { _doFetch(false); }, 6000);
+        })
+        .apiGenerateIcaoTestVoice(AppState.sessionToken, {
+          text:         phase.atcText,
+          country:      phase.country,
+          voice:        phase.voice        || '',
+          speakingRate: phase.speakingRate || 1.0
+        });
+    }
+    _doFetch(true);
+  }
 
   function _esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function _overlay() { return document.getElementById('placementOverlay'); }
@@ -21385,6 +21451,10 @@
         _PL.answers    = [];
         _PL.phaseIndex = 0;
         _PL.submitted  = false;
+        _PL.audioCache = {};
+        res.phases.forEach(function(_, i) {
+          setTimeout(function() { _placementFetchPhaseAudio(i); }, i * 800);
+        });
         _placementPhase();
       })
       .withFailureHandler(function(err) {
@@ -21439,18 +21509,11 @@
         '</div>' +
       '</div>';
 
-    if (window.AppState && AppState.sessionToken) {
-      google.script.run
-        .withSuccessHandler(function(res) {
-          if (res && res.ok && res.audioBase64) { _PL.audioData = res; _PL.audioReady = true; }
-        })
-        .withFailureHandler(function() {})
-        .apiGenerateIcaoTestVoice(AppState.sessionToken, {
-          text:         phase.atcText,
-          country:      phase.country,
-          voice:        phase.voice        || '',
-          speakingRate: phase.speakingRate || 1.0
-        });
+    if (_PL.audioCache[idx]) {
+      _PL.audioData  = { audioBase64: _PL.audioCache[idx] };
+      _PL.audioReady = true;
+    } else {
+      _placementFetchPhaseAudio(idx);
     }
 
     var ta = document.getElementById('plReadbackInput');
@@ -21476,46 +21539,53 @@
 
   function _placementPlay() {
     if (_PL.playsUsed >= PLACEMENT_MAX_PLAYS) return;
-    var phase  = _PL.phases[_PL.phaseIndex];
-    var btn    = document.getElementById('plPlayBtn');
-    var label  = document.getElementById('plPlayLabel');
-    var status = document.getElementById('plPlayStatus');
-    if (btn)    btn.classList.add('ff-playing');
-    if (label)  label.textContent = _PL.audioReady ? 'Playing...' : 'Loading...';
+    var phaseIdx = _PL.phaseIndex;
+    var btn      = document.getElementById('plPlayBtn');
+    var label    = document.getElementById('plPlayLabel');
+    var status   = document.getElementById('plPlayStatus');
     if (status) status.textContent = '';
 
-    _PL.playsUsed++;
-    _updatePlCount();
-
-    function _onEnd() {
-      if (btn) btn.classList.remove('ff-playing');
-      if (_PL.playsUsed < PLACEMENT_MAX_PLAYS && label) label.textContent = 'Play Again';
-    }
-    function _onFail() {
-      if (status) status.textContent = 'Audio unavailable. Try refreshing or check your connection.';
-      _onEnd();
+    if (!_PL.audioReady && _PL.audioCache[phaseIdx]) {
+      _PL.audioData  = { audioBase64: _PL.audioCache[phaseIdx] };
+      _PL.audioReady = true;
     }
 
     if (_PL.audioReady && _PL.audioData) {
+      if (btn)   btn.classList.add('ff-playing');
       if (label) label.textContent = 'Playing...';
-      _playBase64(_PL.audioData.audioBase64, _onEnd);
-    } else {
-      google.script.run
-        .withSuccessHandler(function(res) {
-          if (res && res.ok && res.audioBase64) {
-            _PL.audioData = res; _PL.audioReady = true;
-            if (label) label.textContent = 'Playing...';
-            _playBase64(res.audioBase64, _onEnd);
-          } else { _onFail(); }
-        })
-        .withFailureHandler(_onFail)
-        .apiGenerateIcaoTestVoice(AppState.sessionToken, {
-          text:         phase.atcText,
-          country:      phase.country,
-          voice:        phase.voice        || '',
-          speakingRate: phase.speakingRate || 1.0
-        });
+      _PL.playsUsed++;
+      _updatePlCount();
+      _playBase64(_PL.audioData.audioBase64, function() {
+        if (btn) btn.classList.remove('ff-playing');
+        if (_PL.playsUsed < PLACEMENT_MAX_PLAYS && label) label.textContent = 'Play Again';
+      });
+      return;
     }
+
+    if (btn)   { btn.disabled = true; }
+    if (label) label.textContent = 'Loading audio…';
+    var _pollCount = 0;
+    var _pollTimer = setInterval(function() {
+      _pollCount++;
+      if (_PL.audioCache[phaseIdx]) {
+        clearInterval(_pollTimer);
+        _PL.audioData  = { audioBase64: _PL.audioCache[phaseIdx] };
+        _PL.audioReady = true;
+        if (btn) { btn.disabled = false; btn.classList.add('ff-playing'); }
+        if (label) label.textContent = 'Playing...';
+        _PL.playsUsed++;
+        _updatePlCount();
+        _playBase64(_PL.audioCache[phaseIdx], function() {
+          if (btn) { btn.disabled = false; btn.classList.remove('ff-playing'); }
+          if (_PL.playsUsed < PLACEMENT_MAX_PLAYS && label) label.textContent = 'Play Again';
+        });
+      } else if (_pollCount >= 40) {
+        clearInterval(_pollTimer);
+        if (btn) btn.disabled = false;
+        if (status) status.textContent = 'Audio unavailable. Check your connection and try again.';
+        if (label) label.textContent = 'Play Transmission';
+      }
+    }, 500);
   }
 
   function _placementNext() {
