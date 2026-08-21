@@ -638,32 +638,31 @@ function apiStartExam(sessionToken, examNum) {
       var voice    = voices.length ? voices[Math.floor(Math.random() * voices.length)] : '';
       var rate     = Math.round((1.0 + Math.random() * 0.2) * 100) / 100;
 
-      // Generate audio inline for first 4 phases — GAS CacheService makes repeats instant.
-      // Remaining phases are fetched asynchronously by the client (GAS is warm by then).
+      // Generate audio for all phases inline — CacheService makes repeat calls instant (~50ms).
+      // Fresh TTS calls take 1-3s each; 8 sequential calls worst-case ~24s, within GAS 30s limit.
+      // Caching here means the client's async fetch for any phase hits cache → no proxy timeout.
       var audioBase64 = '';
-      if (i < 4) {
-        try {
-          var voicesToTry = voice ? [voice].concat(voices.filter(function(v) { return v !== voice; })) : voices;
-          var profileForCall = {
-            languageCode:     profile.languageCode,
-            pitch:            profile.pitch,
-            effectsProfileId: profile.effectsProfileId,
-            voiceNames:       voicesToTry
-          };
-          var atcText_ = String(s.atcText || '');
-          var cacheKey_ = TTSService.buildTtsCacheKey_(atcText_, profile, rate, voicesToTry[0]);
-          var cached_   = TTSService.getTtsFromCache_(cacheKey_);
-          if (cached_) {
-            audioBase64 = cached_;
-          } else {
-            var ssml_   = TTSService.buildAtcSsml_(atcText_, profile, rate, voicesToTry[0]);
-            var ttsRes_ = TTSService.callGoogleTtsWithFallbackVoices_(ssml_, profileForCall, rate);
-            audioBase64 = ttsRes_.audioBase64 || '';
-            if (audioBase64) TTSService.storeTtsInCache_(cacheKey_, audioBase64);
-          }
-        } catch(ttsErr) {
-          Logger.log('Inline TTS failed phase ' + i + ': ' + ttsErr.message);
+      try {
+        var voicesToTry = voice ? [voice].concat(voices.filter(function(v) { return v !== voice; })) : voices;
+        var profileForCall = {
+          languageCode:     profile.languageCode,
+          pitch:            profile.pitch,
+          effectsProfileId: profile.effectsProfileId,
+          voiceNames:       voicesToTry
+        };
+        var atcText_ = String(s.atcText || '');
+        var cacheKey_ = TTSService.buildTtsCacheKey_(atcText_, profile, rate, voicesToTry[0]);
+        var cached_   = TTSService.getTtsFromCache_(cacheKey_);
+        if (cached_) {
+          audioBase64 = cached_;
+        } else {
+          var ssml_   = TTSService.buildAtcSsml_(atcText_, profile, rate, voicesToTry[0]);
+          var ttsRes_ = TTSService.callGoogleTtsWithFallbackVoices_(ssml_, profileForCall, rate);
+          audioBase64 = ttsRes_.audioBase64 || '';
+          if (audioBase64) TTSService.storeTtsInCache_(cacheKey_, audioBase64);
         }
+      } catch(ttsErr) {
+        Logger.log('Inline TTS failed phase ' + i + ': ' + ttsErr.message);
       }
 
       return {
@@ -4483,12 +4482,16 @@ function apiGenerateIcaoTestVoice(sessionToken, payload) {
     var profile = TTSService.getProfileByCountry_(country);
     var rate    = Number(payload.speakingRate || profile.speakingRate || 0.91);
     var voices  = profile.voiceNames || [];
-    // Use client-chosen voice first; fall back to profile pool
     var voicesToTry = voice ? [voice].concat(voices.filter(function(v) { return v !== voice; })) : voices;
     var profileForCall = { languageCode: profile.languageCode, pitch: profile.pitch,
                            effectsProfileId: profile.effectsProfileId, voiceNames: voicesToTry };
+    // Check CacheService first — apiStartExam pre-caches all 8 phases, so this is usually instant
+    var cacheKey = TTSService.buildTtsCacheKey_(text, profile, rate, voicesToTry[0]);
+    var cached   = TTSService.getTtsFromCache_(cacheKey);
+    if (cached) return { ok: true, audioBase64: cached, mimeType: 'audio/mp3', voiceName: voicesToTry[0], speakingRate: rate, cached: true };
     var ssml   = TTSService.buildAtcSsml_(text, profile, rate, voicesToTry[0]);
     var result = TTSService.callGoogleTtsWithFallbackVoices_(ssml, profileForCall, rate);
+    if (result.audioBase64) TTSService.storeTtsInCache_(cacheKey, result.audioBase64);
     return { ok: true, audioBase64: result.audioBase64, mimeType: 'audio/mp3', voiceName: result.voiceName, speakingRate: rate };
   } catch (err) {
     return apiError_('apiGenerateIcaoTestVoice', err);
