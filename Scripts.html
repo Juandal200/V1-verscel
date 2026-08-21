@@ -21046,8 +21046,9 @@
     var phase  = _EX.phases[idx];
     if (!phase) { _examError('Phase not found.'); return; }
 
-    // Cancel any poll from a previous phase before resetting state
+    // Cancel any poll or ongoing speech from a previous phase
     if (_EX._pollTimer) { clearInterval(_EX._pollTimer); _EX._pollTimer = null; }
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
 
     _EX.audioReady = false;
     _EX.audioData  = null;
@@ -21121,57 +21122,51 @@
 
   function _examPlay() {
     if (_EX.playsUsed >= EXAM_MAX_PLAYS) return;
-    var phaseIdx = _EX.phaseIndex;
-    var phase    = _EX.phases[phaseIdx];
-    var btn      = document.getElementById('examPlayBtn');
-    var label    = document.getElementById('examPlayLabel');
-    var status   = document.getElementById('examPlayStatus');
+    var phase  = _EX.phases[_EX.phaseIndex];
+    var text   = String((phase && phase.atcText) || '');
+    var btn    = document.getElementById('examPlayBtn');
+    var label  = document.getElementById('examPlayLabel');
+    var status = document.getElementById('examPlayStatus');
     if (status) status.textContent = '';
 
-    // Sync from bulk cache in case it arrived since _examPhase ran
-    if (!_EX.audioReady && _EX.audioCache[phaseIdx]) {
-      _EX.audioData  = { audioBase64: _EX.audioCache[phaseIdx] };
-      _EX.audioReady = true;
+    if (!text) {
+      if (status) status.textContent = 'No transmission text for this phase.';
+      return;
     }
-
-    if (_EX.audioReady && _EX.audioData) {
-      if (btn)   btn.classList.add('ff-playing');
-      if (label) label.textContent = 'Playing...';
-      _EX.playsUsed++;
-      _updatePlayCount();
-      var b64 = _EX.audioData.audioBase64;
-      _playBase64Ex(b64, function() {
-        if (btn) btn.classList.remove('ff-playing');
-        if (_EX.playsUsed < EXAM_MAX_PLAYS && label) label.textContent = 'Play Again';
-      });
+    if (!window.speechSynthesis) {
+      if (status) status.textContent = 'Speech synthesis not supported on this browser.';
       return;
     }
 
-    // Audio not ready yet — poll until it arrives (up to 20s) then play
-    if (btn)   { btn.disabled = true; }
-    if (label) label.textContent = 'Loading audio…';
-    var _pollCount = 0;
-    _EX._pollTimer = setInterval(function() {
-      _pollCount++;
-      if (_EX.audioCache[phaseIdx]) {
-        clearInterval(_EX._pollTimer); _EX._pollTimer = null;
-        _EX.audioData  = { audioBase64: _EX.audioCache[phaseIdx] };
-        _EX.audioReady = true;
-        if (btn) { btn.disabled = false; btn.classList.add('ff-playing'); }
-        if (label) label.textContent = 'Playing...';
-        _EX.playsUsed++;
-        _updatePlayCount();
-        _playBase64Ex(_EX.audioCache[phaseIdx], function() {
-          if (btn) { btn.disabled = false; btn.classList.remove('ff-playing'); }
-          if (_EX.playsUsed < EXAM_MAX_PLAYS && label) label.textContent = 'Play Again';
-        });
-      } else if (_pollCount >= 40) {
-        clearInterval(_EX._pollTimer); _EX._pollTimer = null;
-        if (btn) btn.disabled = false;
-        if (status) status.textContent = 'Audio unavailable. Check your connection and try again.';
-        if (label) label.textContent = 'Play Transmission';
-      }
-    }, 500);
+    var countryLang = { USA:'en-US', UK:'en-GB', AUSTRALIA:'en-AU', INDIA:'en-IN', CANADA:'en-CA' };
+    var langCode = countryLang[String(phase.country || '').toUpperCase()] || 'en-US';
+
+    window.speechSynthesis.cancel();
+    var utter  = new SpeechSynthesisUtterance(text);
+    utter.lang  = langCode;
+    utter.rate  = 0.88;
+    utter.pitch = 0.9;
+
+    // Pick a voice matching the locale when available
+    var voices = window.speechSynthesis.getVoices();
+    var match  = null;
+    for (var vi = 0; vi < voices.length; vi++) {
+      if (voices[vi].lang.slice(0, 5) === langCode) { match = voices[vi]; break; }
+    }
+    if (match) utter.voice = match;
+
+    if (btn)   btn.classList.add('ff-playing');
+    if (label) label.textContent = 'Playing...';
+
+    _EX.playsUsed++;
+    _updatePlayCount();
+
+    utter.onend = utter.onerror = function() {
+      if (btn) btn.classList.remove('ff-playing');
+      if (_EX.playsUsed < EXAM_MAX_PLAYS && label) label.textContent = 'Play Again';
+    };
+
+    window.speechSynthesis.speak(utter);
   }
 
   // ── Advance to next phase (or submit) ────────────────────────────────────
