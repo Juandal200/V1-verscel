@@ -20850,7 +20850,8 @@
     audioData:   null,
     submitted:   false,
     playsUsed:   0,     // resets each phase; max 3
-    audioCache:  {}     // { phaseIdx: audioBase64 } — pre-fetched for all phases
+    audioCache:  {},    // { phaseIdx: audioBase64 } — pre-fetched for all phases
+    _pollTimer:  null   // active Play poll timer — cleared on phase change
   };
 
   // ── Exam audio localStorage cache ────────────────────────────────────────
@@ -20899,34 +20900,53 @@
 
   function _examFetchPhaseAudio(phaseIdx) {
     var phase = (_EX.phases || [])[phaseIdx];
-    if (!phase || !AppState || !AppState.sessionToken) return;
+    if (!phase) return;
 
-    // Check localStorage first
+    // Check localStorage first — instant if cached
     var cached = _examLsGet(phase);
     if (cached) { _EX.audioCache[phaseIdx] = cached; return; }
 
-    // Fetch from GAS
-    function _doFetch(retryOnFail) {
+    // Derive BCP-47 lang from voice name (e.g. "en-AU-Chirp3-HD-X" → "en-AU")
+    var voiceParts = String(phase.voice || '').split('-');
+    var lang = voiceParts.length >= 2 ? (voiceParts[0] + '-' + voiceParts[1]) : 'en-US';
+
+    function _store(b64) {
+      _EX.audioCache[phaseIdx] = b64;
+      _examLsSet(phase, b64);
+    }
+
+    function _tryGas(retry) {
+      if (!AppState || !AppState.sessionToken) return;
       google.script.run
         .withSuccessHandler(function(res) {
-          if (res && res.ok && res.audioBase64) {
-            _EX.audioCache[phaseIdx] = res.audioBase64;
-            _examLsSet(phase, res.audioBase64);
-          } else if (retryOnFail) {
-            setTimeout(function() { _doFetch(false); }, 6000);
-          }
+          if (res && res.ok && res.audioBase64) { _store(res.audioBase64); }
+          else if (retry) setTimeout(function() { _tryGas(false); }, 8000);
         })
         .withFailureHandler(function() {
-          if (retryOnFail) setTimeout(function() { _doFetch(false); }, 6000);
+          if (retry) setTimeout(function() { _tryGas(false); }, 8000);
         })
         .apiGenerateIcaoTestVoice(AppState.sessionToken, {
-          text:         phase.atcText,
-          country:      phase.country,
-          voice:        phase.voice        || '',
-          speakingRate: phase.speakingRate || 1.0
+          text: phase.atcText, country: phase.country,
+          voice: phase.voice || '', speakingRate: phase.speakingRate || 1.0
         });
     }
-    _doFetch(true);
+
+    // Try direct Vercel TTS endpoint first (no GAS cold-start, much faster)
+    if (phase.voice) {
+      fetch('/api/tea-audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: phase.atcText, voice: phase.voice, lang: lang, rate: phase.speakingRate || 1.0 })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res && res.ok && res.audioBase64) { _store(res.audioBase64); }
+        else { _tryGas(true); }
+      })
+      .catch(function() { _tryGas(true); });
+    } else {
+      _tryGas(true);
+    }
   }
 
   function _esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -21030,6 +21050,9 @@
     var phase  = _EX.phases[idx];
     if (!phase) { _examError('Phase not found.'); return; }
 
+    // Cancel any poll from a previous phase before resetting state
+    if (_EX._pollTimer) { clearInterval(_EX._pollTimer); _EX._pollTimer = null; }
+
     _EX.audioReady = false;
     _EX.audioData  = null;
     _EX.playsUsed  = 0;
@@ -21132,10 +21155,10 @@
     if (btn)   { btn.disabled = true; }
     if (label) label.textContent = 'Loading audio…';
     var _pollCount = 0;
-    var _pollTimer = setInterval(function() {
+    _EX._pollTimer = setInterval(function() {
       _pollCount++;
       if (_EX.audioCache[phaseIdx]) {
-        clearInterval(_pollTimer);
+        clearInterval(_EX._pollTimer); _EX._pollTimer = null;
         _EX.audioData  = { audioBase64: _EX.audioCache[phaseIdx] };
         _EX.audioReady = true;
         if (btn) { btn.disabled = false; btn.classList.add('ff-playing'); }
@@ -21146,8 +21169,8 @@
           if (btn) { btn.disabled = false; btn.classList.remove('ff-playing'); }
           if (_EX.playsUsed < EXAM_MAX_PLAYS && label) label.textContent = 'Play Again';
         });
-      } else if (_pollCount >= 40) { // 40 × 500ms = 20s
-        clearInterval(_pollTimer);
+      } else if (_pollCount >= 40) {
+        clearInterval(_EX._pollTimer); _EX._pollTimer = null;
         if (btn) btn.disabled = false;
         if (status) status.textContent = 'Audio unavailable. Check your connection and try again.';
         if (label) label.textContent = 'Play Transmission';
@@ -21303,7 +21326,8 @@
     audioReady: false,
     audioData:  null,
     playsUsed:  0,
-    audioCache: {}
+    audioCache: {},
+    _pollTimer: null
   };
 
   var PLACEMENT_MAX_PLAYS = 3;
@@ -21352,30 +21376,46 @@
 
   function _placementFetchPhaseAudio(phaseIdx) {
     var phase = (_PL.phases || [])[phaseIdx];
-    if (!phase || !AppState || !AppState.sessionToken) return;
+    if (!phase) return;
     var cached = _plLsGet(phase);
     if (cached) { _PL.audioCache[phaseIdx] = cached; return; }
-    function _doFetch(retry) {
+
+    var voiceParts = String(phase.voice || '').split('-');
+    var lang = voiceParts.length >= 2 ? (voiceParts[0] + '-' + voiceParts[1]) : 'en-US';
+
+    function _store(b64) { _PL.audioCache[phaseIdx] = b64; _plLsSet(phase, b64); }
+
+    function _tryGas(retry) {
+      if (!AppState || !AppState.sessionToken) return;
       google.script.run
         .withSuccessHandler(function(res) {
-          if (res && res.ok && res.audioBase64) {
-            _PL.audioCache[phaseIdx] = res.audioBase64;
-            _plLsSet(phase, res.audioBase64);
-          } else if (retry) {
-            setTimeout(function() { _doFetch(false); }, 6000);
-          }
+          if (res && res.ok && res.audioBase64) { _store(res.audioBase64); }
+          else if (retry) setTimeout(function() { _tryGas(false); }, 8000);
         })
         .withFailureHandler(function() {
-          if (retry) setTimeout(function() { _doFetch(false); }, 6000);
+          if (retry) setTimeout(function() { _tryGas(false); }, 8000);
         })
         .apiGenerateIcaoTestVoice(AppState.sessionToken, {
-          text:         phase.atcText,
-          country:      phase.country,
-          voice:        phase.voice        || '',
-          speakingRate: phase.speakingRate || 1.0
+          text: phase.atcText, country: phase.country,
+          voice: phase.voice || '', speakingRate: phase.speakingRate || 1.0
         });
     }
-    _doFetch(true);
+
+    if (phase.voice) {
+      fetch('/api/tea-audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: phase.atcText, voice: phase.voice, lang: lang, rate: phase.speakingRate || 1.0 })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(res) {
+        if (res && res.ok && res.audioBase64) { _store(res.audioBase64); }
+        else { _tryGas(true); }
+      })
+      .catch(function() { _tryGas(true); });
+    } else {
+      _tryGas(true);
+    }
   }
 
   function _esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -21470,6 +21510,7 @@
     var phase = _PL.phases[idx];
     if (!phase) { _placementError('Phase not found.'); return; }
 
+    if (_PL._pollTimer) { clearInterval(_PL._pollTimer); _PL._pollTimer = null; }
     _PL.audioReady = false;
     _PL.audioData  = null;
     _PL.playsUsed  = 0;
@@ -21565,10 +21606,10 @@
     if (btn)   { btn.disabled = true; }
     if (label) label.textContent = 'Loading audio…';
     var _pollCount = 0;
-    var _pollTimer = setInterval(function() {
+    _PL._pollTimer = setInterval(function() {
       _pollCount++;
       if (_PL.audioCache[phaseIdx]) {
-        clearInterval(_pollTimer);
+        clearInterval(_PL._pollTimer); _PL._pollTimer = null;
         _PL.audioData  = { audioBase64: _PL.audioCache[phaseIdx] };
         _PL.audioReady = true;
         if (btn) { btn.disabled = false; btn.classList.add('ff-playing'); }
@@ -21580,7 +21621,7 @@
           if (_PL.playsUsed < PLACEMENT_MAX_PLAYS && label) label.textContent = 'Play Again';
         });
       } else if (_pollCount >= 40) {
-        clearInterval(_pollTimer);
+        clearInterval(_PL._pollTimer); _PL._pollTimer = null;
         if (btn) btn.disabled = false;
         if (status) status.textContent = 'Audio unavailable. Check your connection and try again.';
         if (label) label.textContent = 'Play Transmission';
