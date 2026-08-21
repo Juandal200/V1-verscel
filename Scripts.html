@@ -20931,22 +20931,9 @@
         });
     }
 
-    // Try direct Vercel TTS endpoint first (no GAS cold-start, much faster)
-    if (phase.voice) {
-      fetch('/api/tea-audio', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: phase.atcText, voice: phase.voice, lang: lang, rate: phase.speakingRate || 1.0 })
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(res) {
-        if (res && res.ok && res.audioBase64) { _store(res.audioBase64); }
-        else { _tryGas(true); }
-      })
-      .catch(function() { _tryGas(true); });
-    } else {
-      _tryGas(true);
-    }
+    // Chirp3-HD voices require OAuth2 — /api/tea-audio (API-key auth) always fails for them.
+    // GAS has proper service-account OAuth2 auth, so go straight to GAS.
+    _tryGas(true);
   }
 
   function _esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -20993,7 +20980,7 @@
       '<div class="exam-card-overlay exam-intro">' +
         '<div class="exam-intro-badge">CHECKPOINT ' + examNum + '</div>' +
         '<h2 class="exam-intro-title">Exam ' + examNum + '</h2>' +
-        '<p class="exam-intro-sub">A complete 8-phase flight drawn from Levels ' + prereqs + '.</p>' +
+        '<p class="exam-intro-sub">8 randomly selected phases drawn from different routes across Levels ' + prereqs + '.</p>' +
         '<ul class="exam-rules-list">' +
           '<li>Listen to each ATC transmission and type the pilot readback</li>' +
           '<li>No feedback between phases — focus and stay consistent</li>' +
@@ -21030,9 +21017,18 @@
         _EX.routeId    = res.routeId || '';
         _EX.submitted  = false;
         _EX.audioCache = {};
-        // Pre-fetch audio for all phases immediately (staggered to avoid request flood)
+        // Pre-populate cache from server-generated audio (phases 0-3 have inline base64)
+        res.phases.forEach(function(p, i) {
+          if (p.audioBase64) {
+            _EX.audioCache[i] = p.audioBase64;
+            _examLsSet(p, p.audioBase64);
+          }
+        });
+        // Async-fetch only the phases that don't have inline audio yet
         res.phases.forEach(function(_, i) {
-          setTimeout(function() { _examFetchPhaseAudio(i); }, i * 800);
+          if (!_EX.audioCache[i]) {
+            setTimeout(function() { _examFetchPhaseAudio(i); }, (i - 4) * 600);
+          }
         });
         _examPhase();
       })
@@ -21082,7 +21078,7 @@
           '</div>' +
           '<div class="exam-readback-area">' +
             '<label class="exam-readback-label">Your Readback</label>' +
-            '<textarea id="examReadbackInput" class="exam-readback-input" rows="3" placeholder="Type the pilot readback..."></textarea>' +
+            '<textarea id="examReadbackInput" class="exam-readback-input" rows="3" placeholder="' + (phase.callsign ? 'Callsign: ' + _esc(phase.callsign) + ' — type the pilot readback' : 'Type the pilot readback...') + '"></textarea>' +
             '<button id="examMicBtn" class="demo-mic-btn" style="margin-top:8px;" onclick="startMicInput(\'examReadbackInput\',\'examMicBtn\')">&#127908; Tap to speak</button>' +
           '</div>' +
           '<button class="btn primary exam-next-btn" onclick="window._examNext()">' +
@@ -21401,21 +21397,8 @@
         });
     }
 
-    if (phase.voice) {
-      fetch('/api/tea-audio', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: phase.atcText, voice: phase.voice, lang: lang, rate: phase.speakingRate || 1.0 })
-      })
-      .then(function(r) { return r.json(); })
-      .then(function(res) {
-        if (res && res.ok && res.audioBase64) { _store(res.audioBase64); }
-        else { _tryGas(true); }
-      })
-      .catch(function() { _tryGas(true); });
-    } else {
-      _tryGas(true);
-    }
+    // Chirp3-HD voices require OAuth2 — /api/tea-audio (API-key auth) always fails for them.
+    _tryGas(true);
   }
 
   function _esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }

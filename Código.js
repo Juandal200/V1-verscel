@@ -555,7 +555,7 @@ function apiStartExam(sessionToken, examNum) {
     examNum = Number(examNum || 1);
     var cfg = EXAM_CONFIG_[examNum];
     if (!cfg) throw new Error('Invalid exam number.');
-    // Verify status allows starting
+
     var statusRes = apiGetExamStatus(sessionToken);
     if (!statusRes.ok) throw new Error('Could not verify exam status.');
     var examInfo = statusRes.exams.filter(function(e) { return e.examNum === examNum; })[0];
@@ -563,31 +563,24 @@ function apiStartExam(sessionToken, examNum) {
     if (examInfo.status !== 'available' && examInfo.status !== 'failed_once') {
       throw new Error('Exam not available. Status: ' + examInfo.status);
     }
-    // Pick a random route from prerequisite levels (NORMAL scenarios only)
+
     var allScenarios = readSheetObjectsV5Hard_('Scenarios').filter(function(s) {
       return isTruthyV5Hard_(s.isActive) &&
              cfg.levels.indexOf(Number(s.level || 0)) !== -1 &&
              String(s.scenarioType || '').toUpperCase() !== 'EMERGENCY';
     });
-    // Group by flightScenarioId
-    var routeMap = {};
+
+    // Group by level → route
+    var byLevel = {};
     allScenarios.forEach(function(s) {
+      var lv  = Number(s.level || 0);
       var rid = String(s.flightScenarioId || '');
       if (!rid) return;
-      if (!routeMap[rid]) routeMap[rid] = [];
-      routeMap[rid].push(s);
+      if (!byLevel[lv]) byLevel[lv] = {};
+      if (!byLevel[lv][rid]) byLevel[lv][rid] = [];
+      byLevel[lv][rid].push(s);
     });
-    var routeIds = Object.keys(routeMap).filter(function(rid) {
-      return routeMap[rid].length >= 4; // must have at least 4 phases to be worth using
-    });
-    if (!routeIds.length) throw new Error('No routes available for this exam.');
-    var routeId   = routeIds[Math.floor(Math.random() * routeIds.length)];
-    var phases    = routeMap[routeId]
-      .sort(function(a, b) { return Number(a.phaseOrder || 0) - Number(b.phaseOrder || 0); })
-      .slice(0, 8);
-    // Assign a random accent + voice + speaking rate to each phase independently.
-    // All 5 exam countries are guaranteed to appear at least once across 8 phases.
-    var examCountries = ['USA', 'UK', 'AUSTRALIA', 'INDIA', 'CANADA'];
+
     function shuffle_(arr) {
       var a = arr.slice();
       for (var i = a.length - 1; i > 0; i--) {
@@ -596,22 +589,83 @@ function apiStartExam(sessionToken, examNum) {
       }
       return a;
     }
-    var countrySlots = shuffle_(examCountries);
-    // Fill remaining slots (phases beyond 5) with random picks from the same pool
-    while (countrySlots.length < phases.length) {
+
+    // Round-robin across levels, picking one phase from a different route each time
+    var selectedPhases = [];
+    var usedRoutes = {};
+    var levels = shuffle_(cfg.levels.slice());
+    var maxRounds = 4;
+
+    for (var round = 0; round < maxRounds && selectedPhases.length < 8; round++) {
+      for (var li = 0; li < levels.length && selectedPhases.length < 8; li++) {
+        var lv = levels[li];
+        var routeMap = byLevel[lv] || {};
+        var routeIds = Object.keys(routeMap).filter(function(rid) {
+          return !usedRoutes[rid] && routeMap[rid].length > 0;
+        });
+        if (!routeIds.length) {
+          routeIds = Object.keys(routeMap).filter(function(rid) { return routeMap[rid].length > 0; });
+        }
+        if (!routeIds.length) continue;
+        var rid = routeIds[Math.floor(Math.random() * routeIds.length)];
+        usedRoutes[rid] = true;
+        var scenarios = routeMap[rid];
+        selectedPhases.push(scenarios[Math.floor(Math.random() * scenarios.length)]);
+      }
+    }
+
+    if (!selectedPhases.length) throw new Error('No scenarios available for this exam.');
+    selectedPhases = shuffle_(selectedPhases).slice(0, 8);
+
+    // Assign country/voice per phase — guarantee all 5 accents appear
+    var examCountries = ['USA', 'UK', 'AUSTRALIA', 'INDIA', 'CANADA'];
+    var countrySlots = shuffle_(examCountries.slice());
+    while (countrySlots.length < selectedPhases.length) {
       countrySlots.push(examCountries[Math.floor(Math.random() * examCountries.length)]);
     }
-    countrySlots = shuffle_(countrySlots.slice(0, phases.length));
+    countrySlots = shuffle_(countrySlots.slice(0, selectedPhases.length));
 
-    var safePhases = phases.map(function(s, i) {
-      var kws = String(s.keywordsText || s.keywords || '').split('|')
+    var safePhases = selectedPhases.map(function(s, i) {
+      var allKws   = String(s.keywordsText || s.keywords || '').split('|')
         .map(function(k) { return k.trim(); }).filter(Boolean);
-      if (kws.length > 1) kws.pop(); // strip callsign
-      var country = countrySlots[i];
+      var callsign = allKws.length > 0 ? allKws[allKws.length - 1] : '';
+      var kws      = allKws.slice();
+      if (kws.length > 1) kws.pop(); // strip callsign from keyword hints
+
+      var country  = countrySlots[i];
       var profile  = TTSService.getProfileByCountry_(country);
       var voices   = profile.voiceNames || [];
       var voice    = voices.length ? voices[Math.floor(Math.random() * voices.length)] : '';
-      var rate = Math.round((1.0 + Math.random() * 0.2) * 100) / 100; // 1.00–1.20
+      var rate     = Math.round((1.0 + Math.random() * 0.2) * 100) / 100;
+
+      // Generate audio inline for first 4 phases — GAS CacheService makes repeats instant.
+      // Remaining phases are fetched asynchronously by the client (GAS is warm by then).
+      var audioBase64 = '';
+      if (i < 4) {
+        try {
+          var voicesToTry = voice ? [voice].concat(voices.filter(function(v) { return v !== voice; })) : voices;
+          var profileForCall = {
+            languageCode:     profile.languageCode,
+            pitch:            profile.pitch,
+            effectsProfileId: profile.effectsProfileId,
+            voiceNames:       voicesToTry
+          };
+          var atcText_ = String(s.atcText || '');
+          var cacheKey_ = TTSService.buildTtsCacheKey_(atcText_, profile, rate, voicesToTry[0]);
+          var cached_   = TTSService.getTtsFromCache_(cacheKey_);
+          if (cached_) {
+            audioBase64 = cached_;
+          } else {
+            var ssml_   = TTSService.buildAtcSsml_(atcText_, profile, rate, voicesToTry[0]);
+            var ttsRes_ = TTSService.callGoogleTtsWithFallbackVoices_(ssml_, profileForCall, rate);
+            audioBase64 = ttsRes_.audioBase64 || '';
+            if (audioBase64) TTSService.storeTtsInCache_(cacheKey_, audioBase64);
+          }
+        } catch(ttsErr) {
+          Logger.log('Inline TTS failed phase ' + i + ': ' + ttsErr.message);
+        }
+      }
+
       return {
         scenarioId:       String(s.scenarioId || ''),
         phaseCode:        String(s.phaseCode  || ''),
@@ -619,12 +673,16 @@ function apiStartExam(sessionToken, examNum) {
         atcText:          String(s.atcText    || ''),
         expectedReadback: String(s.expectedReadback || ''),
         keywordsExam:     kws.join('|'),
+        callsign:         callsign,
         country:          country,
         voice:            voice,
-        speakingRate:     rate
+        speakingRate:     rate,
+        audioBase64:      audioBase64,
+        level:            Number(s.level || 0)
       };
     });
-    return { ok: true, examNum: examNum, routeId: routeId, phases: safePhases };
+
+    return { ok: true, examNum: examNum, routeId: 'mixed', phases: safePhases };
   } catch(err) {
     return apiError_('apiStartExam', err);
   }
