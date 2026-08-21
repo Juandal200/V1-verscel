@@ -1194,7 +1194,15 @@
     }
 
     var simState = null;
-    try { simState = JSON.parse(sessionStorage.getItem('icao_sim_state') || 'null'); } catch(e) {}
+    try {
+      var _rawSim = localStorage.getItem('icao_sim_state') || sessionStorage.getItem('icao_sim_state');
+      if (_rawSim) {
+        var _s = JSON.parse(_rawSim);
+        if (_s && _s.level && _s.country && (!_s.savedAt || Date.now() - _s.savedAt < 48 * 60 * 60 * 1000)) {
+          simState = _s;
+        }
+      }
+    } catch(e) {}
 
     if (simState && simState.level && simState.country) {
       startCountryTraining(simState.country, simState.level);
@@ -1362,7 +1370,7 @@
   }
 
   function renderHome() {
-    try { sessionStorage.removeItem('icao_sim_state'); } catch(e) {}
+    _simStateClear();
     setActiveNav('Home');
 
     // Access gate
@@ -1459,9 +1467,9 @@
             '<p style="margin:0;font-size:0.75rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Level</p>' +
             '<p class="home-stat-val" style="margin:0;font-size:1.4rem;font-weight:800;color:var(--cyan);">' + level + '</p>' +
           '</div>' +
-          '<div style="flex:1;padding-left:12px;border-right:1px solid var(--line);padding-right:12px;">' +
+          '<div style="flex:1;padding-left:12px;">' +
             '<p style="margin:0;font-size:0.75rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Country</p>' +
-            '<p class="home-stat-val" style="margin:0;font-size:1.4rem;font-weight:800;">' + safeText(country) + '</p>' +
+            '<p class="home-stat-val" style="margin:0;font-size:1.1rem;font-weight:800;display:flex;align-items:center;gap:6px;">' + getFlagHtml(country, 'flag-preview') + '<span>' + safeText(getCountryUi(country).label) + '</span></p>' +
           '</div>' +
         '</div>';
 
@@ -1504,7 +1512,7 @@
             '<div class="home-hero-meta">' +
               'Lvl <strong>' + level + '</strong>' +
               '<span class="home-hero-sep">·</span>' +
-              safeText(country) +
+              getFlagHtml(country, 'flag-preview') + ' ' + safeText(getCountryUi(country).label) +
             '</div>' +
           '</div>' +
           '<button style="flex-shrink:0;width:auto;white-space:nowrap;background:#00d48e;color:#07101e;border:none;border-radius:10px;padding:7px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;" onclick="_navTo(renderSimulatorPlaceholder)">Continue →</button>' +
@@ -5102,6 +5110,39 @@
     renderScenarioRoute(route);
   }
 
+  var SIM_STATE_KEY = 'icao_sim_state';
+  var SIM_STATE_TTL = 48 * 60 * 60 * 1000;
+
+  function _simStateSave() {
+    var state = {
+      level: AppState.training.selectedLevel,
+      country: AppState.training.selectedCountry,
+      currentIndex: AppState.training.currentIndex || 0,
+      savedAt: Date.now()
+    };
+    try { localStorage.setItem(SIM_STATE_KEY, JSON.stringify(state)); } catch(e) {}
+  }
+
+  function _simStateLoad(level, country) {
+    try {
+      var raw = localStorage.getItem(SIM_STATE_KEY);
+      if (!raw) return null;
+      var s = JSON.parse(raw);
+      if (!s || !s.level || !s.country) return null;
+      if (Number(s.level) !== Number(level) || String(s.country) !== String(country)) return null;
+      if (s.savedAt && Date.now() - s.savedAt > SIM_STATE_TTL) {
+        localStorage.removeItem(SIM_STATE_KEY);
+        return null;
+      }
+      return s;
+    } catch(e) { return null; }
+  }
+
+  function _simStateClear() {
+    try { localStorage.removeItem(SIM_STATE_KEY); } catch(e) {}
+    try { sessionStorage.removeItem(SIM_STATE_KEY); } catch(e) {}
+  }
+
   function startCountryTraining(country, level) {
     AppState.training = AppState.training || {};
 
@@ -5156,18 +5197,33 @@
 
         AppState.training.loadedRoute = route;
 
-        try { sessionStorage.setItem('icao_sim_state', JSON.stringify({ level: selectedLevel, country: selectedCountry })); } catch(e) {}
+        // Check for resume state before overwriting
+        var _resumeState = _simStateLoad(selectedLevel, selectedCountry);
+        var _resumeIndex = (_resumeState && _resumeState.currentIndex > 0) ? _resumeState.currentIndex : 0;
+        if (!_resumeState) {
+          try { localStorage.setItem(SIM_STATE_KEY, JSON.stringify({ level: selectedLevel, country: selectedCountry, currentIndex: 0, savedAt: Date.now() })); } catch(e) {}
+        }
 
-        // Load level config (replay threshold) then show selector
+        // Load level config (replay threshold) then show selector or resume
         google.script.run
           .withSuccessHandler(function(cfg) {
             AppState.training.replayThreshold = (cfg && cfg.ok && cfg.replayThreshold >= 1)
               ? Number(cfg.replayThreshold) : 2;
-            renderScenarioSelector(route, selectedLevel, selectedCountry);
+            if (_resumeIndex > 0 && _resumeIndex < (route.scenarios || []).length) {
+              AppState.training._launchIndex = _resumeIndex;
+              renderScenarioRoute(route);
+            } else {
+              renderScenarioSelector(route, selectedLevel, selectedCountry);
+            }
           })
           .withFailureHandler(function() {
             AppState.training.replayThreshold = 2;
-            renderScenarioSelector(route, selectedLevel, selectedCountry);
+            if (_resumeIndex > 0 && _resumeIndex < (route.scenarios || []).length) {
+              AppState.training._launchIndex = _resumeIndex;
+              renderScenarioRoute(route);
+            } else {
+              renderScenarioSelector(route, selectedLevel, selectedCountry);
+            }
           })
           .apiGetLevelConfig(AppState.sessionToken, selectedLevel);
       })
@@ -5215,6 +5271,10 @@
     AppState.training.currentIndex = (preservedIndex != null && preservedIndex >= 0) ? preservedIndex : 0;
     AppState.training.scenarioStartMs = Date.now();
     AppState.training.completedScenarioIds = {};
+    // Pre-mark earlier scenarios as completed when resuming mid-route
+    for (var _pri = 0; _pri < (AppState.training.currentIndex || 0); _pri++) {
+      AppState.training.completedScenarioIds['i' + _pri] = true;
+    }
     AppState.training.lastAttempt = null;
     AppState.training.lastProgress = null;
     AppState.training.vrBonusEarned = null;
@@ -7873,6 +7933,7 @@
     stopFlightDrift();
     AppState.training.currentIndex = nextIndex;
     AppState.training.scenarioStartMs = Date.now();
+    _simStateSave();
     renderScenarioStageImmersive();
   }
 
@@ -7889,6 +7950,7 @@
     stopFlightDrift();
     AppState.training.currentIndex = nextIndex;
     AppState.training.scenarioStartMs = Date.now();
+    _simStateSave();
     renderScenarioStageImmersive();
   }
 
@@ -8320,6 +8382,7 @@
 
     simMediaStopAll();
     disableSimulatorFocusMode();
+    _simStateClear();
 
     // Derive level/country directly from training state — don't rely on lastProgress yet.
     var level   = Number(AppState.training.selectedLevel   || (AppState.training.lastProgress && AppState.training.lastProgress.level)   || 1);
@@ -21003,7 +21066,7 @@
           '<div class="exam-readback-area">' +
             '<label class="exam-readback-label">Your Readback</label>' +
             '<textarea id="examReadbackInput" class="exam-readback-input" rows="3" placeholder="Type the pilot readback..."></textarea>' +
-            '<button id="examMicBtn" class="demo-mic-btn" style="margin-top:8px;" onclick="startMicInput(\'examReadbackInput\',\'examMicBtn\',' + JSON.stringify(phase.expectedReadback || '') + ')">&#127908; Tap to speak</button>' +
+            '<button id="examMicBtn" class="demo-mic-btn" style="margin-top:8px;" onclick="startMicInput(\'examReadbackInput\',\'examMicBtn\')">&#127908; Tap to speak</button>' +
           '</div>' +
           '<button class="btn primary exam-next-btn" onclick="window._examNext()">' +
             (isLast ? 'Submit Exam' : 'Next Phase &rarr;') +
