@@ -570,7 +570,11 @@ var TTSService = {
       'AIR','ARC','ATC','PAN','RUN','SET','OUT','OFF','WAY','CAR','ODD',
       'ZERO','ONE','TWO','FOUR','FIVE','NINE','TEN','WITH','FROM','THEN','WHEN',
       'WILL','HOLD','STOP','TAXI','TURN','PUSH','PULL','LEFT','BACK','NEXT',
-      'TAKE','LAND','GATE','RAMP','PARK','DOOR','FUEL'
+      'TAKE','LAND','GATE','RAMP','PARK','DOOR','FUEL',
+      // Runway surface / weather conditions. Under 5 letters, so rule 18 below
+      // never reaches them and TTS spells them out — "WET" became "W E T" and
+      // "SNOW" became "S N O W", which is why the word was not recognisable.
+      'WET','SNOW'
     ];
     var _wwPat = new RegExp('\\b(' + WORD_WORDS.join('|') + ')\\b', 'g');
     out = out.replace(_wwPat, function(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); });

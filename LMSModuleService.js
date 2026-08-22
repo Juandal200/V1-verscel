@@ -1445,7 +1445,13 @@ function apiGrammarSubmit(sessionToken, payload) {
 
     var lmsXpTotal = null;
     if (result.xpAwarded > 0) {
-      try { lmsXpTotal = lmsAddXp_(caller.userId, result.xpAwarded); lmsUpdateStreak_(caller.userId); } catch(e) {}
+      try { lmsXpTotal = lmsAddXp_(caller.userId, result.xpAwarded); } catch(e) {}
+    }
+    // Streak counts ANY graded exercise the student got right, not only runs that
+    // award XP. A retake awards no XP but still marks the day active — the same
+    // rule the simulator already applies per phase.
+    if (Number(result.correct || 0) > 0) {
+      try { lmsUpdateStreak_(caller.userId); } catch(e) {}
     }
 
     return {
@@ -1661,7 +1667,13 @@ function apiListeningSubmit(sessionToken, payload) {
 
     var lmsXpTotal = null;
     if (result.xpAwarded > 0) {
-      try { lmsXpTotal = lmsAddXp_(caller.userId, result.xpAwarded); lmsUpdateStreak_(caller.userId); } catch(e) {}
+      try { lmsXpTotal = lmsAddXp_(caller.userId, result.xpAwarded); } catch(e) {}
+    }
+    // Streak counts ANY graded exercise the student got right, not only runs that
+    // award XP. A retake awards no XP but still marks the day active — the same
+    // rule the simulator already applies per phase.
+    if (Number(result.correct || 0) > 0) {
+      try { lmsUpdateStreak_(caller.userId); } catch(e) {}
     }
 
     return {

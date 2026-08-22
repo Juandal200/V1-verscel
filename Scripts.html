@@ -5274,6 +5274,11 @@
     AppState.training.lastProgress = null;
     AppState.training.vrBonusEarned = null;
     AppState.training._prefetchedVoice = {};
+    // One id per run of the route. The server groups attempts by it so a retry
+    // is scored as a whole session and only replaces the stored result when the
+    // whole run beats it — a partial redo can never lower a completed route.
+    AppState.training.sessionId = 'SES-' + Date.now() + '-' +
+      Math.floor(Math.random() * 1e6).toString(36);
 
     console.log(
       '[ICAO] renderScenarioRoute: level=' + data.level +
@@ -7690,7 +7695,8 @@
         country:           scenario.country            || '',
         studentAnswer:     answer,
         responseTimeSec:   responseTimeSec,
-        replayCount:       AtcReplayGate.getCount()
+        replayCount:       AtcReplayGate.getCount(),
+        sessionId:         AppState.training.sessionId || ''
       });
   }
 
@@ -7925,6 +7931,23 @@
     AppState.training.scenarioStartMs = Date.now();
     _simStateSave();
     renderScenarioStageImmersive();
+  }
+
+  // Replay a finished route from phase 1 as a fresh session. renderScenarioRoute
+  // mints a new sessionId, so the server scores this run as a whole and keeps it
+  // only if it beats the stored one — a weaker retry can never lower the record,
+  // and a completed route stays completed.
+  function retryRouteFromStart() {
+    var route = AppState.training.loadedRoute || AppState.training.route;
+    if (!route || !((route.scenarios || []).length)) {
+      showContentError('This route is not available to retry.');
+      return;
+    }
+    simMediaStopAll();
+    stopFlightDrift();
+    AppState.training._launchIndex = 0;
+    try { localStorage.removeItem(SIM_STATE_KEY); } catch (e) {}
+    renderScenarioRoute(route);
   }
 
   function immersiveBackToCountries() {
@@ -8781,6 +8804,7 @@
         (continueBtn ? '<div class="senior-cta-top" style="display:none">' + continueBtn + '</div>' : '') +
         vrPanel +
         '<div class="senior-actions">' +
+          '<button class="btn secondary" onclick="retryRouteFromStart()" title="Fly the route again. Your record only changes if the whole run scores higher.">Retry route</button>' +
           '<button class="btn secondary" onclick="renderCountryTrainingHub(AppState.training.selectedLevelData)">Back to level map</button>' +
           '<button class="btn secondary" onclick="renderHome()">Home</button>' +
         '</div>' +
@@ -11566,6 +11590,7 @@
   window.retryCurrentScenario = retryCurrentScenario;
   window.goToNextScenario = goToNextScenario;
   window.goToNextScenarioAnyway = goToNextScenarioAnyway;
+  window.retryRouteFromStart = retryRouteFromStart;
   window.submitScenarioAnswer = submitScenarioAnswer;
   window.renderAttemptFeedback = renderAttemptFeedback;
   window.renderTrainingFinished = renderTrainingFinished;

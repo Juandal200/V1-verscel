@@ -100,7 +100,8 @@ var DB_SCHEMA = {
     'attemptNumber',
     'createdAt',
     'replayCount',
-    'phaseCode'
+    'phaseCode',
+    'sessionId'
   ],
 
   Progress: [

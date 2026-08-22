@@ -55,7 +55,10 @@ var AttemptService = {
       replayCount: replayCount,
       attemptNumber: attemptNumber,
       createdAt: now_(),
-      phaseCode: String(scenario.phaseCode || '')
+      phaseCode: String(scenario.phaseCode || ''),
+      // Identifies one run of a route, so a retry can be scored as a whole
+      // session rather than blended into the running per-scenario bests.
+      sessionId: String(payload.sessionId || '')
     };
 
     dbWithScriptLock_(function() {
@@ -380,20 +383,51 @@ var ProgressService = {
 
     // Score: average best score per scenario across all attempts.
     // Using only correct attempts would always yield 100 (correct = all tokens matched = score 100).
-    var bestPerScenario = {};
+    // BEST WHOLE SESSION, not a blend of bests from different runs.
+    // A session is one run of the route (client-generated sessionId). Its score is
+    // the average of its best score per scenario within that run, and the route's
+    // stored scoreAvg is the highest such session — so a retry replaces the record
+    // only when the entire run beats the previous one.
+    // Legacy rows predate sessionId; bucket those by calendar day so they group
+    // into plausible runs instead of collapsing into one giant session.
+    var sessions = {};
     attempts.forEach(function(row) {
+      var key = String(row.sessionId || '').trim() ||
+                ('legacy:' + String(row.createdAt || '').slice(0, 10));
       var sid = String(row.scenarioId || row.phaseCode || '_');
       var s   = Number(row.score || 0);
-      if (bestPerScenario[sid] === undefined || s > bestPerScenario[sid]) {
-        bestPerScenario[sid] = s;
+      if (!sessions[key]) sessions[key] = {};
+      if (sessions[key][sid] === undefined || s > sessions[key][sid]) {
+        sessions[key][sid] = s;
       }
     });
-    var scenarioKeys = Object.keys(bestPerScenario);
-    var scoreAvg = scenarioKeys.length
-      ? Math.round(
-          scenarioKeys.reduce(function(sum, k) { return sum + bestPerScenario[k]; }, 0) / scenarioKeys.length
-        )
-      : 0;
+
+    // Only a run that covered the WHOLE route can set the record. Without this a
+    // student who redoes one weak phase and scores 100 on it posts a session of
+    // one scenario averaging 100, which would replace a genuine full run.
+    // If no full run exists yet (route in progress, or legacy rows split across
+    // days), fall back to the best among the widest-coverage sessions so the
+    // figure still reflects real work instead of collapsing to zero.
+    var sessionStats = Object.keys(sessions).map(function(key) {
+      var sKeys = Object.keys(sessions[key]);
+      return {
+        covered: sKeys.length,
+        avg: sKeys.length
+          ? Math.round(sKeys.reduce(function(sum, k) { return sum + sessions[key][k]; }, 0) / sKeys.length)
+          : 0
+      };
+    }).filter(function(st) { return st.covered > 0; });
+
+    var maxCovered = sessionStats.reduce(function(m, st) {
+      return st.covered > m ? st.covered : m;
+    }, 0);
+    var qualifyingCover = (totalScenarios > 0 && maxCovered >= totalScenarios)
+      ? totalScenarios
+      : maxCovered;
+
+    var scoreAvg = sessionStats.reduce(function(best, st) {
+      return (st.covered >= qualifyingCover && st.avg > best) ? st.avg : best;
+    }, 0);
 
     // ── New performance metrics ────────────────────────────────────────────
     // Use only the FIRST attempt per scenario (attemptNumber === 1) so retries
