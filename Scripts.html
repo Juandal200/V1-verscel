@@ -8718,12 +8718,6 @@
         '</div>' +
         (continueBtn ? '<div class="senior-cta-top">' + continueBtn + '</div>' : '') +
         vrPanel +
-        '<div class="senior-mission-grid">' +
-          '<article class="senior-mission-card"><span>Environment</span><strong>' + safeText(meta.label) + '</strong><small>Country accent route</small></article>' +
-          '<article class="senior-mission-card"><span>Exercises</span><strong>' + safeText(Math.min(Number(countryInfo.completedScenarios || 0), Number(countryInfo.totalScenarios || 0))) + ' / ' + safeText(countryInfo.totalScenarios || 0) + '</strong><small>Read-back events</small></article>' +
-          '<article class="senior-mission-card"><span>Avg Score</span><strong>' + safeText(countryInfo.scoreAvg || 0) + '%</strong><small>Best score per phase</small></article>' +
-          '<article class="senior-mission-card"><span>Level</span><strong>' + safeText(levelInfo.completedCountries || 0) + ' / ' + safeText(levelInfo.totalCountries || 0) + '</strong><small>Countries done</small></article>' +
-        '</div>' +
         '<div class="senior-actions">' +
           '<button class="btn secondary" onclick="renderCountryTrainingHub(AppState.training.selectedLevelData)">Back to level map</button>' +
           '<button class="btn secondary" onclick="renderHome()">Home</button>' +
