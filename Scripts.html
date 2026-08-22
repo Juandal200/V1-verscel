@@ -7586,7 +7586,7 @@
 
     // Instant client-side feedback — no server wait
     var clientEval = _clientEvaluate(answer, scenario.keywordsText || scenario.keywords || '', scenario.expectedReadback || '');
-    syncTrainingProgressFromAttempt({ evaluation: clientEval, attempt: { scenarioId: scenario.scenarioId, _scenarioIndex: index } });
+    syncTrainingProgressFromAttempt({ evaluation: clientEval, attempt: { scenarioId: scenario.scenarioId, _scenarioIndex: index }, _fromClient: true });
     renderAttemptFeedback({
       evaluation: clientEval,
       expectedAnswer: scenario.expectedReadback || '',
@@ -7657,7 +7657,10 @@
 
     if (correct && completionKey) {
       AppState.training.completedScenarioIds[completionKey] = true;
-    } else if (!correct && completionKey && res.progress) {
+    } else if (!correct && completionKey && res._fromClient) {
+      // Only remove a completion when the LOCAL client evaluation says wrong (retry flow).
+      // Never let the server response delete a completion the client already confirmed — the
+      // server may apply stricter scoring AFTER the user has moved past that exercise.
       delete AppState.training.completedScenarioIds[completionKey];
     }
 
@@ -8278,7 +8281,13 @@
 
   function renderTrainingFinished() {
     var scenarios    = AppState.training.scenarios || [];
-    var completedMap = AppState.training.completedScenarioIds || {};
+    // Force-mark the current scenario as complete. The "Finish route" button only renders
+    // when the client evaluation returned correct — so we know this one is done.
+    AppState.training.completedScenarioIds = AppState.training.completedScenarioIds || {};
+    var _curIdx = Number(AppState.training.currentIndex || 0);
+    AppState.training.completedScenarioIds['i' + _curIdx] = true;
+
+    var completedMap = AppState.training.completedScenarioIds;
     var allCompleted = scenarios.length > 0 && scenarios.every(function(_, idx) {
       return completedMap['i' + idx] === true;
     });
