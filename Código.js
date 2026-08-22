@@ -617,14 +617,6 @@ function apiStartExam(sessionToken, examNum) {
     if (!selectedPhases.length) throw new Error('No scenarios available for this exam.');
     selectedPhases = shuffle_(selectedPhases).slice(0, 8);
 
-    // Assign country/voice per phase — guarantee all 5 accents appear
-    var examCountries = ['USA', 'UK', 'AUSTRALIA', 'INDIA', 'CANADA'];
-    var countrySlots = shuffle_(examCountries.slice());
-    while (countrySlots.length < selectedPhases.length) {
-      countrySlots.push(examCountries[Math.floor(Math.random() * examCountries.length)]);
-    }
-    countrySlots = shuffle_(countrySlots.slice(0, selectedPhases.length));
-
     var safePhases = selectedPhases.map(function(s, i) {
       var allKws   = String(s.keywordsText || s.keywords || '').split('|')
         .map(function(k) { return k.trim(); }).filter(Boolean);
@@ -632,7 +624,8 @@ function apiStartExam(sessionToken, examNum) {
       var kws      = allKws.slice();
       if (kws.length > 1) kws.pop(); // strip callsign from keyword hints
 
-      var country  = countrySlots[i];
+      // Use the scenario's own country — ATC message and accent must match
+      var country  = String(s.country || 'USA').trim().toUpperCase() || 'USA';
       var profile  = TTSService.getProfileByCountry_(country);
       var voices   = profile.voiceNames || [];
       var voice    = voices.length ? voices[Math.floor(Math.random() * voices.length)] : '';
