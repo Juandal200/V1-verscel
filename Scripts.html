@@ -1084,13 +1084,9 @@
     var streakChip = byId('topnavStreakChip');
     if (streakChip) {
       var sd = streakDays || 0;
-      if (sd > 0) {
-        var _freezes = window._lmsStreakFreezes || 0;
-        streakChip.textContent = '🔥 ' + sd + 'd' + (_freezes > 0 ? '  🧊 ' + _freezes : '');
-        streakChip.style.display = '';
-      } else {
-        streakChip.style.display = 'none';
-      }
+      var _freezes = window._lmsStreakFreezes || 0;
+      streakChip.textContent = '🔥 ' + (sd || 0) + 'd' + (_freezes > 0 ? '  🧊 ' + _freezes : '');
+      streakChip.style.display = '';
     }
 
     // ── Progress to next rank ──
@@ -7618,7 +7614,7 @@
           var _oldKey = window._getTierFromXpKey ? window._getTierFromXpKey(_oldTotal) : null;
           var _newKey = window._getTierFromXpKey ? window._getTierFromXpKey(newTotal) : null;
           if (_oldKey && _newKey && _oldKey !== _newKey) window._showRankUpCelebration(_newKey);
-          _renderTopbarRank(newTotal, 0);
+          _renderTopbarRank(newTotal, window._lmsStreakDays || 0);
         }
       })
       .withFailureHandler(function(err) {
@@ -12097,7 +12093,7 @@
               var _oldKey = window._getTierFromXpKey ? window._getTierFromXpKey(_oldTotal) : null;
               var _newKey = window._getTierFromXpKey ? window._getTierFromXpKey(newTotal) : null;
               if (_oldKey && _newKey && _oldKey !== _newKey) window._showRankUpCelebration(_newKey);
-              _renderTopbarRank(newTotal, 0);
+              _renderTopbarRank(newTotal, window._lmsStreakDays || 0);
             })
             .withFailureHandler(function() {})
             .apiSubmitVideoQuizAnswer(AppState.sessionToken, moduleId, quiz.quizId, true);

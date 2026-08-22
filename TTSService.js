@@ -562,11 +562,18 @@ var TTSService = {
     out = out.replace(/\bSPD\b/gi, 'speed');
     out = out.replace(/\bACFT\b/gi,'aircraft');
 
-    // 17b. Uppercase digit words (3-4 letters, missed by the 5+ catch-all below) →
-    //      lowercase so TTS reads them as words, not acronyms.
-    out = out.replace(/\b(ZERO|ONE|TWO|FOUR|FIVE|NINE|TEN)\b/g, function(w) {
-      return w.charAt(0) + w.slice(1).toLowerCase();
-    });
+    // 17b. Common English/aviation words that TTS reads letter-by-letter when ALL-CAPS →
+    //      lowercase so they are spoken as words, not acronyms.
+    var WORD_WORDS = [
+      'AT','BY','IN','ON','TO','UP','OF','OR','AN','AS','IS','IT','NO','GO',
+      'BAY','VIA','AND','FOR','THE','BUT','NOT','NOW','ALL','NEW','OLD','LOW',
+      'AIR','ARC','ATC','PAN','RUN','SET','OUT','OFF','WAY','CAR','ODD',
+      'ZERO','ONE','TWO','FOUR','FIVE','NINE','TEN','WITH','FROM','THEN','WHEN',
+      'WILL','HOLD','STOP','TAXI','TURN','PUSH','PULL','LEFT','BACK','NEXT',
+      'TAKE','LAND','GATE','RAMP','PARK','DOOR','FUEL'
+    ];
+    var _wwPat = new RegExp('\\b(' + WORD_WORDS.join('|') + ')\\b', 'g');
+    out = out.replace(_wwPat, function(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); });
 
     // 18. Catch-all: any remaining ALL-CAPS word of 5+ letters (airline names,
     //     waypoints, place names) → title case so TTS reads it as a word,
