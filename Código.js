@@ -620,9 +620,12 @@ function apiStartExam(sessionToken, examNum) {
     var safePhases = selectedPhases.map(function(s, i) {
       var allKws   = String(s.keywordsText || s.keywords || '').split('|')
         .map(function(k) { return k.trim(); }).filter(Boolean);
-      var callsign = allKws.length > 0 ? allKws[allKws.length - 1] : '';
+      // Callsign = first word of the ATC message (strip trailing punctuation).
+      // Fall back to last keyword only if atcText is empty.
+      var _firstWord = String(s.atcText || '').trim().split(/\s+/)[0] || '';
+      var callsign = _firstWord.replace(/[^A-Z0-9]/gi, '') || (allKws.length > 0 ? allKws[allKws.length - 1] : '');
       var kws      = allKws.slice();
-      if (kws.length > 1) kws.pop(); // strip callsign from keyword hints
+      if (kws.length > 1) kws.pop(); // strip callsign keyword from hints
 
       // Use the scenario's own country — ATC message and accent must match
       var country  = String(s.country || 'USA').trim().toUpperCase() || 'USA';
