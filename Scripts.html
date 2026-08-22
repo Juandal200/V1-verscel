@@ -21269,7 +21269,7 @@
   }
 
   // ── Exam passed celebration overlay ──────────────────────────────────────
-  function _showExamPassedCelebration(examNum, score) {
+  window._showExamPassedCelebration = function _showExamPassedCelebration(examNum, score) {
     try {
       if (navigator.vibrate) navigator.vibrate([30, 60, 30, 60, 80, 120]);
 
