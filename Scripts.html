@@ -21256,6 +21256,9 @@
         '</div>' +
       '</div>';
 
+    // Show celebration overlay when passed
+    if (passed) setTimeout(function() { _showExamPassedCelebration(_EX.examNum, score); }, 300);
+
     // Refresh exam status in AppState so level grid is up to date on next render
     if (window.AppState && AppState.sessionToken) {
       google.script.run
@@ -21263,6 +21266,69 @@
         .withFailureHandler(function() {})
         .apiGetExamStatus(AppState.sessionToken);
     }
+  }
+
+  // ── Exam passed celebration overlay ──────────────────────────────────────
+  function _showExamPassedCelebration(examNum, score) {
+    try {
+      if (navigator.vibrate) navigator.vibrate([30, 60, 30, 60, 80, 120]);
+
+      var color = '#00d48e';
+
+      // Victory fanfare — ascending arpeggio with final resolve
+      try {
+        var _ac = new (window.AudioContext || window.webkitAudioContext)();
+        [523, 659, 784, 1047, 784, 1047, 1319].forEach(function(freq, i) {
+          var osc = _ac.createOscillator(), g = _ac.createGain();
+          osc.connect(g); g.connect(_ac.destination);
+          osc.frequency.value = freq; osc.type = 'sine';
+          var t = _ac.currentTime + i * 0.13;
+          g.gain.setValueAtTime(0, t);
+          g.gain.linearRampToValueAtTime(0.2, t + 0.05);
+          g.gain.exponentialRampToValueAtTime(0.001, t + 0.65);
+          osc.start(t); osc.stop(t + 0.7);
+        });
+      } catch(e) {}
+
+      var ov = document.createElement('div');
+      ov.id = '_examPassedOv';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0);transition:background .35s;cursor:pointer;overflow:hidden;';
+
+      ov.innerHTML =
+        '<div style="position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 50% 48%,' + color + '22 0%,transparent 70%);pointer-events:none;"></div>' +
+        '<button onclick="event.stopPropagation();_examPassedDismiss();" style="position:absolute;top:20px;right:24px;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.5);font-size:1.1rem;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;">&#x2715;</button>' +
+        '<div id="_examPassedCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform .55s cubic-bezier(0.34,1.56,0.64,1),opacity .4s ease;padding:0 28px;pointer-events:none;">' +
+          '<div style="font-size:0.75rem;font-weight:800;letter-spacing:.2em;color:' + color + ';text-transform:uppercase;margin-bottom:20px;">Checkpoint ' + examNum + ' Cleared</div>' +
+          '<div style="font-size:5rem;line-height:1;margin-bottom:16px;filter:drop-shadow(0 0 32px ' + color + ');">&#10003;</div>' +
+          '<div style="font-size:4.5rem;font-weight:900;color:#fff;line-height:1;letter-spacing:-0.02em;text-shadow:0 0 40px ' + color + ',0 0 80px ' + color + '44;margin-bottom:4px;">' + score + '<span style="font-size:1.5rem;color:rgba(255,255,255,.35);font-weight:600;"> / 100</span></div>' +
+          '<div style="font-size:0.95rem;color:rgba(255,255,255,.45);margin-bottom:52px;font-weight:500;margin-top:10px;">ICAO Language Proficiency Test passed</div>' +
+          '<div style="font-size:0.7rem;font-weight:700;letter-spacing:.12em;color:rgba(255,255,255,.18);text-transform:uppercase;">Tap anywhere to continue</div>' +
+        '</div>' +
+        '<div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.06);">' +
+          '<div id="_examPassedBar" style="height:3px;width:100%;background:' + color + ';transition:width 5s linear;"></div>' +
+        '</div>';
+
+      document.body.appendChild(ov);
+
+      var _epTimer;
+      window._examPassedDismiss = function() {
+        clearTimeout(_epTimer);
+        ov.style.background = 'rgba(0,0,0,0)';
+        var card = document.getElementById('_examPassedCard');
+        if (card) { card.style.transform = 'scale(0.9)'; card.style.opacity = '0'; }
+        setTimeout(function() { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 380);
+      };
+      ov.addEventListener('click', window._examPassedDismiss);
+
+      requestAnimationFrame(function() {
+        ov.style.background = 'rgba(0,0,0,.93)';
+        var card = document.getElementById('_examPassedCard');
+        if (card) requestAnimationFrame(function() { card.style.transform = 'scale(1)'; card.style.opacity = '1'; });
+        var bar = document.getElementById('_examPassedBar');
+        if (bar) requestAnimationFrame(function() { bar.style.width = '0%'; });
+        _epTimer = setTimeout(window._examPassedDismiss, 5000);
+      });
+    } catch(e) {}
   }
 
   // ── Error screen ─────────────────────────────────────────────────────────
