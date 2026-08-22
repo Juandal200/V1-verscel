@@ -79,7 +79,15 @@ var AttemptService = {
   // Simple grading normalizer: uppercase, strip punctuation, collapse spaces.
   // Keeps digits as digits — no ICAO expansion — so "27" stays "27".
   normalizeForGrading_: function(text) {
-    return String(text || '').toUpperCase().replace(/[^A-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    return String(text || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      // Sheets write thousands split: "3 000", "2 500". Rejoin before any token
+      // extraction, otherwise the digit regexes capture the tail ("000", "500")
+      // and the server ends up demanding that fragment as a required readback.
+      .replace(/\b(\d{1,2}) (\d{3})\b/g, '$1$2')
+      .trim();
   },
 
   extractSemanticTokens_: function(normExpected) {
@@ -130,6 +138,30 @@ var AttemptService = {
 
   evaluateAnswer_: function(answer, keywords, expectedReadback) {
     var self = this;
+
+    // The curated keywords column is the authority: it is hand-authored per
+    // scenario AND it is exactly what the UI shows the student as required
+    // elements. extractSemanticTokens_ is a heuristic guesser — when the two
+    // disagree the student is graded on a rubric they were never shown, which
+    // is how a fully-correct readback ends up marked incorrect.
+    // Keywords first; the extractor is now only the fallback.
+    if (keywords && keywords.length) {
+      var kwAnswer = this.normalizeText_(answer);
+      var kwOk = [];
+      var kwMissing = [];
+      keywords.forEach(function(keyword) {
+        var nk = self.normalizeText_(keyword);
+        if (nk && kwAnswer.indexOf(nk) !== -1) kwOk.push(keyword);
+        else kwMissing.push(keyword);
+      });
+      return {
+        correct: kwMissing.length === 0,
+        score: Math.round((kwOk.length / keywords.length) * 100),
+        keywordsOk: kwOk,
+        keywordsMissing: kwMissing
+      };
+    }
+
     var normExpected = expectedReadback ? this.normalizeForGrading_(expectedReadback) : '';
     if (normExpected) {
       var tokens = this.extractSemanticTokens_(normExpected);
@@ -178,6 +210,28 @@ var AttemptService = {
 
   normalizeText_: function(value) {
     var out = String(value || '').toUpperCase().trim();
+
+    // Rejoin split thousands ("3 000" → "3000") before digit expansion, so the
+    // expected readback and the student answer normalize the same way.
+    out = out.replace(/\b(\d{1,2}) (\d{3})\b/g, '$1$2');
+
+    // Spoken altitudes → digits. ICAO phraseology for 3000 ft is "THREE
+    // THOUSAND", but the sheet writes "3 000" — without this the student is
+    // penalised precisely for using correct phraseology.
+    // All three forms ("3 000", "THREE THOUSAND", "THREE ZERO ZERO ZERO")
+    // must canonicalise to the same string.
+    var _w2d = { ZERO: 0, ONE: 1, TWO: 2, THREE: 3, FOUR: 4,
+                 FIVE: 5, SIX: 6, SEVEN: 7, EIGHT: 8, NINE: 9, NINER: 9 };
+    var _n = '(?:ZERO|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINER|NINE|\\d{1,2})';
+    function _val(tok) { return /^\d+$/.test(tok) ? Number(tok) : _w2d[tok]; }
+
+    out = out
+      .replace(new RegExp('\\b(' + _n + ') THOUSAND (' + _n + ') HUNDRED\\b', 'g'),
+               function(_, a, b) { return String(_val(a) * 1000 + _val(b) * 100); })
+      .replace(new RegExp('\\b(' + _n + ') THOUSAND\\b', 'g'),
+               function(_, a) { return String(_val(a) * 1000); })
+      .replace(new RegExp('\\b(' + _n + ') HUNDRED\\b', 'g'),
+               function(_, a) { return String(_val(a) * 100); });
 
     // Accept digits written as words or as numbers interchangeably
     // Step 1: expand digit sequences to ICAO spoken form so "27" = "TWO SEVEN"
@@ -266,37 +320,48 @@ var AttemptService = {
 };
 
 var ProgressService = {
-  updateUserProgress: function(user, scenario) {
+  updateUserProgress: function(user, scenario, opts) {
+    opts = opts || {};
     var level = Number(scenario.level || user.currentLevel || 1);
     var country = String(scenario.country || user.currentCountry || 'USA');
 
+    // Match countries through normalizeCountry_ on BOTH sides. Exact string
+    // comparison silently fails whenever the sheet stores a code ("GB", "IN")
+    // and the stored row holds the display name ("UK", "India") — which yields
+    // totalScenarios = 0 and a route that can never be completed.
+    var countryKey = ProgressService.normalizeCountry_(country);
+
     var activeScenarios = ScenarioService.listActiveScenarios().filter(function(item) {
       return Number(item.level) === level &&
-             String(item.country).toUpperCase() === country.toUpperCase();
+             ProgressService.normalizeCountry_(item.country) === countryKey;
     });
 
     var attempts = dbReadAll_('Attempts').filter(function(row) {
       return row.userId === user.userId &&
              Number(row.level) === level &&
-             String(row.country).toUpperCase() === country.toUpperCase();
+             ProgressService.normalizeCountry_(row.country) === countryKey;
     });
+
+    // Count totalScenarios by unique scenarioId — same dimension as completedScenarioMap.
+    // Raw row count inflates the total when duplicate IDs exist in the sheet.
+    var uniqueActiveIds = {};
+    activeScenarios.forEach(function(s) { if (s.scenarioId) uniqueActiveIds[s.scenarioId] = true; });
+    var totalScenarios = Object.keys(uniqueActiveIds).length || activeScenarios.length;
 
     var completedScenarioMap = {};
 
     attempts.forEach(function(row) {
       var isCorrect = String(row.correct).toUpperCase() === 'TRUE' || row.correct === true;
 
-      if (isCorrect) {
+      // Only count scenarios that are still in the active set. Without this,
+      // attempts against renamed or deactivated scenarioIds inflate the count
+      // past the total (observed live: 9/8, progressPct 113%).
+      if (isCorrect && uniqueActiveIds[row.scenarioId]) {
         completedScenarioMap[row.scenarioId] = true;
       }
     });
 
     var completedScenarios = Object.keys(completedScenarioMap).length;
-    // Count totalScenarios by unique scenarioId — same dimension as completedScenarioMap.
-    // Raw row count inflates the total when duplicate IDs exist in the sheet.
-    var uniqueActiveIds = {};
-    activeScenarios.forEach(function(s) { if (s.scenarioId) uniqueActiveIds[s.scenarioId] = true; });
-    var totalScenarios = Object.keys(uniqueActiveIds).length || activeScenarios.length;
     var progressPct = totalScenarios
       ? Math.min(100, Math.round((completedScenarios / totalScenarios) * 100))
       : 0;
@@ -391,11 +456,26 @@ var ProgressService = {
 
     var completed = totalScenarios > 0 && completedScenarios >= totalScenarios;
 
-    var existing = dbReadAll_('Progress').filter(function(row) {
+    // Normalized match here too — an exact-string miss appends a SECOND Progress
+    // row for the same route, and getLevelCompletion (which normalizes) then
+    // keeps whichever row lands last in the sheet, masking real completion.
+    var existingRows = dbReadAll_('Progress').filter(function(row) {
       return row.userId === user.userId &&
              Number(row.level) === level &&
-             String(row.country).toUpperCase() === country.toUpperCase();
-    })[0];
+             ProgressService.normalizeCountry_(row.country) === countryKey;
+    });
+    var existing = existingRows[0];
+
+    // Fold any pre-existing duplicates: if an older row already says completed,
+    // carry that forward so a historic pass is never lost.
+    if (existingRows.length > 1) {
+      Logger.log('[updateUserProgress] ' + existingRows.length + ' duplicate Progress rows for L' +
+                 level + ' ' + countryKey + ' (rows ' +
+                 existingRows.map(function(r) { return r.__rowNumber; }).join(', ') + ')');
+      existingRows.forEach(function(r) {
+        if (ProgressService.isCompleted_(r)) existing.completed = true;
+      });
+    }
 
     // Never downgrade a completed route — once done, it stays done.
     // scoreAvg on redo: keep the best session average achieved.
@@ -431,6 +511,12 @@ var ProgressService = {
     // Track whether this call is the moment a country route transitions to complete
     var isNewlyCompleted = completed &&
       !(existing && (existing.completed === true || String(existing.completed).toUpperCase() === 'TRUE'));
+
+    // opts.dryRun: compute and return the same numbers without writing anything,
+    // so a bulk repair can be previewed before it touches 171 live routes.
+    if (opts.dryRun) {
+      return progressData;
+    }
 
     dbWithScriptLock_(function() {
       if (existing) {
@@ -634,12 +720,20 @@ var ProgressService = {
     return row && (row.completed === true || String(row.completed).toUpperCase() === 'TRUE');
   },
 
+  // Maps every stored spelling of a country onto one canonical key.
+  // AU and CA were missing, so levels 3, 6, 8, 9 and 10 never matched their
+  // scenarios when a row stored the display name instead of the code.
+  COUNTRY_ALIASES_: {
+    US: 'USA', USA: 'USA', 'UNITED STATES': 'USA',
+    GB: 'UK',  UK:  'UK',  'UNITED KINGDOM': 'UK', ENGLAND: 'UK',
+    IN: 'INDIA',     INDIA: 'INDIA',
+    CO: 'COLOMBIA',  COLOMBIA: 'COLOMBIA',
+    AU: 'AUSTRALIA', AUSTRALIA: 'AUSTRALIA',
+    CA: 'CANADA',    CANADA: 'CANADA'
+  },
+
   normalizeCountry_: function(country) {
     var key = String(country || '').trim().toUpperCase();
-    if (key === 'US') return 'USA';
-    if (key === 'GB') return 'UK';
-    if (key === 'IN') return 'INDIA';
-    if (key === 'CO') return 'COLOMBIA';
-    return key;
+    return ProgressService.COUNTRY_ALIASES_[key] || key;
   }
 };

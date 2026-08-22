@@ -7424,6 +7424,24 @@
                  '5':'FIVE','6':'SIX','7':'SEVEN','8':'EIGHT','9':'NINER'};
       return String(numStr||'').split('').map(function(d){ return map[d]||d; }).join(' ');
     }
+
+    // MUST stay identical to AttemptService.normalizeText_ on the server.
+    // The sheet splits thousands ("3 000"); ICAO phraseology says "THREE
+    // THOUSAND". Both must canonicalise to the same string as "3000", or the
+    // student is penalised for using correct phraseology.
+    out = out.replace(/\b(\d{1,2}) (\d{3})\b/g, '$1$2');
+    var _w2d = { ZERO: 0, ONE: 1, TWO: 2, THREE: 3, FOUR: 4,
+                 FIVE: 5, SIX: 6, SEVEN: 7, EIGHT: 8, NINE: 9, NINER: 9 };
+    var _n = '(?:ZERO|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINER|NINE|\\d{1,2})';
+    function _val(tok) { return /^\d+$/.test(tok) ? Number(tok) : _w2d[tok]; }
+    out = out
+      .replace(new RegExp('\\b(' + _n + ') THOUSAND (' + _n + ') HUNDRED\\b', 'g'),
+               function(_, a, b) { return String(_val(a) * 1000 + _val(b) * 100); })
+      .replace(new RegExp('\\b(' + _n + ') THOUSAND\\b', 'g'),
+               function(_, a) { return String(_val(a) * 1000); })
+      .replace(new RegExp('\\b(' + _n + ') HUNDRED\\b', 'g'),
+               function(_, a) { return String(_val(a) * 100); });
+
     out = out
       .replace(/\b(\d{3})\.(\d{1,3})\b/g, function(_, i, d) { return digitsToIcao(i) + ' DECIMAL ' + digitsToIcao(d); })
       .replace(/\bFL\s*(\d{1,4})\b/g, function(_, n) { return 'FLIGHT LEVEL ' + digitsToIcao(n); })
@@ -7452,6 +7470,9 @@
       .toUpperCase()
       .replace(/[^A-Z0-9\s]/g, ' ')
       .replace(/\s+/g, ' ')
+      // Rejoin split thousands, same as the server, so token extraction never
+      // captures the tail ("000" out of "3 000") as a required element.
+      .replace(/\b(\d{1,2}) (\d{3})\b/g, '$1$2')
       .trim();
   }
 
@@ -7516,6 +7537,34 @@
   // expectedReadback: the scenario's expected answer string (preferred path).
   // keywordsText:     legacy pipe-delimited fallback when no expected is set.
   function _clientEvaluate(answer, keywordsText, expectedReadback) {
+    // Order and pass rule MUST match AttemptService.evaluateAnswer_ on the
+    // server. The curated keywords column wins: it is what this screen shows
+    // the student as required elements. _extractSemanticTokens is a heuristic
+    // guesser and is only the fallback for scenarios with no keywords.
+    // Any divergence here reproduces the original bug — the UI says "correct"
+    // while the server records the attempt as wrong, and the route never
+    // reaches 8/8 no matter how many times the student redoes it.
+    // Callers pass either a pipe-joined string or an already-split array
+    // (the ICAO Test path hands over scenario.keywords directly).
+    var _kws = (Array.isArray(keywordsText) ? keywordsText : String(keywordsText || '').split('|'))
+      .map(function(k) { return String(k).trim(); })
+      .filter(Boolean);
+
+    if (_kws.length) {
+      var _normAns = _clientNormalizeText(answer);
+      var _ok = [], _missing = [];
+      _kws.forEach(function(kw) {
+        var nk = _clientNormalizeText(kw);
+        (nk && _normAns.indexOf(nk) !== -1 ? _ok : _missing).push(kw);
+      });
+      return {
+        correct: _missing.length === 0,
+        score: Math.round((_ok.length / _kws.length) * 100),
+        keywordsOk: _ok,
+        keywordsMissing: _missing
+      };
+    }
+
     var normExpected = expectedReadback ? _normalizeForGrading(expectedReadback) : '';
 
     if (normExpected) {
@@ -7539,7 +7588,9 @@
         var missing = tokens.filter(function(t) { return !_tokenInAnswer(t); });
         var matched = tokens.filter(function(t) { return  _tokenInAnswer(t); });
         var score   = Math.round((matched.length / tokens.length) * 100);
-        return { correct: score >= 90, score: score,
+        // Server requires every token (missing.length === 0). A 90% threshold
+        // here would pass the student on screen and fail them in the database.
+        return { correct: missing.length === 0, score: score,
                  keywordsOk: matched, keywordsMissing: missing };
       }
     }

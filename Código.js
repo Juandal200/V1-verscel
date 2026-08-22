@@ -8663,3 +8663,286 @@ function deleteWeeklyEmailTrigger() {
   Logger.log('Removed ' + removed + ' trigger(s) for sendWeeklyResetEmails.');
 }
 
+
+// ── Diagnostic: check why Level 5 India shows incomplete ───────────────────
+/**
+ * Recompute every Progress row from the Attempts table using the corrected
+ * country matching and active-set intersection, and optionally remove duplicate
+ * Progress rows left behind by the old exact-string matching.
+ *
+ * Existing broken rows do not heal on their own — updateUserProgress only runs
+ * when a new attempt is submitted. This replays it for every route that has
+ * attempts.
+ *
+ * Run  recomputeAllProgress()      → dry run, reports what would change
+ * Run  recomputeAllProgress(true)  → applies changes and deletes duplicates
+ */
+function recomputeAllProgress(apply) {
+  apply = apply === true;
+  var users = dbReadAll_('Users');
+  var userById = {};
+  users.forEach(function(u) { userById[u.userId] = u; });
+
+  // Every (user, level, country) pair that has at least one attempt.
+  var routes = {};
+  dbReadAll_('Attempts').forEach(function(r) {
+    if (!r.userId || !r.level) return;
+    var key = r.userId + '||' + Number(r.level) + '||' + ProgressService.normalizeCountry_(r.country);
+    if (!routes[key]) routes[key] = { userId: r.userId, level: Number(r.level), country: r.country };
+  });
+
+  Logger.log('=== ' + (apply ? 'APPLYING' : 'DRY RUN') + ' — ' +
+             Object.keys(routes).length + ' routes with attempts ===');
+
+  Object.keys(routes).forEach(function(key) {
+    var route = routes[key];
+    var user = userById[route.userId];
+    if (!user) { Logger.log('  skip: unknown userId ' + route.userId); return; }
+
+    var before = dbReadAll_('Progress').filter(function(r) {
+      return r.userId === user.userId &&
+             Number(r.level) === route.level &&
+             ProgressService.normalizeCountry_(r.country) === ProgressService.normalizeCountry_(route.country);
+    });
+    var was = before[0]
+      ? before[0].completedScenarios + '/' + before[0].totalScenarios + ' completed=' + before[0].completed
+      : '(no row)';
+
+    if (!apply) {
+      // Predict the outcome instead of echoing the stored snapshot — stored
+      // totalScenarios is a frozen number from whenever the row was last
+      // written, so it says nothing about what a recompute would produce.
+      var predicted = ProgressService.updateUserProgress(
+        user, { level: route.level, country: route.country }, { dryRun: true });
+
+      var flag = '';
+      if (before.length > 1) flag += '  [' + before.length + ' DUPLICATE ROWS]';
+      // totalScenarios 0 means the level/country pair has no active scenarios
+      // at all — the curriculum was restructured out from under this row.
+      if (predicted.totalScenarios === 0) flag += '  [ORPHANED ROUTE — no active scenarios]';
+      if (before[0] && Number(before[0].completedScenarios) > Number(predicted.completedScenarios)) {
+        flag += '  [count drops ' + before[0].completedScenarios + '->' + predicted.completedScenarios + ']';
+      }
+
+      Logger.log('  ' + user.email + ' L' + route.level + ' ' +
+                 ProgressService.normalizeCountry_(route.country) + ' : ' + was + '  ->  ' +
+                 predicted.completedScenarios + '/' + predicted.totalScenarios +
+                 ' completed=' + predicted.completed + flag);
+      return;
+    }
+
+    // Fold a historic pass forward before recomputing, then drop the extras.
+    // Delete from the bottom up so earlier __rowNumber values stay valid.
+    if (before.length > 1) {
+      var anyCompleted = before.some(function(r) { return ProgressService.isCompleted_(r); });
+      if (anyCompleted) dbUpdateByRow_('Progress', before[0].__rowNumber, { completed: true });
+      before.slice(1)
+        .sort(function(a, b) { return b.__rowNumber - a.__rowNumber; })
+        .forEach(function(r) {
+          Logger.log('  deleting duplicate Progress row ' + r.__rowNumber +
+                     ' (L' + r.level + ' ' + r.country + ')');
+          dbDeleteByRow_('Progress', r.__rowNumber);
+        });
+    }
+
+    var updated = ProgressService.updateUserProgress(user, { level: route.level, country: route.country });
+    Logger.log('  ' + user.email + ' L' + route.level + ' ' +
+               ProgressService.normalizeCountry_(route.country) + ' : ' + was + '  ->  ' +
+               updated.completedScenarios + '/' + updated.totalScenarios +
+               ' completed=' + updated.completed);
+  });
+
+  Logger.log(apply ? '=== done ===' : '=== dry run only — call recomputeAllProgress(true) to apply ===');
+}
+
+/**
+ * Repair header rows so they match DB_SCHEMA position-for-position.
+ *
+ * dbReadAll_ maps columns BY POSITION from DB_SCHEMA, so the header row is
+ * documentation — but migrateAddSchemaColumns_ appends at getLastColumn()+1,
+ * which counts DATA rows too. On the Progress sheet columns 13-19 already hold
+ * metric values with blank headers, so that migration would write the headers
+ * at columns 20-26 and make the drift permanent.
+ *
+ * This fills blank header cells in place and reports (never overwrites) any
+ * cell whose name genuinely differs — that needs a human decision.
+ * Run: repairSheetHeaders_()
+ */
+function repairSheetHeaders_() {
+  var ss = dbGetSpreadsheet_();
+  var report = [];
+
+  Object.keys(DB_SCHEMA).forEach(function(sheetName) {
+    var sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return;
+
+    var schema = DB_SCHEMA[sheetName];
+    var width = Math.max(sheet.getLastColumn(), schema.length);
+    var header = sheet.getRange(1, 1, 1, width).getValues()[0]
+      .map(function(h) { return String(h || '').trim(); });
+
+    schema.forEach(function(name, i) {
+      var current = header[i] || '';
+      if (current === name) return;
+      if (current === '') {
+        sheet.getRange(1, i + 1).setValue(name);
+        sheet.getRange(1, i + 1).setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
+        report.push('FILLED  ' + sheetName + ' col' + (i + 1) + ' = ' + name);
+      } else {
+        report.push('CONFLICT ' + sheetName + ' col' + (i + 1) +
+                    ' sheet=[' + current + '] schema=[' + name + '] — left alone, review manually');
+      }
+    });
+  });
+
+  report.forEach(function(line) { Logger.log(line); });
+  if (!report.length) Logger.log('All headers already match DB_SCHEMA.');
+  return report;
+}
+
+/**
+ * Pinpoint why a route shows N/8 instead of complete.
+ * Run:  diagRoute('juancamilom885@gmail.com', 5)
+ * Leave email blank to use the first STUDENT found.
+ */
+function diagRoute(email, level) {
+  level = Number(level || 5);
+  var ss = dbGetSpreadsheet_();
+
+  // ── 0. Column drift: physical sheet headers vs DB_SCHEMA order ────────────
+  // dbReadAll_ maps columns BY POSITION from DB_SCHEMA. If the sheet's real
+  // column order differs, every field is read from the wrong column.
+  ['Attempts', 'Progress'].forEach(function(name) {
+    var sh = ss.getSheetByName(name);
+    if (!sh) { Logger.log('!! sheet missing: ' + name); return; }
+    var physical = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0]
+      .map(function(h) { return String(h || '').trim(); });
+    var schema = DB_SCHEMA[name];
+    var drift = [];
+    schema.forEach(function(h, i) {
+      if (physical[i] !== h) drift.push('col' + (i + 1) + ': sheet=[' + (physical[i] || '') + '] schema=[' + h + ']');
+    });
+    Logger.log('=== ' + name + ' column check: ' + (drift.length ? 'DRIFT (' + drift.length + ')' : 'OK') + ' ===');
+    drift.forEach(function(d) { Logger.log('   ' + d); });
+  });
+
+  // ── 1. Resolve the user ───────────────────────────────────────────────────
+  // With no email, pick the user with the MOST attempts at this level — not the
+  // first student in the table, who may never have touched the level at all.
+  var users = dbReadAll_('Users');
+  var user;
+  if (email) {
+    user = users.filter(function(u) { return String(u.email || '').toLowerCase() === String(email).toLowerCase(); })[0];
+    if (!user) {
+      Logger.log('!! user not found: ' + email + ' — known emails:');
+      users.forEach(function(u) { Logger.log('   ' + u.email + '  role=' + u.role); });
+      return;
+    }
+  } else {
+    var perUser = {};
+    dbReadAll_('Attempts').forEach(function(r) {
+      if (Number(r.level) === level) perUser[r.userId] = (perUser[r.userId] || 0) + 1;
+    });
+    var best = Object.keys(perUser).sort(function(a, b) { return perUser[b] - perUser[a]; })[0];
+    Logger.log('=== attempts at L' + level + ' by user ===');
+    Object.keys(perUser).forEach(function(uid) {
+      var u = users.filter(function(x) { return x.userId === uid; })[0];
+      Logger.log('   ' + (u ? u.email : uid) + ' : ' + perUser[uid]);
+    });
+    if (!best) { Logger.log('!! nobody has any attempts at L' + level); return; }
+    user = users.filter(function(u) { return u.userId === best; })[0];
+    if (!user) { Logger.log('!! attempts reference unknown userId ' + best); return; }
+  }
+  Logger.log('=== user ' + user.email + ' id=' + user.userId +
+             ' currentLevel=' + user.currentLevel + ' currentCountry=[' + user.currentCountry + '] ===');
+
+  // ── 2. ALL Progress rows for this user — duplicates are the prime suspect ──
+  // updateUserProgress matches an existing row by EXACT country string. If an
+  // older row stored "India" and the sheet now says "IN", a SECOND row is
+  // appended, and getLevelCompletion (which normalizes) keeps whichever is last.
+  var prog = dbReadAll_('Progress').filter(function(r) { return String(r.userId) === String(user.userId); });
+  Logger.log('=== Progress rows for user (' + prog.length + ') ===');
+  prog.forEach(function(r) {
+    Logger.log('  row' + r.__rowNumber + ' L' + r.level + ' country=[' + r.country + ']' +
+               ' norm=' + ProgressService.normalizeCountry_(r.country) +
+               ' ' + r.completedScenarios + '/' + r.totalScenarios +
+               ' completed=[' + r.completed + '] pct=' + r.progressPct + ' avg=' + r.scoreAvg);
+  });
+  var dupes = {};
+  prog.forEach(function(r) {
+    var k = Number(r.level) + '||' + ProgressService.normalizeCountry_(r.country);
+    dupes[k] = (dupes[k] || 0) + 1;
+  });
+  Object.keys(dupes).forEach(function(k) {
+    if (dupes[k] > 1) Logger.log('  !! DUPLICATE Progress rows for ' + k + ' (' + dupes[k] + ') — last one wins, masks completion');
+  });
+
+  // ── 3. Active scenarios for the level, grouped by exact country string ────
+  var scenSheet = ss.getSheetByName('Scenarios');
+  var scenRows = RuntimeScenarioReaderService.readRowsByHeaders_(scenSheet)
+    .filter(function(r) {
+      return Number(r.level) === level && RuntimeScenarioReaderService.isActive_(r.isActive);
+    });
+  var byCountry = {};
+  scenRows.forEach(function(r) {
+    var c = String(r.country || '').trim();
+    (byCountry[c] = byCountry[c] || []).push(r);
+  });
+
+  Object.keys(byCountry).forEach(function(c) {
+    var rows = byCountry[c];
+    var activeIds = {};
+    rows.forEach(function(r) { activeIds[String(r.scenarioId || '').trim()] = r; });
+
+    // Attempts, filtered EXACTLY as updateUserProgress does
+    var att = dbReadAll_('Attempts').filter(function(r) {
+      return r.userId === user.userId &&
+             Number(r.level) === level &&
+             String(r.country).toUpperCase() === c.toUpperCase();
+    });
+    var correctIds = {};
+    att.forEach(function(r) {
+      if (String(r.correct).toUpperCase() === 'TRUE' || r.correct === true) correctIds[r.scenarioId] = true;
+    });
+
+    // What country strings actually appear in this user's attempts at this level?
+    var attCountries = {};
+    dbReadAll_('Attempts').forEach(function(r) {
+      if (r.userId === user.userId && Number(r.level) === level) attCountries[String(r.country || '')] = true;
+    });
+
+    Logger.log('=== L' + level + ' country=[' + c + '] : ' +
+               Object.keys(activeIds).length + ' active scenarios, ' +
+               Object.keys(correctIds).length + ' with a correct attempt ===');
+    Logger.log('  country strings present in this user\'s L' + level + ' attempts: [' +
+               Object.keys(attCountries).join('] [') + ']');
+
+    // The set difference — exactly which exercises are blocking completion
+    Object.keys(activeIds).forEach(function(id) {
+      if (correctIds[id]) return;
+      var r = activeIds[id];
+      var tries = att.filter(function(a) { return a.scenarioId === id; })
+                     .sort(function(a, b) { return Number(b.score || 0) - Number(a.score || 0); });
+      Logger.log('  MISSING ' + id + ' phase=' + r.phaseCode + ' (' + tries.length + ' attempts)');
+      if (tries.length) {
+        var best = tries[0];
+        Logger.log('     best score=' + best.score + ' correct=' + best.correct);
+        Logger.log('     missing keywords: ' + best.keywordsMissing);
+        Logger.log('     student said: ' + String(best.studentAnswer || '').substring(0, 160));
+      }
+      // What the server grades against — NOT the keywords column when
+      // expectedReadback is present; it auto-extracts tokens instead.
+      var expected = String(r.expectedReadback || '').trim();
+      var normExp = AttemptService.normalizeForGrading_(expected);
+      var tokens = normExp ? AttemptService.extractSemanticTokens_(normExp) : [];
+      Logger.log('     expectedReadback: ' + expected.substring(0, 160));
+      Logger.log('     SERVER GRADES ON: ' + (tokens.length ? tokens.join(' | ') : '(falls back to keywords column)'));
+      Logger.log('     keywords column:  ' + String(r.keywords || ''));
+    });
+
+    // Correct-attempt IDs that are NOT in the active set — stale/renamed scenarios
+    Object.keys(correctIds).forEach(function(id) {
+      if (!activeIds[id]) Logger.log('  ORPHAN correct attempt for ' + id + ' — not in the active set (renamed/deactivated row?)');
+    });
+  });
+}
