@@ -292,7 +292,11 @@ var ProgressService = {
     });
 
     var completedScenarios = Object.keys(completedScenarioMap).length;
-    var totalScenarios = activeScenarios.length;
+    // Count totalScenarios by unique scenarioId — same dimension as completedScenarioMap.
+    // Raw row count inflates the total when duplicate IDs exist in the sheet.
+    var uniqueActiveIds = {};
+    activeScenarios.forEach(function(s) { if (s.scenarioId) uniqueActiveIds[s.scenarioId] = true; });
+    var totalScenarios = Object.keys(uniqueActiveIds).length || activeScenarios.length;
     var progressPct = totalScenarios
       ? Math.min(100, Math.round((completedScenarios / totalScenarios) * 100))
       : 0;
