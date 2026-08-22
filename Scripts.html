@@ -5328,8 +5328,23 @@
     return scenarios[idx];
   }
 
+  // The Scenarios sheet and the PHASES/PATCH_PHASES arrays were authored with
+  // different vocabularies: the sheet writes TAKE_OFF and CLIMB, both arrays use
+  // TAKEOFF and DEPARTURE. Nothing reconciled them, so getPhaseIndexForScenario
+  // fell through to its index-0 fallback and parked the plane icon on "Taxi Out"
+  // for exercises 2 and 3 of EVERY level, and getScenarioByPhase could not match
+  // those two phases at all in the admin route builder.
+  var PHASE_CODE_ALIASES = {
+    'TAKE_OFF': 'TAKEOFF',
+    'CLIMB':    'DEPARTURE',
+    'DESCENT':  'DESCEND',
+    'TAXIOUT':  'TAXI_OUT',
+    'TAXIIN':   'TAXI_IN'
+  };
+
   function normalizePhaseCode(code) {
-    return String(code || '').trim().toUpperCase().replace(/\s+/g, '_').replace(/-/g, '_');
+    var c = String(code || '').trim().toUpperCase().replace(/\s+/g, '_').replace(/-/g, '_');
+    return PHASE_CODE_ALIASES[c] || c;
   }
 
   function getPhaseIndexForScenario(scenario) {
@@ -15863,7 +15878,11 @@
   setTimeout(startBackButtonObserver, 500);
 
   function normalizePhaseCode(value) {
-    return String(value || '').trim().toUpperCase().replace(/\s+/g, '_').replace(/-/g, '_');
+    var c = String(value || '').trim().toUpperCase().replace(/\s+/g, '_').replace(/-/g, '_');
+    // Second copy in a separate scope — must alias identically to the first.
+    var A = { 'TAKE_OFF': 'TAKEOFF', 'CLIMB': 'DEPARTURE', 'DESCENT': 'DESCEND',
+              'TAXIOUT': 'TAXI_OUT', 'TAXIIN': 'TAXI_IN' };
+    return A[c] || c;
   }
 
   function getScenarioByPhase(scenarios, phaseCode) {
