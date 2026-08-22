@@ -7067,9 +7067,66 @@
            /\.(jpe?g|png|gif|webp|avif|svg)(\?|$)/i.test(url);
   }
 
+  // Autoplay=1 in the embed URL is a REQUEST, not a guarantee. When the scenario
+  // mounts outside user activation — the resume path renders from an async
+  // google.script.run callback, with no click in between — the browser silently
+  // refuses and the player sits on its poster frame. That is the "frozen video"
+  // on first entry that plays fine on the second try.
+  //
+  // So drive the player explicitly rather than hoping: mute (muted playback is
+  // the only kind browsers autoplay unprompted), then issue a real play command,
+  // retrying briefly while the iframe finishes loading.
+  function _simForceVideoPlay(host) {
+    if (!host) return;
+    var tries = 0;
+    (function kick() {
+      tries++;
+      if (SimMedia && SimMedia.isPaused) return;   // respect a deliberate pause
+
+      var vid = host.querySelector('video');
+      if (vid) {
+        vid.muted = true;
+        vid.playsInline = true;
+        try { var p = vid.play(); if (p && p.catch) p.catch(function() {}); } catch (e) {}
+      }
+
+      var ifr = host.querySelector('iframe');
+      if (ifr && ifr.contentWindow) {
+        try {
+          ifr.contentWindow.postMessage('{"event":"command","func":"mute","args":""}', '*');
+          ifr.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+        } catch (e) {}
+      }
+
+      if (tries < 8) setTimeout(kick, 350);
+    })();
+  }
+
+  // Safety net: if the very first autoplay was refused anyway, the student's next
+  // tap ANYWHERE silently starts it, so they never sit looking at a dead frame.
+  // Bound once, cheap, and skipped while the sim is deliberately paused.
+  function _simBindAutoplayUnlock() {
+    if (window._simAutoplayUnlockBound) return;
+    window._simAutoplayUnlockBound = true;
+    var unlock = function() {
+      if (SimMedia && SimMedia.isPaused) return;
+      var h = document.getElementById('simVisualHost');
+      if (!h) return;
+      var vid = h.querySelector('video');
+      var ifr = h.querySelector('iframe');
+      if (!vid && !ifr) return;
+      if (vid && !vid.paused) return;      // already running, leave it alone
+      _simForceVideoPlay(h);
+    };
+    ['pointerdown', 'touchstart', 'keydown'].forEach(function(ev) {
+      document.addEventListener(ev, unlock, { passive: true });
+    });
+  }
+
   function mountImmersiveScenarioVisual(scenario) {
     var host = byId('simVisualHost');
     if (!host) return;
+    _simBindAutoplayUnlock();
 
     var videoUrl = String(scenario.videoUrl || '').trim();
     if (videoUrl) {
@@ -7086,6 +7143,11 @@
       host.innerHTML = buildScenarioVisualHtml(videoUrl);
       var _norm = normalizeScenarioVideoUrl(videoUrl);
       if (_norm.type === 'drive-preview') { _driveLoopInstall(host.querySelector('iframe'), _norm.url); }
+      // Kick the player rather than trusting autoplay=1 alone. Runs for native
+      // <video> and for YouTube (enablejsapi=1 is already in the embed URL).
+      _simForceVideoPlay(host);
+      var _ifrEl = host.querySelector('iframe');
+      if (_ifrEl) _ifrEl.addEventListener('load', function() { _simForceVideoPlay(host); });
       if (_norm.type === 'youtube') {
         var _ytErrHandler = function(e) {
           try {
