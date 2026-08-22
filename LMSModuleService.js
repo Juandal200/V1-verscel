@@ -148,8 +148,10 @@ function lmsGetStreak_(userId) {
     });
     if (!rows.length) return { streakDays: 0, longestStreak: 0, lastActiveAt: '', streakProtected: false };
     var row = rows[0];
-    var hoursSince = row.lastActiveAt ? (Date.now() - new Date(row.lastActiveAt).getTime()) / (1000 * 60 * 60) : 999;
-    var active = hoursSince < 48;
+    var lastMid = row.lastActiveAt ? (function(ts) { var d = new Date(ts); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); })(new Date(row.lastActiveAt).getTime()) : 0;
+    var todayMid = (function() { var d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); })();
+    var daysSince = lastMid ? Math.round((todayMid - lastMid) / 86400000) : 999;
+    var active = daysSince <= 1; // today or yesterday counts as active
     return {
       streakDays: active ? (Number(row.streakDays) || 0) : 0,
       longestStreak: Number(row.longestStreak) || 0,
@@ -174,17 +176,29 @@ function lmsUpdateStreak_(userId) {
     }
     var row = rows[0];
     var lastTs = row.lastActiveAt ? new Date(row.lastActiveAt).getTime() : 0;
-    var hoursSince = (nowTs - lastTs) / (1000 * 60 * 60);
     var streakDays = Number(row.streakDays) || 0;
     var longest = Number(row.longestStreak) || 0;
-    if (hoursSince < 24) {
+
+    // Compare calendar days (midnight-to-midnight) so playing at any time today
+    // after playing any time yesterday always counts as the next streak day.
+    var toMidnight = function(ts) {
+      var d = new Date(ts);
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    };
+    var todayMid = toMidnight(nowTs);
+    var lastMid  = lastTs ? toMidnight(lastTs) : 0;
+    var daysDiff = Math.round((todayMid - lastMid) / 86400000);
+
+    if (daysDiff === 0) {
+      // Same calendar day — just refresh timestamp, no change to count
       dbUpdateByRow_('UserStreaks', row.__rowNumber, { lastActiveAt: now.toISOString() });
-    } else if (hoursSince < 48) {
+    } else if (daysDiff === 1) {
+      // Consecutive calendar day — increment
       streakDays++;
       longest = Math.max(streakDays, longest);
       dbUpdateByRow_('UserStreaks', row.__rowNumber, { streakDays: streakDays, lastActiveAt: now.toISOString(), longestStreak: longest });
     } else {
-      // Use a streak freeze before resetting (DailyChallengeService.js must be deployed)
+      // Missed at least one day — use a freeze before resetting
       var freezes = 0;
       try { freezes = _dcGetFreezes_(userId); } catch(e) {}
       if (freezes > 0) {
