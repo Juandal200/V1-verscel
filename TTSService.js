@@ -260,8 +260,10 @@ var TTSService = {
 
   buildTtsCacheKey_: function(text, profile, rate, voiceName) {
     var vn  = voiceName || (profile.voiceNames || [])[0] || '';
-    // v3 — bust stale cache entries from before single-digit pronunciation fix
-    var raw = ('v3||' + text + '||' + (profile.languageCode || '') + '||' + vn + '||' + Math.round(rate * 100)).toUpperCase();
+    // v4 — bust entries generated before WET / SNOW / DRY were spoken as words.
+    // Without this bump the fix is invisible: any scenario whose audio was already
+    // synthesised keeps serving the clip that spells "W E T" / "S N O W" / "D R Y".
+    var raw = ('v4||' + text + '||' + (profile.languageCode || '') + '||' + vn + '||' + Math.round(rate * 100)).toUpperCase();
     var h = 5381;
     for (var i = 0; i < raw.length; i++) {
       h = ((h << 5) + h + raw.charCodeAt(i)) & 0x7fffffff;
@@ -574,7 +576,7 @@ var TTSService = {
       // Runway surface / weather conditions. Under 5 letters, so rule 18 below
       // never reaches them and TTS spells them out — "WET" became "W E T" and
       // "SNOW" became "S N O W", which is why the word was not recognisable.
-      'WET','SNOW'
+      'WET','SNOW','DRY'
     ];
     var _wwPat = new RegExp('\\b(' + WORD_WORDS.join('|') + ')\\b', 'g');
     out = out.replace(_wwPat, function(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); });
