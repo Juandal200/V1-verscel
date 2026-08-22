@@ -11632,8 +11632,8 @@
     try {
       var chip = document.createElement('div');
       chip.textContent = '+' + xp + ' XP';
-      var _sendBtn = document.getElementById('simSendReadbackBtn');
-      var _sendRect = _sendBtn ? _sendBtn.getBoundingClientRect() : null;
+      var _anchor = document.getElementById('pilotReadback') || document.getElementById('simSendReadbackBtn');
+      var _sendRect = _anchor ? _anchor.getBoundingClientRect() : null;
       var sx = _sendRect ? (_sendRect.left + _sendRect.width / 2) : window.innerWidth / 2;
       var sy = _sendRect ? (_sendRect.top + _sendRect.height / 2) : window.innerHeight / 2;
       var color = isBonus ? '#16a34a' : '#22c55e';
