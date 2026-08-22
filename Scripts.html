@@ -7430,10 +7430,19 @@
     // THOUSAND". Both must canonicalise to the same string as "3000", or the
     // student is penalised for using correct phraseology.
     out = out.replace(/\b(\d{1,2}) (\d{3})\b/g, '$1$2');
+    // _n must span TWO digit-words: ICAO says "ONE ZERO THOUSAND" for 10 000.
+    // A single-word group binds only "ZERO THOUSAND" -> 0, silently deleting
+    // the leading digit and collapsing the keyword to a short string that then
+    // matches unrelated answers. Keep identical to the server.
     var _w2d = { ZERO: 0, ONE: 1, TWO: 2, THREE: 3, FOUR: 4,
                  FIVE: 5, SIX: 6, SEVEN: 7, EIGHT: 8, NINE: 9, NINER: 9 };
-    var _n = '(?:ZERO|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINER|NINE|\\d{1,2})';
-    function _val(tok) { return /^\d+$/.test(tok) ? Number(tok) : _w2d[tok]; }
+    var _d = '(?:ZERO|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINER|NINE|\\d)';
+    var _n = '(?:' + _d + '(?: ' + _d + ')?|\\d{1,2})';
+    function _val(tok) {
+      return Number(String(tok).split(' ').map(function(t) {
+        return /^\d+$/.test(t) ? t : String(_w2d[t]);
+      }).join(''));
+    }
     out = out
       .replace(new RegExp('\\b(' + _n + ') THOUSAND (' + _n + ') HUNDRED\\b', 'g'),
                function(_, a, b) { return String(_val(a) * 1000 + _val(b) * 100); })
@@ -7454,9 +7463,11 @@
       .replace(/\bRWY\b/g,   'RUNWAY').replace(/\bRW\b/g,   'RUNWAY').replace(/\bHDG\b/g,  'HEADING');
     out = out.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
     out = out
-      .replace(/\bTAKE\s*OFF\b/g,   'TAKEOFF').replace(/\bPUSH\s*BACK\b/g,  'PUSHBACK')
-      .replace(/\bGO\s*AROUND\b/g,  'GOAROUND').replace(/\bLINE\s*UP\b/g,   'LINEUP')
-      .replace(/\bHOLD\s*SHORT\b/g, 'HOLDSHORT').replace(/\bSTAND\s*BY\b/g, 'STANDBY')
+      // Progressive forms too — "going around" / "taking off" are what a pilot
+      // actually reads back, while the keyword cell says "go around".
+      .replace(/\bTAK(?:E|ING)\s*OFF\b/g,   'TAKEOFF').replace(/\bPUSH(?:ING)?\s*BACK\b/g,  'PUSHBACK')
+      .replace(/\bGO(?:ING)?\s*AROUND\b/g,  'GOAROUND').replace(/\bLIN(?:E|ING)\s*UP\b/g,   'LINEUP')
+      .replace(/\bHOLD(?:ING)?\s*SHORT\b/g, 'HOLDSHORT').replace(/\bSTAND(?:ING)?\s*BY\b/g, 'STANDBY')
       .replace(/\bTOUCH\s*DOWN\b/g, 'TOUCHDOWN').replace(/\bWIND\s*SHEAR\b/g,'WINDSHEAR')
       .replace(/\bCROSS\s*WIND\b/g, 'CROSSWIND').replace(/\bTAIL\s*WIND\b/g, 'TAILWIND')
       .replace(/\bHEAD\s*WIND\b/g,  'HEADWIND');

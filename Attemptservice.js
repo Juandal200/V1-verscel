@@ -220,10 +220,19 @@ var AttemptService = {
     // penalised precisely for using correct phraseology.
     // All three forms ("3 000", "THREE THOUSAND", "THREE ZERO ZERO ZERO")
     // must canonicalise to the same string.
+    // _n must span TWO digit-words: ICAO says "ONE ZERO THOUSAND" for 10 000.
+    // A single-word group binds only "ZERO THOUSAND" -> 0, silently deleting
+    // the leading digit and (worse) collapsing the keyword to a short string
+    // that then matches unrelated answers.
     var _w2d = { ZERO: 0, ONE: 1, TWO: 2, THREE: 3, FOUR: 4,
                  FIVE: 5, SIX: 6, SEVEN: 7, EIGHT: 8, NINE: 9, NINER: 9 };
-    var _n = '(?:ZERO|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINER|NINE|\\d{1,2})';
-    function _val(tok) { return /^\d+$/.test(tok) ? Number(tok) : _w2d[tok]; }
+    var _d = '(?:ZERO|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINER|NINE|\\d)';
+    var _n = '(?:' + _d + '(?: ' + _d + ')?|\\d{1,2})';
+    function _val(tok) {
+      return Number(String(tok).split(' ').map(function(t) {
+        return /^\d+$/.test(t) ? t : String(_w2d[t]);
+      }).join(''));
+    }
 
     out = out
       .replace(new RegExp('\\b(' + _n + ') THOUSAND (' + _n + ') HUNDRED\\b', 'g'),
@@ -267,12 +276,15 @@ var AttemptService = {
     // Step 4: normalize aviation compound word variants
     // Hyphens already became spaces in step 3, so TAKE-OFF → TAKE OFF → TAKEOFF
     out = out
-      .replace(/\bTAKE\s*OFF\b/g,   'TAKEOFF')
-      .replace(/\bPUSH\s*BACK\b/g,  'PUSHBACK')
-      .replace(/\bGO\s*AROUND\b/g,  'GOAROUND')
-      .replace(/\bLINE\s*UP\b/g,    'LINEUP')
-      .replace(/\bHOLD\s*SHORT\b/g, 'HOLDSHORT')
-      .replace(/\bSTAND\s*BY\b/g,   'STANDBY')
+      // Progressive forms too: a pilot reads back "going around" / "taking off",
+      // while the keyword cell says "go around" / "take off". Without these the
+      // correct phraseology scores zero on that element.
+      .replace(/\bTAK(?:E|ING)\s*OFF\b/g,   'TAKEOFF')
+      .replace(/\bPUSH(?:ING)?\s*BACK\b/g,  'PUSHBACK')
+      .replace(/\bGO(?:ING)?\s*AROUND\b/g,  'GOAROUND')
+      .replace(/\bLIN(?:E|ING)\s*UP\b/g,    'LINEUP')
+      .replace(/\bHOLD(?:ING)?\s*SHORT\b/g, 'HOLDSHORT')
+      .replace(/\bSTAND(?:ING)?\s*BY\b/g,   'STANDBY')
       .replace(/\bTOUCH\s*DOWN\b/g, 'TOUCHDOWN')
       .replace(/\bWIND\s*SHEAR\b/g, 'WINDSHEAR')
       .replace(/\bCROSS\s*WIND\b/g, 'CROSSWIND')
