@@ -824,7 +824,7 @@ var TourService = (function () {
       '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">' +
         '<tr><td align="center">' +
           '<img src="cid:aerocommsLogo" alt="AEROCOMMS" style="width:160px;height:93px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.35);display:block;margin:0 auto;">' +
-          '<div style="padding-top:8px;font-size:11px;color:#4a6280;letter-spacing:1.5px;font-family:Arial,Helvetica,sans-serif;">ICAO TRAINER PRO</div>' +
+          '<div style="padding-top:8px;font-size:11px;color:#4a6280;letter-spacing:1.5px;font-family:Arial,Helvetica,sans-serif;">AVIATION ENGLISH INTERACTIVE CAMPUS</div>' +
         '</td></tr>' +
       '</table>';
 

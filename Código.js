@@ -1569,7 +1569,7 @@ function apiAdminPreviewTts(sessionToken, payload) {
 function authorizeMailService() {
   MailApp.sendEmail({
     to: Session.getEffectiveUser().getEmail(),
-    subject: 'ICAO Trainer Pro - MailApp authorization test',
+    subject: 'Aviation English Interactive Campus - MailApp authorization test',
     body: 'MailApp authorization OK. You can now send login verification codes.'
   });
 
@@ -6717,7 +6717,7 @@ function _sendInviteEmail_(user) {
     '<table width="100%" cellpadding="0" cellspacing="0" style="text-align:center;margin-bottom:28px;">' +
       '<tr><td><img src="cid:aerocommsLogo" alt="AEROCOMMS" style="width:160px;height:93px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.35);"></td></tr>' +
       '<tr><td style="padding-top:14px;font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#00d48e;">AEROCOMMS</td></tr>' +
-      '<tr><td style="padding-top:4px;font-size:12px;color:#4a6280;letter-spacing:1px;">ICAO Trainer Pro</td></tr>' +
+      '<tr><td style="padding-top:4px;font-size:12px;color:#4a6280;letter-spacing:1px;">Aviation English Interactive Campus</td></tr>' +
     '</table>' +
     '<div style="background:rgba(0,212,142,0.07);border:1px solid rgba(0,212,142,0.2);border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">' +
       '<div style="font-size:28px;margin-bottom:8px;">&#9992;</div>' +

@@ -1298,7 +1298,7 @@
     return (
       '<div class="analytics-hero welcome-hero">' +
         '<div class="welcome-copy">' +
-          '<p class="eyebrow">ICAO Trainer Pro &middot; Flight desk</p>' +
+          '<p class="eyebrow">Aviation English Interactive Campus &middot; Flight desk</p>' +
           '<h2>Welcome aboard, ' + safeText(firstName) + '</h2>' +
           '<p class="subtitle">Your aviation communication workspace is ready. Start simulator practice, review progress and check training updates from this home page.</p>' +
           '<div class="welcome-actions">' +
@@ -1319,7 +1319,7 @@
       '<div style="min-height:70vh;display:flex;align-items:center;justify-content:center;padding:32px 16px;">' +
         '<div style="max-width:480px;width:100%;text-align:center;">' +
           '<div style="font-size:3rem;margin-bottom:16px;">✈</div>' +
-          '<p class="eyebrow" style="margin-bottom:8px;">ICAO Trainer Pro</p>' +
+          '<p class="eyebrow" style="margin-bottom:8px;">Aviation English Interactive Campus</p>' +
           '<h2 style="margin:0 0 10px;font-size:1.8rem;">Your free trial has ended</h2>' +
           '<p class="subtitle" style="margin:0 0 28px;line-height:1.6;">Subscribe to keep practising. Get full access to all simulators, routes, evaluations and certificates.</p>' +
           '<ul style="list-style:none;padding:0;margin:0 0 32px;text-align:left;display:inline-block;">' +
@@ -7116,7 +7116,7 @@
 
     host.innerHTML =
       '<div class="sim-fallback-visual pro">' +
-        '<div class="sim-fallback-hud"><span>ICAO TRAINER PRO</span><span>' + safeText(scenario.country || 'INTL') + '</span><span>' + safeText(scenario.phaseName || scenario.phaseCode || 'PHASE') + '</span></div>' +
+        '<div class="sim-fallback-hud"><span>AVIATION ENGLISH INTERACTIVE CAMPUS</span><span>' + safeText(scenario.country || 'INTL') + '</span><span>' + safeText(scenario.phaseName || scenario.phaseCode || 'PHASE') + '</span></div>' +
         '<div class="sim-fallback-center"><div class="sim-radar-ring ring-1"></div><div class="sim-radar-ring ring-2"></div><div class="sim-radar-ring ring-3"></div><div class="sim-radar-sweep"></div><div class="sim-plane-icon" aria-hidden="true">&#9992;</div></div>' +
       '</div>';
   }
@@ -8788,10 +8788,10 @@
         '<div class="senior-certificate-toolbar"><div><p class="eyebrow">Level completed</p><h2>Certificate ready</h2><p class="subtitle">A professional certificate has been generated for this completed level.</p><p id="certSaveStatus" style="font-size:0.78rem;color:#606060;margin-top:4px;">Saving to your profile…</p></div><div class="senior-actions compact"><button class="btn secondary" onclick="renderSimulatorPlaceholder()">Back to simulator</button><button class="btn secondary" onclick="renderHome()">Go to Home</button><button class="btn primary" onclick="window.print()">Print certificate</button></div></div>' +
         '<div class="senior-certificate-card">' +
           '<div class="senior-cert-watermark">ICAO</div>' +
-          '<div class="senior-cert-header"><div><p class="senior-cert-kicker">ICAO Trainer Pro</p><h1>Certificate of Operational Proficiency</h1></div><div class="senior-cert-id"><span>Certificate ID</span><strong>' + safeText(certId) + '</strong></div></div>' +
+          '<div class="senior-cert-header"><div><p class="senior-cert-kicker">Aviation English Interactive Campus</p><h1>Certificate of Operational Proficiency</h1></div><div class="senior-cert-id"><span>Certificate ID</span><strong>' + safeText(certId) + '</strong></div></div>' +
           '<div class="senior-cert-body"><p>This certifies that</p><h2>' + safeText(pilotName) + '</h2><p>has successfully completed</p><h3>Level ' + safeText(level) + ' Aviation Communication Training</h3><div class="senior-cert-route"><span>Completed ATC environments</span><strong>' + safeText(countries) + '</strong></div></div>' +
           '<div class="senior-cert-metrics"><div><span>Average Score</span><strong>' + safeText(avgScore) + '%</strong></div><div><span>Training Level</span><strong>Level ' + safeText(level) + '</strong></div><div><span>Date Issued</span><strong>' + safeText(dateText) + '</strong></div></div>' +
-          '<div class="senior-cert-footer"><div class="senior-signature"><span></span><strong>Training Platform Authority</strong><small>ICAO Trainer Pro</small></div><div class="senior-seal"><span>ATP</span><small>Verified</small></div></div>' +
+          '<div class="senior-cert-footer"><div class="senior-signature"><span></span><strong>Training Platform Authority</strong><small>Aviation English Interactive Campus</small></div><div class="senior-seal"><span>ATP</span><small>Verified</small></div></div>' +
         '</div>' +
       '</section>';
   }
@@ -9494,7 +9494,7 @@
       '<section class="tm-carousel-section">' +
         '<div class="tm-carousel-header">' +
           '<h3 class="tm-carousel-title">What our students say</h3>' +
-          '<p class="tm-carousel-subtitle">Real feedback from aviation professionals training with ICAO Trainer Pro</p>' +
+          '<p class="tm-carousel-subtitle">Real feedback from aviation professionals training with Aviation English Interactive Campus</p>' +
         '</div>' +
         '<div class="tm-track-wrap">' +
           '<div class="tm-track" id="tmTrack">' +
@@ -9679,7 +9679,7 @@
     overlay.innerHTML =
       '<div class="sub-modal-card" style="max-width:780px;padding:32px 28px 24px;">' +
         '<button class="panel-close-btn" onclick="closeSubscriptionModal()" style="position:absolute;top:14px;right:16px;">&times;</button>' +
-        '<p class="eyebrow" style="text-align:center;margin-bottom:6px;">ICAO Trainer Pro</p>' +
+        '<p class="eyebrow" style="text-align:center;margin-bottom:6px;">Aviation English Interactive Campus</p>' +
         '<h2 style="margin:0 0 8px;text-align:center;font-size:1.6rem;">Elige tu plan</h2>' +
         '<p style="margin:0 0 28px;color:#8fa3bb;font-size:0.84rem;line-height:1.6;text-align:center;max-width:480px;margin-left:auto;margin-right:auto;">' +
           'Simulador de entrenamiento ATC con vocabulario especializado de aviaci&oacute;n, diferentes acentos y situaciones rutinarias y de emergencia.' +
@@ -18122,7 +18122,7 @@
     overlay.innerHTML =
       '<div class="feedback-modal">' +
         '<h3>How\'s it going?</h3>' +
-        '<p>You\'ve completed a few sessions. Would you use ICAO Trainer Pro again?</p>' +
+        '<p>You\'ve completed a few sessions. Would you use Aviation English Interactive Campus again?</p>' +
         '<div class="wua-grid" style="margin-bottom:16px;">' +
           '<button class="feedback-btn easy" onclick="window._fbRet(\'yes\')">Yes, definitely</button>' +
           '<button class="feedback-btn ok"   onclick="window._fbRet(\'maybe\')">Maybe</button>' +
@@ -19462,7 +19462,7 @@
     return (
       '<div class="demo-card">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">' +
-          '<p style="margin:0;font-size:10px;color:#4a5058;font-weight:700;letter-spacing:1.2px;">ICAO TRAINER PRO &middot; HOW IT WORKS</p>' +
+          '<p style="margin:0;font-size:10px;color:#4a5058;font-weight:700;letter-spacing:1.2px;">AVIATION ENGLISH INTERACTIVE CAMPUS &middot; HOW IT WORKS</p>' +
           '<button onclick="window._demoClose()" style="background:none;border:none;color:#4a5058;cursor:pointer;font-size:20px;line-height:1;padding:0 4px;">&times;</button>' +
         '</div>' +
         '<div class="demo-progress">' + dots + '</div>' +

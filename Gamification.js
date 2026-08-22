@@ -213,7 +213,7 @@ function sendRequest(sessionToken, friendEmail) {
               '<img src="' + getLogoDataUrl() + '" alt="AEROCOMMS" style="width:64px;height:64px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.35);">' +
             '</td></tr>' +
             '<tr><td style="padding-top:12px;font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#00d48e;">AEROCOMMS</td></tr>' +
-            '<tr><td style="padding-top:3px;font-size:12px;color:#4a6280;">ICAO Trainer Pro</td></tr>' +
+            '<tr><td style="padding-top:3px;font-size:12px;color:#4a6280;">Aviation English Interactive Campus</td></tr>' +
           '</table>' +
           '<div style="background:rgba(0,212,142,0.07);border:1px solid rgba(0,212,142,0.18);border-radius:12px;padding:18px 20px;margin:0 0 20px;text-align:center;">' +
             '<div style="font-size:22px;margin-bottom:6px;">&#9992;</div>' +
@@ -383,7 +383,7 @@ function sendChallenge(sessionToken, targetEmail, scenarioName, myScore) {
               '<img src="' + getLogoDataUrl() + '" alt="AEROCOMMS" style="width:64px;height:64px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(245,158,11,0.4);">' +
             '</td></tr>' +
             '<tr><td style="padding-top:12px;font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#f59e0b;">AEROCOMMS</td></tr>' +
-            '<tr><td style="padding-top:3px;font-size:12px;color:#4a6280;">ICAO Trainer Pro</td></tr>' +
+            '<tr><td style="padding-top:3px;font-size:12px;color:#4a6280;">Aviation English Interactive Campus</td></tr>' +
           '</table>' +
           '<div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.22);border-radius:12px;padding:18px 20px;margin:0 0 20px;text-align:center;">' +
             '<div style="font-size:22px;margin-bottom:6px;">&#127942;</div>' +
