@@ -11695,10 +11695,10 @@
         // Close button
         '<button onclick="event.stopPropagation();_rankUpDismiss();" style="position:absolute;top:20px;right:24px;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.5);font-size:1.1rem;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;">✕</button>' +
         // Content
-        '<div id="_rankUpCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform .55s cubic-bezier(0.34,1.56,0.64,1),opacity .4s ease;padding:0 24px;pointer-events:none;">' +
+        '<div id="_rankUpCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform .55s cubic-bezier(0.34,1.56,0.64,1),opacity .4s ease;padding:0 20px;pointer-events:none;max-width:min(460px,calc(100vw - 32px));">' +
           '<div style="font-size:0.75rem;font-weight:800;letter-spacing:.2em;color:' + color + ';text-transform:uppercase;margin-bottom:18px;">Rank Up</div>' +
           (stripes ? '<div style="display:flex;justify-content:center;margin-bottom:22px;gap:6px;">' + stripes + '</div>' : '') +
-          '<div style="font-size:4rem;font-weight:900;color:#fff;letter-spacing:-0.02em;line-height:1;text-shadow:0 0 40px ' + color + ',0 0 80px ' + color + '55;margin-bottom:12px;">' + label.toUpperCase() + '</div>' +
+          '<div style="font-size:clamp(1.7rem,8.5vw,4rem);font-weight:900;color:#fff;letter-spacing:-0.02em;line-height:1.05;text-wrap:balance;text-shadow:0 0 40px ' + color + ',0 0 80px ' + color + '55;margin-bottom:12px;">' + label.toUpperCase() + '</div>' +
           '<div style="font-size:1rem;color:rgba(255,255,255,.45);margin-bottom:52px;font-weight:500;">You\'ve earned your wings</div>' +
           '<div style="font-size:0.72rem;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,.2);text-transform:uppercase;">Tap anywhere to continue</div>' +
         '</div>' +
@@ -11804,10 +11804,10 @@
       ov.innerHTML =
         '<div style="position:absolute;inset:0;background:radial-gradient(ellipse 55% 50% at 50% 50%,' + ORANGE + '22 0%,transparent 70%);pointer-events:none;"></div>' +
         '<button onclick="event.stopPropagation();_streakDismiss();" style="position:absolute;top:20px;right:24px;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.5);font-size:1.1rem;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;">&#10005;</button>' +
-        '<div id="_streakCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform .55s cubic-bezier(0.34,1.56,0.64,1),opacity .4s ease;padding:0 24px;pointer-events:none;max-width:420px;">' +
-          '<div id="_streakFlame" style="font-size:3.6rem;line-height:1;margin-bottom:14px;filter:drop-shadow(0 0 26px ' + ORANGE + ');transition:transform .5s cubic-bezier(0.34,1.56,0.64,1);">&#128293;</div>' +
+        '<div id="_streakCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform .55s cubic-bezier(0.34,1.56,0.64,1),opacity .4s ease;padding:0 20px;pointer-events:none;max-width:min(420px,calc(100vw - 32px));">' +
+          '<div id="_streakFlame" style="font-size:clamp(2.6rem,11vw,3.6rem);line-height:1;margin-bottom:14px;filter:drop-shadow(0 0 26px ' + ORANGE + ');transition:transform .5s cubic-bezier(0.34,1.56,0.64,1);">&#128293;</div>' +
           '<div style="font-size:0.72rem;font-weight:800;letter-spacing:.2em;color:' + ORANGE_LT + ';text-transform:uppercase;margin-bottom:10px;">' + safeText(headline) + '</div>' +
-          '<div style="font-size:5rem;font-weight:900;color:#fff;letter-spacing:-0.04em;line-height:1;text-shadow:0 0 44px ' + ORANGE + ',0 0 90px ' + ORANGE + '55;">' + days + '</div>' +
+          '<div style="font-size:clamp(3.2rem,15vw,5rem);font-weight:900;color:#fff;letter-spacing:-0.04em;line-height:1;text-shadow:0 0 44px ' + ORANGE + ',0 0 90px ' + ORANGE + '55;">' + days + '</div>' +
           '<div style="font-size:0.78rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.42);margin-top:6px;">' + (days === 1 ? 'day' : 'days') + ' in a row</div>' +
           '<div style="margin-top:30px;height:6px;border-radius:99px;background:rgba(255,255,255,.09);overflow:hidden;">' +
             '<div id="_streakCharge" style="height:6px;border-radius:99px;width:' + fillFrom + '%;' +
@@ -21513,10 +21513,10 @@
       ov.innerHTML =
         '<div style="position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 50% 48%,' + color + '22 0%,transparent 70%);pointer-events:none;"></div>' +
         '<button onclick="event.stopPropagation();_examPassedDismiss();" style="position:absolute;top:20px;right:24px;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.5);font-size:1.1rem;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;">&#x2715;</button>' +
-        '<div id="_examPassedCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform .55s cubic-bezier(0.34,1.56,0.64,1),opacity .4s ease;padding:0 28px;pointer-events:none;">' +
+        '<div id="_examPassedCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform .55s cubic-bezier(0.34,1.56,0.64,1),opacity .4s ease;padding:0 20px;pointer-events:none;max-width:min(480px,calc(100vw - 32px));">' +
           '<div style="font-size:0.75rem;font-weight:800;letter-spacing:.2em;color:' + color + ';text-transform:uppercase;margin-bottom:20px;">Checkpoint ' + examNum + ' Cleared</div>' +
-          '<div style="font-size:5rem;line-height:1;margin-bottom:16px;filter:drop-shadow(0 0 32px ' + color + ');">&#10003;</div>' +
-          '<div style="font-size:4.5rem;font-weight:900;color:#fff;line-height:1;letter-spacing:-0.02em;text-shadow:0 0 40px ' + color + ',0 0 80px ' + color + '44;margin-bottom:4px;">' + score + '<span style="font-size:1.5rem;color:rgba(255,255,255,.35);font-weight:600;"> / 100</span></div>' +
+          '<div style="font-size:clamp(3.2rem,14vw,5rem);line-height:1;margin-bottom:16px;filter:drop-shadow(0 0 32px ' + color + ');">&#10003;</div>' +
+          '<div style="font-size:clamp(3rem,13vw,4.5rem);font-weight:900;color:#fff;line-height:1;letter-spacing:-0.02em;text-shadow:0 0 40px ' + color + ',0 0 80px ' + color + '44;margin-bottom:4px;">' + score + '<span style="font-size:clamp(1.05rem,4.5vw,1.5rem);color:rgba(255,255,255,.35);font-weight:600;"> / 100</span></div>' +
           '<div style="font-size:0.95rem;color:rgba(255,255,255,.45);margin-bottom:52px;font-weight:500;margin-top:10px;">ICAO Language Proficiency Test passed</div>' +
           '<div style="font-size:0.7rem;font-weight:700;letter-spacing:.12em;color:rgba(255,255,255,.18);text-transform:uppercase;">Tap anywhere to continue</div>' +
         '</div>' +
