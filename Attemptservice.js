@@ -67,7 +67,15 @@ var AttemptService = {
 
     var progress = ProgressService.updateUserProgress(user, scenario);
     var lmsXpTotal;
-    try { if (evaluation.correct) { lmsXpTotal = lmsAddXp_(user.userId, 25); lmsUpdateStreak_(user.userId); } } catch(e) {}
+    var lmsStreakDays;
+    try {
+      if (evaluation.correct) {
+        lmsXpTotal = lmsAddXp_(user.userId, 25);
+        // Return the new count so the client can tell an increment from a
+        // same-day refresh and celebrate only when the streak actually grows.
+        lmsStreakDays = lmsUpdateStreak_(user.userId);
+      }
+    } catch(e) {}
 
     return {
       ok: true,
@@ -75,7 +83,8 @@ var AttemptService = {
       evaluation: evaluation,
       progress: progress,
       expectedAnswer: scenario.expectedReadback,
-      lmsXpTotal: lmsXpTotal
+      lmsXpTotal: lmsXpTotal,
+      lmsStreakDays: lmsStreakDays
     };
   },
 

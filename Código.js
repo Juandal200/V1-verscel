@@ -8766,9 +8766,9 @@ function recomputeAllProgress(apply) {
  *
  * This fills blank header cells in place and reports (never overwrites) any
  * cell whose name genuinely differs — that needs a human decision.
- * Run: repairSheetHeaders_()
+ * Run: repairSheetHeaders()
  */
-function repairSheetHeaders_() {
+function repairSheetHeaders() {
   var ss = dbGetSpreadsheet_();
   var report = [];
 
