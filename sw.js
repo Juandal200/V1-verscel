@@ -1,4 +1,4 @@
-var CACHE = 'aerocomms-v3'; // bump version
+var CACHE = 'aerocomms-v4'; // bump version
 
 // install: pre-cache the shell
 self.addEventListener('install', function(e) {
@@ -20,19 +20,46 @@ self.addEventListener('activate', function(e) {
   self.clients.claim();
 });
 
-// fetch: stale-while-revalidate for navigation (the 1.9MB HTML shell)
+// fetch: NETWORK-FIRST for navigation (the 1.9MB HTML shell).
+//
+// This was stale-while-revalidate, which served the cached shell instantly and
+// refreshed it in the background — so the first load after every deploy ran the
+// PREVIOUS build. That is not just a staleness annoyance here: the client and the
+// server both grade read-backs, and a student running yesterday's client against
+// today's server gets told "passed" on screen while the attempt is recorded as
+// incorrect, so a completed route silently fails to save.
+//
+// Correctness of grading outweighs a few hundred ms of startup, so always try the
+// network first and fall back to cache only when genuinely offline or slow.
+var NAV_TIMEOUT_MS = 6000;
+
 self.addEventListener('fetch', function(e) {
   if (e.request.method !== 'GET') return;
   if (e.request.mode === 'navigate') {
     e.respondWith(
       caches.open(CACHE).then(function(cache) {
-        return cache.match(e.request).then(function(cached) {
-          var networkFetch = fetch(e.request).then(function(res) {
-            if (res && res.status === 200) cache.put(e.request, res.clone());
-            return res;
-          }).catch(function() { return cached; });
-          // Serve cache immediately if available; otherwise wait for network
-          return cached || networkFetch;
+        return new Promise(function(resolve) {
+          var settled = false;
+          var done = function(res) { if (!settled) { settled = true; resolve(res); } };
+
+          // Don't strand the user on a dead connection — fall back after a beat.
+          var timer = setTimeout(function() {
+            cache.match(e.request).then(function(cached) { if (cached) done(cached); });
+          }, NAV_TIMEOUT_MS);
+
+          fetch(e.request).then(function(res) {
+            clearTimeout(timer);
+            if (res && res.status === 200) {
+              // Keep the offline copy current for the next genuine outage.
+              try { cache.put(e.request, res.clone()); } catch (_) {}
+            }
+            done(res);
+          }).catch(function() {
+            clearTimeout(timer);
+            cache.match(e.request).then(function(cached) {
+              done(cached || Response.error());
+            });
+          });
         });
       })
     );
