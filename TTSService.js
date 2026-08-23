@@ -260,10 +260,10 @@ var TTSService = {
 
   buildTtsCacheKey_: function(text, profile, rate, voiceName) {
     var vn  = voiceName || (profile.voiceNames || [])[0] || '';
-    // v4 — bust entries generated before WET / SNOW / DRY were spoken as words.
+    // v5 — also busts entries from before clock positions were spoken correctly.
     // Without this bump the fix is invisible: any scenario whose audio was already
     // synthesised keeps serving the clip that spells "W E T" / "S N O W" / "D R Y".
-    var raw = ('v4||' + text + '||' + (profile.languageCode || '') + '||' + vn + '||' + Math.round(rate * 100)).toUpperCase();
+    var raw = ('v5||' + text + '||' + (profile.languageCode || '') + '||' + vn + '||' + Math.round(rate * 100)).toUpperCase();
     var h = 5381;
     for (var i = 0; i < raw.length; i++) {
       h = ((h << 5) + h + raw.charCodeAt(i)) & 0x7fffffff;
@@ -438,6 +438,21 @@ var TTSService = {
     // 2. VHF/UHF frequencies: 118.7, 121.500, 129.100
     out = out.replace(/\b(\d{3})\.(\d{1,3})\b/g, function(_, intPart, decPart) {
       return self._expandDigitsIcao_(intPart) + ' decimal ' + self._expandDigitsIcao_(decPart);
+    });
+
+    // 2b. Clock positions: "TRAFFIC 12 O'CLOCK", "TRAFFIC 2 O'CLOCK".
+    //     Must run BEFORE the airline-callsign rule (step 11), which otherwise
+    //     matches "TRAFFIC 12" as a telephony designator plus flight number and
+    //     speaks it "Traffic one two", leaving a bare "O" to be read as a letter —
+    //     which is why the clearance came out as "twelve ou".
+    //     The hour is a whole number in ATC usage: "twelve o'clock", never
+    //     "one two o'clock". Accepts a straight or typographic apostrophe, and
+    //     none at all.
+    var CLOCK_HOURS = ['', 'one', 'two', 'three', 'four', 'five', 'six',
+                       'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+    out = out.replace(/\b(\d{1,2})\s*O\s*['\u2019]?\s*CLOCK\b/gi, function(_, h) {
+      var n = Number(h);
+      return (CLOCK_HOURS[n] || h) + " o'clock";
     });
 
     // 3. Runway designators: RUNWAY 27L, RWY 09R, RUNWAY 36, RWY 09
