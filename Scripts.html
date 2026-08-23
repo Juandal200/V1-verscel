@@ -8112,22 +8112,14 @@
     renderScenarioStageImmersive();
   }
 
+  // Was a bypass that skipped BOTH completion gates, so a phase could be left
+  // behind with no attempt recorded at all — the route then reported "complete"
+  // on screen while the server had 7 of 8. A phase must be genuinely correct to
+  // advance, so this now simply defers to the guarded path.
   function goToNextScenarioAnyway() {
-    var scenarios = AppState.training.scenarios || [];
-    var nextIndex = Number(AppState.training.currentIndex || 0) + 1;
-
-    if (nextIndex >= scenarios.length) {
-      renderTrainingFinished();
-      return;
-    }
-
-    simMediaStopAll();
-    stopFlightDrift();
-    AppState.training.currentIndex = nextIndex;
-    AppState.training.scenarioStartMs = Date.now();
-    _simStateSave();
-    renderScenarioStageImmersive();
+    return goToNextScenario();
   }
+
 
   // Replay a finished route from phase 1 as a fresh session. renderScenarioRoute
   // mints a new sessionId, so the server scores this run as a whole and keeps it
@@ -8562,11 +8554,13 @@
 
   function renderTrainingFinished() {
     var scenarios    = AppState.training.scenarios || [];
-    // Force-mark the current scenario as complete. The "Finish route" button only renders
-    // when the client evaluation returned correct — so we know this one is done.
+    // Deliberately does NOT force-mark the current scenario. That assumption held
+    // only while the client and server graded identically; when they diverged it
+    // manufactured a completion the database never had, which is precisely how a
+    // 7-of-8 route came to be announced as complete. The phase is marked by
+    // syncTrainingProgressFromAttempt when the answer is actually correct, or not
+    // at all.
     AppState.training.completedScenarioIds = AppState.training.completedScenarioIds || {};
-    var _curIdx = Number(AppState.training.currentIndex || 0);
-    AppState.training.completedScenarioIds['i' + _curIdx] = true;
 
     var completedMap = AppState.training.completedScenarioIds;
     var allCompleted = scenarios.length > 0 && scenarios.every(function(_, idx) {
@@ -8944,9 +8938,19 @@
     var countryInfo = AppState.training.lastCompletedCountryInfo;
     var levelCompleted = levelInfo && levelInfo.completed === true;
 
+    // countryCompleted was hardcoded true, so the screen said "Route complete"
+    // even when the server had recorded 7 of 8. Take the real figure — the server
+    // is authoritative, and lastProgress carries what apiCompleteRoute just wrote.
+    var _lp = AppState.training.lastProgress || {};
+    var _ci = countryInfo || {};
+    var _doneN  = Number(_lp.completedScenarios != null ? _lp.completedScenarios : _ci.completedScenarios || 0);
+    var _totalN = Number(_lp.totalScenarios   != null ? _lp.totalScenarios   : _ci.totalScenarios   || 0);
+    var countryCompleted = (_lp.completed === true) || (_ci.completed === true) ||
+                           (_totalN > 0 && _doneN >= _totalN);
+
     if (levelCompleted && window._refreshTopbarRank) _refreshTopbarRank();
 
-    renderCountryCompletionScreen(levelInfo, countryInfo, true, levelCompleted);
+    renderCountryCompletionScreen(levelInfo, countryInfo, countryCompleted, levelCompleted);
   }
 
   function getNextCountryToTrain(levelInfo) {
@@ -8969,6 +8973,12 @@
     var country = countryInfo.country || AppState.training.selectedCountry || 'USA';
     var meta = getCountryUi(country);
     var nextCountry = levelCompleted ? null : getNextCountryToTrain(levelInfo);
+
+    // How many phases the SERVER still considers outstanding for this route.
+    var _lpr = AppState.training.lastProgress || {};
+    var _doneP  = Number(_lpr.completedScenarios != null ? _lpr.completedScenarios : countryInfo.completedScenarios || 0);
+    var _totalP = Number(_lpr.totalScenarios   != null ? _lpr.totalScenarios   : countryInfo.totalScenarios   || 0);
+    var _outstandingN = Math.max(0, _totalP - _doneP);
 
     var nextLevel = level + 1;
     var continueBtn = '';
@@ -9017,9 +9027,15 @@
           '<div class="senior-radar-mark"><span class="senior-radar-ring r1"></span><span class="senior-radar-ring r2"></span><span class="senior-radar-ring r3"></span><span class="senior-radar-sweep"></span><span class="senior-plane">&#9992;</span></div>' +
           '<div class="senior-debrief-copy">' +
             '<p class="eyebrow">Operational Debrief</p>' +
-            '<h1>' + (levelCompleted ? 'Level ' + safeText(level) + ' complete' : 'Route complete') + '</h1>' +
+            '<h1>' + (levelCompleted ? 'Level ' + safeText(level) + ' complete'
+                      : countryCompleted ? 'Route complete'
+                      : 'Route incomplete') + '</h1>' +
             '<p class="senior-lead">' + safeText(pilotName) + ', you cleared the ' + safeText(meta.label) + ' ATC route.</p>' +
-            '<div class="senior-verdict"><span>' + (levelCompleted ? 'LEVEL OPERATIONAL STANDARD ACHIEVED' : 'READ-BACK DISCIPLINE CONFIRMED') + '</span></div>' +
+            '<div class="senior-verdict' + (countryCompleted || levelCompleted ? '' : ' senior-verdict-warn') + '"><span>' +
+              (levelCompleted   ? 'LEVEL OPERATIONAL STANDARD ACHIEVED'
+               : countryCompleted ? 'READ-BACK DISCIPLINE CONFIRMED'
+               : _outstandingN + ' PHASE' + (_outstandingN === 1 ? '' : 'S') + ' STILL OUTSTANDING') +
+            '</span></div>' +
           '</div>' +
         '</div>' +
         (continueBtn ? '<div class="senior-cta-top" style="display:none">' + continueBtn + '</div>' : '') +
