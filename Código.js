@@ -472,39 +472,35 @@ function examExtractTokens_(normExpected) {
 // Score one scenario answer. Primary path: semantic token matching from expectedReadback.
 // Fallback: pipe-delimited keyword matching (callsign = last keyword, stripped).
 function scoreExamScenario_(answer, keywordsText, expectedReadback) {
-  var normExpected = expectedReadback ? examNormalizeGrading_(expectedReadback) : '';
-  if (normExpected) {
-    var tokens = examExtractTokens_(normExpected);
-    if (tokens.length > 0) {
-      var normDigit = examNormalizeGrading_(answer);
-      var normIcao  = examNormalizeIcao_(answer);
-      function tokenHit(tok) {
-        if (normDigit.indexOf(tok) !== -1 || normIcao.indexOf(tok) !== -1) return true;
-        // Also try converting the token itself to ICAO words (e.g. "27" → "TWO SEVEN")
-        var tokIcao = tok.replace(/\b(\d+)\b/g, function(_, n) {
-          var m = {'0':'ZERO','1':'ONE','2':'TWO','3':'THREE','4':'FOUR',
-                   '5':'FIVE','6':'SIX','7':'SEVEN','8':'EIGHT','9':'NINER'};
-          return String(n).split('').map(function(d){ return m[d]||d; }).join(' ');
-        });
-        return normDigit.indexOf(tokIcao) !== -1 || normIcao.indexOf(tokIcao) !== -1;
-      }
-      var matched = tokens.filter(tokenHit).length;
-      return { matched: matched, total: tokens.length };
-    }
-  }
+  // Delegates to the SAME grader the simulator uses. This previously had its own
+  // private normalisers (examNormalizeIcao_ / examNormalizeGrading_ /
+  // examExtractTokens_), so none of the grading fixes reached exams: a student who
+  // typed "rw 27", "b777", "three sixty" or "center line" lost those marks in the
+  // very thing that gates progression between tiers, while the same answer passed
+  // in training. One rubric now, not two.
+  //
+  // Still returns matched/total, because apiSubmitPlacementTest uses the ratio to
+  // place a student and partial credit is correct there. apiSubmitExam ignores it
+  // and reads .correct instead.
+  var kws = Array.isArray(keywordsText)
+    ? keywordsText
+    : String(keywordsText || '').split('|').map(function(k) { return k.trim(); }).filter(Boolean);
 
-  // Fallback: keyword presence matching (callsign = last keyword, stripped)
-  var kws = String(keywordsText || '').split('|')
-    .map(function(k) { return k.trim(); }).filter(Boolean);
-  if (kws.length > 1) kws.pop();
-  if (!kws.length) return { matched: 1, total: 1 };
-  var normAns = examNormalizeIcao_(answer);
-  var matched = 0;
-  kws.forEach(function(kw) {
-    if (normAns.indexOf(examNormalizeIcao_(kw)) !== -1) matched++;
-  });
-  return { matched: matched, total: kws.length };
+  var ev = AttemptService.evaluateAnswer_(
+    String(answer || ''), kws, String(expectedReadback || ''));
+
+  var ok      = (ev.keywordsOk || []).length;
+  var missing = (ev.keywordsMissing || []).length;
+  var total   = ok + missing;
+
+  return {
+    matched: total > 0 ? ok : (ev.correct ? 1 : 0),
+    total:   total > 0 ? total : 1,
+    correct: !!ev.correct,
+    score:   Number(ev.score || 0)
+  };
 }
+
 
 function apiGetExamStatus(sessionToken) {
   try {
@@ -709,18 +705,30 @@ function apiSubmitExam(sessionToken, payload) {
     var allScenarios = readSheetObjectsV5Hard_('Scenarios');
     var scenarioMap  = {};
     allScenarios.forEach(function(s) { scenarioMap[String(s.scenarioId || '')] = s; });
-    var totalMatched = 0, totalKeywords = 0;
-    var scenarioIds  = [];
+    // Scored PER PHASE, exactly like a training route: a phase is correct only if
+    // every required element is there, and the exam score is the proportion of
+    // phases cleared. Previously every matched element across all phases was pooled
+    // into one fraction, so a student could pass on partial credit spread thinly —
+    // a different standard from the routes the exam is supposed to certify.
+    var phasesCorrect = 0, phaseCount = 0;
+    var scenarioIds   = [];
     answers.forEach(function(a) {
-      var sc       = scenarioMap[String(a.scenarioId || '')];
-      var kws      = sc ? String(sc.keywordsText || sc.keywords || '') : '';
+      var sc = scenarioMap[String(a.scenarioId || '')];
+      // Resolve keywords the way normalizeScenario_ does: prefer whichever column
+      // actually carries pipe-separated entries, not just keywordsText.
+      var _kw  = sc ? String(sc.keywords     || '').trim() : '';
+      var _kwt = sc ? String(sc.keywordsText || '').trim() : '';
+      var kws  = (_kw.indexOf('|')  !== -1) ? _kw
+               : (_kwt.indexOf('|') !== -1) ? _kwt
+               : (_kw || _kwt);
       var expected = sc ? String(sc.expectedReadback || '') : '';
+
       var res = scoreExamScenario_(String(a.answer || ''), kws, expected);
-      totalMatched  += res.matched;
-      totalKeywords += res.total;
+      phaseCount++;
+      if (res.correct) phasesCorrect++;
       scenarioIds.push(String(a.scenarioId || ''));
     });
-    var score  = totalKeywords > 0 ? Math.round((totalMatched / totalKeywords) * 100) : 0;
+    var score = phaseCount > 0 ? Math.round((phasesCorrect / phaseCount) * 100) : 0;
     var passed = score >= EXAM_PASS_THRESHOLD_;
     var attemptNumber = (examInfo.attemptCount || 0) + 1;
     ensureExamsSheet_();
