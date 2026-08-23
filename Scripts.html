@@ -7623,6 +7623,18 @@
       .replace(new RegExp('\\b(' + _n + ') HUNDRED\\b', 'g'),
                function(_, a) { return String(_val(a) * 100); });
 
+
+    // Aircraft types: students write "B777" / "A320"; the sheet says "BOEING 777".
+    // MUST run before digit expansion — in "B777" there is no word boundary between
+    // the letter and the digits, so \b(\d+)\b never fires and the token survives as
+    // a literal "B777" that can never match "BOEING SEVEN SEVEN SEVEN".
+    // Model families are pinned (Boeing 7xx, Airbus 2xx/3xx, Embraer 1xx) rather
+    // than matching any letter+3-digits, which would swallow waypoint names.
+    out = out
+      .replace(/\bB-?(7\d{2})\b/g,   'BOEING $1')
+      .replace(/\bA-?([23]\d{2})\b/g, 'AIRBUS $1')
+      .replace(/\bE-?(1\d{2})\b/g,   'EMBRAER $1')
+      .replace(/\bCRJ-?(\d{3})\b/g,  'CRJ $1');
     out = out
       .replace(/\b(\d{3})\.(\d{1,3})\b/g, function(_, i, d) { return digitsToIcao(i) + ' DECIMAL ' + digitsToIcao(d); })
       .replace(/\bFL\s*(\d{1,4})\b/g, function(_, n) { return 'FLIGHT LEVEL ' + digitsToIcao(n); })
