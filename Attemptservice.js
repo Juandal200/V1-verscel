@@ -1,5 +1,14 @@
 var AttemptService = {
   submitAttempt: function(user, payload) {
+    // Wrap the whole submission in a read scope. Attempts, Scenarios and Progress
+    // are each read twice across this call graph; inside the scope the second read
+    // of each is served from memory. Everything here writes through dbAppend_ /
+    // dbUpdateByRow_, so the cache stays correct.
+    var self = this;
+    return dbWithReadScope_(function() { return self._submitAttempt_(user, payload); });
+  },
+
+  _submitAttempt_: function(user, payload) {
     if (!payload || !payload.scenarioId) {
       throw new Error('Missing scenarioId.');
     }
@@ -254,6 +263,36 @@ var AttemptService = {
       .replace(new RegExp('\\b(' + _n + ') HUNDRED\\b', 'g'),
                function(_, a) { return String(_val(a) * 100); });
 
+
+    // Aircraft types: students write "B777" / "A320"; the sheet says "BOEING 777".
+    // MUST run before digit expansion — in "B777" there is no word boundary between
+    // the letter and the digits, so \b(\d+)\b never fires and the token survives as
+    // a literal "B777" that can never match "BOEING SEVEN SEVEN SEVEN".
+    // Model families are pinned (Boeing 7xx, Airbus 2xx/3xx, Embraer 1xx) rather
+    // than matching any letter+3-digits, which would swallow waypoint names.
+    out = out
+      .replace(/\bB-?(7\d{2})\b/g,   'BOEING $1')
+      .replace(/\bA-?([23]\d{2})\b/g, 'AIRBUS $1')
+      .replace(/\bE-?(1\d{2})\b/g,   'EMBRAER $1')
+      .replace(/\bCRJ-?(\d{3})\b/g,  'CRJ $1');
+
+    // Turn amounts and headings are spoken in tens, not ICAO digits: a 360-degree
+    // turn is "three sixty", a 270 is "two seventy", a 180 is "one eighty". The
+    // sheet writes the numeral, so without this the two forms could never meet —
+    // which is what made SCN-L7 Approach unpassable, and why its keyword cell had
+    // grown to demand BOTH "360 TURN LEFT" and "THREE SIXTY TURN LEFT".
+    // Must run before digit expansion, like the THOUSAND rule above.
+    var _TENS = { TWENTY: 20, THIRTY: 30, FORTY: 40, FIFTY: 50,
+                  SIXTY: 60, SEVENTY: 70, EIGHTY: 80, NINETY: 90 };
+    var _TW = 'TWENTY|THIRTY|FORTY|FIFTY|SIXTY|SEVENTY|EIGHTY|NINETY';
+    out = out
+      .replace(new RegExp('\\b(ONE|TWO|THREE) (' + _TW + ')\\b', 'g'),
+               function(_, h, t) {
+                 var hv = { ONE: 1, TWO: 2, THREE: 3 }[h];
+                 return String(hv * 100 + _TENS[t]);
+               })
+      .replace(new RegExp('\\b(' + _TW + ')\\b', 'g'),
+               function(t) { return String(_TENS[t]); });
     // Accept digits written as words or as numbers interchangeably
     // Step 1: expand digit sequences to ICAO spoken form so "27" = "TWO SEVEN"
     out = out
@@ -279,8 +318,29 @@ var AttemptService = {
       .replace(/\./g,          ' DECIMAL ')  // literal dot → DECIMAL (e.g. 118.7 mid-word, or typed dot)
       .replace(/\bFT\b/g,      'FEET')
       .replace(/\bKTS?\b/g,    'KNOTS')
+      // Students type abbreviations. RW was on the CLIENT normalizer only, so
+      // "rw 27" scored correct on screen and incorrect in the database — the exact
+      // divergence that left SCN-L6-007 unpassable. Both sides must carry the
+      // identical set; add here and in Scripts.html _clientNormalizeText together.
       .replace(/\bRWY\b/g,     'RUNWAY')
-      .replace(/\bHDG\b/g,     'HEADING');
+      .replace(/\bRW\b/g,      'RUNWAY')
+      .replace(/\bTWY\b/g,     'TAXIWAY')
+      .replace(/\bSPD\b/g,     'SPEED')
+      .replace(/\bACFT\b/g,    'AIRCRAFT')
+      .replace(/\bHDG\b/g,     'HEADING')
+      // British/American spelling. The platform runs UK, US, AU, IN and CA
+      // environments, so both forms appear in scenario text AND in what students
+      // type — "extended CENTRE line" against "extended CENTER line" is not a
+      // read-back error. Canonicalise on both sides so either is accepted.
+      .replace(/\bCENTRE\b/g,        'CENTER')
+      .replace(/\bCENTRELINE\b/g,    'CENTERLINE')
+      .replace(/\bMETRE(S?)\b/g,     'METER$1')
+      .replace(/\bKILOMETRE(S?)\b/g, 'KILOMETER$1')
+      .replace(/\bMANOEUVRE(S?)\b/g, 'MANEUVER$1')
+      .replace(/\bTYRE(S?)\b/g,      'TIRE$1')
+      .replace(/\bAUTHORISED\b/g,    'AUTHORIZED')
+      .replace(/\bAUTHORISATION\b/g, 'AUTHORIZATION')
+      .replace(/\bANALYSE\b/g,       'ANALYZE');
 
     // Step 3: strip punctuation and collapse whitespace
     out = out.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -297,6 +357,7 @@ var AttemptService = {
       .replace(/\bLIN(?:E|ING)\s*UP\b/g,    'LINEUP')
       .replace(/\bHOLD(?:ING)?\s*SHORT\b/g, 'HOLDSHORT')
       .replace(/\bSTAND(?:ING)?\s*BY\b/g,   'STANDBY')
+      .replace(/\bCENTER\s*LINE\b/g, 'CENTERLINE')
       .replace(/\bTOUCH\s*DOWN\b/g, 'TOUCHDOWN')
       .replace(/\bWIND\s*SHEAR\b/g, 'WINDSHEAR')
       .replace(/\bCROSS\s*WIND\b/g, 'CROSSWIND')
@@ -677,7 +738,14 @@ var ProgressService = {
   },
 
   syncUserCoursePosition_: function(user, currentProgress) {
-    if (!user || String(user.role || '').toUpperCase() !== ROLES.STUDENT) {
+    // This only ever moves the caller's OWN currentLevel/currentCountry based on
+    // their OWN progress, so gating it to STUDENT just froze admins on whatever
+    // route they last touched — the home card kept offering a level they had
+    // already finished. Instructors stay excluded: their position is a teaching
+    // context, not a personal one.
+    if (!user) return;
+    var _role = String(user.role || '').toUpperCase();
+    if (_role !== ROLES.STUDENT && _role !== ROLES.ADMIN) {
       return;
     }
 
