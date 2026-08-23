@@ -11949,4 +11949,95 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 }
 .senior-verdict.senior-verdict-warn span { color: #fcd34d; }
 
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ICAO PROFICIENCY TEST — orientation and input
+   The exam ran as a bare chat: an elapsed clock that says time has passed but not
+   how much is left, and a mic that was the demo button with five inline overrides
+   fighting its own CSS. These give it the same footing as the simulator.
+   ───────────────────────────────────────────────────────────────────────────── */
+.tea-part-rail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  justify-content: center;
+  min-width: 0;
+}
+.tea-part-step {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 99px;
+  border: 1px solid #1e2a38;
+  background: #0d1117;
+  white-space: nowrap;
+  transition: border-color .3s, background .3s;
+}
+.tea-part-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #2d3a4a;
+  transition: background .3s, box-shadow .3s;
+}
+.tea-part-name {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: #4a6280;
+}
+.tea-part-step.is-done .tea-part-dot  { background: #00d48e; }
+.tea-part-step.is-done .tea-part-name { color: #6b8299; }
+.tea-part-step.is-now {
+  border-color: #00d48e66;
+  background: rgba(0, 212, 142, 0.08);
+}
+.tea-part-step.is-now .tea-part-dot {
+  background: #00d48e;
+  box-shadow: 0 0 0 3px rgba(0, 212, 142, 0.18);
+}
+.tea-part-step.is-now .tea-part-name { color: #7fe9c4; }
+
+/* Mic: a real control with visible state, not a resized demo button. 44px min so
+   it is a proper touch target. */
+.tea-mic-btn {
+  flex: 0 0 auto;
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  border: 1.5px solid #2d3a4a;
+  background: #1a2230;
+  color: #7fe9c4;
+  font-size: 1.15rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .2s, border-color .2s, box-shadow .2s, transform .12s;
+}
+.tea-mic-btn:hover:not(:disabled) { border-color: #00d48e66; background: #1f2a3a; }
+.tea-mic-btn:active:not(:disabled) { transform: scale(0.94); }
+.tea-mic-btn:disabled { opacity: .4; cursor: not-allowed; }
+.tea-mic-btn.is-recording {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: #ef4444;
+  color: #fca5a5;
+  animation: teaMicPulse 1.3s ease-in-out infinite;
+}
+@keyframes teaMicPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45); }
+  50%      { box-shadow: 0 0 0 9px rgba(239, 68, 68, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tea-mic-btn.is-recording { animation: none; }
+}
+
+/* Part 3 picture */
+.tea-image-card-img { border: 1px solid #1e2a38; }
+
+@media (max-width: 720px) {
+  .tea-part-rail { gap: 4px; }
+  .tea-part-name { display: none; }        /* dots only — the rail still orients */
+  .tea-part-step { padding: 5px 7px; }
+  .tea-mic-btn   { width: 44px; height: 44px; }
+}
+
 </style>

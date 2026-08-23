@@ -22586,6 +22586,8 @@
 
   function _resetState() {
     _t.history=[]; _t.audioIdx=0; _t.imageIdx=0; _t.audioCache={}; _t.busy=false;
+    _t.listens={};
+    setTimeout(function(){ _teaSetPart('1'); }, 0);
     _t._pendingId=null; _t._pendingB64=null; _t._qaMode=false; _t._imageInjected=false;
     _t._awaitingActivation=false; _t._finishShown=false; _t._examDone=false;
     _t.segments=[];
@@ -22754,6 +22756,27 @@
       });
   }
 
+  // The five stages the examiner prompt actually runs, so the rail matches the exam
+  // rather than being decorative.
+  var TEA_PARTS = [
+    { key: '1',  label: 'Interview'   },
+    { key: '2A', label: 'Short'       },
+    { key: '2B', label: 'Extended'    },
+    { key: '2C', label: 'Situations'  },
+    { key: '3',  label: 'Picture'     }
+  ];
+
+  function _teaSetPart(key) {
+    var hit = false;
+    TEA_PARTS.forEach(function(p, i) {
+      var el = document.getElementById('teaPartStep' + i);
+      if (!el) return;
+      if (p.key === key) { hit = true; el.className = 'tea-part-step is-now'; }
+      else el.className = 'tea-part-step' + (hit ? '' : ' is-done');
+    });
+  }
+  window._teaSetPart = _teaSetPart;
+
   // Two hearings maximum per listening item, per ICAO practice.
   var TEA_MAX_LISTENS = 2;
 
@@ -22827,6 +22850,7 @@
     // Show part separator when transitioning between 2A → 2B or 2B → 2C
     var prevKey = _getPartKey(_t.audioIdx - 1);
     var currKey = _getPartKey(_t.audioIdx);
+    if (currKey) _teaSetPart(currKey);
     if (currKey && currKey !== prevKey) _addPartSeparator(currKey);
 
     _t._pendingId  = id;
@@ -22965,6 +22989,7 @@
       if (_t.audioIdx < TEA_ORDER.length) {
         _queueNextAudio();
       } else if (_t.imageIdx < TEA_IMAGES.length) {
+        _teaSetPart('3');
         var img = TEA_IMAGES[_t.imageIdx++];
         _addImageCard(img);
         _sendMsg('[' + img.id.toUpperCase() + ': ' + img.desc + ']');
@@ -22984,6 +23009,23 @@
   // TEA-specific mic recorder — captures audio for pipeline AND runs live STT for the exam
   var _teaRecActive = false;
   var _teaRecorder  = null;
+
+  // The mic gave no feedback at all — you pressed it and nothing on screen changed,
+  // so there was no way to know whether it was listening. One helper owns the
+  // visual state so the class and the icon can never disagree.
+  function _teaMicState(recording) {
+    var btn = document.getElementById('teaMic');
+    if (!btn) return;
+    if (recording) {
+      btn.classList.add('is-recording');
+      btn.innerHTML = '&#9632;';
+      btn.title = 'Stop recording';
+    } else {
+      btn.classList.remove('is-recording');
+      btn.innerHTML = '&#127908;';
+      btn.title = 'Record your answer';
+    }
+  }
 
   function _teaMicToggle() {
     if (_t._examDone) return;
@@ -23006,6 +23048,7 @@
       .then(function(stream) {
         var chunks = [];
         _teaRecActive = true;
+        _teaMicState(true);
         var mimeType = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg']
           .filter(function(t) { return MediaRecorder.isTypeSupported(t); })[0] || '';
         _teaRecorder = mimeType
@@ -23017,7 +23060,7 @@
         };
 
         _teaRecorder.onstop = function() {
-          _teaRecActive = false;
+          _teaRecActive = false; _teaMicState(false);
           stream.getTracks().forEach(function(t) { t.stop(); });
 
           if (btn) { btn.classList.remove('listening'); btn.innerHTML = '&#8987;'; btn.disabled = true; }
@@ -23055,7 +23098,7 @@
         _teaRecorder.start();
       })
       .catch(function(err) {
-        _teaRecActive = false;
+        _teaRecActive = false; _teaMicState(false);
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
           alert('Microphone access was denied. Please allow it in your browser settings.');
         } else {
@@ -23381,6 +23424,18 @@
         '<div class="tea-header">' +
           '<div><div class="tea-part-badge">ICAO TEA</div>' +
           '<div class="tea-header-title">ICAO Language Proficiency Test</div></div>' +
+          // Where am I in a 25-30 minute exam? There was no answer to that anywhere
+          // on screen — only an elapsed clock, which tells you time has passed but
+          // not how much is left. The simulator has its phase bar; this is the
+          // equivalent.
+          '<div class="tea-part-rail" id="teaPartRail">' +
+            TEA_PARTS.map(function(p, i) {
+              return '<span class="tea-part-step" id="teaPartStep' + i + '">' +
+                       '<span class="tea-part-dot"></span>' +
+                       '<span class="tea-part-name">' + p.label + '</span>' +
+                     '</span>';
+            }).join('') +
+          '</div>' +
           '<div class="tea-header-meta">Elapsed&nbsp;<span id="teaTimer" class="tea-timer">00:00</span></div>' +
         '</div>' +
         '<div class="tea-stage">' +
@@ -23391,7 +23446,7 @@
         '</div>' +
         '<div id="teaCards" class="tea-cards"></div>' +
         '<div class="tea-input-bar">' +
-          '<button id="teaMic" class="demo-mic-btn" style="flex:0 0 auto;width:auto;padding:10px 16px;margin:0;font-size:1.1rem;" ' +
+          '<button id="teaMic" class="tea-mic-btn" ' +
             'onclick="window._teaMicToggle()">&#127908;</button>' +
           '<textarea id="teaInput" class="tea-textarea" rows="1" ' +
             'placeholder="Speak via mic or type and press Enter..."></textarea>' +
