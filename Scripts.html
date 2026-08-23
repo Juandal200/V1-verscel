@@ -5290,10 +5290,34 @@
     AppState.training.currentIndex = (preservedIndex != null && preservedIndex >= 0) ? preservedIndex : 0;
     AppState.training.scenarioStartMs = Date.now();
     AppState.training.completedScenarioIds = {};
-    // Pre-mark earlier scenarios as completed when resuming mid-route
+    AppState.training.serverConfirmedIds = {};
+    // Optimistic pre-mark so the progress bar reads correctly straight away.
+    // It is NOT authority: serverConfirmedIds stays empty until the seed below
+    // returns, so nothing can be advanced past on the strength of this alone.
     for (var _pri = 0; _pri < (AppState.training.currentIndex || 0); _pri++) {
       AppState.training.completedScenarioIds['i' + _pri] = true;
     }
+
+    // Seed the confirmed set from what the database actually holds. Without this a
+    // resuming student would be unable to finish, because the advance gate now
+    // requires server confirmation and a resumed phase has no response in flight.
+    (function(_scns, _lvl, _ctry) {
+      google.script.run
+        .withSuccessHandler(function(r) {
+          if (!r || !r.ok || !r.completedScenarioIds) return;
+          var done = {};
+          r.completedScenarioIds.forEach(function(id) { done[String(id).trim()] = true; });
+          AppState.training.serverConfirmedIds = AppState.training.serverConfirmedIds || {};
+          _scns.forEach(function(sc, i) {
+            if (done[String(sc.scenarioId || '').trim()]) {
+              AppState.training.serverConfirmedIds['i' + i] = true;
+              AppState.training.completedScenarioIds['i' + i] = true;
+            }
+          });
+        })
+        .withFailureHandler(function() {})
+        .apiGetRouteCompletion(AppState.sessionToken, { level: _lvl, country: _ctry });
+    })(AppState.training.scenarios || [], selectedLevel, selectedCountry);
     AppState.training.lastAttempt = null;
     AppState.training.lastProgress = null;
     AppState.training.vrBonusEarned = null;
@@ -7851,6 +7875,20 @@
         if (!res || !res.ok) return;
         if (res.attempt) res.attempt._scenarioIndex = _capturedIndex;
         syncTrainingProgressFromAttempt(res);
+
+        // Re-render the panel from the SERVER's verdict once it lands. The client
+        // result was optimistic and only drives instant feedback; advancing is now
+        // gated on server confirmation, so the action row has to be rebuilt or the
+        // student would click "Next exercise" on a correct answer and be told to
+        // submit a correct read-back. Only for the phase still on screen.
+        if (Number(AppState.training.currentIndex || 0) === _capturedIndex && res.evaluation) {
+          renderAttemptFeedback({
+            evaluation:     res.evaluation,
+            expectedAnswer: res.expectedAnswer || scenario.expectedReadback || '',
+            progress:       res.progress || AppState.training.lastProgress || null,
+            _fromServer:    true
+          });
+        }
         if (res.attempt && res.attempt.correct) {
           var _oldTotal = (window._lmsSimXp || 0) + (window._lmsLmsXp || 0);
           if (res.lmsXpTotal !== undefined) {
@@ -7918,6 +7956,19 @@
       attemptNumber:   attempt.attemptNumber       || null,
       responseTimeSec: attempt.responseTimeSec     || null
     };
+
+    // Two separate records, deliberately.
+    //   completedScenarioIds  — optimistic, drives instant feedback and the bar
+    //   serverConfirmedIds    — only ever written from a SERVER response, so it
+    //                           reflects what is actually stored in Attempts
+    // Advancing is gated on the second: a phase counts as one of the 8 only once
+    // the database says so, which is what makes "Route complete" mean something.
+    AppState.training.serverConfirmedIds = AppState.training.serverConfirmedIds || {};
+    if (correct && completionKey && !res._fromClient) {
+      AppState.training.serverConfirmedIds[completionKey] = true;
+    } else if (!correct && completionKey && !res._fromClient) {
+      delete AppState.training.serverConfirmedIds[completionKey];
+    }
 
     if (correct && completionKey) {
       AppState.training.completedScenarioIds[completionKey] = true;
@@ -7999,7 +8050,26 @@
 
   function isCurrentScenarioCompleted() {
     var idx = Number(AppState.training.currentIndex || 0);
+    var m = AppState.training.serverConfirmedIds;
+    return !!(m && m['i' + idx]);
+  }
+
+  // Optimistic client view — used for the progress bar and instant feedback only,
+  // never to authorise moving on.
+  function isCurrentScenarioCompletedOptimistic() {
+    var idx = Number(AppState.training.currentIndex || 0);
     return !!(AppState.training.completedScenarioIds && AppState.training.completedScenarioIds['i' + idx]);
+  }
+
+  // Every phase confirmed by the server — the only thing that may open the debrief.
+  function allScenariosServerConfirmed() {
+    var scenarios = AppState.training.scenarios || [];
+    if (!scenarios.length) return false;
+    var m = AppState.training.serverConfirmedIds || {};
+    for (var i = 0; i < scenarios.length; i++) {
+      if (!m['i' + i]) return false;
+    }
+    return true;
   }
 
   function getRouteProgressPct() {
@@ -8052,12 +8122,23 @@
       '<p class="route-progress-live"><strong>Route progress:</strong> ' + routePct + '% (' + safeText(completedCount) + '/' + safeText(total) + ' phases)</p>' +
       '<div class="sim-action-row">' +
         '<button class="btn secondary" onclick="retryCurrentScenario()">' + (ok ? 'Practice again' : 'Retry') + '</button>' +
-        (ok ? '<button class="btn primary big-action" onclick="' + (isLast ? 'renderTrainingFinished()' : 'goToNextScenario()') + '">' + (isLast ? 'Finish route and view debrief' : 'Next exercise') + '</button>' : '') +
+        (ok
+          ? (isCurrentScenarioCompleted()
+              ? '<button class="btn primary big-action" onclick="' + (isLast ? 'renderTrainingFinished()' : 'goToNextScenario()') + '">' +
+                  (isLast ? 'Finish route and view debrief' : 'Next exercise') + '</button>'
+              // Correct on screen, not yet acknowledged by the server. Showing an
+              // armed button here would let the student click through before the
+              // phase is recorded — the gap that produced phantom completions.
+              : '<button class="btn primary big-action" disabled>Saving\u2026</button>')
+          : '') +
       '</div>' +
       ratingWidget;
 
-    if (ok) { SimAudio.correct(); if (navigator.vibrate) navigator.vibrate(8); }
-    else     { SimAudio.wrong();   if (navigator.vibrate) navigator.vibrate([10, 60, 15]); }
+    // The reconcile pass repaints the same verdict — don't play it twice.
+    if (!res._fromServer) {
+      if (ok) { SimAudio.correct(); if (navigator.vibrate) navigator.vibrate(8); }
+      else     { SimAudio.wrong();   if (navigator.vibrate) navigator.vibrate([10, 60, 15]); }
+    }
     setImmersiveFeedback(html, ok ? 'success' : 'danger', true);
 
     var input = byId('pilotReadback');
@@ -8562,13 +8643,17 @@
     // at all.
     AppState.training.completedScenarioIds = AppState.training.completedScenarioIds || {};
 
-    var completedMap = AppState.training.completedScenarioIds;
-    var allCompleted = scenarios.length > 0 && scenarios.every(function(_, idx) {
-      return completedMap['i' + idx] === true;
-    });
-
-    if (!allCompleted) {
-      setImmersiveFeedback('Complete every exercise correctly before finishing this route.', 'danger');
+    // Gate on the SERVER-confirmed set, not the optimistic client map. This is the
+    // last door before the debrief, so it must agree with what is stored.
+    if (!allScenariosServerConfirmed()) {
+      var _m = AppState.training.serverConfirmedIds || {};
+      var _missing = [];
+      scenarios.forEach(function(sc, i) {
+        if (!_m['i' + i]) _missing.push(sc.phaseName || sc.phaseCode || ('phase ' + (i + 1)));
+      });
+      setImmersiveFeedback(
+        'Complete every exercise correctly before finishing this route. Still outstanding: ' +
+        safeText(_missing.join(', ')) + '.', 'danger');
       return;
     }
 

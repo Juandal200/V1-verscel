@@ -9162,3 +9162,36 @@ function diagRoute(email, level) {
     });
   });
 }
+
+/**
+ * Which scenarios of a route this user has actually cleared.
+ *
+ * The client tracks completion by array index and, on resume, used to assume every
+ * phase before the resume point was done. That assumption is exactly what let a
+ * route report complete while the database held 7 of 8. Advancing is now gated on
+ * server confirmation, so a resuming student needs the real set seeded from here.
+ */
+function apiGetRouteCompletion(sessionToken, payload) {
+  try {
+    var user    = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    payload     = payload || {};
+    var level   = Number(payload.level || 0);
+    var country = String(payload.country || '').trim();
+    if (!level || !country) throw new Error('level and country required');
+
+    var key = ProgressService.normalizeCountry_(country);
+    var done = {};
+    dbReadAll_('Attempts').forEach(function(r) {
+      if (String(r.userId) !== String(user.userId)) return;
+      if (Number(r.level) !== level) return;
+      if (ProgressService.normalizeCountry_(r.country) !== key) return;
+      if (String(r.correct).toUpperCase() === 'TRUE' || r.correct === true) {
+        done[String(r.scenarioId || '').trim()] = true;
+      }
+    });
+
+    return { ok: true, completedScenarioIds: Object.keys(done) };
+  } catch (err) {
+    return apiError_('apiGetRouteCompletion', err);
+  }
+}
