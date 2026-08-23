@@ -5356,7 +5356,15 @@
         })
         .withFailureHandler(function() {})
         .apiGetRouteCompletion(AppState.sessionToken, { level: _lvl, country: _ctry });
-    })(AppState.training.scenarios || [], selectedLevel, selectedCountry);
+    })(
+      AppState.training.scenarios || [],
+      // selectedLevel/selectedCountry are locals of the ROUTE LOADER, not of
+      // renderScenarioRoute — referencing them here threw "Can't find variable"
+      // and crashed Begin Route. Read the same values off the shared state, with
+      // the route payload as a fallback.
+      Number((data && data.level) || AppState.training.selectedLevel || 0),
+      String((data && data.country) || AppState.training.selectedCountry || '')
+    );
     AppState.training.lastAttempt = null;
     AppState.training.lastProgress = null;
     AppState.training.vrBonusEarned = null;
