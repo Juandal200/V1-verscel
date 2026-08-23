@@ -3896,7 +3896,10 @@ mark.atc-highlight {
 }
 
 .senior-debrief-hero {
-  min-height: 360px;
+  /* Was min-height:360px, which pinned the card to a fixed floor — shrinking the
+     radar and headline only converted the saving into empty space. Let content
+     define the height: 176px radar + 26px padding top and bottom. */
+  min-height: 0;
   border-radius: 28px;
   padding: 26px 30px;
   border: 1px solid rgba(155, 155, 155, 0.22);
