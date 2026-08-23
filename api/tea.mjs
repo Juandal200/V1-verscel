@@ -150,7 +150,14 @@ export default async function handler(req, res) {
       };
     }));
 
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=' +
+    // Model id is configurable. Hardcoding it meant that if the identifier ever
+    // stopped resolving, every grading call 404'd and the exam produced no scores
+    // with nothing in the UI to say why. Set GEMINI_MODEL in Vercel to change it
+    // without a deploy; verify what your key can actually reach with:
+    //   curl "https://generativelanguage.googleapis.com/v1beta/models?key=$GEMINI_API_KEY"
+    const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' +
+      encodeURIComponent(MODEL) + ':generateContent?key=' +
       encodeURIComponent(apiKey);
 
     const body = JSON.stringify({

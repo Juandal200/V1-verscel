@@ -22624,16 +22624,10 @@
     if (_t.audioCache[id]) { cb(null, _t.audioCache[id]); return; }
     var sc = TEA_AUDIO[id];
     if (!sc) { cb('Unknown: '+id); return; }
-    fetch('/api/tea-audio', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ text:sc.script, voice:sc.voice, lang:sc.lang, rate:0.93 })
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if (d.ok) { _t.audioCache[id]=d.audioBase64; cb(null,d.audioBase64); }
-      else cb(d.error||'Audio error');
-    })
-    .catch(function(e){ cb(e.message); });
+    _teaGasAudio(sc.script, sc.voice, sc.lang, 0.93, function(err, b64) {
+      if (b64) { _t.audioCache[id] = b64; cb(null, b64); }
+      else cb(err || 'Audio error');
+    });
   }
 
   // ── UI helpers ────────────────────────────────────────────────────────────
@@ -22721,6 +22715,34 @@
 
   // ── Examiner TTS ──────────────────────────────────────────────────────────
   // Consistent British male voice for the examiner throughout the exam.
+  // Chirp3-HD voices require OAuth2. /api/tea-audio authenticates with an API key,
+  // so every Chirp3-HD request through it fails — the examiner then fell back to the
+  // browser synthesiser (the robotic voice) and section-2 clips produced nothing at
+  // all. GAS holds a service-account credential, so route exam audio the same way
+  // the simulator already does. See the note at renderScenarioStageImmersive.
+  var _TEA_LANG_COUNTRY = {
+    'en-US': 'USA', 'en-GB': 'UK', 'en-AU': 'AUSTRALIA',
+    'en-IN': 'INDIA', 'en-CA': 'CANADA'
+  };
+  function _teaCountryForLang(lang) {
+    return _TEA_LANG_COUNTRY[String(lang || '')] || 'USA';
+  }
+  // cb(errOrNull, audioBase64)
+  function _teaGasAudio(text, voice, lang, rate, cb) {
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.ok && res.audioBase64) cb(null, res.audioBase64);
+        else cb((res && res.error) || 'Audio unavailable');
+      })
+      .withFailureHandler(function(e) { cb((e && e.message) || 'Audio request failed'); })
+      .apiGenerateIcaoTestVoice(AppState.sessionToken, {
+        text:         String(text || ''),
+        country:      _teaCountryForLang(lang),
+        voice:        String(voice || ''),
+        speakingRate: Number(rate || 0.95)
+      });
+  }
+
   var EXAMINER_VOICE = 'en-GB-Chirp3-HD-Schedar';
   var EXAMINER_LANG  = 'en-GB';
 
@@ -22766,16 +22788,10 @@
     }
 
     _setStatus('Examiner speaking...', 'speaking');
-    fetch('/api/tea-audio', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ text: text, voice: EXAMINER_VOICE, lang: EXAMINER_LANG, rate: 0.95 })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      if (d.ok && d.audioBase64) {
+    _teaGasAudio(text, EXAMINER_VOICE, EXAMINER_LANG, 0.95, function(err, b64) {
+      if (b64) {
         if (_t.audioEl) _t.audioEl.pause();
-        _t.audioEl = new Audio('data:audio/mp3;base64,' + d.audioBase64);
+        _t.audioEl = new Audio('data:audio/mp3;base64,' + b64);
         _t.audioEl.onended = onDone;
         _t.audioEl.onerror = function() { onDone(); };
         var p = _t.audioEl.play();

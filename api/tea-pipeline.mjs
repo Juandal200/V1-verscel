@@ -266,7 +266,9 @@ async function gradeWithICAO(enrichedTranscript, history, apiKey) {
 
   const contents = [...historyContents, gradingTurn];
 
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=' +
+  const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' +
+    encodeURIComponent(MODEL) + ':generateContent?key=' +
     encodeURIComponent(apiKey);
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
