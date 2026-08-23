@@ -7736,7 +7736,20 @@
       // Must stay identical to AttemptService.normalizeText_ on the server.
       .replace(/\bRWY\b/g,   'RUNWAY').replace(/\bRW\b/g,    'RUNWAY')
       .replace(/\bTWY\b/g,   'TAXIWAY').replace(/\bSPD\b/g,  'SPEED')
-      .replace(/\bACFT\b/g,  'AIRCRAFT').replace(/\bHDG\b/g, 'HEADING');
+      .replace(/\bACFT\b/g,  'AIRCRAFT').replace(/\bHDG\b/g, 'HEADING')
+      // British/American spelling. The platform runs UK, US, AU, IN and CA
+      // environments, so both forms appear in scenario text AND in what students
+      // type — "extended CENTRE line" against "extended CENTER line" is not a
+      // read-back error. Canonicalise on both sides so either is accepted.
+      .replace(/\bCENTRE\b/g,        'CENTER')
+      .replace(/\bCENTRELINE\b/g,    'CENTERLINE')
+      .replace(/\bMETRE(S?)\b/g,     'METER$1')
+      .replace(/\bKILOMETRE(S?)\b/g, 'KILOMETER$1')
+      .replace(/\bMANOEUVRE(S?)\b/g, 'MANEUVER$1')
+      .replace(/\bTYRE(S?)\b/g,      'TIRE$1')
+      .replace(/\bAUTHORISED\b/g,    'AUTHORIZED')
+      .replace(/\bAUTHORISATION\b/g, 'AUTHORIZATION')
+      .replace(/\bANALYSE\b/g,       'ANALYZE');
     out = out.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
     out = out
       // Progressive forms too — "going around" / "taking off" are what a pilot
@@ -7744,6 +7757,7 @@
       .replace(/\bTAK(?:E|ING)\s*OFF\b/g,   'TAKEOFF').replace(/\bPUSH(?:ING)?\s*BACK\b/g,  'PUSHBACK')
       .replace(/\bGO(?:ING)?\s*AROUND\b/g,  'GOAROUND').replace(/\bLIN(?:E|ING)\s*UP\b/g,   'LINEUP')
       .replace(/\bHOLD(?:ING)?\s*SHORT\b/g, 'HOLDSHORT').replace(/\bSTAND(?:ING)?\s*BY\b/g, 'STANDBY')
+      .replace(/\bCENTER\s*LINE\b/g, 'CENTERLINE')
       .replace(/\bTOUCH\s*DOWN\b/g, 'TOUCHDOWN').replace(/\bWIND\s*SHEAR\b/g,'WINDSHEAR')
       .replace(/\bCROSS\s*WIND\b/g, 'CROSSWIND').replace(/\bTAIL\s*WIND\b/g, 'TAILWIND')
       .replace(/\bHEAD\s*WIND\b/g,  'HEADWIND');
