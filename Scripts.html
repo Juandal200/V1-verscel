@@ -1393,6 +1393,22 @@
       var user    = AppState.user || {};
       var level   = metrics.currentLevel || user.currentLevel || 1;
       var country = metrics.currentCountry || user.currentCountry || 'USA';
+
+      // Levels 4, 7 and 10 sit behind checkpoint exams 1, 2 and 3. getNextCourseTarget_
+      // walks levels in order and knows nothing about checkpoints, so once a student
+      // finishes Levels 4-6 it points them at Level 7 — a level they cannot enter
+      // until Checkpoint 2 is passed. Surface the exam instead: it is the actual next
+      // action, where "Tier complete" would be a dead end and Level 7 a locked door.
+      var _cpGate = (level === 4) ? 1 : (level === 7) ? 2 : (level === 10) ? 3 : 0;
+      var _cpInfo = null;
+      if (_cpGate) {
+        var _all = AppState.examStatus || [];
+        for (var _ci = 0; _ci < _all.length; _ci++) {
+          if (Number(_all[_ci].examNum) === _cpGate) { _cpInfo = _all[_ci]; break; }
+        }
+      }
+      var _cpStatus  = _cpInfo ? String(_cpInfo.status || '') : '';
+      var _cpPending = !!_cpGate && _cpStatus !== 'passed';
       var successRate = metrics.successRate || 0;
 
       // ── Feature cards row ──
@@ -1455,7 +1471,9 @@
           '</div>';
       })();
 
-      var simStatusHtml = '<span style="position:absolute;top:10px;right:12px;font-size:0.75rem;font-weight:800;background:rgba(14,165,233,.25);border:1px solid rgba(14,165,233,.5);color:#7dd3fc;padding:2px 10px;border-radius:20px;letter-spacing:.06em;">▶ ACTIVE</span>';
+      var simStatusHtml = _cpPending
+        ? '<span style="position:absolute;top:10px;right:12px;font-size:0.75rem;font-weight:800;background:rgba(234,179,8,.25);border:1px solid rgba(234,179,8,.5);color:#fde047;padding:2px 10px;border-radius:20px;letter-spacing:.06em;">EXAM</span>'
+        : '<span style="position:absolute;top:10px;right:12px;font-size:0.75rem;font-weight:800;background:rgba(14,165,233,.25);border:1px solid rgba(14,165,233,.5);color:#7dd3fc;padding:2px 10px;border-radius:20px;letter-spacing:.06em;">&#9654; ACTIVE</span>';
       var simBodyHtml =
         '<div style="display:flex;gap:0;margin-bottom:4px;">' +
           '<div style="flex:1;border-right:1px solid var(--line);padding-right:12px;">' +
@@ -1472,13 +1490,19 @@
         gradient:   'linear-gradient(to top,rgba(0,0,0,.75) 0%,rgba(0,0,0,.25) 60%,rgba(0,0,0,.1) 100%),url(https://lh3.googleusercontent.com/d/1oBMXM9QDWKg-GjGqwaD5ZE1qff4TevL1) center/cover no-repeat',
         icon:       { bg: '#0ea5e9', emoji: '🎙️' },
         badge:      'ATC Simulator',
-        title:      'ATC Radio Simulator',
-        subtitle:   'Aviation Communication Practice',
+        title:      _cpPending ? ('Checkpoint ' + _cpGate) : 'ATC Radio Simulator',
+        subtitle:   _cpPending
+          ? (_cpStatus === 'failed_once' ? 'One attempt remaining' : 'Unlocks Level ' + level)
+          : 'Aviation Communication Practice',
         statusHtml: simStatusHtml,
         bodyHtml:   simBodyHtml,
-        btnLabel:   'Start Practice →',
+        btnLabel:   _cpPending
+          ? (_cpStatus === 'failed_once' ? 'Retry Exam →' : 'Start Exam →')
+          : 'Start Practice →',
         btnClass:   'primary',
-        onClick:    '_navTo(renderSimulatorPlaceholder)'
+        onClick:    _cpPending
+          ? ('window._examOpen && window._examOpen(' + _cpGate + ')')
+          : '_navTo(renderSimulatorPlaceholder)'
       });
 
       var teaStatusHtml = '<span style="position:absolute;top:10px;right:12px;font-size:0.75rem;font-weight:800;background:rgba(139,92,246,.25);border:1px solid rgba(139,92,246,.5);color:#c4b5fd;padding:2px 10px;border-radius:20px;letter-spacing:.06em;">ICAO TEST</span>';
