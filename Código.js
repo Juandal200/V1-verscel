@@ -8801,6 +8801,179 @@ function repairSheetHeaders() {
 }
 
 /**
+ * Every stuck route, every level, in one pass — and crucially, whether each one
+ * is stuck because of a GRADING bug we have since fixed, or because the student
+ * genuinely has not cleared it.
+ *
+ * For each incomplete route it finds the scenarios with no correct attempt, takes
+ * the student's best stored answer, and re-grades that exact text with the CURRENT
+ * evaluateAnswer_. If it now scores 100%, the student was blocked by a defect
+ * (e.g. the server not expanding "rw" to "runway") and deserves the credit.
+ *
+ *   diagAllStuck()        read-only report
+ *   regradeAllStuck()     same report, framed as a plan
+ *   regradeAllStuck(true) applies it: flips those attempts and recomputes progress
+ *
+ * All sheets are read ONCE up front — per-route reads would blow the 6-minute cap.
+ */
+function diagAllStuck() { return _regradeScan_(false); }
+function regradeAllStuck(apply) { return _regradeScan_(apply === true); }
+
+function _regradeScan_(apply) {
+  var t0 = new Date().getTime();
+
+  var users     = dbReadAll_('Users');
+  var attempts  = dbReadAll_('Attempts');
+  var progress  = dbReadAll_('Progress');
+  var scenarios = ScenarioService.listActiveScenarios();
+
+  var emailById = {};
+  users.forEach(function(u) { emailById[String(u.userId)] = u.email || u.userId; });
+
+  // level||COUNTRY -> { scenarioId: scenario }
+  var activeByRoute = {};
+  scenarios.forEach(function(s) {
+    var k = Number(s.level || 0) + '||' + ProgressService.normalizeCountry_(s.country);
+    if (!activeByRoute[k]) activeByRoute[k] = {};
+    if (s.scenarioId) activeByRoute[k][String(s.scenarioId).trim()] = s;
+  });
+
+  // userId||level||COUNTRY -> attempt rows
+  var attByRoute = {};
+  attempts.forEach(function(r) {
+    var k = String(r.userId) + '||' + Number(r.level || 0) + '||' + ProgressService.normalizeCountry_(r.country);
+    (attByRoute[k] = attByRoute[k] || []).push(r);
+  });
+
+  function keywordsOf(sc) {
+    if (Array.isArray(sc.keywords)) return sc.keywords;
+    return String(sc.keywordsText || sc.keywords || '')
+      .split('|').map(function(k) { return k.trim(); }).filter(Boolean);
+  }
+
+  var fixable = [], genuine = [], untouched = [], flips = [];
+
+  progress.forEach(function(pr) {
+    if (ProgressService.isCompleted_(pr)) return;
+    var level   = Number(pr.level || 0);
+    var country = ProgressService.normalizeCountry_(pr.country);
+    var routeKey = level + '||' + country;
+    var active = activeByRoute[routeKey];
+    if (!active) return;                       // orphaned route — separate problem
+
+    var activeIds = Object.keys(active);
+    if (!activeIds.length) return;
+
+    var rows = attByRoute[String(pr.userId) + '||' + routeKey] || [];
+    var correctIds = {};
+    rows.forEach(function(r) {
+      if (String(r.correct).toUpperCase() === 'TRUE' || r.correct === true) correctIds[String(r.scenarioId).trim()] = true;
+    });
+
+    activeIds.forEach(function(sid) {
+      if (correctIds[sid]) return;
+      var sc = active[sid];
+      var kws = keywordsOf(sc);
+      var tries = rows.filter(function(r) { return String(r.scenarioId).trim() === sid; });
+
+      if (!tries.length) {
+        untouched.push({ email: emailById[String(pr.userId)], level: level, country: country, sid: sid, phase: sc.phaseCode });
+        return;
+      }
+
+      // Re-grade every stored answer for this scenario with the CURRENT rules.
+      var best = null;
+      tries.forEach(function(r) {
+        var ev = AttemptService.evaluateAnswer_(String(r.studentAnswer || ''), kws, sc.expectedReadback || '');
+        if (!best || ev.score > best.ev.score) best = { row: r, ev: ev };
+      });
+
+      var rec = {
+        email: emailById[String(pr.userId)], userId: pr.userId, level: level, country: country,
+        sid: sid, phase: sc.phaseCode, tries: tries.length,
+        oldScore: Number(best.row.score || 0), newScore: best.ev.score,
+        answer: String(best.row.studentAnswer || '').substring(0, 90),
+        missing: best.ev.keywordsMissing.join(' | ')
+      };
+
+      if (best.ev.correct) {
+        fixable.push(rec);
+        flips.push({ row: best.row, ev: best.ev, userId: pr.userId, level: level, country: pr.country });
+      } else {
+        genuine.push(rec);
+      }
+    });
+  });
+
+  Logger.log('=== ' + (apply ? 'APPLYING' : 'DRY RUN') + ' — re-grade scan across all levels ===');
+  Logger.log('  ' + progress.length + ' progress rows, ' + attempts.length + ' attempts, ' + scenarios.length + ' active scenarios');
+  Logger.log('');
+  Logger.log('  BLOCKED BY A GRADING DEFECT (would pass now) : ' + fixable.length);
+  Logger.log('  GENUINELY NOT CLEARED YET                    : ' + genuine.length);
+  Logger.log('  NEVER ATTEMPTED                              : ' + untouched.length);
+  Logger.log('');
+
+  if (fixable.length) {
+    Logger.log('--- would be credited ---');
+    fixable.forEach(function(r) {
+      Logger.log('  ' + r.email + '  L' + r.level + ' ' + r.country + '  ' + r.sid + ' (' + r.phase + ')' +
+                 '  ' + r.oldScore + '% -> ' + r.newScore + '%  [' + r.tries + ' attempts]');
+      Logger.log('      said: ' + r.answer);
+    });
+    Logger.log('');
+  }
+
+  if (genuine.length) {
+    Logger.log('--- still genuinely short (top 25) ---');
+    genuine.slice(0, 25).forEach(function(r) {
+      Logger.log('  ' + r.email + '  L' + r.level + ' ' + r.country + '  ' + r.sid +
+                 '  best ' + r.newScore + '%  missing: ' + r.missing);
+    });
+    if (genuine.length > 25) Logger.log('  ... and ' + (genuine.length - 25) + ' more');
+    Logger.log('');
+  }
+
+  if (!apply) {
+    Logger.log('=== dry run only — call regradeAllStuck(true) to credit the ' + fixable.length + ' above ===');
+    Logger.log('    elapsed ' + Math.round((new Date().getTime() - t0) / 1000) + 's');
+    return { fixable: fixable.length, genuine: genuine.length, untouched: untouched.length };
+  }
+
+  // Apply: flip the winning attempt rows, then recompute each affected route once.
+  var routesTouched = {};
+  flips.forEach(function(f) {
+    try {
+      dbUpdateByRow_('Attempts', f.row.__rowNumber, {
+        correct: true,
+        score: f.ev.score,
+        keywordsOk: f.ev.keywordsOk.join('|'),
+        keywordsMissing: ''
+      });
+      routesTouched[String(f.userId) + '||' + f.level + '||' + f.country] = f;
+    } catch (e) {
+      Logger.log('  !! failed to update attempt row ' + f.row.__rowNumber + ': ' + e.message);
+    }
+  });
+  Logger.log('  flipped ' + flips.length + ' attempt rows');
+
+  Object.keys(routesTouched).forEach(function(k) {
+    var f = routesTouched[k];
+    var u = users.filter(function(x) { return String(x.userId) === String(f.userId); })[0];
+    if (!u) return;
+    try {
+      var res = ProgressService.updateUserProgress(u, { level: f.level, country: f.country });
+      Logger.log('  ' + (u.email || u.userId) + ' L' + f.level + ' ' + f.country +
+                 ' -> ' + res.completedScenarios + '/' + res.totalScenarios + ' completed=' + res.completed);
+    } catch (e) {
+      Logger.log('  !! recompute failed for ' + k + ': ' + e.message);
+    }
+  });
+
+  Logger.log('=== done in ' + Math.round((new Date().getTime() - t0) / 1000) + 's ===');
+  return { credited: flips.length, routes: Object.keys(routesTouched).length };
+}
+
+/**
  * No-argument wrappers, because the Apps Script Run dropdown cannot pass
  * parameters — selecting diagRoute directly calls it with no args and silently
  * defaults to level 5. Pick one of these from the dropdown instead.
