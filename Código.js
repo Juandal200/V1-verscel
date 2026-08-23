@@ -239,7 +239,8 @@ function apiGetAppBootstrap(sessionToken) {
       streakFreezes: (lvRes && lvRes.streakFreezes) || 0,
       // Minutes left in the streak day, measured server-side in CONFIG.TIMEZONE.
       // The client must not recompute this from the device clock.
-      minutesLeftToday: lmsStreakMinutesLeft_()
+      minutesLeftToday: lmsStreakMinutesLeft_(),
+      doneToday:     !!(lvRes && lvRes.doneToday)
     };
   } catch(e) {
     return { ok: false, message: e.message };
@@ -1388,7 +1389,8 @@ function apiCompleteRoute(sessionToken, payload) {
       currentProgress: safeArrayForClient_([currentProgress])[0] || currentProgress,
       streakDays:      streakInfo.streakDays || 0,
       minutesLeftToday: (streakInfo.minutesLeftToday != null)
-        ? streakInfo.minutesLeftToday : lmsStreakMinutesLeft_()
+        ? streakInfo.minutesLeftToday : lmsStreakMinutesLeft_(),
+      doneToday:        !!streakInfo.doneToday
     };
   } catch (err) {
     return apiError_('apiCompleteRoute', err);

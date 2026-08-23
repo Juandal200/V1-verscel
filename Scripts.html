@@ -467,8 +467,11 @@
             AppState.accessStatus = res.accessStatus || null;
             window._lmsStreakDays    = res.streakDays    || 0;
     if (res.minutesLeftToday != null) window._lmsStreakMinsLeft = Number(res.minutesLeftToday);
+            if (res.doneToday != null) window._lmsStreakDoneToday = !!res.doneToday;
       if (res.minutesLeftToday != null) window._lmsStreakMinsLeft = Number(res.minutesLeftToday);
+            if (res.doneToday != null) window._lmsStreakDoneToday = !!res.doneToday;
             if (res.minutesLeftToday != null) window._lmsStreakMinsLeft = Number(res.minutesLeftToday);
+            if (res.doneToday != null) window._lmsStreakDoneToday = !!res.doneToday;
             window._lmsLastActiveAt  = res.lastActiveAt  || '';
             window._lmsStreakFreezes = res.streakFreezes || 0;
             window._lmsLmsXp         = res.lmsXp         || 0;
@@ -1152,6 +1155,7 @@
             window._lmsSimXp = mxp - (res.lmsXp || 0);
             window._lmsStreakDays    = res.streakDays || 0;
             if (res.minutesLeftToday != null) window._lmsStreakMinsLeft = Number(res.minutesLeftToday);
+            if (res.doneToday != null) window._lmsStreakDoneToday = !!res.doneToday;
             window._lmsLastActiveAt  = res.lastActiveAt || '';
             window._lmsStreakFreezes = res.streakFreezes || 0;
             _renderTopbarRank(mxp, res.streakDays || 0);
@@ -1482,13 +1486,20 @@
         // Under an hour, minutes are the honest unit — "0 hours left tonight" read
         // as though the streak was already lost.
         var _minsShown = Math.max(1, _minsLeft);
-        var _leftLabel = hoursLeft >= 1
-          ? (hoursLeft + ' hour' + (hoursLeft === 1 ? '' : 's') + ' left tonight')
-          : (_minsShown + ' minute' + (_minsShown === 1 ? '' : 's') + ' left tonight');
-        var gradient = hour >= 19
+        // If today is already banked the streak is not at risk tonight at all —
+        // the next deadline is tomorrow. Counting down to midnight and urging
+        // "Protect streak" tells the student to do something they did an hour ago.
+        var _doneToday = !!window._lmsStreakDoneToday;
+        var _leftLabel = _doneToday
+          ? 'Secured \u00b7 back tomorrow for day ' + (days + 1)
+          : (hoursLeft >= 1
+              ? (hoursLeft + ' hour' + (hoursLeft === 1 ? '' : 's') + ' left tonight')
+              : (_minsShown + ' minute' + (_minsShown === 1 ? '' : 's') + ' left tonight'));
+        var gradient = (hour >= 19 && !_doneToday)
           ? 'linear-gradient(160deg,#1a0505 0%,#7f1d1d 55%,#450a0a 100%)'
           : 'linear-gradient(160deg,#1c0a03 0%,#9a3412 55%,#431407 100%)';
-        var flameFilter = hour >= 19
+        // The dimmed flame reads as "your streak is dying". Only true if it is.
+        var flameFilter = (hour >= 19 && !_doneToday)
           ? 'saturate(0.2) brightness(0.6)'
           : hour >= 12 ? 'saturate(0.65) brightness(0.88)' : 'saturate(1) brightness(1)';
         var flicker = hour >= 19
@@ -1500,7 +1511,8 @@
             '<div style="font-size:4.5rem;font-weight:900;color:#fff;line-height:1;letter-spacing:-0.02em;">' + days + '</div>' +
             '<div style="font-size:1rem;font-weight:700;color:rgba(255,255,255,.75);margin-top:2px;margin-bottom:6px;">day streak</div>' +
             '<div style="font-size:0.75rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:28px;">' + _leftLabel + '</div>' +
-            '<button class="btn primary" style="width:100%;font-size:0.85rem;" onclick="event.stopPropagation();_navTo(renderSimulatorPlaceholder)">Protect streak →</button>' +
+            '<button class="btn primary" style="width:100%;font-size:0.85rem;" onclick="event.stopPropagation();_navTo(renderSimulatorPlaceholder)">' +
+              (_doneToday ? 'Keep training \u2192' : 'Protect streak \u2192') + '</button>' +
             pushBtn +
           '</div>';
       })();
@@ -23465,6 +23477,7 @@ function _aeroRestoreFromCache(c) {
   AppState.accessStatus = c.accessStatus || null;
   window._lmsStreakDays    = c.streakDays    || 0;
   if (c.minutesLeftToday != null) window._lmsStreakMinsLeft = Number(c.minutesLeftToday);
+  if (c.doneToday != null) window._lmsStreakDoneToday = !!c.doneToday;
   window._lmsLastActiveAt  = c.lastActiveAt  || '';
   window._lmsStreakFreezes = c.streakFreezes || 0;
   window._lmsLmsXp = c.lmsXp || 0;

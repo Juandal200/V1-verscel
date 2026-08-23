@@ -177,7 +177,11 @@ function lmsGetStreak_(userId) {
       longestStreak: Number(row.longestStreak) || 0,
       lastActiveAt: row.lastActiveAt || '',
       streakProtected: active,
-      minutesLeftToday: lmsStreakMinutesLeft_()
+      minutesLeftToday: lmsStreakMinutesLeft_(),
+      // Whether TODAY is already banked. streakProtected is daysSince <= 1, i.e.
+      // "today or yesterday", so it cannot answer this — and without it the card
+      // urges a student to protect a streak they already secured an hour ago.
+      doneToday: daysSince === 0
     };
   } catch(e) {
     return { streakDays: 0, longestStreak: 0, lastActiveAt: '', streakProtected: false };
