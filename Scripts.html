@@ -5227,18 +5227,16 @@
 
     var countryMeta = getCountryUi(selectedCountry);
 
-    byId('contentArea').innerHTML =
-      '<div class="panel">' +
-        '<div class="ops-briefing-bar"><span class="ops-dot"></span>' +
-          'LOADING OPERATIONAL DATA — ' + safeText(countryMeta.label).toUpperCase() +
-        '</div>' +
-        '<h3>Retrieving scenarios...</h3>' +
-        '<p class="ops-copy">Level ' + safeText(selectedLevel) + ' · ' +
-          safeText(countryMeta.label) + ' · Connecting to route database.</p>' +
-      '</div>';
+    // Same radar the debrief uses, so the route opens and closes on one visual.
+    var _routeLoader = renderRadarLoader(
+      'LEVEL ' + selectedLevel + ' · ' + String(countryMeta.label || '').toUpperCase(),
+      ['Retrieving scenarios\u2026', 'Contacting route database\u2026', 'Preparing ATC audio\u2026'],
+      'Connecting to training server'
+    );
 
     var _routeLoadTimer = setTimeout(function() {
       _routeLoadTimer = null;
+      _routeLoader.stop();
       showContentError('Connection timed out. Check your network and try again.');
     }, 15000);
 
@@ -5246,6 +5244,7 @@
       .withSuccessHandler(function (res) {
         if (!_routeLoadTimer) return; // already timed out
         clearTimeout(_routeLoadTimer);
+        _routeLoader.stop();
         console.log('[ICAO] apiGetTrainingRouteV7_ROUTE_ADMIN response:', res);
 
         if (!res || !res.ok) {
@@ -8138,6 +8137,67 @@
     _sweepCatalogUnlocks(AppState.training.catalog);
   }
 
+  /**
+   * The radar loader, extracted from the debrief so every slow student-facing
+   * screen shares one treatment. Previously a student met four different loading
+   * styles in a single session — skeleton cards, an ops-briefing panel, a plain
+   * spinner and this.
+   *
+   * eyebrow  short uppercase label above the heading
+   * messages array cycled every ~900ms, or a single string
+   * hint     small line under the progress bar
+   *
+   * Returns a stop() to clear the interval. The bar creeps to 90% and waits —
+   * it never claims to be finished, because the caller decides when that is.
+   */
+  function renderRadarLoader(eyebrow, messages, hint) {
+    var msgs = Array.isArray(messages) ? messages : [String(messages || 'Loading\u2026')];
+    var host = byId('contentArea');
+    if (!host) return { stop: function() {} };
+
+    host.innerHTML =
+      '<div class="completion-loading-shell">' +
+        '<div class="completion-loading-radar">' +
+          '<span class="completion-radar-ring r1"></span>' +
+          '<span class="completion-radar-ring r2"></span>' +
+          '<span class="completion-radar-ring r3"></span>' +
+          '<span class="completion-radar-sweep"></span>' +
+          '<span class="completion-radar-plane">&#9992;</span>' +
+        '</div>' +
+        '<div class="completion-loading-text">' +
+          '<p class="eyebrow" style="letter-spacing:.14em;">' + safeText(eyebrow || '') + '</p>' +
+          '<h2 id="radarLoaderMsg">' + safeText(msgs[0]) + '</h2>' +
+          '<div class="completion-loading-bar"><div class="completion-loading-fill" id="radarLoaderFill"></div></div>' +
+          '<p id="radarLoaderHint" style="font-size:.82rem;color:#64748b;margin-top:10px;">' + safeText(hint || '') + '</p>' +
+        '</div>' +
+      '</div>';
+
+    var i = 0, pct = 0;
+    var t = setInterval(function() {
+      pct = Math.min(pct + (Math.random() * 10 + 3), 90);
+      var fill = byId('radarLoaderFill');
+      if (fill) fill.style.width = pct + '%';
+      if (msgs.length > 1) {
+        i = (i + 1) % msgs.length;
+        var el = byId('radarLoaderMsg');
+        if (el) el.textContent = msgs[i];
+      }
+      // Self-terminate once the screen has moved on. Callers that render over the
+      // loader do not have to remember to call stop(), so the interval can never
+      // outlive the thing it was animating.
+      if (!fill) clearInterval(t);
+    }, 900);
+
+    return {
+      stop: function() {
+        clearInterval(t);
+        var fill = byId('radarLoaderFill');
+        if (fill) fill.style.width = '100%';
+      }
+    };
+  }
+  window.renderRadarLoader = renderRadarLoader;
+
   function isCurrentScenarioCompleted() {
     var idx = Number(AppState.training.currentIndex || 0);
     var m = AppState.training.serverConfirmedIds;
@@ -9357,7 +9417,7 @@
     var _tok = _navToken;
     var pilotName = AppState.user && AppState.user.name ? AppState.user.name : 'Pilot';
 
-    byId('contentArea').innerHTML = '<div class="panel">' + _spinnerHtml('Loading certificates...') + '</div>';
+    renderRadarLoader('CERTIFICATES', ['Loading certificates\u2026', 'Verifying records\u2026'], 'Connecting to training server');
 
     google.script.run
       .withSuccessHandler(function(res) {
@@ -12447,7 +12507,7 @@
     setActiveNav('Modules');
     var _tok = _navToken;
     if (!(opts && opts.silent)) {
-      byId('contentArea').innerHTML = '<div class="panel">' + _spinnerHtml('Loading module...') + '</div>';
+      renderRadarLoader('TRAINING MODULE', ['Loading module\u2026', 'Fetching lesson content\u2026'], 'Connecting to training server');
     }
 
     google.script.run
