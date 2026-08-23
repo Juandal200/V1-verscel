@@ -8801,6 +8801,27 @@ function repairSheetHeaders() {
 }
 
 /**
+ * No-argument wrappers, because the Apps Script Run dropdown cannot pass
+ * parameters — selecting diagRoute directly calls it with no args and silently
+ * defaults to level 5. Pick one of these from the dropdown instead.
+ *
+ * Each auto-selects whoever has the most attempts at that level. To inspect a
+ * specific student, edit DIAG_EMAIL below.
+ */
+var DIAG_EMAIL = '';   // '' = whoever has the most attempts at that level
+
+function diagLevel1()  { return diagRoute(DIAG_EMAIL, 1);  }
+function diagLevel2()  { return diagRoute(DIAG_EMAIL, 2);  }
+function diagLevel3()  { return diagRoute(DIAG_EMAIL, 3);  }
+function diagLevel4()  { return diagRoute(DIAG_EMAIL, 4);  }
+function diagLevel5()  { return diagRoute(DIAG_EMAIL, 5);  }
+function diagLevel6()  { return diagRoute(DIAG_EMAIL, 6);  }
+function diagLevel7()  { return diagRoute(DIAG_EMAIL, 7);  }
+function diagLevel8()  { return diagRoute(DIAG_EMAIL, 8);  }
+function diagLevel9()  { return diagRoute(DIAG_EMAIL, 9);  }
+function diagLevel10() { return diagRoute(DIAG_EMAIL, 10); }
+
+/**
  * Pinpoint why a route shows N/8 instead of complete.
  * Run:  diagRoute('juancamilom885@gmail.com', 5)
  * Leave email blank to use the first STUDENT found.
@@ -8843,12 +8864,34 @@ function diagRoute(email, level) {
     dbReadAll_('Attempts').forEach(function(r) {
       if (Number(r.level) === level) perUser[r.userId] = (perUser[r.userId] || 0) + 1;
     });
-    var best = Object.keys(perUser).sort(function(a, b) { return perUser[b] - perUser[a]; })[0];
+
+    // Prefer a student whose Progress row for this level is NOT complete — that is
+    // the case worth diagnosing. Picking by attempt count alone lands on whoever
+    // practised most, who is usually the one with nothing wrong.
+    var progAtLevel = {};
+    dbReadAll_('Progress').forEach(function(r) {
+      if (Number(r.level) !== level) return;
+      if (ProgressService.isCompleted_(r)) return;
+      progAtLevel[String(r.userId)] = r;
+    });
+
     Logger.log('=== attempts at L' + level + ' by user ===');
     Object.keys(perUser).forEach(function(uid) {
       var u = users.filter(function(x) { return x.userId === uid; })[0];
-      Logger.log('   ' + (u ? u.email : uid) + ' : ' + perUser[uid]);
+      var p = progAtLevel[uid];
+      Logger.log('   ' + (u ? u.email : '(unknown)') + '  [' + uid + ']  attempts=' + perUser[uid] +
+                 (p ? '   <-- INCOMPLETE ' + p.completedScenarios + '/' + p.totalScenarios : ''));
     });
+
+    var ranked = Object.keys(perUser).sort(function(a, b) {
+      var ai = progAtLevel[a] ? 1 : 0, bi = progAtLevel[b] ? 1 : 0;
+      if (ai !== bi) return bi - ai;                 // incomplete routes first
+      return perUser[b] - perUser[a];                // then most attempts
+    });
+    var best = ranked[0];
+    if (best && progAtLevel[best]) {
+      Logger.log('   -> inspecting the INCOMPLETE route');
+    }
     if (!best) { Logger.log('!! nobody has any attempts at L' + level); return; }
     user = users.filter(function(u) { return u.userId === best; })[0];
     if (!user) { Logger.log('!! attempts reference unknown userId ' + best); return; }

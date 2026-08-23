@@ -7608,7 +7608,10 @@
       .replace(/\bPOINT\b/g, 'DECIMAL').replace(/\bDOT\b/g, 'DECIMAL')
       .replace(/\./g,        ' DECIMAL ')
       .replace(/\bFT\b/g,    'FEET').replace(/\bKTS?\b/g,   'KNOTS')
-      .replace(/\bRWY\b/g,   'RUNWAY').replace(/\bRW\b/g,   'RUNWAY').replace(/\bHDG\b/g,  'HEADING');
+      // Must stay identical to AttemptService.normalizeText_ on the server.
+      .replace(/\bRWY\b/g,   'RUNWAY').replace(/\bRW\b/g,    'RUNWAY')
+      .replace(/\bTWY\b/g,   'TAXIWAY').replace(/\bSPD\b/g,  'SPEED')
+      .replace(/\bACFT\b/g,  'AIRCRAFT').replace(/\bHDG\b/g, 'HEADING');
     out = out.replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
     out = out
       // Progressive forms too — "going around" / "taking off" are what a pilot
