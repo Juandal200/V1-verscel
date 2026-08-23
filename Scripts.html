@@ -22921,6 +22921,14 @@
       var cont = document.getElementById('teaContinue_' + id);
       if (cont) cont.remove();
       btn.disabled = true;
+      // Once the item has moved on, "one replay available" is a lie — the offer is
+      // gone. Say what actually happened so the card reads as a record.
+      if (st) {
+        var _used = Number(_t.listens[id] || 0);
+        st.textContent = _used >= TEA_MAX_LISTENS
+          ? 'Answered \u00b7 2 of 2 listens used'
+          : 'Answered \u00b7 1 listen';
+      }
       _t.audioIdx++;
       _t._pendingId = null; _t._pendingB64 = null;
       _t._qaMode = true;
@@ -22953,8 +22961,25 @@
       btn.disabled = true;
       if (st) st.textContent = 'Playing\u2026';
 
-      _t.audioEl.onended = function() {
+      // onended was the ONLY route forward, so a clip that failed or stalled left
+      // the item frozen on "Playing…" with the button disabled — no replay, no
+      // continue, exam over. Every ending, good or bad, now resolves exactly once.
+      var _settled = false;
+      function _finishPlay(failed) {
+        if (_settled) return;
+        _settled = true;
+        clearTimeout(_stall);
         btn.innerHTML = '&#9654;';
+
+        if (failed) {
+          // Do not consume the listen for a play that never happened.
+          _t.listens[id] = Math.max(0, Number(_t.listens[id] || 1) - 1);
+          btn.disabled = false;
+          if (st) st.textContent = 'Playback failed \u00b7 press play to retry, or continue';
+          _teaOfferChoice();
+          return;
+        }
+
         var n = Number(_t.listens[id] || 0);
         if (n >= TEA_MAX_LISTENS) {
           btn.disabled = true;
@@ -22965,8 +22990,24 @@
           if (st) st.textContent = 'Played once \u00b7 one replay available (caps comprehension at Level 4)';
           _teaOfferChoice();
         }
+      }
+
+      // Backstop for a clip that neither ends nor errors — duration is unknown
+      // until metadata loads, so start generous and tighten once we know.
+      var _stall = setTimeout(function() { _finishPlay(true); }, 90000);
+      _t.audioEl.onloadedmetadata = function() {
+        var d = Number(_t.audioEl.duration);
+        if (isFinite(d) && d > 0) {
+          clearTimeout(_stall);
+          _stall = setTimeout(function() { _finishPlay(true); }, (d * 1000) + 8000);
+        }
       };
-      _t.audioEl.play();
+
+      _t.audioEl.onended = function() { _finishPlay(false); };
+      _t.audioEl.onerror = function() { _finishPlay(true); };
+
+      var _p = _t.audioEl.play();
+      if (_p && _p.catch) _p.catch(function() { _finishPlay(true); });
     };
   }
 
