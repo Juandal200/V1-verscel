@@ -317,7 +317,11 @@ var EXAM_CONFIG_ = {
   2: { levels: [4, 5, 6] },
   3: { levels: [7, 8, 9] }
 };
-var EXAM_PASS_THRESHOLD_ = 85;
+// 75 = 6 of 8 phases. Exams are scored per phase now (all-or-nothing per phase,
+// like a route), so the score can only land on multiples of 12.5 — at 85 the
+// threshold silently meant 7/8, which is stricter than the old pooled partial
+// credit it replaced. 75 restores the intended difficulty.
+var EXAM_PASS_THRESHOLD_ = 75;
 var EXAM_MAX_ATTEMPTS_   = 2;
 
 // Returns all Exams rows for a userId, grouped by examNum.

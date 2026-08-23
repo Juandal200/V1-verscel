@@ -4436,6 +4436,10 @@
   }
   // ──────────────────────────────────────────────────────────────────────────
 
+  // Display only — the real gate is EXAM_PASS_THRESHOLD_ in Código.js. Kept as one
+  // constant here so the card's two labels cannot drift apart from each other.
+  var EXAM_PASS_PCT = 75;
+
   function _buildExamCard(examNum) {
     var examStatus = AppState.examStatus || [];
     var info = null;
@@ -4468,7 +4472,7 @@
       badgeCls = 'exam-badge-warn'; badgeText = '1 LEFT';
     } else {
       icon = '📋'; heading = 'Checkpoint ' + examNum;
-      sub = '8 phases · Pass 85% · Unlocks Level ' + nextLvl;
+      sub = '8 phases · Pass ' + EXAM_PASS_PCT + '% · Unlocks Level ' + nextLvl;
       btnLabel = 'Start Exam'; btnCls = 'primary'; btnAction = 'onclick="window._examOpen && window._examOpen(' + examNum + ')"';
       badgeCls = 'exam-badge-avail'; badgeText = 'EXAM';
     }
@@ -4486,7 +4490,7 @@
       '<div class="exam-card-body">' +
         '<div class="exam-card-info">' +
           '<span class="exam-card-pill">8 Phases</span>' +
-          '<span class="exam-card-pill">Pass 85%</span>' +
+          '<span class="exam-card-pill">Pass ' + EXAM_PASS_PCT + '%</span>' +
           '<span class="exam-card-pill">No feedback</span>' +
         '</div>' +
       '</div>' +
