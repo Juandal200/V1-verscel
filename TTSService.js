@@ -260,10 +260,10 @@ var TTSService = {
 
   buildTtsCacheKey_: function(text, profile, rate, voiceName) {
     var vn  = voiceName || (profile.voiceNames || [])[0] || '';
-    // v5 — also busts entries from before clock positions were spoken correctly.
+    // v6 — also busts entries from before rule 18 defaulted to speaking words.
     // Without this bump the fix is invisible: any scenario whose audio was already
     // synthesised keeps serving the clip that spells "W E T" / "S N O W" / "D R Y".
-    var raw = ('v5||' + text + '||' + (profile.languageCode || '') + '||' + vn + '||' + Math.round(rate * 100)).toUpperCase();
+    var raw = ('v6||' + text + '||' + (profile.languageCode || '') + '||' + vn + '||' + Math.round(rate * 100)).toUpperCase();
     var h = 5381;
     for (var i = 0; i < raw.length; i++) {
       h = ((h << 5) + h + raw.charCodeAt(i)) & 0x7fffffff;
@@ -578,13 +578,30 @@ var TTSService = {
     out = out.replace(/\bHDG\b/gi, 'heading');
     out = out.replace(/\bSPD\b/gi, 'speed');
     out = out.replace(/\bACFT\b/gi,'aircraft');
+    // Genuine letter-by-letter acronyms. This list is now the ONLY thing that
+    // gets spelled — see rule 18 — so anything that must not be read as a word
+    // belongs here.
+    out = out.replace(/\bATC\b/g,  'A T C');
+    out = out.replace(/\bIFR\b/g,  'I F R');
+    out = out.replace(/\bVFR\b/g,  'V F R');
+    out = out.replace(/\bRVR\b/g,  'R V R');
+    out = out.replace(/\bGPS\b/g,  'G P S');
+    out = out.replace(/\bETA\b/g,  'E T A');
+    out = out.replace(/\bETD\b/g,  'E T D');
+    out = out.replace(/\bAPU\b/g,  'A P U');
+    out = out.replace(/\bFMS\b/g,  'F M S');
+    out = out.replace(/\bCTAF\b/g, 'C T A F');
+    out = out.replace(/\bTCAS\b/g, 'T cass');
+    out = out.replace(/\bRNAV\b/g, 'R nav');
+    out = out.replace(/\bVNAV\b/g, 'V nav');
+    out = out.replace(/\bLNAV\b/g, 'L nav');
 
     // 17b. Common English/aviation words that TTS reads letter-by-letter when ALL-CAPS →
     //      lowercase so they are spoken as words, not acronyms.
     var WORD_WORDS = [
       'AT','BY','IN','ON','TO','UP','OF','OR','AN','AS','IS','IT','NO','GO',
       'BAY','VIA','AND','FOR','THE','BUT','NOT','NOW','ALL','NEW','OLD','LOW',
-      'AIR','ARC','ATC','PAN','RUN','SET','OUT','OFF','WAY','CAR','ODD',
+      'AIR','ARC','PAN','RUN','SET','OUT','OFF','WAY','CAR','ODD',
       'ZERO','ONE','TWO','FOUR','FIVE','NINE','TEN','WITH','FROM','THEN','WHEN',
       'WILL','HOLD','STOP','TAXI','TURN','PUSH','PULL','LEFT','BACK','NEXT',
       'TAKE','LAND','GATE','RAMP','PARK','DOOR','FUEL',
@@ -596,10 +613,18 @@ var TTSService = {
     var _wwPat = new RegExp('\\b(' + WORD_WORDS.join('|') + ')\\b', 'g');
     out = out.replace(_wwPat, function(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); });
 
-    // 18. Catch-all: any remaining ALL-CAPS word of 5+ letters (airline names,
-    //     waypoints, place names) → title case so TTS reads it as a word,
-    //     not letter-by-letter. Abbreviations (3-4 letters) are already handled above.
-    out = out.replace(/\b([A-Z]{5,})\b/g, function(m) {
+    // 18. Catch-all: any remaining ALL-CAPS word of 3+ letters → title case so TTS
+    //     reads it as a word rather than spelling it.
+    //
+    //     This was 5+, which inverted the default: every 3-4 letter word had to be
+    //     enumerated in WORD_WORDS or it got spelled out. That is why WET, SNOW,
+    //     DRY and OWN each surfaced separately as "W E T", "S N O W", "D R Y",
+    //     "O W N" — and why the list would have kept growing one bug report at a
+    //     time (ICE, FOG, RAIN, WIND, HAIL, GUST, GEAR, FLAP, FIRE, CREW...).
+    //     Speaking is now the default and rule 17 above is the sole spell-out list,
+    //     which is the correct way round: real acronyms are a short closed set,
+    //     ordinary words are not.
+    out = out.replace(/\b([A-Z]{3,})\b/g, function(m) {
       return m.charAt(0) + m.slice(1).toLowerCase();
     });
 
