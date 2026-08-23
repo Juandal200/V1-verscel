@@ -22680,8 +22680,19 @@
     var wrap=document.createElement('div'); wrap.className='tea-msg examiner';
     var av=document.createElement('div'); av.className='tea-avatar'; av.textContent='EX'; wrap.appendChild(av);
     var card=document.createElement('div'); card.className='tea-image-card';
-    card.innerHTML='<div class="tea-image-card-label">'+img.label+'</div>'+
-      '<div class="tea-image-card-desc">'+img.desc+'</div>';
+    // Part 3 is Picture Description — it needs an actual picture. This rendered the
+    // label and a written description only, so candidates were asked to describe an
+    // image they were never shown. Renders img.src when present and falls back to
+    // the description when it is not, so adding URLs to TEA_IMAGES is all that is
+    // needed to turn the pictures on.
+    card.innerHTML =
+      '<div class="tea-image-card-label">' + img.label + '</div>' +
+      (img.src
+        ? '<img class="tea-image-card-img" src="' + safeText(img.src) + '" alt="' + safeText(img.label) + '" ' +
+            'style="width:100%;max-height:340px;object-fit:cover;border-radius:10px;display:block;margin:8px 0;" ' +
+            'onerror="this.style.display=\'none\'; var d=this.parentNode.querySelector(\'.tea-image-card-desc\'); if(d) d.style.display=\'block\';">'
+        : '') +
+      '<div class="tea-image-card-desc"' + (img.src ? ' style="display:none;"' : '') + '>' + img.desc + '</div>';
     wrap.appendChild(card); chat.appendChild(wrap); _scrollChat();
   }
 
@@ -22742,6 +22753,9 @@
         speakingRate: Number(rate || 0.95)
       });
   }
+
+  // Two hearings maximum per listening item, per ICAO practice.
+  var TEA_MAX_LISTENS = 2;
 
   var EXAMINER_VOICE = 'en-GB-Chirp3-HD-Schedar';
   var EXAMINER_LANG  = 'en-GB';
@@ -22848,7 +22862,12 @@
         : key === '2B'
           ? 'type:EXTENDED_DIALOGUE — ask 2-3 detailed comprehension questions'
           : 'type:SHORT_READBACK — ask 1-2 comprehension questions';
-      return '[AUDIO_COMPLETE: ' + id + ' | ' + note + ' | transcript: "' + sc.transcript + '"]';
+      // listens is graded evidence, not a UI detail — see the COMPREHENSION rule
+      // in the examiner prompt.
+      var _n = Number((_t.listens && _t.listens[id]) || 1);
+      return '[AUDIO_COMPLETE: ' + id + ' | ' + note +
+             ' | listens: ' + _n +
+             ' | transcript: "' + sc.transcript + '"]';
     }
 
     if (!_t._pendingB64) {
@@ -22866,19 +22885,62 @@
     btn.disabled = false;
     if (st) st.textContent = 'Ready — press play';
 
+    // A real ICAO listening item allows a second hearing, but it is not free:
+    // needing the repeat IS the comprehension evidence. Two listens maximum, and
+    // the count travels to the examiner in AUDIO_COMPLETE so it can cap the
+    // comprehension band. Advancing is now the student's choice after the first
+    // play — previously the item auto-advanced the instant playback ended, which
+    // is why there was no way to hear anything twice.
+    _t.listens = _t.listens || {};
+
+    function _teaAdvance() {
+      var cont = document.getElementById('teaContinue_' + id);
+      if (cont) cont.remove();
+      btn.disabled = true;
+      _t.audioIdx++;
+      _t._pendingId = null; _t._pendingB64 = null;
+      _t._qaMode = true;
+      _setEnabled(false);
+      _sendMsg(_completeMsg());
+    }
+
+    function _teaOfferChoice() {
+      if (document.getElementById('teaContinue_' + id)) return;
+      var cont = document.createElement('button');
+      cont.id        = 'teaContinue_' + id;
+      cont.className = 'tea-send-btn';
+      cont.style     = 'margin-left:8px;';
+      cont.textContent = 'Continue to questions';
+      cont.onclick = _teaAdvance;
+      if (btn.parentNode) btn.parentNode.appendChild(cont);
+    }
+
     btn.onclick = function() {
+      var used = Number(_t.listens[id] || 0);
+      if (used >= TEA_MAX_LISTENS) return;
+      _t.listens[id] = used + 1;
+
+      var cont = document.getElementById('teaContinue_' + id);
+      if (cont) cont.remove();
+
       if (_t.audioEl) _t.audioEl.pause();
       _t.audioEl = new Audio('data:audio/mp3;base64,' + b64);
       btn.innerHTML = '&#9646;&#9646;';
-      if (st) st.textContent = 'Playing...';
+      btn.disabled = true;
+      if (st) st.textContent = 'Playing\u2026';
+
       _t.audioEl.onended = function() {
         btn.innerHTML = '&#9654;';
-        if (st) st.textContent = 'Complete';
-        _t.audioIdx++;
-        _t._pendingId = null; _t._pendingB64 = null;
-        _t._qaMode = true;
-        _setEnabled(false);
-        _sendMsg(_completeMsg());
+        var n = Number(_t.listens[id] || 0);
+        if (n >= TEA_MAX_LISTENS) {
+          btn.disabled = true;
+          if (st) st.textContent = 'Complete \u00b7 2 of 2 listens used';
+          _teaAdvance();
+        } else {
+          btn.disabled = false;
+          if (st) st.textContent = 'Played once \u00b7 one replay available (caps comprehension at Level 4)';
+          _teaOfferChoice();
+        }
       };
       _t.audioEl.play();
     };
