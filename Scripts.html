@@ -267,7 +267,18 @@
     // Min and max both scale up with level: L1=0.90–0.97, L5=0.96–1.03, L9+=1.02–1.20
     var min = Math.min(0.90 + (level - 1) * 0.015, 1.02);
     var max = Math.min(0.97 + (level - 1) * 0.026, 1.20);
-    return Math.round((min + Math.random() * (max - min)) * 100) / 100;
+    // DETERMINISTIC — the midpoint of the level's band, not a random point in it.
+    //
+    // This value goes into the TTS cache key, so randomising it produced 8-19
+    // distinct keys per scenario on top of 6-7 random voices: 48-114 entries for
+    // one clip, which meant the cache essentially never hit and almost every play
+    // waited on a fresh Google TTS synthesis.
+    //
+    // The per-level speed ramp is the point of this function and is preserved
+    // exactly — L1 still ~0.94, L10 still ~1.11. What moves is the per-play
+    // variation, which _atcPlaybackRate already applies client-side at 0.94-1.08x
+    // for free, and over a wider band than the one given up here.
+    return Math.round(((min + max) / 2) * 100) / 100;
   }
 
   /* ── ICAO Comprehension Test ──────────────────────────── */

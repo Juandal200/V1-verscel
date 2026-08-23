@@ -4302,16 +4302,28 @@ function ensureScenarioServiceUsesHeaderReader_() {
   // Override listActiveScenarios to use header-based reader.
   // The old dbReadAll_ uses column indices that break when sheet columns are reordered.
   ScenarioService.listActiveScenarios = function() {
+    // This override reads the sheet directly rather than through dbReadAll_, so it
+    // sits outside the read scope's normal coverage. updateUserProgress,
+    // getNextCourseTarget_ and getLevelCompletion each call it, which is up to four
+    // full Scenarios reads in one submission. Memoise it under the same scope —
+    // the sheet is never written during a submission, so this is safe.
+    if (typeof _DB_SCOPE !== 'undefined' && _DB_SCOPE && _DB_SCOPE.__activeScenarios) {
+      return _DB_SCOPE.__activeScenarios;
+    }
+
     var ss    = SpreadsheetApp.openById(RuntimeScenarioReaderService.getDatabaseId_());
     var sheet = ss.getSheetByName('Scenarios');
     if (!sheet) return [];
-    return RuntimeScenarioReaderService.readRowsByHeaders_(sheet)
+    var out = RuntimeScenarioReaderService.readRowsByHeaders_(sheet)
       .filter(function(row) {
         return RuntimeScenarioReaderService.isActive_(row.isActive);
       })
       .map(function(row) {
         return RuntimeScenarioReaderService.normalizeScenario_(row);
       });
+
+    if (typeof _DB_SCOPE !== 'undefined' && _DB_SCOPE) _DB_SCOPE.__activeScenarios = out;
+    return out;
   };
 }
 
