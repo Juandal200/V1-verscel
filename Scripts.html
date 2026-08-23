@@ -4778,17 +4778,25 @@
     });
 
     // ── Level 10 ops hero ─────────────────────────────────────
+    // Operational Level is a placeholder: the map renders exactly one card from
+    // levelByNum[10] and TIERS only covers 1-9, so there is no room for the several
+    // harder levels this is meant to become. Flip to false once a fourth tier
+    // actually exists; everything below already reads this flag.
+    var OPS_COMING_SOON = true;
+
     var opsLevel = levelByNum[10];
     if (opsLevel) {
-      var olLocked = opsLevel.locked === true || opsLevel.unlocked === false;
+      var olLocked = OPS_COMING_SOON || opsLevel.locked === true || opsLevel.unlocked === false;
       var olCC = (opsLevel.countries || []).filter(function(c) {
         return c.completed === true || c.completed === 1 || String(c.completed).toUpperCase() === 'TRUE';
       }).length;
       var olTC = (opsLevel.countries || []).length || Number(opsLevel.totalCountries || 0);
       var olPct  = olTC ? Math.round((olCC / olTC) * 100) : 0;
       var olDone = olTC > 0 && olCC >= olTC;
-      var olST   = olDone ? 'Complete' : (olLocked ? 'Locked' : 'Unlocked');
-      var olSC   = olDone ? 'ACTIVE'   : (olLocked ? 'BLOCKED' : 'PENDING');
+      var olST   = OPS_COMING_SOON ? 'Coming soon'
+                 : olDone ? 'Complete' : (olLocked ? 'Locked' : 'Unlocked');
+      var olSC   = OPS_COMING_SOON ? 'BLOCKED'
+                 : olDone ? 'ACTIVE'   : (olLocked ? 'BLOCKED' : 'PENDING');
       var olVr   = vrEvents[10] || null;
       var olVrCls = olVr ? ' vr-event vr-' + olVr.type : '';
       var olVrBanner = olVr
@@ -4806,11 +4814,14 @@
             '<span class="vr-event-slot">CLOSES ' + vrSlot + '</span>' +
           '</div>'
         : '';
-      var olIcon   = olLocked ? '🔒' : (olDone ? '✅' : (olVr ? olVr.icon : '🎯'));
+      var olIcon   = OPS_COMING_SOON ? '\uD83D\uDD12'
+                   : olLocked ? '\uD83D\uDD12' : (olDone ? '\u2705' : (olVr ? olVr.icon : '\uD83C\uDFAF'));
       var olAction = olLocked ? 'disabled' : 'onclick="openLevelCountries(10)"';
-      var olLabel  = olLocked
-        ? (olVr ? olVr.icon + ' Unlock to Claim' : 'Access Restricted')
-        : (olDone ? (olVr ? olVr.icon + ' Replay for Bonus' : 'Enter Operations') : (olVr ? olVr.btn : 'Enter Operations'));
+      var olLabel  = OPS_COMING_SOON
+        ? 'Coming soon'
+        : olLocked
+          ? (olVr ? olVr.icon + ' Unlock to Claim' : 'Access Restricted')
+          : (olDone ? (olVr ? olVr.icon + ' Replay for Bonus' : 'Enter Operations') : (olVr ? olVr.btn : 'Enter Operations'));
 
       heroCard =
         '<article class="level-card-pro level-card-ops ' + (olLocked ? 'is-locked' : 'is-open') + olVrCls + '">' +
@@ -4820,8 +4831,10 @@
               '<div>' +
                 '<p class="eyebrow ops-eyebrow">Operational Level</p>' +
                 '<h2 class="ops-lvl-title">Operational Level</h2>' +
-                '<p class="subtitle">Regions: ' + safeText(opsLevel.countries ? opsLevel.countries.length : 0) +
-                  ' &middot; Completed: ' + safeText(olCC) + '</p>' +
+                '<p class="subtitle">' + (OPS_COMING_SOON
+                  ? 'Advanced operational scenarios across every ATC environment'
+                  : 'Regions: ' + safeText(opsLevel.countries ? opsLevel.countries.length : 0) +
+                    ' &middot; Completed: ' + safeText(olCC)) + '</p>' +
                 olVrBanner +
               '</div>' +
             '</div>' +
@@ -4829,7 +4842,13 @@
               '<div class="level-flags-row">' + (function() {
                 var allAccents = ['USA','UK','AUSTRALIA','CANADA','INDIA'];
                 var fc = opsLevel.countries || [];
-                var configuredKeys = fc.map(function(i){ return String(i.country||'').toUpperCase(); });
+                // Normalise before de-duping: the sheet stores 'AU' while this list
+                // says 'AUSTRALIA', so a raw indexOf appended Australia a second time.
+                var _norm = { US:'USA', GB:'UK', AU:'AUSTRALIA', CA:'CANADA', IN:'INDIA', CO:'COLOMBIA' };
+                var configuredKeys = fc.map(function(i){
+                  var k = String(i.country || '').toUpperCase();
+                  return _norm[k] || k;
+                });
                 var combined = allAccents.concat(configuredKeys.filter(function(k){ return allAccents.indexOf(k) === -1; }));
                 return combined.map(function(c) {
                   return '<span class="country-flag-pill">' + getFlagHtml(c, 'flag-preview') + '<span>' + safeText(getCountryUi(c).label) + '</span></span>';
