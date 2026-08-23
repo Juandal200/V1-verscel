@@ -8657,10 +8657,29 @@
 
   function _buildPhaseScoreChart(phases) {
     if (!phases || !phases.length) return '';
-    // The SVG is width:100%, so viewBox width sets the scale factor against the
-    // 1280px shell. At VW=480 that was 2.67x — a 299px-tall chart with 24px text.
-    // VW=960 halves it to ~149px with ~12px text, same bars, same proportions.
-    var VW = 960, VH = 90, PAD = 10;
+    // The SVG is width:100%, so the viewBox width sets the scale factor against
+    // whatever the container is. A single fixed VW cannot serve both: VW=960 gives
+    // a good 149px chart on a 1280px shell but collapses to ~44px with 4px text on
+    // a 375px phone. Pick the viewBox to match the viewport so the RENDERED height
+    // and text size stay in the same band on every device.
+    var _vpW = (typeof window !== 'undefined' && window.innerWidth) ? window.innerWidth : 1280;
+    var _narrow = _vpW < 700;
+    // Derive the viewBox from the container so the SCALE stays ~1.2x everywhere,
+    // instead of tiering it — a two-tier breakpoint leaves the iPad at 0.7x
+    // (a 78px chart with 7px labels) because 768 is wide enough to take the
+    // desktop viewBox but far too narrow to render it at size.
+    var _cw = Math.min(_vpW, 1280) - (_narrow ? 52 : 96);
+    var VW  = Math.max(260, Math.min(960, Math.round(_cw / 1.2)));
+    var VH  = 90;
+    var PAD = _narrow ? 5 : 10;
+    var LABEL_FS = 10;
+    var PCT_FS   = _narrow ? 10 : 11;
+    // Full phase names collide once bars are ~34px wide. Abbreviate rather than
+    // truncate — "Appr" reads; "Approa" does not.
+    var NARROW_ABBR = {
+      'TAKE-OFF': 'T/O', 'TAKEOFF': 'T/O', 'DESCEND': 'Desc',
+      'APPROACH': 'Appr', 'LANDING': 'Land', 'DEPARTURE': 'Dep'
+    };
     var n = phases.length;
     var barW = Math.max(4, Math.floor((VW - PAD * (n + 1)) / n));
     var bars = phases.map(function(p, i) {
@@ -8670,14 +8689,15 @@
       var y     = VH - barH;
       var color = score >= 80 ? '#22c55e' : score >= 50 ? '#f59e0b' : '#ef4444';
       var label = String(p.phaseName || p.phaseCode || '').split(/\s+/)[0].slice(0, 8);
+      if (_narrow) label = NARROW_ABBR[label.toUpperCase()] || label.slice(0, 6);
       return '<g>' +
         '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + (barH || 2) +
           '" rx="3" fill="' + color + '" opacity="0.85"/>' +
         '<text x="' + (x + barW / 2) + '" y="' + (VH + 14) +
-          '" text-anchor="middle" font-size="10" fill="#808080">' + safeText(label) + '</text>' +
+          '" text-anchor="middle" font-size="' + LABEL_FS + '" fill="#808080">' + safeText(label) + '</text>' +
         (score > 0
           ? '<text x="' + (x + barW / 2) + '" y="' + Math.max(y - 5, 10) +
-              '" text-anchor="middle" font-size="11" font-weight="700" fill="' + color + '">' + score + '%</text>'
+              '" text-anchor="middle" font-size="' + PCT_FS + '" font-weight="700" fill="' + color + '">' + score + '%</text>'
           : '') +
       '</g>';
     }).join('');

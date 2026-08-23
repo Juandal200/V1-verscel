@@ -11878,4 +11878,66 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 [data-theme="light"] .shop-card-title { color: var(--text); }
 
 
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DEBRIEF ON PHONES
+   Appended last so it wins over the 980px block, which collapses the hero to a
+   single column. A full-width 176px radar stacked above the copy pushes Session
+   detail roughly 190px further down — the opposite of what this screen needs on
+   a phone, where the whole point is that the student scrolls into their results.
+   Keep the radar beside the copy, just small.
+   ───────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .senior-completion-shell,
+  .senior-certificate-shell { gap: 14px; }
+
+  .senior-debrief-hero {
+    grid-template-columns: 96px 1fr;
+    gap: 14px;
+    padding: 18px 16px;
+    border-radius: 20px;
+    align-items: center;
+  }
+
+  .senior-radar-mark    { width: 96px; height: 96px; }
+  .senior-radar-ring.r1 { width: 34px; height: 34px; }
+  .senior-radar-ring.r2 { width: 63px; height: 63px; }
+  .senior-radar-ring.r3 { width: 92px; height: 92px; }
+
+  .senior-debrief-copy h1 { margin: 4px 0 8px; }
+
+  .senior-lead {
+    font-size: 0.92rem;
+    line-height: 1.45;
+  }
+
+  .senior-verdict {
+    margin-top: 10px;
+    padding: 9px 12px;
+    border-radius: 12px;
+  }
+  .senior-verdict span { font-size: 0.62rem; letter-spacing: 0.08em; }
+
+  /* Matches the 52px horizontal allowance _buildPhaseScoreChart assumes when it
+     sizes the SVG viewBox. Changing one without the other mis-scales the chart. */
+  .score-chart-wrap  { padding: 16px 14px 4px; }
+  .score-chart-title { margin: 0 0 10px; }
+
+  /* Full-width buttons: three side-by-side pills on a 375px screen give ~110px
+     targets with cramped labels. Stacked, each clears the 44px minimum. */
+  .senior-actions { gap: 8px; }
+  .senior-actions .btn {
+    flex: 1 1 100%;
+    min-height: 46px;
+  }
+}
+
+@media (max-width: 380px) {
+  .senior-debrief-hero  { grid-template-columns: 76px 1fr; gap: 12px; padding: 16px 14px; }
+  .senior-radar-mark    { width: 76px; height: 76px; }
+  .senior-radar-ring.r1 { width: 27px; height: 27px; }
+  .senior-radar-ring.r2 { width: 50px; height: 50px; }
+  .senior-radar-ring.r3 { width: 73px; height: 73px; }
+}
+
 </style>
