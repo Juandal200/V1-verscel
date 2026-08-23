@@ -141,12 +141,32 @@ function lmsAddXp_(userId, amount) {
   }
 }
 
+/**
+ * Minutes remaining in the CURRENT streak day, measured in the script's timezone.
+ *
+ * The home card was computing this in the browser as `23 - new Date().getHours()`,
+ * which uses the student's device timezone. But the streak day boundary is decided
+ * here, on the server, in CONFIG.TIMEZONE. Those only agree for a student sitting
+ * in that timezone — anyone abroad was told they had hours left when they did not,
+ * or the reverse, and lost a streak the app had said was safe.
+ */
+function lmsStreakMinutesLeft_() {
+  try {
+    var now = new Date();
+    var hh = Number(Utilities.formatDate(now, CONFIG.TIMEZONE, 'HH'));
+    var mm = Number(Utilities.formatDate(now, CONFIG.TIMEZONE, 'mm'));
+    return Math.max(0, (24 * 60) - (hh * 60 + mm));
+  } catch (e) {
+    return 0;
+  }
+}
+
 function lmsGetStreak_(userId) {
   try {
     var rows = dbReadAll_('UserStreaks').filter(function(r) {
       return String(r.userId || '') === String(userId);
     });
-    if (!rows.length) return { streakDays: 0, longestStreak: 0, lastActiveAt: '', streakProtected: false };
+    if (!rows.length) return { streakDays: 0, longestStreak: 0, lastActiveAt: '', streakProtected: false, minutesLeftToday: lmsStreakMinutesLeft_() };
     var row = rows[0];
     var lastMid = row.lastActiveAt ? (function(ts) { var d = new Date(ts); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); })(new Date(row.lastActiveAt).getTime()) : 0;
     var todayMid = (function() { var d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); })();
@@ -156,7 +176,8 @@ function lmsGetStreak_(userId) {
       streakDays: active ? (Number(row.streakDays) || 0) : 0,
       longestStreak: Number(row.longestStreak) || 0,
       lastActiveAt: row.lastActiveAt || '',
-      streakProtected: active
+      streakProtected: active,
+      minutesLeftToday: lmsStreakMinutesLeft_()
     };
   } catch(e) {
     return { streakDays: 0, longestStreak: 0, lastActiveAt: '', streakProtected: false };

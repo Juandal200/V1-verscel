@@ -236,7 +236,10 @@ function apiGetAppBootstrap(sessionToken) {
       lmsXp:         (lvRes && lvRes.lmsXp)         || 0,
       streakDays:    (lvRes && lvRes.streakDays)    || 0,
       lastActiveAt:  (lvRes && lvRes.lastActiveAt)  || '',
-      streakFreezes: (lvRes && lvRes.streakFreezes) || 0
+      streakFreezes: (lvRes && lvRes.streakFreezes) || 0,
+      // Minutes left in the streak day, measured server-side in CONFIG.TIMEZONE.
+      // The client must not recompute this from the device clock.
+      minutesLeftToday: lmsStreakMinutesLeft_()
     };
   } catch(e) {
     return { ok: false, message: e.message };
@@ -1383,7 +1386,9 @@ function apiCompleteRoute(sessionToken, payload) {
       ok:              true,
       progress:        safeArrayForClient_(allProgress),
       currentProgress: safeArrayForClient_([currentProgress])[0] || currentProgress,
-      streakDays:      streakInfo.streakDays || 0
+      streakDays:      streakInfo.streakDays || 0,
+      minutesLeftToday: (streakInfo.minutesLeftToday != null)
+        ? streakInfo.minutesLeftToday : lmsStreakMinutesLeft_()
     };
   } catch (err) {
     return apiError_('apiCompleteRoute', err);

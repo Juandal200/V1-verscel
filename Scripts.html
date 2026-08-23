@@ -466,6 +466,9 @@
             AppState.home         = res.home;
             AppState.accessStatus = res.accessStatus || null;
             window._lmsStreakDays    = res.streakDays    || 0;
+    if (res.minutesLeftToday != null) window._lmsStreakMinsLeft = Number(res.minutesLeftToday);
+      if (res.minutesLeftToday != null) window._lmsStreakMinsLeft = Number(res.minutesLeftToday);
+            if (res.minutesLeftToday != null) window._lmsStreakMinsLeft = Number(res.minutesLeftToday);
             window._lmsLastActiveAt  = res.lastActiveAt  || '';
             window._lmsStreakFreezes = res.streakFreezes || 0;
             window._lmsLmsXp         = res.lmsXp         || 0;
@@ -1148,6 +1151,7 @@
             window._lmsLmsXp = res.lmsXp || 0;
             window._lmsSimXp = mxp - (res.lmsXp || 0);
             window._lmsStreakDays    = res.streakDays || 0;
+            if (res.minutesLeftToday != null) window._lmsStreakMinsLeft = Number(res.minutesLeftToday);
             window._lmsLastActiveAt  = res.lastActiveAt || '';
             window._lmsStreakFreezes = res.streakFreezes || 0;
             _renderTopbarRank(mxp, res.streakDays || 0);
@@ -1465,8 +1469,22 @@
             return '<button class="btn secondary" style="width:100%;font-size:0.78rem;margin-top:8px;opacity:0.8;" onclick="event.stopPropagation();_enablePushNotifications();this.textContent=\'✓ Reminders on\';this.disabled=true;">🔔 Enable streak reminders</button>';
           } catch(e) { return ''; }
         })();
+        // Time left in the STREAK day, taken from the server. Computing it here as
+        // 23 - getHours() used the device timezone, while the streak boundary is
+        // decided server-side in CONFIG.TIMEZONE — so a student outside that zone
+        // was given a countdown that did not match the deadline they were racing.
+        // Falls back to the local estimate only if the server value is absent.
+        var _minsLeft = (window._lmsStreakMinsLeft != null)
+          ? Number(window._lmsStreakMinsLeft)
+          : ((23 - new Date().getHours()) * 60);
         var hour = new Date().getHours();
-        var hoursLeft = 23 - hour;
+        var hoursLeft = Math.floor(_minsLeft / 60);
+        // Under an hour, minutes are the honest unit — "0 hours left tonight" read
+        // as though the streak was already lost.
+        var _minsShown = Math.max(1, _minsLeft);
+        var _leftLabel = hoursLeft >= 1
+          ? (hoursLeft + ' hour' + (hoursLeft === 1 ? '' : 's') + ' left tonight')
+          : (_minsShown + ' minute' + (_minsShown === 1 ? '' : 's') + ' left tonight');
         var gradient = hour >= 19
           ? 'linear-gradient(160deg,#1a0505 0%,#7f1d1d 55%,#450a0a 100%)'
           : 'linear-gradient(160deg,#1c0a03 0%,#9a3412 55%,#431407 100%)';
@@ -1481,7 +1499,7 @@
             '<div style="font-size:4.2rem;line-height:1;margin-bottom:14px;filter:' + flameFilter + ';transition:filter 1s;' + (hour >= 19 ? 'animation:_lmsFlicker 1.6s ease-in-out infinite;' : '') + '">🔥</div>' +
             '<div style="font-size:4.5rem;font-weight:900;color:#fff;line-height:1;letter-spacing:-0.02em;">' + days + '</div>' +
             '<div style="font-size:1rem;font-weight:700;color:rgba(255,255,255,.75);margin-top:2px;margin-bottom:6px;">day streak</div>' +
-            '<div style="font-size:0.75rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:28px;">' + hoursLeft + ' hour' + (hoursLeft === 1 ? '' : 's') + ' left tonight</div>' +
+            '<div style="font-size:0.75rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:28px;">' + _leftLabel + '</div>' +
             '<button class="btn primary" style="width:100%;font-size:0.85rem;" onclick="event.stopPropagation();_navTo(renderSimulatorPlaceholder)">Protect streak →</button>' +
             pushBtn +
           '</div>';
@@ -23446,6 +23464,7 @@ function _aeroRestoreFromCache(c) {
   AppState.home         = c.home;
   AppState.accessStatus = c.accessStatus || null;
   window._lmsStreakDays    = c.streakDays    || 0;
+  if (c.minutesLeftToday != null) window._lmsStreakMinsLeft = Number(c.minutesLeftToday);
   window._lmsLastActiveAt  = c.lastActiveAt  || '';
   window._lmsStreakFreezes = c.streakFreezes || 0;
   window._lmsLmsXp = c.lmsXp || 0;
