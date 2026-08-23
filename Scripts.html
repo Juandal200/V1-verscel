@@ -8706,7 +8706,9 @@
     // desktop viewBox but far too narrow to render it at size.
     var _cw = Math.min(_vpW, 1280) - (_narrow ? 52 : 96);
     var VW  = Math.max(260, Math.min(960, Math.round(_cw / 1.2)));
-    var VH  = 90;
+    // Bar area only — the +22 below it is the label strip. Reducing VH shortens
+    // the chart without touching the scale, so the text stays the same size.
+    var VH  = 66;
     var PAD = _narrow ? 5 : 10;
     var LABEL_FS = 10;
     var PCT_FS   = _narrow ? 10 : 11;
