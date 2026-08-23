@@ -1408,7 +1408,12 @@
         }
       }
       var _cpStatus  = _cpInfo ? String(_cpInfo.status || '') : '';
-      var _cpPending = !!_cpGate && _cpStatus !== 'passed';
+      // Fail OPEN: only claim a checkpoint is pending when the exam data has
+      // actually loaded and says so. AppState.examStatus is populated by the level
+      // map, not by Home, so treating "not loaded" as pending made the card demand
+      // an exam the student had already passed at 91/100.
+      var _cpLoaded  = !!(AppState.examStatus && AppState.examStatus.length);
+      var _cpPending = !!_cpGate && _cpLoaded && _cpStatus !== 'passed';
       var successRate = metrics.successRate || 0;
 
       // ── Feature cards row ──
@@ -1618,6 +1623,40 @@
           .apiModuleGetAll(AppState.sessionToken);
       })();
     }
+
+    // Home reads AppState.examStatus for the checkpoint card but nothing here ever
+    // fetched it — only the level map did. And the course position only advances
+    // when an attempt is submitted, so a route finished by any other route leaves
+    // it stale. Pull both, then repaint.
+    (function() {
+      google.script.run
+        .withSuccessHandler(function(r) {
+          if (_navToken !== _tok) return;
+          if (r && r.ok && r.exams) {
+            AppState.examStatus = r.exams;
+            _doRenderHome();
+          }
+        })
+        .withFailureHandler(function() {})
+        .apiGetExamStatus(AppState.sessionToken);
+
+      google.script.run
+        .withSuccessHandler(function(r) {
+          if (_navToken !== _tok) return;
+          if (!r || !r.ok || !r.changed) return;
+          if (AppState.user) {
+            AppState.user.currentLevel   = r.level;
+            AppState.user.currentCountry = r.country;
+          }
+          if (AppState.home && AppState.home.metrics) {
+            AppState.home.metrics.currentLevel   = r.level;
+            AppState.home.metrics.currentCountry = r.country;
+          }
+          _doRenderHome();
+        })
+        .withFailureHandler(function() {})
+        .apiSyncCoursePosition(AppState.sessionToken);
+    })();
 
     var _hasData = AppState.home && (AppState.home.metrics || AppState.home.modules || AppState.home.dc);
     if (_freshData || _hasData) {

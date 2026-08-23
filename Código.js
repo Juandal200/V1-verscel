@@ -9195,3 +9195,46 @@ function apiGetRouteCompletion(sessionToken, payload) {
     return apiError_('apiGetRouteCompletion', err);
   }
 }
+
+/**
+ * Re-derive the caller's course position from their progress.
+ *
+ * syncUserCoursePosition_ only runs inside updateUserProgress, i.e. when an attempt
+ * is submitted — so finishing a route through any other path (or completing it
+ * before a fix shipped) leaves currentLevel/currentCountry pointing at a level the
+ * student has already cleared. The home card then offers a finished route, and if
+ * that level happens to be a checkpoint-gated entry it offers a passed exam too.
+ *
+ * Writes only when the target actually differs, so calling it on every home render
+ * costs a read, not a write.
+ */
+function apiSyncCoursePosition(sessionToken) {
+  try {
+    var user = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    var target = ProgressService.getNextCourseTarget_(user, null);
+    if (!target) {
+      return { ok: true, level: Number(user.currentLevel || 1),
+               country: String(user.currentCountry || ''), changed: false };
+    }
+
+    var sameLevel   = Number(user.currentLevel || 0) === Number(target.level);
+    var sameCountry = ProgressService.normalizeCountry_(user.currentCountry) ===
+                      ProgressService.normalizeCountry_(target.country);
+
+    if (!sameLevel || !sameCountry) {
+      var row = UserService.getById(user.userId);
+      if (row) {
+        dbUpdateByRow_('Users', row.__rowNumber, {
+          currentLevel:   target.level,
+          currentCountry: target.country,
+          updatedAt:      now_()
+        });
+      }
+    }
+
+    return { ok: true, level: target.level, country: target.country,
+             changed: !(sameLevel && sameCountry) };
+  } catch (err) {
+    return apiError_('apiSyncCoursePosition', err);
+  }
+}
