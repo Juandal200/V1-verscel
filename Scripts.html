@@ -22799,23 +22799,43 @@
     return TEA_OPENINGS[String(scope || 'FULL').toUpperCase()] || '';
   }
 
-  // Pull the opening clip down while the bank loads, so the very first thing the
-  // candidate hears is already in hand rather than waiting on a cold synthesis.
-  function _teaPrefetchOpening(scope) {
-    var text = _teaOpeningFor(scope);
-    if (!text) return;
-    var key = _teaNormLine(text);
-    var id  = TEA_LINES[key];
-    if (!id || (_t.exCache && _t.exCache[key])) return;
+  function _teaCacheLine(key, id, done) {
+    if (!id || (_t.exCache && _t.exCache[key])) { if (done) done(); return; }
     google.script.run
       .withSuccessHandler(function(res) {
         if (res && res.ok && res.audioBase64) {
           _t.exCache = _t.exCache || {};
           _t.exCache[key] = res.audioBase64;
         }
+        if (done) done();
       })
-      .withFailureHandler(function() {})
+      .withFailureHandler(function() { if (done) done(); })
       .apiGetIcaoTestAudio(AppState.sessionToken, id);
+  }
+
+  // Every examiner line, not just the opening.
+  //
+  // Only the opening was being warmed, so the first recording paid a fetch for the
+  // question AND another for "Thank you. Next recording." — while items two to six
+  // found both already cached. That is exactly why the first item dragged and the
+  // rest felt fine. There are only a handful of lines and Part 1 leaves the network
+  // idle for minutes, so fetch them all up front.
+  //
+  // Serially, one after another: a burst of parallel google.script.run calls
+  // competes with the opening clip and the first recording, which are the two
+  // things actually needed first.
+  function _teaPrefetchOpening(scope) {
+    var openKey = _teaNormLine(_teaOpeningFor(scope));
+    var keys = Object.keys(TEA_LINES || {});
+    // Opening first — it is the only one needed before the candidate does anything.
+    keys.sort(function(a, b) { return (a === openKey ? -1 : 0) - (b === openKey ? -1 : 0); });
+
+    var i = 0;
+    (function next() {
+      if (i >= keys.length) return;
+      var k = keys[i++];
+      _teaCacheLine(k, TEA_LINES[k], function() { setTimeout(next, 250); });
+    })();
   }
 
   function _teaApplyScope(scope) {
