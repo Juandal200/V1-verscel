@@ -22878,22 +22878,26 @@
   // human afterwards. The simulator already retries for exactly this reason; the
   // delay is short here because the alternative is the candidate sitting in
   // silence.
-  function _teaGasAudio(text, voice, lang, rate, cb, _isRetry) {
+  function _teaGasAudio(text, voice, lang, rate, cb, _attempt) {
+    // Apps Script cold-starts after every deploy, and the first call can simply be
+    // slow rather than broken. One quick retry was not enough to ride that out, and
+    // giving up costs the candidate a whole listening item.
+    var attempt = Number(_attempt || 0);
+    var MAX_ATTEMPTS = 3;
+    function _again() {
+      if (attempt + 1 >= MAX_ATTEMPTS) return false;
+      setTimeout(function() {
+        _teaGasAudio(text, voice, lang, rate, cb, attempt + 1);
+      }, 800 * Math.pow(2, attempt));
+      return true;
+    }
     google.script.run
       .withSuccessHandler(function(res) {
         if (res && res.ok && res.audioBase64) { cb(null, res.audioBase64); return; }
-        if (!_isRetry) {
-          setTimeout(function() { _teaGasAudio(text, voice, lang, rate, cb, true); }, 1200);
-          return;
-        }
-        cb((res && res.error) || 'Audio unavailable');
+        if (!_again()) cb((res && res.error) || 'Audio unavailable');
       })
       .withFailureHandler(function(e) {
-        if (!_isRetry) {
-          setTimeout(function() { _teaGasAudio(text, voice, lang, rate, cb, true); }, 1200);
-          return;
-        }
-        cb((e && e.message) || 'Audio request failed');
+        if (!_again()) cb((e && e.message) || 'Audio request failed');
       })
       .apiGenerateIcaoTestVoice(AppState.sessionToken, {
         text:         String(text || ''),
@@ -23065,7 +23069,9 @@
     var itemIdx = TEA_ORDER.indexOf(id);
     var partLabel = TEA_PART_LABEL(itemIdx);
 
-    var btn = _addAudioCard(id, partLabel);
+    // Reuse the card if one is already on screen — a retry re-enters this
+    // function and must not stack a second copy of the same recording.
+    var btn = document.getElementById('teaPlay_' + id) || _addAudioCard(id, partLabel);
     var st  = document.getElementById('teaAudioSt_' + id);
 
     // Build the AUDIO_COMPLETE message with type hint for the AI
@@ -23085,12 +23091,15 @@
     }
 
     if (!_t._pendingB64) {
-      // Fetch failed — skip this item cleanly
-      if (st) st.textContent = 'Audio unavailable — skipping';
-      _t.audioIdx++;
-      _t._pendingId = null; _t._pendingB64 = null;
-      _t._qaMode = true;
-      _sendMsg(_completeMsg());
+      // The clip never played, so AUDIO_COMPLETE must NOT be sent: it tells the
+      // examiner the candidate heard the recording AND carries the transcript, so
+      // the exam went on to ask comprehension questions about audio nobody heard
+      // and graded the answers. Offer a retry instead — this path is usually a
+      // slow Apps Script cold start, not a missing clip.
+      if (st) st.textContent = 'Recording failed to load';
+      if (btn) btn.disabled = true;
+      _setEnabled(false);
+      _teaOfferRetry();
       return;
     }
 
@@ -23107,7 +23116,16 @@
     // is why there was no way to hear anything twice.
     _t.listens = _t.listens || {};
 
+    // Advancing must happen at most once per item. The replay stays live during
+    // the questions, so a replay that FAILED re-entered the failure path and
+    // offered "Skip this recording" — whose handler was _teaAdvance, already run
+    // when the first listen ended. Clicking it stepped audioIdx a second time and
+    // silently dropped the next recording from the exam.
+    var _advanced = false;
+
     function _teaAdvance() {
+      if (_advanced) return;
+      _advanced = true;
       var cont = document.getElementById('teaContinue_' + id);
       if (cont) cont.remove();
       _t.audioIdx++;
@@ -23117,17 +23135,76 @@
       _sendMsg(_completeMsg());
     }
 
-    // Kept only for the failure path, where the candidate genuinely needs a way
-    // past a clip that will not play.
+    // The clip never reached the candidate, so it is reported as never
+    // administered rather than as heard: the examiner asks nothing about it and
+    // it is excluded from grading.
+    function _teaSkipItem() {
+      if (_advanced) return;
+      _advanced = true;
+      ['teaRetry_', 'teaSkip_', 'teaContinue_'].forEach(function(prefix) {
+        var el = document.getElementById(prefix + id);
+        if (el) el.remove();
+      });
+      if (st) st.textContent = 'Skipped \u00b7 not graded';
+      _t.audioIdx++;
+      _t._pendingId = null; _t._pendingB64 = null;
+      _t._qaMode = true;
+      _setEnabled(false);
+      _sendMsg('[AUDIO_UNAVAILABLE: ' + id + ']');
+    }
+
+    // Only for a clip that will not play AND has never been heard. Once the item
+    // has advanced there is nothing to skip — the exam has moved on.
     function _teaOfferChoice() {
+      if (_advanced) return;
       if (document.getElementById('teaContinue_' + id)) return;
       var cont = document.createElement('button');
       cont.id        = 'teaContinue_' + id;
       cont.className = 'tea-send-btn';
       cont.style     = 'margin-left:8px;';
       cont.textContent = 'Skip this recording';
-      cont.onclick = _teaAdvance;
+      cont.onclick = _teaSkipItem;
       if (btn.parentNode) btn.parentNode.appendChild(cont);
+    }
+
+    // A failed fetch is recoverable — let the candidate ask for it again rather
+    // than losing the item. Skipping stays available, but it reports the item as
+    // never administered so it is not graded as comprehension.
+    function _teaOfferRetry() {
+      var host = btn && btn.parentNode;
+      if (!host || document.getElementById('teaRetry_' + id)) return;
+
+      var retry = document.createElement('button');
+      retry.id = 'teaRetry_' + id;
+      retry.className = 'tea-send-btn';
+      retry.style = 'margin-left:8px;';
+      retry.textContent = 'Retry recording';
+      retry.onclick = function() {
+        retry.disabled = true;
+        if (st) st.textContent = 'Retrying...';
+        _fetchAudio(id, function(err, b64) {
+          if (b64) {
+            var skipEl = document.getElementById('teaSkip_' + id);
+            if (skipEl) skipEl.remove();
+            retry.remove();
+            _t._pendingB64 = b64;
+            _activatePendingAudio();
+          } else {
+            retry.disabled = false;
+            if (st) st.textContent = 'Still unavailable — retry, or skip this recording';
+          }
+        });
+      };
+      host.appendChild(retry);
+
+      var skip = document.createElement('button');
+      skip.id = 'teaSkip_' + id;
+      skip.className = 'tea-send-btn';
+      skip.style = 'margin-left:8px;';
+      skip.textContent = 'Skip this recording';
+      skip.onclick = _teaSkipItem;
+      host.appendChild(skip);
+      _scrollChat();
     }
 
     btn.onclick = function() {
