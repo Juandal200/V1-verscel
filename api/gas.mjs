@@ -47,10 +47,11 @@ export default async function handler(req, res) {
       // authorisation. Nothing the person on screen can do touches that — only the
       // account that owns the script can re-approve it. The old wording told them
       // to sign in again, which cannot work and costs them their session for
-      // nothing, so say what is true instead: it is down, not them.
+      // nothing. Closing the tab and opening a fresh one is what actually clears
+      // it in practice, so that is what it says.
       const isLogin = /accounts\.google\.com|ppConfig|signin/i.test(out.text);
       const msg = isLogin
-        ? 'The training server is temporarily unavailable. Please refresh in a few minutes — your progress is saved.'
+        ? 'Connection to the training server was lost. Close this tab and open the app again — your progress is saved.'
         : 'The training server is busy. Please try again in a moment.';
       res.status(200).json({
         ok: false,
