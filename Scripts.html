@@ -22681,7 +22681,7 @@
   var _t = { history:[], audioIdx:0, imageIdx:0, audioCache:{}, audioEl:null, busy:false,
              timerIv:null, _pendingId:null, _pendingB64:null, _qaMode:false, _imageInjected:false,
              _awaitingActivation:false, _finishShown:false, _examDone:false,
-             segments:[] };
+             examinerTurns:0, segments:[] };
 
   function _resetState() {
     _t.history=[]; _t.audioIdx=0; _t.imageIdx=0; _t.audioCache={}; _t.busy=false;
@@ -22689,7 +22689,7 @@
     setTimeout(function(){ _teaSetPart('1'); }, 0);
     _t._pendingId=null; _t._pendingB64=null; _t._qaMode=false; _t._imageInjected=false;
     _t._awaitingActivation=false; _t._finishShown=false; _t._examDone=false;
-    _t.segments=[];
+    _t.examinerTurns=0; _t.segments=[];
     if (_t.timerIv) clearInterval(_t.timerIv);
     if (_t.audioEl) { _t.audioEl.pause(); _t.audioEl=null; }
   }
@@ -23394,6 +23394,26 @@
     };
   }
 
+  // Escape hatch for a Part 1 that never announces Part 2 in words the client
+  // recognises. Deliberately a button, not an automatic jump: cutting the examiner
+  // off mid-question would be worse than the stall it fixes.
+  function _showStartPart2Btn() {
+    var cards = document.getElementById('teaCards'); if (!cards) return;
+    if (document.getElementById('teaStartP2Btn')) return;
+    var btn = document.createElement('button');
+    btn.id        = 'teaStartP2Btn';
+    btn.className = 'tea-send-btn';
+    btn.style     = 'margin:8px 16px;align-self:flex-start;';
+    btn.textContent = 'Continue to Part 2 — Listening →';
+    btn.onclick = function() {
+      btn.remove();
+      _addPartSeparator('2A');
+      _queueNextAudio();
+    };
+    cards.appendChild(btn);
+    cards.scrollTop = cards.scrollHeight;
+  }
+
   // Step 3: after Q&A, show "Next Recording" button so user controls pacing
   function _showNextAudioBtn() {
     var cards = document.getElementById('teaCards'); if (!cards) return;
@@ -23739,6 +23759,7 @@
   // ── Exam flow ──────────────────────────────────────────────────────────────
   function _onExaminerMsg(msg) {
     _removeThinking(); _addMsg('examiner', msg);
+    _t.examinerTurns = Number(_t.examinerTurns || 0) + 1;
 
     _speakExaminer(msg, function() {
       _t.busy = false;
@@ -23768,6 +23789,15 @@
           _addPartSeparator('2A');
           _queueNextAudio();
           return;
+        }
+        // Part 2 is triggered by sniffing the examiner's own prose for a keyword,
+        // which is nothing but a hope about how a language model phrases a
+        // transition. Word it differently and the exam sits in Part 1 for ever
+        // with input enabled and nowhere to go. Part 1 is five questions with at
+        // most one follow-up each, so well past that something has gone wrong —
+        // offer a way through rather than auto-advancing over a live question.
+        if (_t.examinerTurns >= 14 && !document.getElementById('teaStartP2Btn')) {
+          _showStartPart2Btn();
         }
       }
 
