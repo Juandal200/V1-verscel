@@ -292,6 +292,126 @@ function checkIcaoTestItems() {
  * recording. A bank of pictures alone is not an exam, and offering it would hand
  * a candidate an empty listening section.
  */
+var ICAO_AUDIO_FOLDER_ = 'AEROCOMMS ICAO Test Audio';
+
+/**
+ * Renders every recording to an MP3 in Drive, once, and writes the file id back
+ * to the sheet.
+ *
+ * Clips were synthesised on demand, so the first candidate to reach an item paid
+ * for the Text-to-Speech call and waited through it — and again after every cache
+ * expiry or deploy. The text never changes between sittings, so neither should
+ * the audio. Run this after editing any script, and after adding a version.
+ *
+ * Re-running only renders items whose audio is missing or whose script has
+ * changed, so it is cheap to run often.
+ */
+function renderIcaoTestAudio(force) {
+  var sheet   = dbGetSheet_(ICAO_ITEMS_SHEET_);
+  var headers = DB_SCHEMA[ICAO_ITEMS_SHEET_];
+  var rows    = dbReadAll_(ICAO_ITEMS_SHEET_);
+
+  var it = DriveApp.getFoldersByName(ICAO_AUDIO_FOLDER_);
+  var folder = it.hasNext() ? it.next() : DriveApp.createFolder(ICAO_AUDIO_FOLDER_);
+
+  var fileCol = headers.indexOf('audioFileId') + 1;
+  var done = 0, skipped = 0, failed = 0;
+
+  rows.forEach(function(r) {
+    if (String(r.itemType || '').toUpperCase() !== 'AUDIO') return;
+    var script = String(r.script || '').trim();
+    if (!script) return;
+
+    var existing = String(r.audioFileId || '').trim();
+    // The stored name carries a fingerprint of the script, so an edited script no
+    // longer matches its old clip and is re-rendered instead of silently serving
+    // the previous wording.
+    var stamp = _icaoScriptStamp_(script, String(r.voice || ''));
+    if (existing && !force) {
+      try {
+        if (DriveApp.getFileById(existing).getName().indexOf(stamp) !== -1) { skipped++; return; }
+      } catch (e) { /* file gone — re-render */ }
+    }
+
+    try {
+      var res = apiGenerateIcaoTestVoiceInternal_(script, String(r.voice || ''), String(r.lang || 'en-US'));
+      if (!res || !res.audioBase64) throw new Error('no audio returned');
+      var blob = Utilities.newBlob(Utilities.base64Decode(res.audioBase64), 'audio/mpeg',
+                                   String(r.itemId) + '__' + stamp + '.mp3');
+      var file = folder.createFile(blob);
+      sheet.getRange(r.__rowNumber, fileCol).setValue(file.getId());
+      if (existing) { try { DriveApp.getFileById(existing).setTrashed(true); } catch (e) {} }
+      done++;
+    } catch (e) {
+      Logger.log('FAILED ' + r.itemId + ': ' + e.message);
+      failed++;
+    }
+  });
+
+  Logger.log('Rendered ' + done + ', already current ' + skipped + ', failed ' + failed);
+  return { ok: failed === 0, rendered: done, skipped: skipped, failed: failed };
+}
+
+function _icaoScriptStamp_(script, voice) {
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, script + '|' + voice);
+  return bytes.map(function(b) { return ('0' + (b & 0xFF).toString(16)).slice(-2); }).join('').slice(0, 10);
+}
+
+function apiGenerateIcaoTestVoiceInternal_(text, voice, lang) {
+  var country = (lang || '').indexOf('en-GB') === 0 ? 'UK'
+              : (lang || '').indexOf('en-AU') === 0 ? 'AUSTRALIA'
+              : (lang || '').indexOf('en-IN') === 0 ? 'INDIA' : 'USA';
+  var profile = TTSService.getProfileByCountry_(country);
+  var rate    = 0.93;
+  var voices  = profile.voiceNames || [];
+  var tryList = voice ? [voice].concat(voices.filter(function(v) { return v !== voice; })) : voices;
+  var ssml    = TTSService.buildAtcSsml_(text, profile, rate, tryList[0]);
+  return TTSService.callGoogleTtsWithFallbackVoices_(ssml, {
+    languageCode: profile.languageCode, pitch: profile.pitch,
+    effectsProfileId: profile.effectsProfileId, voiceNames: tryList
+  }, rate);
+}
+
+/**
+ * Returns a recording as base64. Serves the pre-rendered Drive clip when there is
+ * one and only falls back to live synthesis when there is not, so a sheet that has
+ * never been rendered still works — just slowly.
+ *
+ * It deliberately goes through Apps Script rather than handing the client a Drive
+ * URL: the exam feeds this audio into a Web Audio analyser for the level meter,
+ * and Drive serves no CORS headers, so a direct URL would fail to load.
+ */
+function apiGetIcaoTestAudio(sessionToken, itemId) {
+  try {
+    AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    var id = String(itemId || '').trim();
+    if (!id) return { ok: false, error: 'No itemId' };
+
+    var row = null;
+    dbReadAll_(ICAO_ITEMS_SHEET_).forEach(function(r) {
+      if (String(r.itemId || '').trim() === id) row = r;
+    });
+    if (!row) return { ok: false, error: 'Unknown item ' + id };
+
+    var fileId = String(row.audioFileId || '').trim();
+    if (fileId) {
+      try {
+        var blob = DriveApp.getFileById(fileId).getBlob();
+        return { ok: true, audioBase64: Utilities.base64Encode(blob.getBytes()),
+                 mimeType: 'audio/mp3', source: 'drive' };
+      } catch (e) { /* fall through to live synthesis */ }
+    }
+
+    var res = apiGenerateIcaoTestVoiceInternal_(String(row.script || ''),
+                                                String(row.voice || ''),
+                                                String(row.lang  || 'en-US'));
+    if (!res || !res.audioBase64) return { ok: false, error: 'Synthesis failed' };
+    return { ok: true, audioBase64: res.audioBase64, mimeType: 'audio/mp3', source: 'tts' };
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || 'Audio failed' };
+  }
+}
+
 function _icaoUsableBanks_(rows) {
   var withAudio = {};
   rows.forEach(function(r) {

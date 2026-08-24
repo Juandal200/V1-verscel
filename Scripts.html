@@ -22808,14 +22808,55 @@
     .catch(function(e){ _once((e && e.message) || 'Network error'); });
   }
 
-  function _fetchAudio(id, cb) {
+  // Clips are pre-rendered to Drive by renderIcaoTestAudio(), so this is a file
+  // read rather than a Text-to-Speech call. The server falls back to synthesising
+  // on the spot when an item has never been rendered.
+  function _fetchAudio(id, cb, _attempt) {
     if (_t.audioCache[id]) { cb(null, _t.audioCache[id]); return; }
-    var sc = TEA_AUDIO[id];
-    if (!sc) { cb('Unknown: '+id); return; }
-    _teaGasAudio(sc.script, sc.voice, sc.lang, 0.93, function(err, b64) {
-      if (b64) { _t.audioCache[id] = b64; cb(null, b64); }
-      else cb(err || 'Audio error');
-    });
+    if (!TEA_AUDIO[id]) { cb('Unknown: ' + id); return; }
+
+    // Two callers can want the same clip at once — a prefetch already in flight
+    // and the candidate pressing Next. Queue on the existing request rather than
+    // firing a second one.
+    _t._inflight = _t._inflight || {};
+    if (_t._inflight[id]) { _t._inflight[id].push(cb); return; }
+    _t._inflight[id] = [cb];
+
+    var attempt = Number(_attempt || 0);
+    function settle(err, b64) {
+      var waiting = _t._inflight[id] || [];
+      delete _t._inflight[id];
+      if (b64) _t.audioCache[id] = b64;
+      waiting.forEach(function(fn) { fn(err, b64); });
+    }
+    function retryOrFail(msg) {
+      if (attempt + 1 < 3) {
+        var again = _t._inflight[id] || [];
+        delete _t._inflight[id];
+        setTimeout(function() {
+          again.forEach(function(fn, i) { _fetchAudio(id, fn, i === 0 ? attempt + 1 : 0); });
+        }, 800 * Math.pow(2, attempt));
+        return;
+      }
+      settle(msg, null);
+    }
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.ok && res.audioBase64) settle(null, res.audioBase64);
+        else retryOrFail((res && res.error) || 'Audio unavailable');
+      })
+      .withFailureHandler(function(e) { retryOrFail((e && e.message) || 'Audio request failed'); })
+      .apiGetIcaoTestAudio(AppState.sessionToken, id);
+  }
+
+  // Pull the next clip down while the candidate is answering the current one, so
+  // pressing Next plays immediately instead of starting a round trip.
+  function _prefetchAudio(idx) {
+    if (idx < 0 || idx >= _t.scopeEnd) return;
+    var id = TEA_ORDER[idx];
+    if (!id || _t.audioCache[id]) return;
+    _fetchAudio(id, function() {});
   }
 
   // ── UI helpers ────────────────────────────────────────────────────────────
@@ -23283,6 +23324,7 @@
     // Audio ready — enable play button immediately
     var b64 = _t._pendingB64;
     btn.disabled = false;
+    _prefetchAudio(itemIdx + 1);
     if (st) st.textContent = 'Press play when ready';
 
     // A real ICAO listening item allows a second hearing, but it is not free:
@@ -24048,6 +24090,13 @@
     });
 
     _sendMsg(_teaApplyScope(window._teaScope || ''));
+
+    // Part 1 runs five or six minutes with the network otherwise idle. Use it to
+    // pull the opening recordings down, so the listening section starts instantly
+    // instead of with the wait that used to greet every single item.
+    _prefetchAudio(_t.scopeStart);
+    setTimeout(function() { _prefetchAudio(_t.scopeStart + 1); }, 5000);
+    setTimeout(function() { _prefetchAudio(_t.scopeStart + 2); }, 12000);
   }
 
   window._teaBegin = function(scope) {

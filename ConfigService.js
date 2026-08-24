@@ -166,7 +166,8 @@ var DB_SCHEMA = {
     'description',
     'isActive',
     'createdAt',
-    'updatedAt'
+    'updatedAt',
+    'audioFileId'
   ],
 
   IcaoTestResults: [
