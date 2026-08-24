@@ -23525,13 +23525,37 @@
     } catch (e) {}
   }
 
+  // Machine payloads the examiner sends for rendering, never for saying out loud.
+  // Detection is deliberately by MARKER rather than by successful parse: a payload
+  // that fails to parse — fenced in ```json, a trailing comma, a reply cut short —
+  // is still a payload, and the old code fell through and read the braces and field
+  // names aloud to the candidate.
+  function _teaIsPayload(text) {
+    return /"\s*(section_report|student_view|admin_view)\s*"/.test(String(text || ''));
+  }
+
+  function _teaParsePayload(text) {
+    var t = String(text || '').trim()
+      .replace(/^```[a-z]*\s*/i, '')
+      .replace(/```\s*$/, '')
+      .trim();
+    var a = t.indexOf('{'), b = t.lastIndexOf('}');
+    if (a === -1 || b <= a) return null;
+    try { return JSON.parse(t.slice(a, b + 1)); } catch (e) { return null; }
+  }
+
   function _speakExaminer(text, onDone) {
-    // Detect final JSON evaluation payload
-    var jsonData = null;
-    var trimmed = text.trim();
-    var jStart = trimmed.indexOf('{'), jEnd = trimmed.lastIndexOf('}');
-    if (jStart !== -1 && jEnd > jStart) {
-      try { jsonData = JSON.parse(trimmed.slice(jStart, jEnd + 1)); } catch(e) { jsonData = null; }
+    var jsonData = _teaParsePayload(text);
+
+    // Looks like a payload but would not parse. Do not speak it and do not show
+    // it — say one short line so the exam keeps moving.
+    if (!jsonData && _teaIsPayload(text)) {
+      // No card can be rendered from a payload that will not parse, so leave a
+      // visible trace rather than having the section end in silence.
+      _addMsg('system', 'Section marked — report unavailable for this section.');
+      _setStatus('Section marked', 'idle');
+      onDone();
+      return;
     }
     // A section report is a card, never speech — reading a table of band scores
     // aloud is slow and unusable, and it is the written record that matters.
@@ -24274,7 +24298,10 @@
 
   // ── Exam flow ──────────────────────────────────────────────────────────────
   function _onExaminerMsg(msg) {
-    _removeThinking(); _addMsg('examiner', msg);
+    _removeThinking();
+    // A payload is rendered as a card by _speakExaminer. Printing it here first put
+    // the raw JSON in the transcript as though the examiner had said it.
+    if (!_teaIsPayload(msg)) _addMsg('examiner', msg);
     _t.examinerTurns = Number(_t.examinerTurns || 0) + 1;
 
     _speakExaminer(msg, function() {
