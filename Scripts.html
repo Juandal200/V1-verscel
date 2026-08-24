@@ -747,8 +747,20 @@
     setLoginMessage('Sending registration request...');
     setLoginButtonsDisabled(true);
 
+    // Same missing timeout as the other login calls: without it a slow server
+    // leaves the buttons disabled for good, with no way to retry.
+    var _regDone = false;
+    var _regTimer = setTimeout(function() {
+      if (_regDone) return;
+      _regDone = true;
+      setLoginButtonsDisabled(false);
+      setLoginMessage('The server is taking too long. Please try again.');
+    }, 20000);
+
     google.script.run
       .withSuccessHandler(function(res) {
+        if (_regDone) return;
+        _regDone = true; clearTimeout(_regTimer);
         setLoginButtonsDisabled(false);
 
         if (!res || !res.ok) {
@@ -764,6 +776,8 @@
         }
       })
       .withFailureHandler(function(err) {
+        if (_regDone) return;
+        _regDone = true; clearTimeout(_regTimer);
         setLoginButtonsDisabled(false);
         handleServerError(err);
       })
@@ -810,8 +824,27 @@
     setLoginMessage('Sending access code...');
     setLoginButtonsDisabled(true);
 
+    // No timeout meant a slow Apps Script left "Sending access code..." on screen
+    // with the buttons disabled and the code box still hidden — permanently.
+    //
+    // The email is sent server-side BEFORE the response comes back, so by the time
+    // this fires the code is almost certainly already in the inbox. Hiding the box
+    // is then the worst possible response: the one thing the person needs is the
+    // field to type it into. Open it and let them try.
+    var _sendDone = false;
+    var _sendTimer = setTimeout(function() {
+      if (_sendDone) return;
+      _sendDone = true;
+      setLoginButtonsDisabled(false);
+      var box = byId('otpBox');
+      if (box) box.classList.remove('hidden');
+      setLoginMessage('The server is slow to confirm. If the code has arrived, enter it below.');
+    }, 20000);
+
     google.script.run
       .withSuccessHandler(function(res) {
+        if (_sendDone) return;
+        _sendDone = true; clearTimeout(_sendTimer);
         setLoginButtonsDisabled(false);
 
         if (!res || !res.ok) {
@@ -832,6 +865,8 @@
         _startOtpCooldown(60);
       })
       .withFailureHandler(function(err) {
+        if (_sendDone) return;
+        _sendDone = true; clearTimeout(_sendTimer);
         setLoginButtonsDisabled(false);
         handleServerError(err);
       })
