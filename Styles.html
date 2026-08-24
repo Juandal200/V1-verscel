@@ -10579,9 +10579,7 @@ p, li, td, th, h1, h2, h3, h4,
    @media (max-width:720px), so they only ever took effect on a phone: on a desktop
    the part separators stretched the full window while the messages hugged the far
    left, and the two did not look like the same conversation. */
-.tea-cards > * {
-  width:100%; max-width:740px; margin-left:auto; margin-right:auto;
-}
+.tea-cards > * { width:100%; }
 /* Capped against that column, not the window — 88% of a wide screen left a one
    line reply stretching most of the way across. */
 .tea-msg { display:flex; gap:10px; max-width:100%; }
@@ -10627,10 +10625,14 @@ p, li, td, th, h1, h2, h3, h4,
 .tea-image-card-label { font-size:0.7rem; font-weight:700; color:#4a6280; letter-spacing:1.5px; margin-bottom:8px; }
 .tea-image-card-desc  { font-size:0.85rem; color:#8fa3bb; line-height:1.6; }
 
+/* The bar keeps its full-width border — it is the edge of the screen — but its
+   contents sit in the same column as everything above them. */
 .tea-input-bar {
   padding:12px 14px; border-top:1px solid #1e2a38; background:#0d1117;
-  display:flex; gap:8px; align-items:flex-end;
+  display:flex; gap:8px; align-items:flex-end; justify-content:center;
 }
+.tea-input-bar > * { flex-shrink:0; }
+.tea-input-bar .tea-textarea { flex:1 1 auto; max-width:700px; }
 .tea-textarea {
   flex:1; background:#1a2230; border:1.5px solid #2d3a4a; border-radius:10px;
   color:#c8d8e8; font-size:0.88rem; padding:10px 13px; resize:none;
@@ -10692,6 +10694,11 @@ p, li, td, th, h1, h2, h3, h4,
 .tea-stage {
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   padding:16px 16px 10px; gap:10px;
+  /* The ring, the transcript and the input bar are three separate children of the
+     shell, each centring itself independently. On a wide monitor they drifted into
+     three different places and stopped reading as one screen. All three are now
+     pinned to the same column. */
+  width:100%; max-width:760px; margin-left:auto; margin-right:auto;
 }
 .tea-ring {
   width:132px; height:132px; border-radius:50%; flex-shrink:0;
@@ -10753,6 +10760,7 @@ p, li, td, th, h1, h2, h3, h4,
 .tea-cards {
   flex:0 0 46vh; min-height:0; overflow-y:auto;
   padding:10px 16px; display:flex; flex-direction:column; gap:10px;
+  width:100%; max-width:760px; margin-left:auto; margin-right:auto;
 }
 .tea-score-box {
   background:#111827; border:1px solid #2d3a4a; border-radius:12px;

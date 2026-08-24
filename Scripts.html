@@ -23914,6 +23914,11 @@
 
   // Step 3: after Q&A, show "Next Recording" button so user controls pacing
   function _showNextAudioBtn() {
+    // audioIdx already points at the NEXT item, so the header should too — it read
+    // "Item 1 of 6" while offering the button that starts item 2.
+    if (_t.audioIdx < _t.scopeEnd) {
+      _teaSetStep(_teaStepForIndex(_t.audioIdx), _teaStepForIndex(_t.audioIdx + 1));
+    }
     var cards = document.getElementById('teaCards'); if (!cards) return;
     // Remove any existing next button
     var old = document.getElementById('teaNextBtn'); if (old) old.remove();
@@ -24292,6 +24297,13 @@
         _t._awaitingAck = false;
         _setEnabled(true);
         _showNextAudioBtn();
+        // _setEnabled says "Your turn — speak or type", which is not what this
+        // moment asks for: the item is answered and acknowledged, and the next
+        // thing to do is press the button. Saying "speak" here while a Next
+        // Recording button sits below is the screen contradicting itself.
+        _setStatus(_t.audioIdx < _t.scopeEnd
+          ? 'Answered — press Next Recording'
+          : 'Section finished — press the button below', 'idle');
         return;
       }
 
