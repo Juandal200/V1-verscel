@@ -23220,6 +23220,18 @@
 
   function _teaRequestSectionReport(section, after) {
     if (_t._sectionsDone[section]) { after(); return; }
+
+    // If nothing follows this section, the full report is moments away. Two score
+    // cards back to back, the second superseding the first, is noise — the final
+    // one is the result and should be the only thing at the end.
+    if (_t.audioIdx >= _t.scopeEnd && !_t.scopeImages) {
+      _t._sectionsDone[section] = true;
+      if (window.console && console.log) {
+        console.log('[ICAO test] skipped ' + section + ' report — final report follows');
+      }
+      after();
+      return;
+    }
     if (!_teaSectionWasRun(section)) {
       if (window.console && console.log) {
         console.log('[ICAO test] skipped report for ' + section +
@@ -24289,9 +24301,34 @@
       html += '</div></div>';
     }
 
+    // A result is the end of the exam, not the end of the app. Leaving the
+    // candidate on a locked screen with a band and nothing to do — least of all
+    // after a low band — is the wrong note to finish on.
+    html += '<div style="margin-top:18px;padding-top:16px;border-top:1px solid #2d3a4a;text-align:center;">' +
+      '<div style="font-size:0.9rem;color:#c8d8e8;font-weight:700;margin-bottom:6px;">' +
+        (band >= 4
+          ? 'Well done — that is at or above the operational standard.'
+          : 'This is a practice test, and the gap it shows is a workable one.') +
+      '</div>' +
+      '<div style="font-size:0.8rem;color:#8fa3bb;line-height:1.6;max-width:460px;margin:0 auto 16px;">' +
+        (band >= 4
+          ? 'Keep practising to hold this level under pressure — the routes and daily challenge are the fastest way to do that.'
+          : 'Every descriptor above says what to work on next. Run the training routes, then take this test again and watch the bands move.') +
+      '</div>' +
+      '<button class="tea-send-btn" onclick="window._teaExitToHome()" ' +
+        'style="background:#00d48e;color:#000;padding:12px 28px;">Back to Home</button>' +
+    '</div>';
+
     html += '</div>';
     return html;
   }
+
+  window._teaExitToHome = function() {
+    try { if (_t.audioEl) _t.audioEl.pause(); } catch (e) {}
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
+    if (typeof window.renderHome === 'function') window.renderHome();
+    else window.location.reload();
+  };
 
   // _lockExamUI hides the input bar outright, so every path that resumes the
   // conversation afterwards (a failed grading pipeline falls back to live Gemini
@@ -24321,6 +24358,11 @@
 
     _speakExaminer(msg, function() {
       _t.busy = false;
+
+      // The exam is finished and the UI is locked. Everything below re-enables
+      // input and offers buttons, which is how the final report ended up sitting
+      // under "Your turn — speak or type" with a Next Recording button.
+      if (_t._examDone) return;
 
       // The section report is asked for as JSON. If the model answers with prose
       // instead, _speakExaminer never intercepts it and the continuation is still
