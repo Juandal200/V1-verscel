@@ -22770,7 +22770,7 @@
   var _t = { history:[], audioIdx:0, imageIdx:0, audioCache:{}, audioEl:null, busy:false,
              timerIv:null, _pendingId:null, _pendingB64:null, _qaMode:false, _imageInjected:false,
              _awaitingActivation:false, _finishShown:false, _examDone:false,
-             examinerTurns:0, segments:[],
+             examinerTurns:0, segments:[], _lastSepKey:null,
              // Section-scoped runs. Full exam = the whole range; a scoped run
              // narrows the audio window and switches off the parts outside it, so
              // one section can be exercised without sitting the other twenty-five
@@ -22895,7 +22895,7 @@
     setTimeout(function(){ _teaSetPart('1'); }, 0);
     _t._pendingId=null; _t._pendingB64=null; _t._qaMode=false; _t._imageInjected=false;
     _t._awaitingActivation=false; _t._finishShown=false; _t._examDone=false;
-    _t.examinerTurns=0; _t.segments=[];
+    _t.examinerTurns=0; _t.segments=[]; _t._lastSepKey=null;
     _t.scope=''; _t.scopeStart=0; _t.scopeEnd=0;
     _t.scopeImages=true; _t.scopeInterview=true;
     _t.sectionReports=[]; _t._sectionsDone={}; _t._awaitingAck=false;
@@ -23277,6 +23277,9 @@
   function _addPartSeparator(key) {
     var chat = document.getElementById('teaCards'); if (!chat) return;
     var meta = _PART_META[key]; if (!meta) return;
+    // Two callers used to be able to announce the same section back to back.
+    if (_t._lastSepKey === key) return;
+    _t._lastSepKey = key;
     var div = document.createElement('div');
     div.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;margin:18px 0 10px;';
     div.innerHTML =
@@ -23883,7 +23886,6 @@
     btn.textContent = 'Continue to Part 2 — Listening →';
     btn.onclick = function() {
       btn.remove();
-      _addPartSeparator('2A');
       _queueNextAudio();
     };
     cards.appendChild(btn);
@@ -24301,10 +24303,9 @@
             lower.indexOf('first recording') !== -1) {
           // Part 1 is a section too, and it is the only one whose end is not an
           // audio-item boundary.
-          _teaRequestSectionReport('Part 1', function() {
-            _addPartSeparator('2A');
-            _queueNextAudio();
-          });
+          // _queueNextAudio draws the separator for whichever section it enters,
+          // so adding one here printed "PART 2A — SHORT READBACKS" twice.
+          _teaRequestSectionReport('Part 1', _queueNextAudio);
           return;
         }
         // Part 2 is triggered by sniffing the examiner's own prose for a keyword,
