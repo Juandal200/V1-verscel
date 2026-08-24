@@ -43,9 +43,14 @@ export default async function handler(req, res) {
     try {
       res.status(200).json(JSON.parse(out.text));
     } catch (e) {
+      // A Google login page here means the Apps Script DEPLOYMENT has lost its
+      // authorisation. Nothing the person on screen can do touches that — only the
+      // account that owns the script can re-approve it. The old wording told them
+      // to sign in again, which cannot work and costs them their session for
+      // nothing, so say what is true instead: it is down, not them.
       const isLogin = /accounts\.google\.com|ppConfig|signin/i.test(out.text);
       const msg = isLogin
-        ? 'The training server needs to be re-authorised. Please sign in again.'
+        ? 'The training server is temporarily unavailable. Please refresh in a few minutes — your progress is saved.'
         : 'The training server is busy. Please try again in a moment.';
       res.status(200).json({
         ok: false,
@@ -55,6 +60,9 @@ export default async function handler(req, res) {
         message: msg,
         // Keep the real cause for the console without putting markup on screen.
         detail: out.text.substring(0, 200),
+        // Distinguishable in the console so an admin knows it needs re-authorising
+        // rather than waiting for a busy server to settle.
+        cause: isLogin ? 'GAS_DEPLOYMENT_NEEDS_REAUTH' : 'GAS_NON_JSON',
         gasStatus: out.status
       });
     }
