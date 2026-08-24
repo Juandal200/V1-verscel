@@ -10676,14 +10676,16 @@ p, li, td, th, h1, h2, h3, h4,
 .tea-admin-just-text { font-size:0.8rem; color:#8fa3bb; line-height:1.7; }
 
 /* TEA audio-centric stage */
-/* Was a 110px ring under 32px of padding, stacked above the status text — about
-   170px of chrome before a single word of the exam. Now a compact row. */
+/* The ring is the focal point of a spoken exam — it is what tells you whether the
+   examiner is talking or waiting on you — so it is larger than it was, not smaller.
+   The space is won back from .tea-cards instead, which no longer stretches to fill
+   the viewport. */
 .tea-stage {
-  display:flex; flex-direction:row; align-items:center; justify-content:center;
-  padding:10px 16px 6px; gap:12px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:16px 16px 10px; gap:10px;
 }
 .tea-ring {
-  width:56px; height:56px; border-radius:50%; flex-shrink:0;
+  width:132px; height:132px; border-radius:50%; flex-shrink:0;
   display:flex; align-items:center; justify-content:center;
   border:3px solid #1e2a38; transition:border-color .3s, box-shadow .3s;
 }
@@ -10701,13 +10703,13 @@ p, li, td, th, h1, h2, h3, h4,
   box-shadow:0 0 18px rgba(91,155,213,.3);
 }
 .tea-ring-inner {
-  width:40px; height:40px; border-radius:50%;
+  width:100px; height:100px; border-radius:50%;
   background:#1a2230; display:flex; align-items:center; justify-content:center;
-  font-size:0.72rem; font-weight:800; letter-spacing:1px; color:#8fa3bb;
+  font-size:1.2rem; font-weight:800; letter-spacing:2px; color:#8fa3bb;
 }
 /* Current step and what follows it. The rail shows which of the five parts you
    are in; this says which item, and what comes next. */
-.tea-stage-text { display:flex; flex-direction:column; align-items:flex-start; min-width:0; }
+.tea-stage-text { display:flex; flex-direction:column; align-items:center; min-width:0; text-align:center; }
 .tea-step-now  { font-size:0.86rem; color:#c8d8e8; font-weight:700; }
 .tea-step-next { font-size:0.72rem; color:#5b7690; margin-top:2px; }
 @keyframes tea-ring-pulse {
