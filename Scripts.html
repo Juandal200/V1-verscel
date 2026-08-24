@@ -22584,11 +22584,33 @@
     'part_2c_1','part_2c_2','part_2c_3'
   ];
   // Part 2 structure: 2A = items 0-5 (6 short), 2B = items 6-8 (3 longer), 2C = items 9-11 (3 situations)
+  // Section per item, parallel to TEA_ORDER, supplied by the sheet. The 6/3/3
+  // split was hardcoded into every boundary test, so editing the bank would have
+  // silently mislabelled items and — worse — fed _completeMsg the wrong question
+  // type. Counts are derived, never assumed.
+  var TEA_SECTIONS = null;
+
+  function _teaSectionAt(idx) {
+    // When the sheet supplied a bank it is authoritative for every index — falling
+    // through to the 6/3/3 rules for an out-of-range index reported a section for
+    // an item that does not exist.
+    if (TEA_SECTIONS) return TEA_SECTIONS[idx] || null;
+    if (idx < 6)  return '2A';
+    if (idx < 9)  return '2B';
+    if (idx < 12) return '2C';
+    return null;
+  }
+
   var TEA_PART_LABEL = function(idx) {
-    if (idx < 6)  return 'Part 2A — Item ' + (idx + 1) + ' of 6';
-    if (idx < 9)  return 'Part 2B — Item ' + (idx - 5) + ' of 3';
-    if (idx < 12) return 'Part 2C — Item ' + (idx - 8) + ' of 3';
-    return '';
+    var key = _teaSectionAt(idx);
+    if (!key) return '';
+    var total = 0, pos = 0;
+    for (var i = 0; i < TEA_ORDER.length; i++) {
+      if (_teaSectionAt(i) !== key) continue;
+      total++;
+      if (i <= idx) pos++;
+    }
+    return 'Part ' + key + ' — Item ' + pos + ' of ' + total;
   };
 
   var TEA_IMAGES = [
@@ -22597,6 +22619,54 @@
     { id:'image_2', label:'IMAGE 2 — Runway Environment',
       desc:'An airport runway seen from the control tower. A commercial aircraft on short final approach, undercarriage extended, full flap, aligned with centreline. Ground vehicles on the apron to the left. Windsock visible indicating crosswind. Threshold markings and PAPI lights visible. Overcast sky.' }
   ];
+
+  // ── Item bank ─────────────────────────────────────────────────────────────
+  //
+  // The constants above are now the FALLBACK. The live bank lives in the
+  // IcaoTestItems sheet so the exam can be edited without a deploy and can hold
+  // more than one set of items. If the sheet is missing, empty or unreachable the
+  // exam still runs on the built-ins — a candidate mid-exam should never be
+  // stopped by a content-loading problem.
+  var _teaBankLoaded = false;
+
+  function _teaLoadBank(done) {
+    if (_teaBankLoaded) { done(); return; }
+    var finished = false;
+    function finish(source) {
+      if (finished) return;
+      finished = true;
+      _teaBankLoaded = true;
+      if (window.console && console.log) console.log('[ICAO test] item bank: ' + source);
+      done();
+    }
+    // Never let a slow sheet read hold up the exam.
+    var guard = setTimeout(function() { finish('built-in (timed out)'); }, 8000);
+
+    try {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          clearTimeout(guard);
+          if (res && res.ok && res.order && res.order.length) {
+            TEA_AUDIO    = res.audio;
+            TEA_ORDER    = res.order;
+            TEA_SECTIONS = res.sections || null;
+            if (res.images && res.images.length) TEA_IMAGES = res.images;
+            finish('sheet (' + res.order.length + ' recordings, ' +
+                   ((res.images && res.images.length) || 0) + ' pictures)');
+          } else {
+            finish('built-in (' + ((res && res.error) || 'no items') + ')');
+          }
+        })
+        .withFailureHandler(function(e) {
+          clearTimeout(guard);
+          finish('built-in (' + ((e && e.message) || 'load failed') + ')');
+        })
+        .apiGetIcaoTestItems(AppState.sessionToken, '');
+    } catch (e) {
+      clearTimeout(guard);
+      finish('built-in (' + e.message + ')');
+    }
+  }
 
   // ── State ─────────────────────────────────────────────────────────────────
   var _t = { history:[], audioIdx:0, imageIdx:0, audioCache:{}, audioEl:null, busy:false,
@@ -22840,12 +22910,7 @@
     wrap.appendChild(card); chat.appendChild(wrap); _scrollChat();
   }
 
-  function _getPartKey(idx) {
-    if (idx < 6)  return '2A';
-    if (idx < 9)  return '2B';
-    if (idx < 12) return '2C';
-    return null;
-  }
+  function _getPartKey(idx) { return _teaSectionAt(idx); }
 
   var _PART_META = {
     '2A': { title: 'Part 2A — Short Readbacks', sub: '6 short pilot/controller audio clips' },
@@ -23832,8 +23897,12 @@
   }
 
   window._teaBegin = function() {
-    _unlockAudio();   // synchronous — unlocks audio in the click gesture
-    _startExam();     // starts immediately after
+    _unlockAudio();   // synchronous — MUST stay in the click gesture to unlock autoplay
+    var btn = document.getElementById('teaBeginBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Preparing exam...'; }
+    // Load the item bank before the first examiner turn, so the exam never
+    // switches sources halfway through.
+    _teaLoadBank(function() { _startExam(); });
   };
 
   // ── Debug pipeline test ──────────────────────────────────────────────────

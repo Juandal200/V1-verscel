@@ -148,6 +148,27 @@ var DB_SCHEMA = {
     'validationCode'
   ],
 
+  // The ICAO test item bank. These were hardcoded constants in the client, so
+  // every candidate sat the identical 12 recordings in the identical order and
+  // changing a word meant a code deploy. bank + isActive allow several sets.
+  IcaoTestItems: [
+    'itemId',
+    'bank',
+    'itemType',
+    'section',
+    'orderIndex',
+    'voice',
+    'lang',
+    'script',
+    'transcript',
+    'label',
+    'imageUrl',
+    'description',
+    'isActive',
+    'createdAt',
+    'updatedAt'
+  ],
+
   IcaoTestResults: [
     'resultId',
     'userId',
