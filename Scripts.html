@@ -22654,6 +22654,113 @@
   // ── UI helpers ────────────────────────────────────────────────────────────
   function _scrollChat() { var c=document.getElementById('teaCards'); if(c) c.scrollTop=c.scrollHeight; }
 
+  // ── Examiner ring: driven by real audio, not a timer ─────────────────────────
+  //
+  // The three ring states existed but only changed a border colour, so they read as
+  // one static thing. These drive the ring from actual amplitude — the examiner's
+  // voice while it speaks, the candidate's mic while it records. Real signal, so it
+  // moves like speech rather than like a loop, and the mic case doubles as the
+  // answer to "is my microphone working?", which is a genuine worry in a spoken
+  // exam.
+  var _teaViz = { ctx: null, raf: null, src: null, stream: null };
+
+  function _teaVizCtx() {
+    if (!_teaViz.ctx) {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      try { _teaViz.ctx = new AC(); } catch (e) { return null; }
+    }
+    // resume() is asynchronous, so the state may still read 'suspended' when this
+    // returns. Callers must check ctx.state themselves rather than assume.
+    if (_teaViz.ctx.state === 'suspended') { try { _teaViz.ctx.resume(); } catch (e) {} }
+    return _teaViz.ctx;
+  }
+
+  function _teaVizStop() {
+    if (_teaViz.raf) { cancelAnimationFrame(_teaViz.raf); _teaViz.raf = null; }
+    // Only the mic stream is ours to close. Disconnecting a MediaElementSource
+    // would mute the element permanently, so those are left attached.
+    if (_teaViz.stream) {
+      try { _teaViz.stream.getTracks().forEach(function(t) { t.stop(); }); } catch (e) {}
+      _teaViz.stream = null;
+    }
+    var ring = document.getElementById('teaRing');
+    if (ring) { ring.style.transform = ''; ring.style.boxShadow = ''; }
+  }
+
+  // Shared render loop. glow is the colour the ring pulses with.
+  function _teaVizRun(analyser, glow) {
+    var data = new Uint8Array(analyser.frequencyBinCount);
+    var ring = document.getElementById('teaRing');
+    if (!ring) return;
+
+    // Respect reduced-motion: keep the colour cue, drop the movement.
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    var smooth = 0;
+    (function frame() {
+      _teaViz.raf = requestAnimationFrame(frame);
+      analyser.getByteFrequencyData(data);
+
+      // Average the low-mid bins — that is where speech energy sits, so the ring
+      // tracks voice rather than hiss.
+      var sum = 0, n = Math.min(data.length, 32);
+      for (var i = 0; i < n; i++) sum += data[i];
+      var level = (sum / n) / 255;                 // 0..1
+
+      // Ease toward the new level so the ring glides instead of strobing.
+      smooth += (level - smooth) * 0.28;
+
+      var scale = 1 + (reduce ? 0 : smooth * 0.16);
+      var blur  = 10 + smooth * 34;
+      ring.style.transform = 'scale(' + scale.toFixed(3) + ')';
+      ring.style.boxShadow = '0 0 ' + blur.toFixed(0) + 'px ' + glow;
+    })();
+  }
+
+  // Examiner speaking — tap the element that is already playing.
+  function _teaVizSpeak(audioEl) {
+    _teaVizStop();
+    var ctx = _teaVizCtx();
+    if (!ctx || !audioEl) return;
+
+    // HARD GUARD. createMediaElementSource REROUTES the element's audio through the
+    // Web Audio graph — once attached, it is only audible via ctx.destination. If
+    // the context is suspended by autoplay policy the exam would go completely
+    // silent, which is far worse than a ring that does not move. Only attach to a
+    // context that is genuinely running; otherwise leave the element alone.
+    if (ctx.state !== 'running') return;
+
+    try {
+      // An element can only be connected once; reuse the source on a replay.
+      if (!audioEl._teaSrc) {
+        audioEl._teaSrc = ctx.createMediaElementSource(audioEl);
+        audioEl._teaSrc.connect(ctx.destination);   // keep it audible
+      }
+      var an = ctx.createAnalyser();
+      an.fftSize = 128;
+      an.smoothingTimeConstant = 0.75;
+      audioEl._teaSrc.connect(an);
+      _teaVizRun(an, 'rgba(0,212,142,.55)');
+    } catch (e) { /* visual only — never let it break playback */ }
+  }
+
+  // Candidate recording — tap the live mic stream.
+  function _teaVizMic(stream) {
+    _teaVizStop();
+    var ctx = _teaVizCtx();
+    if (!ctx || !stream) return;
+    try {
+      _teaViz.stream = null;                        // the recorder owns these tracks
+      var src = ctx.createMediaStreamSource(stream);
+      var an  = ctx.createAnalyser();
+      an.fftSize = 128;
+      an.smoothingTimeConstant = 0.7;
+      src.connect(an);                              // analyser only — no echo
+      _teaVizRun(an, 'rgba(239,68,68,.55)');
+    } catch (e) {}
+  }
+
   function _setStatus(text, state) {
     // state: 'thinking' | 'speaking' | 'listening' | 'idle'
     var label = document.getElementById('teaStatusLabel');
@@ -22662,6 +22769,9 @@
     if (ring) {
       ring.className = 'tea-ring';
       if (state) ring.classList.add('tea-ring--' + state);
+      // Leaving speaking/listening means nothing is driving the ring any more —
+      // without this it would freeze mid-pulse at whatever the last frame was.
+      if (state !== 'speaking' && state !== 'listening') _teaVizStop();
     }
   }
 
@@ -22886,10 +22996,12 @@
       if (b64) {
         if (_t.audioEl) _t.audioEl.pause();
         _t.audioEl = new Audio('data:audio/mp3;base64,' + b64);
-        _t.audioEl.onended = onDone;
-        _t.audioEl.onerror = function() { onDone(); };
+        _t.audioEl.crossOrigin = 'anonymous';
+        _t.audioEl.onended = function() { _teaVizStop(); onDone(); };
+        _t.audioEl.onerror = function() { _teaVizStop(); onDone(); };
         var p = _t.audioEl.play();
-        if (p && p.catch) p.catch(function() { _browserSpeak(text, onDone); });
+        if (p && p.catch) p.catch(function() { _teaVizStop(); _browserSpeak(text, onDone); });
+        _teaVizSpeak(_t.audioEl);
       } else {
         _browserSpeak(text, onDone);
       }
@@ -23007,9 +23119,11 @@
 
       if (_t.audioEl) _t.audioEl.pause();
       _t.audioEl = new Audio('data:audio/mp3;base64,' + b64);
+      _t.audioEl.crossOrigin = 'anonymous';
       btn.innerHTML = '&#9646;&#9646;';
       btn.disabled = true;
       if (st) st.textContent = 'Listening \u00b7 do not respond yet';
+      _teaVizSpeak(_t.audioEl);
 
       // onended was the ONLY route forward, so a clip that failed or stalled left
       // the item frozen on "Playing…" with the button disabled — no replay, no
@@ -23019,6 +23133,7 @@
         if (_settled) return;
         _settled = true;
         clearTimeout(_stall);
+        _teaVizStop();
         btn.innerHTML = '&#9654;';
 
         if (failed) {
@@ -23147,6 +23262,9 @@
         var chunks = [];
         _teaRecActive = true;
         _teaMicState(true);
+        // The candidate sees their own voice registering, which is also the honest
+        // answer to "is the microphone actually picking me up?"
+        _teaVizMic(stream);
         var mimeType = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg']
           .filter(function(t) { return MediaRecorder.isTypeSupported(t); })[0] || '';
         _teaRecorder = mimeType
@@ -23158,7 +23276,7 @@
         };
 
         _teaRecorder.onstop = function() {
-          _teaRecActive = false; _teaMicState(false);
+          _teaRecActive = false; _teaMicState(false); _teaVizStop();
           stream.getTracks().forEach(function(t) { t.stop(); });
 
           if (btn) { btn.classList.remove('listening'); btn.innerHTML = '&#8987;'; btn.disabled = true; }
@@ -23196,7 +23314,7 @@
         _teaRecorder.start();
       })
       .catch(function(err) {
-        _teaRecActive = false; _teaMicState(false);
+        _teaRecActive = false; _teaMicState(false); _teaVizStop();
         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
           alert('Microphone access was denied. Please allow it in your browser settings.');
         } else {
