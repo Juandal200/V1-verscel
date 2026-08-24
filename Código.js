@@ -223,6 +223,14 @@ function apiPing() { return { ok: true }; }
 
 // Single bootstrap call replacing apiGetMe + getMyCompletedLevels for session-restore path.
 function apiGetAppBootstrap(sessionToken) {
+  // Every load runs this, and it used to read the same sheets several times over:
+  // requireSession reads Users, getHomeData reads Users and Attempts, and
+  // getMyCompletedLevels reads Progress and the XP tables. One scope makes each
+  // sheet a single read — this is the call the "Restoring session..." screen waits on.
+  return dbWithReadScope_(function() { return _apiGetAppBootstrap_(sessionToken); });
+}
+
+function _apiGetAppBootstrap_(sessionToken) {
   try {
     var meRes = apiGetMe(sessionToken);
     if (!meRes || !meRes.ok) return meRes;

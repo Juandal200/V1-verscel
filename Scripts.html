@@ -486,9 +486,28 @@
           .apiGetAppBootstrap(AppState.sessionToken);
       } else {
         setLoginMessage('Restoring session...');
+        // No cache to fall back on, so this call is the only thing between the
+        // user and the app — and it had no timeout at all. A slow Apps Script cold
+        // start left "Restoring session..." on screen indefinitely with no way
+        // forward and no indication anything was wrong.
+        var _bootDone = false;
+        var _bootTimer = setTimeout(function() {
+          if (_bootDone) return;
+          _bootDone = true;
+          setLoginMessage('The server is taking longer than usual. Close this tab and open the app again.');
+        }, 25000);
+
         google.script.run
-          .withSuccessHandler(handleBootstrapResponse)
-          .withFailureHandler(handleServerError)
+          .withSuccessHandler(function(res) {
+            if (_bootDone) return;
+            _bootDone = true; clearTimeout(_bootTimer);
+            handleBootstrapResponse(res);
+          })
+          .withFailureHandler(function(err) {
+            if (_bootDone) return;
+            _bootDone = true; clearTimeout(_bootTimer);
+            handleServerError(err);
+          })
           .apiGetAppBootstrap(AppState.sessionToken);
       }
     }
