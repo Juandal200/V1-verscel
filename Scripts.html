@@ -16131,6 +16131,7 @@
   // Assigning to window makes the bare name resolve everywhere; IIFEs that
   // declare their own copy still shadow it.
   window.safeText                   = safeText;
+  window._renderTopbarRank          = _renderTopbarRank;
   window.byId                       = byId;
 
   window._getTierFromXpKey          = _getTierFromXpKey;
@@ -16978,6 +16979,9 @@
   function byId(id) {
     return document.getElementById(id);
   }
+
+  // Called from the main IIFE, which cannot see this scope.
+  window._formatTimeSec = _formatTimeSec;
 
   function _formatTimeSec(sec) {
     sec = Math.round(Number(sec || 0));
@@ -18222,6 +18226,9 @@
       '</div>'
     );
   }
+
+  // Called from the main IIFE, which cannot see this scope.
+  window.renderWelcomeBoard = renderWelcomeBoard;
 
   function renderWelcomeBoard() {
     var items = [
@@ -20999,6 +21006,9 @@
       mobBadge.style.display = total > 0 ? '' : 'none';
     }
   }
+
+  // Called from the main IIFE, which cannot see this scope.
+  window._refreshTopbarRank = _refreshTopbarRank;
 
   function _refreshTopbarRank() {
     if (!window.AppState || !AppState.sessionToken) return;
