@@ -196,6 +196,94 @@ function setupIcaoTestItems(force) {
 }
 
 /**
+ * Validates the item sheet and logs every problem it finds.
+ *
+ * Nearly everything that can be got wrong here fails silently at exam time: a
+ * recording with no transcript is graded against nothing, a bank holding nine of
+ * twelve items is still served as a complete paper, a duplicated orderIndex
+ * leaves the running order undefined. Run this after editing, and before setting
+ * a new version live.
+ */
+function checkIcaoTestItems() {
+  var problems = [], notes = [];
+  var rows;
+  try {
+    rows = dbReadAll_(ICAO_ITEMS_SHEET_);
+  } catch (e) {
+    Logger.log('ERROR  sheet ' + ICAO_ITEMS_SHEET_ + ' not found. Run setupIcaoTestItems().');
+    return { ok: false };
+  }
+
+  var seenId = {}, seenOrder = {}, byBank = {};
+
+  rows.forEach(function(r, i) {
+    var where = 'row ' + (i + 2) + ' (' + (r.itemId || 'no itemId') + ')';
+    var id    = String(r.itemId || '').trim();
+    var bank  = String(r.bank || ICAO_ITEMS_BANK_).trim().toUpperCase();
+    var type  = String(r.itemType || '').trim().toUpperCase();
+    var live  = String(r.isActive).toUpperCase() !== 'FALSE';
+
+    if (!id)   { problems.push(where + ': itemId is empty'); return; }
+    if (!bank) { problems.push(where + ': bank is empty'); }
+
+    if (['AUDIO', 'IMAGE', 'INTERVIEW'].indexOf(type) === -1) {
+      problems.push(where + ': itemType "' + r.itemType + '" is not AUDIO, IMAGE or INTERVIEW');
+      return;
+    }
+
+    if (seenId[bank + '|' + id]) problems.push(where + ': duplicate itemId in bank ' + bank);
+    seenId[bank + '|' + id] = true;
+
+    if (!live) { notes.push(where + ': isActive FALSE — excluded from the exam'); return; }
+
+    var okey = bank + '|' + type + '|' + Number(r.orderIndex || 0);
+    if (seenOrder[okey]) {
+      problems.push(where + ': orderIndex ' + r.orderIndex + ' is already used by another ' +
+                    type + ' item in bank ' + bank + ' — running order is undefined');
+    }
+    seenOrder[okey] = true;
+
+    byBank[bank] = byBank[bank] || { AUDIO: 0, IMAGE: 0, INTERVIEW: 0 };
+    byBank[bank][type]++;
+
+    if (type === 'AUDIO') {
+      if (!String(r.script || '').trim())     problems.push(where + ': AUDIO has no script — it cannot be spoken and is dropped');
+      if (!String(r.transcript || '').trim()) problems.push(where + ': AUDIO has no transcript — the examiner would grade against nothing');
+      if (!String(r.voice || '').trim())      problems.push(where + ': AUDIO has no voice');
+      if (!String(r.lang || '').trim())       problems.push(where + ': AUDIO has no lang');
+      if (['2A','2B','2C'].indexOf(String(r.section || '').trim().toUpperCase()) === -1) {
+        problems.push(where + ': AUDIO section "' + r.section + '" is not 2A, 2B or 2C — ' +
+                      'section decides which questions the examiner asks');
+      }
+    }
+    if (type === 'IMAGE') {
+      var url = String(r.imageUrl || '').trim();
+      if (!url) notes.push(where + ': IMAGE has no imageUrl — Part 3 shows the description only');
+      else if (url.indexOf('http') !== 0) problems.push(where + ': imageUrl is not a URL');
+      if (!String(r.description || '').trim()) problems.push(where + ': IMAGE has no description to fall back on');
+    }
+    if (type === 'INTERVIEW' && !String(r.description || '').trim()) {
+      problems.push(where + ': INTERVIEW has no description — the topic is empty');
+    }
+  });
+
+  Object.keys(byBank).forEach(function(b) {
+    var c = byBank[b];
+    if (!c.AUDIO) problems.push('bank ' + b + ': no playable recordings — it will never be offered');
+    else if (c.AUDIO < 12) notes.push('bank ' + b + ': only ' + c.AUDIO +
+      ' recordings (DEFAULT has 12) — it is still served as a complete exam');
+    if (!c.IMAGE)     notes.push('bank ' + b + ': no Part 3 pictures');
+    if (!c.INTERVIEW) notes.push('bank ' + b + ': no interview topics — Part 1 falls back to the generic prompt topics');
+  });
+
+  Logger.log('Banks: ' + JSON.stringify(byBank));
+  problems.forEach(function(l) { Logger.log('PROBLEM  ' + l); });
+  notes.forEach(function(l)    { Logger.log('note     ' + l); });
+  if (!problems.length) Logger.log('No problems found across ' + rows.length + ' rows.');
+  return { ok: !problems.length, problems: problems, notes: notes };
+}
+
+/**
  * Banks that are actually usable — active AND holding at least one playable
  * recording. A bank of pictures alone is not an exam, and offering it would hand
  * a candidate an empty listening section.
