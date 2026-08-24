@@ -22782,6 +22782,42 @@
   // Returns the opening instruction for the examiner, which has to be explicit:
   // told only "start at Part 2B" a model will still open with pleasantries and an
   // interview, because that is what the rest of its prompt says to do.
+  // The examiner's opening line is the one most likely to come out robotic: it is
+  // spoken while Apps Script is still cold, so live synthesis fails its retries and
+  // falls back to the browser voice. Fixing the wording lets it be pre-recorded and
+  // fetched before the exam even starts. Must match the LINE seed word for word.
+  var TEA_OPENINGS = {
+    'FULL': 'Good day. This is your ICAO language proficiency test. We begin with Part 1, the interview.',
+    '1':    'Good day. This is your ICAO language proficiency test. We begin with Part 1, the interview.',
+    '2A':   'Good day. This is Part 2, listening comprehension. Press play when you are ready.',
+    '2B':   'Good day. This is Part 2, listening comprehension. Press play when you are ready.',
+    '2C':   'Good day. This is Part 2, listening comprehension. Press play when you are ready.',
+    '3':    'Good day. This is Part 3, picture description.'
+  };
+
+  function _teaOpeningFor(scope) {
+    return TEA_OPENINGS[String(scope || 'FULL').toUpperCase()] || '';
+  }
+
+  // Pull the opening clip down while the bank loads, so the very first thing the
+  // candidate hears is already in hand rather than waiting on a cold synthesis.
+  function _teaPrefetchOpening(scope) {
+    var text = _teaOpeningFor(scope);
+    if (!text) return;
+    var key = _teaNormLine(text);
+    var id  = TEA_LINES[key];
+    if (!id || (_t.exCache && _t.exCache[key])) return;
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.ok && res.audioBase64) {
+          _t.exCache = _t.exCache || {};
+          _t.exCache[key] = res.audioBase64;
+        }
+      })
+      .withFailureHandler(function() {})
+      .apiGetIcaoTestAudio(AppState.sessionToken, id);
+  }
+
   function _teaApplyScope(scope) {
     var key = String(scope || '').toUpperCase();
     _t.scope = key;
@@ -22796,10 +22832,20 @@
     }
 
     // Full exam
+    function opening(k) {
+      var line = _teaOpeningFor(k);
+      return line
+        ? 'Your FIRST reply must be exactly this sentence and nothing else — no ' +
+          'greeting of your own, no extra words, no question:\n"' + line + '"\n' +
+          'It is pre-recorded in the examiner\'s voice and matched on exact text; ' +
+          'anything else is synthesised live and comes out robotic. Then stop and wait.\n\n'
+        : '';
+    }
+
     if (!key || key === 'FULL') {
       _t.scopeStart = 0; _t.scopeEnd = TEA_ORDER.length;
       _t.scopeImages = true; _t.scopeInterview = true;
-      return 'Begin the examination now. Greet the candidate and start Part 1.';
+      return opening('FULL') + 'Begin the examination now, then conduct Part 1.';
     }
 
     var head = 'TEST MODE — this is a partial run for checking the application, not a real ' +
@@ -22811,13 +22857,13 @@
     if (key === '1') {
       _t.scopeStart = 0; _t.scopeEnd = 0;
       _t.scopeImages = false; _t.scopeInterview = true;
-      return head + 'Run Part 1 (the interview) only. Begin with the first question immediately.';
+      return opening('1') + head + 'Run Part 1 (the interview) only.';
     }
 
     if (key === '3') {
       _t.scopeStart = TEA_ORDER.length; _t.scopeEnd = TEA_ORDER.length;
       _t.scopeImages = true; _t.scopeInterview = false;
-      return head + 'Run Part 3 (picture description) only. The application will send you the ' +
+      return opening('3') + head + 'Run Part 3 (picture description) only. The application will send you the ' +
              'picture. Wait for it, then discuss it. Ask no interview questions.';
     }
 
@@ -22837,9 +22883,10 @@
     }
     _t.scopeStart = start; _t.scopeEnd = end;
     _t.scopeImages = false; _t.scopeInterview = false;
-    return head + 'Run Part ' + key + ' only — ' + (end - start) + ' recording(s). ' +
-           'Say one short line to introduce it, then stop and wait: the application loads ' +
-           'the recording and will tell you when it has been heard. Ask no interview questions.';
+    return opening(key) + head + 'Run Part ' + key + ' only — ' + (end - start) +
+           ' recording(s). After the opening sentence, stop and wait: the application ' +
+           'loads the recording and will tell you when it has been heard. Ask no ' +
+           'interview questions.';
   }
 
   function _resetState() {
@@ -23505,13 +23552,25 @@
     // the shared audio element — see the play handler in _activatePendingAudio.
     _t._exDone = _done;
 
+    // Already in hand — the opening clip is prefetched during bank load, and every
+    // line is cached after its first use.
+    var _lineKey = _teaNormLine(text);
+    if (_t.exCache && _t.exCache[_lineKey]) {
+      _teaPlayExaminer(_t.exCache[_lineKey], text, _done);
+      return;
+    }
+
     // A phrase the examiner repeats every item is fetched as a recording, not
     // synthesised. Falls through to live synthesis when the wording drifts.
-    var lineId = TEA_LINES[_teaNormLine(text)];
+    var lineId = TEA_LINES[_lineKey];
     if (lineId) {
       google.script.run
         .withSuccessHandler(function(res) {
-          if (res && res.ok && res.audioBase64) { _teaPlayExaminer(res.audioBase64, text, _done); }
+          if (res && res.ok && res.audioBase64) {
+            _t.exCache = _t.exCache || {};
+            _t.exCache[_lineKey] = res.audioBase64;
+            _teaPlayExaminer(res.audioBase64, text, _done);
+          }
           else _teaSpeakLive(text, _done);
         })
         .withFailureHandler(function() { _teaSpeakLive(text, _done); })
@@ -24438,6 +24497,9 @@
     // _teaApplyScope is what sets _t.scope, so it has to run before the step line
     // is derived from it.
     var _opening = _teaApplyScope(window._teaScope || '');
+    // Belt and braces: the bank load already kicks this off, but if it lost the
+    // race the fetch is still ahead of the examiner's first turn.
+    _teaPrefetchOpening(_t.scope || 'FULL');
     _teaSetStep(_t.scope === '3'     ? 'Part 3 · Picture description'
               : _t.scope === 'SCORE' ? 'Scoring'
               :                        'Part 1 · Interview',
@@ -24455,11 +24517,17 @@
   window._teaBegin = function(scope) {
     _unlockAudio();   // synchronous — MUST stay in the click gesture to unlock autoplay
     window._teaScope = String(scope || '');
+    // Start the opening clip downloading now, alongside the bank load, so it is
+    // ready before the examiner's first turn rather than after it.
+    var _scopeKey = String(scope || 'FULL').toUpperCase() || 'FULL';
     var btn = document.getElementById('teaBeginBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Preparing exam...'; }
     // Load the item bank before the first examiner turn, so the exam never
     // switches sources halfway through.
-    _teaLoadBank(function() { _startExam(); });
+    _teaLoadBank(function() {
+      _teaPrefetchOpening(_scopeKey);
+      _startExam();
+    });
   };
 
   // ── Debug pipeline test ──────────────────────────────────────────────────

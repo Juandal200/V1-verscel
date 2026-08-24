@@ -23,6 +23,15 @@ var ICAO_EXAMINER_VOICE_ = 'en-GB-Chirp3-HD-Schedar';
 var ICAO_EXAMINER_LANG_  = 'en-GB';
 
 var ICAO_TEST_SEED_ = [
+    { itemId:'line_open_full', itemType:'LINE', section:'1', orderIndex:10,
+      voice:ICAO_EXAMINER_VOICE_, lang:ICAO_EXAMINER_LANG_,
+      script:'Good day. This is your ICAO language proficiency test. We begin with Part 1, the interview.' },
+    { itemId:'line_open_p2', itemType:'LINE', section:'2A', orderIndex:11,
+      voice:ICAO_EXAMINER_VOICE_, lang:ICAO_EXAMINER_LANG_,
+      script:'Good day. This is Part 2, listening comprehension. Press play when you are ready.' },
+    { itemId:'line_open_p3', itemType:'LINE', section:'3', orderIndex:12,
+      voice:ICAO_EXAMINER_VOICE_, lang:ICAO_EXAMINER_LANG_,
+      script:'Good day. This is Part 3, picture description.' },
     { itemId:'line_2a_question', itemType:'LINE', section:'2A', orderIndex:1,
       voice:ICAO_EXAMINER_VOICE_, lang:ICAO_EXAMINER_LANG_,
       script:'What was the message, and who was speaking \u2014 pilot or controller, and why?' },
