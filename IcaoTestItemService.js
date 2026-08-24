@@ -19,7 +19,19 @@
 var ICAO_ITEMS_SHEET_ = 'IcaoTestItems';
 var ICAO_ITEMS_BANK_  = 'DEFAULT';
 
+var ICAO_EXAMINER_VOICE_ = 'en-GB-Chirp3-HD-Schedar';
+var ICAO_EXAMINER_LANG_  = 'en-GB';
+
 var ICAO_TEST_SEED_ = [
+    { itemId:'line_2a_question', itemType:'LINE', section:'2A', orderIndex:1,
+      voice:ICAO_EXAMINER_VOICE_, lang:ICAO_EXAMINER_LANG_,
+      script:'What was the message, and who was speaking \u2014 pilot or controller, and why?' },
+    { itemId:'line_ack_next', itemType:'LINE', section:'2A', orderIndex:2,
+      voice:ICAO_EXAMINER_VOICE_, lang:ICAO_EXAMINER_LANG_,
+      script:'Thank you. Next recording.' },
+    { itemId:'line_section_close', itemType:'LINE', section:'2A', orderIndex:3,
+      voice:ICAO_EXAMINER_VOICE_, lang:ICAO_EXAMINER_LANG_,
+      script:'Thank you. That completes this section.' },
     { itemId:'interview_1', itemType:'INTERVIEW', section:'1', orderIndex:1,
       description:'The candidate\'s current role and the aircraft type or sector they work' },
     { itemId:'interview_2', itemType:'INTERVIEW', section:'1', orderIndex:2,
@@ -318,7 +330,11 @@ function renderIcaoTestAudio(force) {
   var done = 0, skipped = 0, failed = 0;
 
   rows.forEach(function(r) {
-    if (String(r.itemType || '').toUpperCase() !== 'AUDIO') return;
+    // LINE items are the examiner's own repeated phrases. They are pre-rendered
+    // for the same reason the recordings are: synthesised live they arrive late
+    // and, on a cold start, as the browser's robot voice.
+    var t = String(r.itemType || '').toUpperCase();
+    if (t !== 'AUDIO' && t !== 'LINE') return;
     var script = String(r.script || '').trim();
     if (!script) return;
 
@@ -458,11 +474,18 @@ function apiGetIcaoTestItems(sessionToken, bank) {
       return (Number(a.orderIndex) || 0) - (Number(b.orderIndex) || 0);
     });
 
-    var audio = {}, order = [], images = [], sections = [], interview = [];
+    var audio = {}, order = [], images = [], sections = [], interview = [], lines = {};
     active.forEach(function(r) {
       var id = String(r.itemId || '').trim();
       if (!id) return;
       var type = String(r.itemType || '').toUpperCase();
+      if (type === 'LINE') {
+        // Keyed on the normalised script so the client can look one up by what the
+        // examiner actually said, without knowing item ids.
+        var norm = _icaoNormLine_(r.script);
+        if (norm) lines[norm] = id;
+        return;
+      }
       if (type === 'INTERVIEW') {
         var topic = String(r.description || r.label || '').trim();
         if (topic) interview.push(topic);
@@ -496,7 +519,7 @@ function apiGetIcaoTestItems(sessionToken, bank) {
 
     return { ok: true, bank: wanted, versions: usable.length,
              audio: audio, order: order, sections: sections,
-             images: images, interview: interview };
+             images: images, interview: interview, lines: lines };
   } catch (err) {
     return { ok: false, error: (err && err.message) || 'Failed to load item bank' };
   }
@@ -545,4 +568,18 @@ function apiSaveIcaoSectionReport(sessionToken, payload) {
   } catch (err) {
     return { ok: false, error: (err && err.message) || 'Save failed' };
   }
+}
+
+
+/**
+ * Normalises an examiner utterance so a pre-recorded clip can be matched to what
+ * the model actually said. Punctuation, case and dash style drift between turns;
+ * the words do not.
+ */
+function _icaoNormLine_(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[\u2010-\u2015]/g, '-')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 }

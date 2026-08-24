@@ -22624,6 +22624,19 @@
   // examiner falls back to the five generic topics in its own prompt.
   var TEA_INTERVIEW = [];
   var TEA_BANK      = '';
+  // Normalised examiner phrase -> pre-rendered item id. The lines that repeat every
+  // item are recorded once in the examiner's own voice instead of being synthesised
+  // fresh each time, which is what made the first and last line of a section arrive
+  // late and, on a cold server, in the browser's robot voice.
+  var TEA_LINES     = {};
+
+  function _teaNormLine(text) {
+    return String(text || '')
+      .toLowerCase()
+      .replace(/[\u2010-\u2015]/g, '-')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
 
   function _teaSectionAt(idx) {
     // When the sheet supplied a bank it is authoritative for every index — falling
@@ -22686,6 +22699,7 @@
             TEA_ORDER     = res.order;
             TEA_SECTIONS  = res.sections || null;
             TEA_INTERVIEW = res.interview || [];
+            TEA_LINES     = res.lines || {};
             TEA_BANK      = res.bank || '';
             if (res.images && res.images.length) TEA_IMAGES = res.images;
             finish('sheet · version ' + TEA_BANK + ' of ' + (res.versions || 1) +
@@ -22717,7 +22731,7 @@
              // one section can be exercised without sitting the other twenty-five
              // minutes. scopeEnd is exclusive.
              scope:'', scopeStart:0, scopeEnd:0, scopeImages:true, scopeInterview:true,
-             sectionReports:[], _sectionsDone:{} };
+             sectionReports:[], _sectionsDone:{}, _awaitingAck:false };
 
   // Translates a section name into the slice of the exam that should actually run.
   // Returns the opening instruction for the examiner, which has to be explicit:
@@ -22792,7 +22806,7 @@
     _t.examinerTurns=0; _t.segments=[];
     _t.scope=''; _t.scopeStart=0; _t.scopeEnd=0;
     _t.scopeImages=true; _t.scopeInterview=true;
-    _t.sectionReports=[]; _t._sectionsDone={};
+    _t.sectionReports=[]; _t._sectionsDone={}; _t._awaitingAck=false;
     if (_t.timerIv) clearInterval(_t.timerIv);
     if (_t.audioEl) { _t.audioEl.pause(); _t.audioEl=null; }
   }
@@ -23005,7 +23019,13 @@
     // state: 'thinking' | 'speaking' | 'listening' | 'idle'
     var label = document.getElementById('teaStatusLabel');
     var ring  = document.getElementById('teaRing');
-    if (label) label.textContent = text;
+    var mic   = document.getElementById('teaMic');
+    var turn  = state === 'listening';
+    if (label) {
+      label.textContent = text;
+      label.classList.toggle('is-turn', turn);
+    }
+    if (mic) mic.classList.toggle('is-turn', turn);
     if (ring) {
       ring.className = 'tea-ring';
       if (state) ring.classList.add('tea-ring--' + state);
@@ -23071,8 +23091,35 @@
   // parts you are in but never which item, so there was no way to tell how much of
   // a section was left.
   // Report on a section at the moment it ends, then carry on with `after`.
+  // True only if this section actually ran items in THIS sitting. A scoped run
+  // starts with the examiner saying "Part 2A", which trips the Part-2 detection
+  // and used to request a Part 1 report for an interview that never happened —
+  // producing a card reading "Part 1 was not administered in this test run".
+  function _teaSectionWasRun(section) {
+    var key = String(section).replace(/^Part\s*/i, '').toUpperCase();
+    if (key === '1') return !!_t.scopeInterview && _t.examinerTurns > 2;
+    if (key === '3') return !!_t.scopeImages && _t.imageIdx > 0;
+    // An audio section counts only once every one of its in-scope items is behind us.
+    var last = -1;
+    for (var i = _t.scopeStart; i < _t.scopeEnd; i++) if (_teaSectionAt(i) === key) last = i;
+    return last !== -1 && _t.audioIdx > last;
+  }
+
   function _teaRequestSectionReport(section, after) {
     if (_t._sectionsDone[section]) { after(); return; }
+    if (!_teaSectionWasRun(section)) {
+      if (window.console && console.log) {
+        console.log('[ICAO test] skipped report for ' + section +
+                    ' — not run in this sitting (audioIdx ' + _t.audioIdx +
+                    ', scope ' + (_t.scope || 'FULL') + ')');
+      }
+      _t._sectionsDone[section] = true;
+      after();
+      return;
+    }
+    if (window.console && console.log) {
+      console.log('[ICAO test] section report: ' + section + ' at audioIdx ' + _t.audioIdx);
+    }
     _t._sectionsDone[section] = true;
     _t._afterReport = after;
     _setStatus('Marking this section...', 'thinking');
@@ -23398,6 +23445,36 @@
 
     _setStatus('Examiner speaking...', 'speaking');
 
+    // A phrase the examiner repeats every item is fetched as a recording, not
+    // synthesised. Falls through to live synthesis when the wording drifts.
+    var lineId = TEA_LINES[_teaNormLine(text)];
+    if (lineId) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && res.ok && res.audioBase64) { _teaPlayExaminer(res.audioBase64, text, _done); }
+          else _teaSpeakLive(text, _done);
+        })
+        .withFailureHandler(function() { _teaSpeakLive(text, _done); })
+        .apiGetIcaoTestAudio(AppState.sessionToken, lineId);
+      return;
+    }
+
+    _teaSpeakLive(text, _done);
+  }
+
+  function _teaPlayExaminer(b64, text, _done) {
+    if (_t.audioEl) _t.audioEl.pause();
+    _t.audioEl = new Audio('data:audio/mp3;base64,' + b64);
+    _t.audioEl.crossOrigin = 'anonymous';
+    _t.audioEl.onended = _done;
+    _t.audioEl.onerror = _done;
+    var p = _t.audioEl.play();
+    if (p && p.catch) p.catch(function() { _teaVizStop(); _browserSpeak(text, _done); });
+    _teaVizSpeak(_t.audioEl);
+  }
+
+  function _teaSpeakLive(text, _done) {
+
     // Exactly one resolution per turn. _onExaminerMsg does ALL of its state work
     // in this callback — clears busy, advances the part — so firing it twice
     // double-advances and never firing it freezes the exam with busy=true.
@@ -23413,16 +23490,17 @@
     // the shared audio element — see the play handler in _activatePendingAudio.
     _t._exDone = _done;
 
+    // Unscripted speech still costs a synthesis, but only once per wording: the
+    // examiner repeats itself constantly and re-synthesising an identical line is
+    // both a wait and a chance to fall back to the robot voice.
+    _t.exCache = _t.exCache || {};
+    var key = _teaNormLine(text);
+    if (_t.exCache[key]) { _teaPlayExaminer(_t.exCache[key], text, _done); return; }
+
     _teaGasAudio(text, EXAMINER_VOICE, EXAMINER_LANG, 0.95, function(err, b64) {
       if (!b64) { _browserSpeak(text, _done); return; }
-      if (_t.audioEl) _t.audioEl.pause();
-      _t.audioEl = new Audio('data:audio/mp3;base64,' + b64);
-      _t.audioEl.crossOrigin = 'anonymous';
-      _t.audioEl.onended = _done;
-      _t.audioEl.onerror = _done;
-      var p = _t.audioEl.play();
-      if (p && p.catch) p.catch(function() { _teaVizStop(); _browserSpeak(text, _done); });
-      _teaVizSpeak(_t.audioEl);
+      _t.exCache[key] = b64;
+      _teaPlayExaminer(b64, text, _done);
     });
     // NOTE: no .catch() here. _teaGasAudio is callback-based and returns
     // undefined, so chaining .catch onto it threw a TypeError on EVERY examiner
@@ -24081,6 +24159,15 @@
         return;
       }
 
+      // The examiner has acknowledged the answer ("Thank you. Recording four of
+      // six next.") — only now is the item genuinely finished.
+      if (_t._awaitingAck) {
+        _t._awaitingAck = false;
+        _setEnabled(true);
+        _showNextAudioBtn();
+        return;
+      }
+
       // After Q&A for an audio item — enable input and show Next button
       if (_t._qaMode) {
         _t._qaMode = false;
@@ -24088,7 +24175,10 @@
         // evidence is the section's own and not yet mixed with the next one's.
         var justFinished = _getPartKey(_t.audioIdx - 1);
         var nowIn        = _getPartKey(_t.audioIdx);
-        var resume = function() { _setEnabled(true); _showNextAudioBtn(); };
+        // The button used to appear on this turn — the one where the examiner ASKS
+        // the questions — so it was possible to skip straight past answering. It
+        // now waits for the acknowledgement that follows the candidate's answer.
+        var resume = function() { _setEnabled(true); _t._awaitingAck = true; };
         if (justFinished && justFinished !== nowIn) {
           _teaRequestSectionReport('Part ' + justFinished, resume);
           return;
