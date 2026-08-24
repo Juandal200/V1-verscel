@@ -749,6 +749,13 @@ function apiSubmitExam(sessionToken, payload) {
         attemptedAt:   now_()
       });
     });
+    // A checkpoint exam is the most demanding thing in the app — twenty-five minutes
+    // of it counted as no activity at all, because lmsUpdateStreak_ was only called
+    // from the simulator, the daily challenge, grammar and listening. A student
+    // could sit an exam and lose their streak that night. Counts whether or not
+    // they passed: the streak measures showing up, not succeeding.
+    try { lmsUpdateStreak_(user.userId); } catch(e) {}
+
     // Re-compute status after writing
     var newStatusRes = apiGetExamStatus(sessionToken);
     var newExamInfo  = newStatusRes.ok
@@ -1505,6 +1512,9 @@ function apiSaveIcaoTestResult(sessionToken, payload) {
       completedAt:         now_(),
       retakeAuthorized:    'false'
     });
+    // Same reasoning as apiSubmitExam — the proficiency test is a full sitting.
+    try { lmsUpdateStreak_(user.userId); } catch(e) {}
+
     return { ok: true, resultId: resultId };
   } catch (err) {
     return apiError_('apiSaveIcaoTestResult', err);
