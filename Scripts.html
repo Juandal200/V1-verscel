@@ -22776,7 +22776,7 @@
              // one section can be exercised without sitting the other twenty-five
              // minutes. scopeEnd is exclusive.
              scope:'', scopeStart:0, scopeEnd:0, scopeImages:true, scopeInterview:true,
-             sectionReports:[], _sectionsDone:{}, _awaitingAck:false };
+             sectionReports:[], _sectionsDone:{}, _awaitingAck:false, _reportPending:null };
 
   // Translates a section name into the slice of the exam that should actually run.
   // Returns the opening instruction for the examiner, which has to be explicit:
@@ -22919,7 +22919,7 @@
     window._teaStarting = false;
     _t.scope=''; _t.scopeStart=0; _t.scopeEnd=0;
     _t.scopeImages=true; _t.scopeInterview=true;
-    _t.sectionReports=[]; _t._sectionsDone={}; _t._awaitingAck=false;
+    _t.sectionReports=[]; _t._sectionsDone={}; _t._awaitingAck=false; _t._reportPending=null;
     if (_t.timerIv) clearInterval(_t.timerIv);
     if (_t.audioEl) { _t.audioEl.pause(); _t.audioEl=null; }
   }
@@ -23235,6 +23235,7 @@
     }
     _t._sectionsDone[section] = true;
     _t._afterReport = after;
+    _t._reportPending = section;
     _setStatus('Marking this section...', 'thinking');
     _sendMsg('[SECTION_COMPLETE: ' + section + ']');
   }
@@ -23550,6 +23551,7 @@
     // Looks like a payload but would not parse. Do not speak it and do not show
     // it — say one short line so the exam keeps moving.
     if (!jsonData && _teaIsPayload(text)) {
+      _t._reportPending = null;
       // No card can be rendered from a payload that will not parse, so leave a
       // visible trace rather than having the section end in silence.
       _addMsg('system', 'Section marked — report unavailable for this section.');
@@ -23559,7 +23561,20 @@
     }
     // A section report is a card, never speech — reading a table of band scores
     // aloud is slow and unusable, and it is the written record that matters.
+    // Only render a report we actually asked for. The guard on _teaRequestSectionReport
+    // decides WHEN a section is over, but nothing stopped the examiner volunteering a
+    // report of its own accord — which is how a "Part 2A" card arrived at item 4 with
+    // two recordings still to come, and again at item 6.
+    if (jsonData && jsonData.section_report && !_t._reportPending) {
+      if (window.console && console.log) {
+        console.log('[ICAO test] ignored an unrequested section report at audioIdx ' + _t.audioIdx);
+      }
+      onDone();
+      return;
+    }
+
     if (jsonData && jsonData.section_report && jsonData.section_report.bands) {
+      _t._reportPending = null;
       _renderSectionReport(jsonData.section_report);
       _saveSectionReport(jsonData.section_report);
       _setStatus('Section complete', 'idle');
