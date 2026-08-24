@@ -12040,4 +12040,40 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   .tea-mic-btn   { width: 44px; height: 44px; }
 }
 
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   ICAO PROFICIENCY TEST — centre the conversation column
+   The composer and the chat both ran the full width of the window, so on a wide
+   screen the mic sat hard against the left edge with a textarea stretching metres
+   away from it. Constrain the column and centre it; the bar itself stays full
+   width so its top border and background still span the window.
+   ───────────────────────────────────────────────────────────────────────────── */
+.tea-input-bar {
+  padding: 16px 16px 20px;
+  justify-content: center;
+  gap: 12px;
+}
+.tea-input-bar .tea-textarea {
+  max-width: 680px;
+}
+.tea-cards {
+  padding: 14px 16px;
+}
+/* One column, centred, so messages sit under the examiner ring rather than
+   drifting to the window edges. */
+.tea-cards > * {
+  width: 100%;
+  max-width: 740px;
+  margin-left: auto;
+  margin-right: auto;
+}
+/* max-width:88% was a share of the WINDOW, so on a wide screen a one-line reply
+   still stretched most of the way across. Cap it against the column instead. */
+.tea-msg { max-width: 100%; }
+
+@media (max-width: 760px) {
+  .tea-input-bar { padding: 12px 12px 16px; gap: 10px; }
+  .tea-cards > * { max-width: 100%; }
+}
+
 </style>
