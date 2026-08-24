@@ -22590,6 +22590,11 @@
   // type. Counts are derived, never assumed.
   var TEA_SECTIONS = null;
 
+  // Part 1 topics and the version identifier for this sitting. Empty means the
+  // examiner falls back to the five generic topics in its own prompt.
+  var TEA_INTERVIEW = [];
+  var TEA_BANK      = '';
+
   function _teaSectionAt(idx) {
     // When the sheet supplied a bank it is authoritative for every index — falling
     // through to the 6/3/3 rules for an out-of-range index reported a section for
@@ -22647,12 +22652,16 @@
         .withSuccessHandler(function(res) {
           clearTimeout(guard);
           if (res && res.ok && res.order && res.order.length) {
-            TEA_AUDIO    = res.audio;
-            TEA_ORDER    = res.order;
-            TEA_SECTIONS = res.sections || null;
+            TEA_AUDIO     = res.audio;
+            TEA_ORDER     = res.order;
+            TEA_SECTIONS  = res.sections || null;
+            TEA_INTERVIEW = res.interview || [];
+            TEA_BANK      = res.bank || '';
             if (res.images && res.images.length) TEA_IMAGES = res.images;
-            finish('sheet (' + res.order.length + ' recordings, ' +
-                   ((res.images && res.images.length) || 0) + ' pictures)');
+            finish('sheet · version ' + TEA_BANK + ' of ' + (res.versions || 1) +
+                   ' (' + res.order.length + ' recordings, ' +
+                   ((res.images && res.images.length) || 0) + ' pictures, ' +
+                   TEA_INTERVIEW.length + ' interview topics)');
           } else {
             finish('built-in (' + ((res && res.error) || 'no items') + ')');
           }
@@ -22714,7 +22723,11 @@
 
     fetch('/api/tea', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ history: _t.history })
+      body: JSON.stringify({
+        history:         _t.history,
+        interviewTopics: TEA_INTERVIEW,
+        bank:            TEA_BANK
+      })
     })
     .then(function(r){ return r.json(); })
     .then(function(d){
@@ -23535,7 +23548,8 @@
           segments:    _t.segments,
           history:     _t.history,
           candidateId: candidateId,
-          examDate:    new Date().toISOString()
+          examDate:    new Date().toISOString(),
+          bank:        TEA_BANK
         })
       })
       .then(function(r) { return r.json(); })

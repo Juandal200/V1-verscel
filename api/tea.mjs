@@ -180,11 +180,25 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { history } = req.body;
+    const { history, interviewTopics, bank } = req.body;
+
+    // Part 1 topics come from the item bank for this sitting, so two versions of
+    // the exam cover different ground. Wording is still the examiner's — reading a
+    // topic aloud is not a question.
+    let prompt = SYSTEM_PROMPT;
+    if (Array.isArray(interviewTopics) && interviewTopics.length) {
+      prompt += '\n\nPART 1 TOPICS FOR THIS SITTING — OVERRIDES THE PART 1 LIST ABOVE\n' +
+        'Exam version: ' + (bank || 'DEFAULT') + '. Ask exactly ' + interviewTopics.length +
+        ' questions, one per topic, in this order:\n' +
+        interviewTopics.map((t, i) => '  ' + (i + 1) + '. ' + t).join('\n') +
+        '\nPhrase each question yourself in examiner register — never read a topic aloud ' +
+        'verbatim and never mention that topics were supplied. One short follow-up per ' +
+        'answer only. Do not reveal the version identifier to the candidate.';
+    }
 
     // v1 doesn't support system_instruction — inject system prompt as first user message
-    const systemTurn = { role: 'user',  parts: [{ text: 'SYSTEM: ' + SYSTEM_PROMPT }] };
-    const systemAck  = { role: 'model', parts: [{ text: 'Understood. I am ready to conduct the TEA examination.' }] };
+    const systemTurn = { role: 'user',  parts: [{ text: 'SYSTEM: ' + prompt }] };
+    const systemAck  = { role: 'model', parts: [{ text: 'Understood. I am ready to conduct the ICAO language proficiency examination.' }] };
 
     const contents = [systemTurn, systemAck].concat(history.map(function(m) {
       return {

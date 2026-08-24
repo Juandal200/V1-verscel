@@ -11,7 +11,10 @@ var TEA_SHEET_HEADERS = [
   'Date', 'Candidate', 'Overall Band',
   'Pronunciation', 'Structure', 'Vocabulary',
   'Fluency', 'Comprehension', 'Interactions',
-  'Drive Report'
+  'Drive Report',
+  // Which item bank this sitting drew from. Versions can differ in difficulty, so
+  // results from different banks are not comparable without knowing which was sat.
+  'Version'
 ];
 
 /**
@@ -96,7 +99,8 @@ function _teaAppendSheetRow_(data, fileUrl) {
     scores.fluency             || '',
     scores.comprehension       || '',
     scores.interactions        || '',
-    fileUrl                    || ''
+    fileUrl                    || '',
+    data.bank                  || ''
   ]);
 }
 
@@ -108,7 +112,18 @@ function _teaGetOrCreateSheet_() {
 
   var ss       = SpreadsheetApp.openById(ssId);
   var existing = ss.getSheetByName(TEA_TAB_NAME);
-  if (existing) return existing;
+  if (existing) {
+    // Headers are only written when the tab is created, so a column added to
+    // TEA_SHEET_HEADERS later would never appear and its values would land under
+    // a blank heading. Fill in any trailing headers the sheet is missing.
+    var width = existing.getLastColumn();
+    if (width < TEA_SHEET_HEADERS.length) {
+      var missing = TEA_SHEET_HEADERS.slice(width);
+      existing.getRange(1, width + 1, 1, missing.length)
+              .setValues([missing]).setFontWeight('bold');
+    }
+    return existing;
+  }
 
   // First run — add the tab and write headers
   var sheet = ss.insertSheet(TEA_TAB_NAME);

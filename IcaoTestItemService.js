@@ -20,6 +20,16 @@ var ICAO_ITEMS_SHEET_ = 'IcaoTestItems';
 var ICAO_ITEMS_BANK_  = 'DEFAULT';
 
 var ICAO_TEST_SEED_ = [
+    { itemId:'interview_1', itemType:'INTERVIEW', section:'1', orderIndex:1,
+      description:'The candidate\'s current role and the aircraft type or sector they work' },
+    { itemId:'interview_2', itemType:'INTERVIEW', section:'1', orderIndex:2,
+      description:'Years of experience and how they trained for the role' },
+    { itemId:'interview_3', itemType:'INTERVIEW', section:'1', orderIndex:3,
+      description:'One operational challenge they face in their daily work' },
+    { itemId:'interview_4', itemType:'INTERVIEW', section:'1', orderIndex:4,
+      description:'An opinion on an aviation safety issue' },
+    { itemId:'interview_5', itemType:'INTERVIEW', section:'1', orderIndex:5,
+      description:'A general aviation topic - weather, technology, or industry change' },
     { itemId:'part_2a_1', itemType:'AUDIO', section:'2A', orderIndex:1,
       voice:'en-US-Chirp3-HD-Fenrir', lang:'en-US',
       script:'Mayday mayday mayday, Delta four seven heavy, we have an engine fire on number two, requesting immediate return to Atlanta, souls on board three hundred and twelve, fuel nine hours, mayday delta four seven heavy.',
@@ -131,6 +141,22 @@ function setupIcaoTestItems(force) {
 }
 
 /**
+ * Banks that are actually usable — active AND holding at least one playable
+ * recording. A bank of pictures alone is not an exam, and offering it would hand
+ * a candidate an empty listening section.
+ */
+function _icaoUsableBanks_(rows) {
+  var withAudio = {};
+  rows.forEach(function(r) {
+    if (String(r.isActive).toUpperCase() === 'FALSE') return;
+    if (String(r.itemType || '').toUpperCase() !== 'AUDIO') return;
+    if (!String(r.script || '').trim()) return;
+    withAudio[String(r.bank || ICAO_ITEMS_BANK_).trim().toUpperCase()] = true;
+  });
+  return Object.keys(withAudio);
+}
+
+/**
  * Item bank for the client, shaped exactly like the constants it replaces so the
  * client can swap one for the other with no other changes.
  * Returns ok:false rather than throwing — the client falls back to its built-ins.
@@ -139,12 +165,22 @@ function apiGetIcaoTestItems(sessionToken, bank) {
   try {
     AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
 
-    var wanted = String(bank || ICAO_ITEMS_BANK_).trim().toUpperCase();
     var rows;
     try {
       rows = dbReadAll_(ICAO_ITEMS_SHEET_);
     } catch (e) {
       return { ok: false, error: 'Item sheet not set up. Run setupIcaoTestItems().' };
+    }
+
+    // No bank named means "any version": pick one at random per sitting, so a
+    // candidate cannot predict which paper they will get and a retake is unlikely
+    // to repeat the one they just saw.
+    var usable = _icaoUsableBanks_(rows);
+    var wanted = String(bank || '').trim().toUpperCase();
+    if (!wanted) {
+      wanted = usable.length
+        ? usable[Math.floor(Math.random() * usable.length)]
+        : ICAO_ITEMS_BANK_;
     }
 
     var active = rows.filter(function(r) {
@@ -155,11 +191,17 @@ function apiGetIcaoTestItems(sessionToken, bank) {
       return (Number(a.orderIndex) || 0) - (Number(b.orderIndex) || 0);
     });
 
-    var audio = {}, order = [], images = [], sections = [];
+    var audio = {}, order = [], images = [], sections = [], interview = [];
     active.forEach(function(r) {
       var id = String(r.itemId || '').trim();
       if (!id) return;
-      if (String(r.itemType || '').toUpperCase() === 'IMAGE') {
+      var type = String(r.itemType || '').toUpperCase();
+      if (type === 'INTERVIEW') {
+        var topic = String(r.description || r.label || '').trim();
+        if (topic) interview.push(topic);
+        return;
+      }
+      if (type === 'IMAGE') {
         images.push({
           id:    id,
           label: String(r.label || ''),
@@ -185,8 +227,9 @@ function apiGetIcaoTestItems(sessionToken, bank) {
 
     if (!order.length) return { ok: false, error: 'No active audio items in bank ' + wanted };
 
-    return { ok: true, bank: wanted, audio: audio, order: order,
-             sections: sections, images: images };
+    return { ok: true, bank: wanted, versions: usable.length,
+             audio: audio, order: order, sections: sections,
+             images: images, interview: interview };
   } catch (err) {
     return { ok: false, error: (err && err.message) || 'Failed to load item bank' };
   }
