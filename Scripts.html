@@ -22992,11 +22992,62 @@
   function _showThinking() { _setStatus('Thinking...', 'thinking'); }
   function _removeThinking() { /* status is updated by _addMsg */ }
 
+  // A short two-note rise when the floor passes to the candidate, and a single low
+  // note when a recording is about to play. In a spoken exam the moment you are
+  // expected to talk is the one thing that must not be missed, and a line of grey
+  // text changing is easy to miss while you are looking away and thinking.
+  function _teaCue(kind) {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      _t._cueCtx = _t._cueCtx || new AC();
+      var ctx = _t._cueCtx;
+      if (ctx.state === 'suspended') ctx.resume();
+      var notes = kind === 'listen' ? [440] : [587.33, 880];
+      notes.forEach(function(f, i) {
+        var osc = ctx.createOscillator(), g = ctx.createGain();
+        osc.type = 'sine'; osc.frequency.value = f;
+        var t0 = ctx.currentTime + i * 0.11;
+        g.gain.setValueAtTime(0, t0);
+        g.gain.linearRampToValueAtTime(0.13, t0 + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0008, t0 + 0.26);
+        osc.connect(g); g.connect(ctx.destination);
+        osc.start(t0); osc.stop(t0 + 0.3);
+      });
+    } catch (e) {}
+  }
+
   function _setEnabled(on) {
     ['teaInput','teaMic'].forEach(function(id){
       var el=document.getElementById(id); if(el) el.disabled=!on;
     });
-    if (on) _setStatus('Your turn — speak or type', 'listening');
+    // Only on the transition. _setEnabled(true) is called from several branches
+    // and a cue on every one of them would be noise rather than a signal.
+    var was = !!_t._inputOn;
+    _t._inputOn = !!on;
+    if (on) {
+      _setStatus('Your turn — speak or type', 'listening');
+      if (!was) {
+        _teaCue('speak');
+        var ta = document.getElementById('teaInput');
+        if (ta) { try { ta.focus(); } catch (e) {} }
+      }
+    }
+  }
+
+  // "Part 2A · Item 3 of 6" and what follows it. The rail shows which of the five
+  // parts you are in but never which item, so there was no way to tell how much of
+  // a section was left.
+  function _teaSetStep(now, next) {
+    var a = document.getElementById('teaStepNow');
+    var b = document.getElementById('teaStepNext');
+    if (a && now  !== null) a.textContent = now;
+    if (b) b.textContent = next ? 'Next · ' + next : '';
+  }
+
+  function _teaStepForIndex(idx) {
+    if (idx >= _t.scopeEnd) return _t.scopeImages ? 'Part 3 · Picture description' : 'Scoring';
+    return TEA_PART_LABEL(idx).replace(' — ', ' · ');
   }
 
   function _addAudioCard(id, partLabel) {
@@ -23268,6 +23319,7 @@
     _t._pendingId  = id;
     _t._pendingB64 = null;
 
+    _teaSetStep(_teaStepForIndex(_t.audioIdx), _teaStepForIndex(_t.audioIdx + 1));
     _setStatus('Preparing next recording...', 'thinking');
 
     _fetchAudio(id, function(err, b64) {
@@ -23430,6 +23482,7 @@
       var used = Number(_t.listens[id] || 0);
       if (used >= TEA_MAX_LISTENS) return;
       _t.listens[id] = used + 1;
+      _teaCue('listen');
 
       var cont = document.getElementById('teaContinue_' + id);
       if (cont) cont.remove();
@@ -24070,7 +24123,11 @@
           '<div id="teaRing" class="tea-ring tea-ring--thinking">' +
             '<div class="tea-ring-inner">EX</div>' +
           '</div>' +
-          '<div id="teaStatusLabel" class="tea-status-label">Preparing exam...</div>' +
+          '<div class="tea-stage-text">' +
+            '<div id="teaStepNow"  class="tea-step-now">Preparing exam...</div>' +
+            '<div id="teaStepNext" class="tea-step-next"></div>' +
+            '<div id="teaStatusLabel" class="tea-status-label" style="text-align:left;"></div>' +
+          '</div>' +
         '</div>' +
         '<div id="teaCards" class="tea-cards"></div>' +
         '<div class="tea-input-bar">' +
@@ -24089,7 +24146,14 @@
       if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();_submit();}
     });
 
-    _sendMsg(_teaApplyScope(window._teaScope || ''));
+    // _teaApplyScope is what sets _t.scope, so it has to run before the step line
+    // is derived from it.
+    var _opening = _teaApplyScope(window._teaScope || '');
+    _teaSetStep(_t.scope === '3'     ? 'Part 3 · Picture description'
+              : _t.scope === 'SCORE' ? 'Scoring'
+              :                        'Part 1 · Interview',
+                (_t.scope && _t.scope !== '1') ? '' : _teaStepForIndex(_t.scopeStart));
+    _sendMsg(_opening);
 
     // Part 1 runs five or six minutes with the network otherwise idle. Use it to
     // pull the opening recordings down, so the listening section starts instantly
