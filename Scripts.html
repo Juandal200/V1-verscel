@@ -23108,7 +23108,7 @@
     card.innerHTML =
       '<div class="tea-image-card-label">' + img.label + '</div>' +
       (img.src
-        ? '<img class="tea-image-card-img" src="' + safeText(img.src) + '" alt="' + safeText(img.label) + '" ' +
+        ? '<img class="tea-image-card-img" src="' + _esc(img.src) + '" alt="' + _esc(img.label) + '" ' +
             'style="width:100%;max-height:340px;object-fit:cover;border-radius:10px;display:block;margin:8px 0;" ' +
             'onerror="this.style.display=\'none\'; var d=this.parentNode.querySelector(\'.tea-image-card-desc\'); if(d) d.style.display=\'block\';">'
         : '') +
@@ -23294,7 +23294,7 @@
     box.innerHTML =
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;">' +
         '<div><div class="tea-part-badge" style="margin:0;">SECTION COMPLETE</div>' +
-        '<div style="font-size:0.95rem;font-weight:800;color:#dde2e6;margin-top:5px;">' + safeText(rep.section) + '</div></div>' +
+        '<div style="font-size:0.95rem;font-weight:800;color:#dde2e6;margin-top:5px;">' + _esc(rep.section) + '</div></div>' +
         '<div style="text-align:right;"><div style="font-size:1.8rem;font-weight:900;line-height:1;color:' + _teaBandColor(Math.round(avg)) + ';">' +
           (avg || '—') + '</div><div style="font-size:0.6rem;letter-spacing:.12em;color:#4a6280;text-transform:uppercase;">provisional</div></div>' +
       '</div>' +
@@ -23311,9 +23311,9 @@
             (v > 0 ? v : '·') + '</div>' +
         '</div>';
       }).join('') +
-      (rep.strength ? '<div style="margin-top:11px;font-size:0.78rem;color:#8fa3bb;"><b style="color:#00d48e;">Strength</b> · ' + safeText(rep.strength) + '</div>' : '') +
-      (rep.improve  ? '<div style="margin-top:4px;font-size:0.78rem;color:#8fa3bb;"><b style="color:#e0a252;">Work on</b> · ' + safeText(rep.improve) + '</div>' : '') +
-      (rep.note     ? '<div style="margin-top:8px;font-size:0.72rem;color:#5b7690;line-height:1.6;">' + safeText(rep.note) + '</div>' : '') +
+      (rep.strength ? '<div style="margin-top:11px;font-size:0.78rem;color:#8fa3bb;"><b style="color:#00d48e;">Strength</b> · ' + _esc(rep.strength) + '</div>' : '') +
+      (rep.improve  ? '<div style="margin-top:4px;font-size:0.78rem;color:#8fa3bb;"><b style="color:#e0a252;">Work on</b> · ' + _esc(rep.improve) + '</div>' : '') +
+      (rep.note     ? '<div style="margin-top:8px;font-size:0.72rem;color:#5b7690;line-height:1.6;">' + _esc(rep.note) + '</div>' : '') +
       '<div style="margin-top:9px;font-size:0.64rem;color:#3a4a5a;">A dot means this section gave no evidence for that descriptor.</div>';
     cards.appendChild(box);
     _scrollChat();
@@ -23902,8 +23902,11 @@
     cards.scrollTop = cards.scrollHeight;
   }
 
+  // Also escapes the single quote: image URLs and descriptions come from the item
+  // sheet and are interpolated into attributes, some of them single-quoted.
   function _esc(s) {
-    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                          .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
   }
 
   // Render dual-view JSON score card
@@ -24505,7 +24508,7 @@ function _dcHomeBannerHtml(challenge) {
     '<div class="dc-home-card-icon">⚡</div>' +
     '<div class="dc-home-card-body">' +
       '<div class="dc-home-card-label">Daily Challenge · ~3 min</div>' +
-      '<div class="dc-home-card-title">' + safeText(challenge.title) + '</div>' +
+      '<div class="dc-home-card-title">' + _esc(challenge.title) + '</div>' +
       '<div class="dc-home-dots">' + dotsHtml + '</div>' +
     '</div>' +
     '<div class="dc-home-card-arrow">→</div>' +
@@ -24581,9 +24584,9 @@ function _dcRenderPlayer() {
             '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><polygon points="5,3 19,12 5,21"/></svg>' +
             '<span id="dcPlayLabel">Play Audio</span>' +
           '</button>' +
-          '<div class="dc-audio-script" id="dcAudioScript">' + safeText(item.audioScript) + '</div>' +
+          '<div class="dc-audio-script" id="dcAudioScript">' + _esc(item.audioScript) + '</div>' +
         '</div>' +
-        '<div class="dc-question">' + safeText(item.questionText) + '</div>' +
+        '<div class="dc-question">' + _esc(item.questionText) + '</div>' +
         '<div class="dc-options" id="dcOptions">' +
           _dcOptHtml('A', item.optionA) +
           _dcOptHtml('B', item.optionB) +
@@ -24601,7 +24604,7 @@ function _dcRenderPlayer() {
 function _dcOptHtml(letter, text) {
   return '<div class="dc-opt" id="dcOpt' + letter + '" onclick="_dcSelectOpt(\'' + letter + '\')" role="button" tabindex="0" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();_dcSelectOpt(\'' + letter + '\')}">' +
     '<span class="dc-opt-letter">' + letter + '</span>' +
-    '<span class="dc-opt-text">' + safeText(text) + '</span>' +
+    '<span class="dc-opt-text">' + _esc(text) + '</span>' +
   '</div>';
 }
 
@@ -24786,8 +24789,8 @@ function renderAdminDailyChallenges() {
 
 function _renderAdminDcList(list) {
   var rows = list.map(function(c, i) {
-    var safeId    = safeText(c.challengeId);
-    var safeTitle = safeText(c.title);
+    var safeId    = _esc(c.challengeId);
+    var safeTitle = _esc(c.title);
     return '<tr>' +
       '<td style="width:40px;color:var(--muted);font-size:0.8rem;">' + (i + 1) + '</td>' +
       '<td><strong>' + safeTitle + '</strong><br><span style="font-size:0.75rem;color:var(--muted);">' + (c.country || 'USA') + ' accent</span></td>' +
@@ -24855,9 +24858,9 @@ function _adminDcShowForm(challenge) {
             : '') +
         '</div>' +
         '<label class="dc-form-label">Audio Script (ATC radio call)</label>' +
-        '<textarea class="input dc-form-textarea" placeholder="e.g. Tower, Iberia 432, request pushback." oninput="window._dcFormItems[' + idx + '].audioScript=this.value">' + safeText(it.audioScript) + '</textarea>' +
+        '<textarea class="input dc-form-textarea" placeholder="e.g. Tower, Iberia 432, request pushback." oninput="window._dcFormItems[' + idx + '].audioScript=this.value">' + _esc(it.audioScript) + '</textarea>' +
         '<label class="dc-form-label">Question</label>' +
-        '<input class="input" style="margin-bottom:4px;" placeholder="What is the aircraft requesting?" value="' + safeText(it.questionText) + '" oninput="window._dcFormItems[' + idx + '].questionText=this.value">' +
+        '<input class="input" style="margin-bottom:4px;" placeholder="What is the aircraft requesting?" value="' + _esc(it.questionText) + '" oninput="window._dcFormItems[' + idx + '].questionText=this.value">' +
         '<div class="dc-form-opts-grid">' +
           _dcAdminOptRow(idx, 'A', it.optionA, it.correctOption) +
           _dcAdminOptRow(idx, 'B', it.optionB, it.correctOption) +
@@ -24915,9 +24918,9 @@ function _adminDcShowForm(challenge) {
   if (!wrap) return;
   wrap.innerHTML =
     '<div class="dc-form-card">' +
-      '<h3 style="margin:0 0 16px;">' + (isNew ? 'New Challenge' : 'Edit: ' + safeText(cTitle)) + '</h3>' +
+      '<h3 style="margin:0 0 16px;">' + (isNew ? 'New Challenge' : 'Edit: ' + _esc(cTitle)) + '</h3>' +
       '<label class="dc-form-label">Challenge Title</label>' +
-      '<input id="dcFormTitle" class="input" style="margin-bottom:12px;" placeholder="e.g. Departure Sequences" value="' + safeText(cTitle) + '">' +
+      '<input id="dcFormTitle" class="input" style="margin-bottom:12px;" placeholder="e.g. Departure Sequences" value="' + _esc(cTitle) + '">' +
       '<label class="dc-form-label">ATC Accent (Country)</label>' +
       '<select id="dcFormCountry" class="input" style="margin-bottom:16px;">' +
         ['USA','UK','AUSTRALIA','INDIA','CANADA'].map(function(c) {
@@ -24941,7 +24944,7 @@ function _dcAdminOptRow(idx, letter, value, correct) {
   var isCorr = (correct || 'A').toUpperCase() === letter;
   return '<div class="dc-form-opt-row' + (isCorr ? ' dc-form-opt-row--correct' : '') + '">' +
     '<span class="dc-form-opt-letter" title="Click to mark as correct answer" onclick="window._dcSetCorrect(' + idx + ',\'' + letter + '\')" style="cursor:pointer;">' + letter + '</span>' +
-    '<input class="input" style="flex:1;" placeholder="Option ' + letter + '" value="' + safeText(value) + '" oninput="window._dcFormItems[' + idx + '].option' + letter + '=this.value">' +
+    '<input class="input" style="flex:1;" placeholder="Option ' + letter + '" value="' + _esc(value) + '" oninput="window._dcFormItems[' + idx + '].option' + letter + '=this.value">' +
   '</div>';
 }
 
