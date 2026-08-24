@@ -22630,16 +22630,28 @@
   // ── API ───────────────────────────────────────────────────────────────────
   function _chat(userText, cb) {
     if (userText !== null) _t.history.push({ role:'user', content:userText });
+
+    // cb runs the whole exam state machine. Calling it inside .then() put it
+    // upstream of .catch(), so ANY exception it threw came back as "Error: ..."
+    // from the API — the transport got blamed for handler bugs, and cb ran
+    // twice. Resolve once, and dispatch outside the chain.
+    var _settled = false;
+    function _once(err, msg) {
+      if (_settled) return;
+      _settled = true;
+      setTimeout(function() { cb(err, msg); }, 0);
+    }
+
     fetch('/api/tea', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ history: _t.history })
     })
     .then(function(r){ return r.json(); })
     .then(function(d){
-      if (d.ok && d.message) { _t.history.push({ role:'assistant', content:d.message }); cb(null,d.message); }
-      else cb(d.error||'API error');
+      if (d.ok && d.message) { _t.history.push({ role:'assistant', content:d.message }); _once(null, d.message); }
+      else _once(d.error || 'API error');
     })
-    .catch(function(e){ cb(e.message); });
+    .catch(function(e){ _once((e && e.message) || 'Network error'); });
   }
 
   function _fetchAudio(id, cb) {
@@ -23017,21 +23029,37 @@
     }
 
     _setStatus('Examiner speaking...', 'speaking');
+
+    // Exactly one resolution per turn. _onExaminerMsg does ALL of its state work
+    // in this callback — clears busy, advances the part — so firing it twice
+    // double-advances and never firing it freezes the exam with busy=true.
+    var _spoke = false;
+    function _done() {
+      if (_spoke) return;
+      _spoke = true;
+      _t._exDone = null;
+      _teaVizStop();
+      onDone();
+    }
+    // Published so a replay can release the examiner's turn before taking over
+    // the shared audio element — see the play handler in _activatePendingAudio.
+    _t._exDone = _done;
+
     _teaGasAudio(text, EXAMINER_VOICE, EXAMINER_LANG, 0.95, function(err, b64) {
-      if (b64) {
-        if (_t.audioEl) _t.audioEl.pause();
-        _t.audioEl = new Audio('data:audio/mp3;base64,' + b64);
-        _t.audioEl.crossOrigin = 'anonymous';
-        _t.audioEl.onended = function() { _teaVizStop(); onDone(); };
-        _t.audioEl.onerror = function() { _teaVizStop(); onDone(); };
-        var p = _t.audioEl.play();
-        if (p && p.catch) p.catch(function() { _teaVizStop(); _browserSpeak(text, onDone); });
-        _teaVizSpeak(_t.audioEl);
-      } else {
-        _browserSpeak(text, onDone);
-      }
-    })
-    .catch(function() { _browserSpeak(text, onDone); });
+      if (!b64) { _browserSpeak(text, _done); return; }
+      if (_t.audioEl) _t.audioEl.pause();
+      _t.audioEl = new Audio('data:audio/mp3;base64,' + b64);
+      _t.audioEl.crossOrigin = 'anonymous';
+      _t.audioEl.onended = _done;
+      _t.audioEl.onerror = _done;
+      var p = _t.audioEl.play();
+      if (p && p.catch) p.catch(function() { _teaVizStop(); _browserSpeak(text, _done); });
+      _teaVizSpeak(_t.audioEl);
+    });
+    // NOTE: no .catch() here. _teaGasAudio is callback-based and returns
+    // undefined, so chaining .catch onto it threw a TypeError on EVERY examiner
+    // turn. That throw landed in _chat's .catch, which reported it as an API
+    // error — an error banner on every single turn of the exam.
   }
 
   // ── Audio item management ────────────────────────────────────────────────
@@ -23214,6 +23242,13 @@
 
       var cont = document.getElementById('teaContinue_' + id);
       if (cont) cont.remove();
+
+      // The replay stays live DURING the questions, so the examiner may still be
+      // speaking. Pausing its element fires neither onended nor onerror, so its
+      // onDone never ran and the exam sat at busy=true with the candidate unable
+      // to answer. Release that turn first, then take the element.
+      if (_t._exDone) _t._exDone();
+      try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
 
       if (_t.audioEl) _t.audioEl.pause();
       _t.audioEl = new Audio('data:audio/mp3;base64,' + b64);
@@ -23453,17 +23488,17 @@
           _browserSpeak('The examination is now complete. Your overall ICAO band is ' + band + '. Please review your results below.', function() {});
         } else {
           // Pipeline failed — fall back to Gemini live grading via conversation
-          _t._examDone = false;
+          _unlockExamUI();
           _sendMsg(_teaReplayReport());
         }
       })
       .catch(function() {
-        _t._examDone = false;
+        _unlockExamUI();
         _sendMsg(_teaReplayReport());
       });
     } else {
       // No audio recorded — fall back to Gemini live grading
-      _t._examDone = false;
+      _unlockExamUI();
       _sendMsg(_teaReplayReport());
     }
   }
@@ -23604,6 +23639,15 @@
     return html;
   }
 
+  // _lockExamUI hides the input bar outright, so every path that resumes the
+  // conversation afterwards (a failed grading pipeline falls back to live Gemini
+  // grading) has to put it back or the candidate is left with no way to reply.
+  function _unlockExamUI() {
+    _t._examDone = false;
+    var bar = document.querySelector('.tea-input-bar');
+    if (bar) bar.style.display = '';
+  }
+
   function _lockExamUI() {
     _t._examDone = true;
     if (_t.timerIv) clearInterval(_t.timerIv);
@@ -23649,8 +23693,13 @@
       }
 
       // Part 3 — inject images once all audio done, one per examiner turn
+      // Part 3 is entered EITHER by the "Continue to Part 3" button or by this
+      // automatic injection. While that button is still on screen both are armed,
+      // and each advances imageIdx — so one picture was injected here, the button
+      // injected the next, and the first was never discussed. The button wins
+      // while it exists; this takes over for the images after it.
       if (_t.audioIdx >= TEA_ORDER.length && _t.imageIdx < TEA_IMAGES.length &&
-          !_t._imageInjected) {
+          !_t._imageInjected && !document.getElementById('teaNextBtn')) {
         var img = TEA_IMAGES[_t.imageIdx++];
         if (_t.imageIdx >= TEA_IMAGES.length) _t._imageInjected = true;
         _addImageCard(img);
@@ -23718,7 +23767,7 @@
 
     content.innerHTML =
       '<div class="tea-begin-shell" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 60px);background:#080c10;gap:24px;">' +
-        '<div class="tea-part-badge" style="font-size:0.9rem;padding:6px 18px;">ICAO TEA</div>' +
+        '<div class="tea-part-badge" style="font-size:0.9rem;padding:6px 18px;">ICAO TEST</div>' +
         '<div style="font-size:1.4rem;font-weight:700;color:#dde2e6;">ICAO Language Proficiency Test</div>' +
         '<div style="font-size:0.85rem;color:#4a6280;text-align:center;max-width:320px;line-height:1.6;">' +
           'This is a full ICAO aviation English proficiency exam.<br>The examiner will speak. Respond via microphone.' +
@@ -23740,7 +23789,7 @@
     content.innerHTML =
       '<div class="tea-exam-shell" style="display:flex;flex-direction:column;height:calc(100vh - 60px);background:#080c10;">' +
         '<div class="tea-header">' +
-          '<div><div class="tea-part-badge">ICAO TEA</div>' +
+          '<div><div class="tea-part-badge">ICAO TEST</div>' +
           '<div class="tea-header-title">ICAO Language Proficiency Test</div></div>' +
           // Where am I in a 25-30 minute exam? There was no answer to that anywhere
           // on screen — only an elapsed clock, which tells you time has passed but
