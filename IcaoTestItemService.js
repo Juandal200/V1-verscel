@@ -86,6 +86,80 @@ var ICAO_TEST_SEED_ = [
       description:'An airport runway seen from the control tower. A commercial aircraft on short final approach, undercarriage extended, full flap, aligned with centreline. Ground vehicles on the apron to the left. Windsock visible indicating crosswind. Threshold markings and PAPI lights visible. Overcast sky.' }
 ];
 
+function _icaoSeedRow_(it, headers, stamp) {
+  var obj = {
+    itemId:      it.itemId,
+    bank:        ICAO_ITEMS_BANK_,
+    itemType:    it.itemType,
+    section:     it.section,
+    orderIndex:  it.orderIndex,
+    voice:       it.voice       || '',
+    lang:        it.lang        || '',
+    script:      it.script      || '',
+    transcript:  it.transcript  || '',
+    label:       it.label       || '',
+    imageUrl:    it.imageUrl    || '',
+    description: it.description || '',
+    isActive:    true,
+    createdAt:   stamp,
+    updatedAt:   stamp
+  };
+  return headers.map(function(h) { return obj[h] !== undefined ? obj[h] : ''; });
+}
+
+/**
+ * Adds any seed item the sheet does not already have, and touches nothing else.
+ * This is the one to run after an update that introduces new item types — it will
+ * not overwrite wording you have edited or rows you have added.
+ *
+ * The Apps Script Run button cannot pass arguments, so this exists as its own
+ * no-arg function rather than a flag on setupIcaoTestItems.
+ */
+function addMissingIcaoTestItems() {
+  var ss = dbGetSpreadsheet_();
+  var headers = DB_SCHEMA[ICAO_ITEMS_SHEET_];
+  var sheet = ss.getSheetByName(ICAO_ITEMS_SHEET_);
+  if (!sheet) return setupIcaoTestItems();
+
+  var last = sheet.getLastRow();
+  var have = {};
+  if (last > 1) {
+    var idCol   = headers.indexOf('itemId') + 1;
+    var bankCol = headers.indexOf('bank') + 1;
+    var ids   = sheet.getRange(2, idCol,   last - 1, 1).getValues();
+    var banks = sheet.getRange(2, bankCol, last - 1, 1).getValues();
+    for (var i = 0; i < ids.length; i++) {
+      var b = String(banks[i][0] || ICAO_ITEMS_BANK_).trim().toUpperCase();
+      have[b + '|' + String(ids[i][0] || '').trim()] = true;
+    }
+  }
+
+  var stamp = now_();
+  var rows = [];
+  ICAO_TEST_SEED_.forEach(function(it) {
+    if (have[ICAO_ITEMS_BANK_ + '|' + it.itemId]) return;
+    rows.push(_icaoSeedRow_(it, headers, stamp));
+  });
+
+  if (!rows.length) {
+    Logger.log('Nothing to add — every seed item is already in ' + ICAO_ITEMS_SHEET_ + '.');
+    return { ok: true, added: 0 };
+  }
+
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, headers.length).setValues(rows);
+  Logger.log('Added ' + rows.length + ' missing item(s): ' +
+             rows.map(function(r) { return r[headers.indexOf('itemId')]; }).join(', '));
+  return { ok: true, added: rows.length };
+}
+
+/**
+ * DESTRUCTIVE. Clears every row of the DEFAULT bank and rewrites the seed, losing
+ * any edits. Only for putting the sheet back to factory content.
+ */
+function reseedIcaoTestItemsDESTRUCTIVE() {
+  return setupIcaoTestItems(true);
+}
+
 /**
  * Creates the sheet if absent, writes headers, and seeds it when empty.
  * Safe to re-run: it never overwrites rows unless force is true.
@@ -114,26 +188,7 @@ function setupIcaoTestItems(force) {
   if (existing > 0) sheet.getRange(2, 1, existing, headers.length).clearContent();
 
   var stamp = now_();
-  var rows = ICAO_TEST_SEED_.map(function(it) {
-    var obj = {
-      itemId:      it.itemId,
-      bank:        ICAO_ITEMS_BANK_,
-      itemType:    it.itemType,
-      section:     it.section,
-      orderIndex:  it.orderIndex,
-      voice:       it.voice       || '',
-      lang:        it.lang        || '',
-      script:      it.script      || '',
-      transcript:  it.transcript  || '',
-      label:       it.label       || '',
-      imageUrl:    it.imageUrl    || '',
-      description: it.description || '',
-      isActive:    true,
-      createdAt:   stamp,
-      updatedAt:   stamp
-    };
-    return headers.map(function(h) { return obj[h] !== undefined ? obj[h] : ''; });
-  });
+  var rows = ICAO_TEST_SEED_.map(function(it) { return _icaoSeedRow_(it, headers, stamp); });
 
   sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
   Logger.log('Seeded ' + rows.length + ' rows into ' + ICAO_ITEMS_SHEET_);
