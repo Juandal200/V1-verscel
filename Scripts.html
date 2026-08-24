@@ -16090,6 +16090,14 @@
   };
 
   window.renderAdminSpeakingQueue = renderAdminSpeakingQueue;
+  // These live in this IIFE but are called from the later ones, which cannot see
+  // them — every such call throws "Can't find variable". safeText was being used
+  // by the Progress certificates and byId by the whole daily-challenge screen.
+  // Assigning to window makes the bare name resolve everywhere; IIFEs that
+  // declare their own copy still shadow it.
+  window.safeText                   = safeText;
+  window.byId                       = byId;
+
   window._getTierFromXpKey          = _getTierFromXpKey;
   window._getTierFromXp             = _getTierFromXp;
 
@@ -20911,6 +20919,9 @@
     return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
+
+  // Called from the daily-challenge code in a later IIFE.
+  window._gToast = _gToast;
 
   function _gToast(msg, type) {
     var old = document.getElementById('_gamToastEl');
