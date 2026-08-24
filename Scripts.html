@@ -1014,8 +1014,9 @@
     return 'junior';
   }
 
-  function _getTierFromXp(mergedXp) {
-    var profession = AppState && AppState.user && AppState.user.profession ? AppState.user.profession : 'PILOT';
+  function _getTierFromXp(mergedXp, professionOverride) {
+    var profession = professionOverride ||
+      (AppState && AppState.user && AppState.user.profession ? AppState.user.profession : 'PILOT');
     var key = _getTierFromXpKey(mergedXp);
     var tiers = window.GAM_TIERS || [];
     var base = tiers.filter(function(t) { return t.key === key; })[0] || tiers[tiers.length - 1];
@@ -1072,8 +1073,11 @@
     var tier = _getTierFromXp(xp);
     if (!tier) return;
 
-    // Track current tier key (used by _lmsAwardXp for rank-up detection)
+    // Track current tier (used by _lmsAwardXp for rank-up detection, and by the
+    // avatar menu so it echoes the rank this function displayed rather than
+    // deriving its own — the two used to disagree).
     window._lmsCurrentTierKey = tier.key;
+    window._lmsCurrentTier    = tier;
 
     // ── Captain avatar ring + rank badge ──
     var avatar = byId('topbarAvatar');
@@ -11934,13 +11938,16 @@
     var role = user.role || '';
     var isAdmin = role === 'ADMIN' || role === 'INSTRUCTOR';
 
+    // Rank is XP-derived. Echo the exact tier _renderTopbarRank displayed so this
+    // can never contradict the "N XP to <rank>" line rendered directly beneath it.
     var tierLabel = '';
     var tierColor = 'var(--cyan)';
-    if (window._gamTierOf) {
-      var lvl = Number(user.currentLevel || 1);
-      var tier = window._gamTierOf(Math.max(0, lvl - 1), user.profession || 'PILOT');
-      if (tier) { tierLabel = tier.label; tierColor = tier.color || tierColor; }
-    }
+    var tier = window._lmsCurrentTier ||
+               (window._getTierFromXp
+                 ? window._getTierFromXp((window._lmsLmsXp || 0) + (window._lmsSimXp || 0),
+                                         user.profession || 'PILOT')
+                 : null);
+    if (tier) { tierLabel = tier.label; tierColor = tier.color || tierColor; }
     var xpText   = (byId('topnavXpLabel')    || {}).textContent || '';
     var nextText = (byId('topnavLevelsLabel') || {}).textContent || '';
 
@@ -13569,10 +13576,9 @@
 
     // Derive rank badge HTML from post's user data
     function rankBadge(p) {
-      if (!window._gamTierOf) return '';
-      var lvl  = Number(p.userCurrentLevel || 1);
-      var prof = p.userProfession || 'PILOT';
-      var tier = _gamTierOf(Math.max(0, lvl - 1), prof);
+      if (!window._getTierFromXp) return '';
+      var tier = _getTierFromXp(Number(p.userXp || 0), p.userProfession || 'PILOT');
+      if (!tier) return '';
       return '<span style="font-size:0.65rem;font-weight:700;padding:1px 6px;border-radius:8px;border:1px solid ' + tier.color + '40;background:' + tier.color + '15;color:' + tier.color + ';white-space:nowrap;">' + safeText(tier.label) + '</span>';
     }
 
@@ -21141,14 +21147,10 @@
     return prof[tierKey] || tierKey;
   }
 
-  function _gamTierOf(completedLevels, profession) {
-    var base = completedLevels >= 10 ? GAM_TIERS[0]
-             : completedLevels >= 7  ? GAM_TIERS[1]
-             : completedLevels >= 4  ? GAM_TIERS[2]
-             : GAM_TIERS[3];
-    var label = _gamTierLabel(base.key, profession);
-    return { key: base.key, label: label, abbr: base.abbr, color: base.color, glow: base.glow, stripes: base.stripes };
-  }
+  // NOTE: rank is derived from XP alone (_getTierFromXpKey / _TIER_PROGRESS).
+  // A second, level-based ladder used to live here and fed the avatar menu and
+  // forum badges, so a pilot could be shown as "Instructor Captain" while the
+  // line beneath it read "350 XP to Instructor Captain". Do not reintroduce it.
 
   // CP formula mirroring TourService — base 50, +10% per consecutive level
   function _cpNextLevelValue(n) { return Math.round(50 * (1 + 0.10 * n)); }
@@ -21335,7 +21337,6 @@
   window._gamLoadLeaderboard = _gamLoadLeaderboard;
   window._gamSwitchLbTab     = _gamSwitchLbTab;
   window._gamRefreshLb       = _gamRefreshLb;
-  window._gamTierOf          = _gamTierOf;
   window._gamTierLabel       = _gamTierLabel;
   window._gamStripesSvg      = _gamStripesSvg;
   window.GAM_TIERS           = GAM_TIERS;

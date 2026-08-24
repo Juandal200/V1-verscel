@@ -802,9 +802,19 @@ function apiModuleForumGetPosts(sessionToken, moduleId, section) {
     users.forEach(function(u) {
       userMap[String(u.userId || '')] = {
         profession:   String(u.profession || 'PILOT').toUpperCase(),
-        currentLevel: Number(u.currentLevel || 1)
+        currentLevel: Number(u.currentLevel || 1),
+        xp:           0
       };
     });
+
+    // Rank badges are XP-derived (same ladder as the topbar and leaderboard), so
+    // the author's XP has to travel with the post.
+    try {
+      dbReadAll_('LmsXp').forEach(function(r) {
+        var info = userMap[String(r.userId || '').trim()];
+        if (info) info.xp = Number(r.lmsXp) || 0;
+      });
+    } catch (e) {}
 
     // Build postId → {likeCount, likedByMe} map from ModuleForumLikes
     var allLikes = dbReadAll_('ModuleForumLikes').filter(function(l) { return String(l.moduleId || '') === moduleId; });
@@ -818,7 +828,7 @@ function apiModuleForumGetPosts(sessionToken, moduleId, section) {
 
     var enriched = posts.map(function(p) {
       var uid  = String(p.userId || '');
-      var info = userMap[uid] || { profession: 'PILOT', currentLevel: 1 };
+      var info = userMap[uid] || { profession: 'PILOT', currentLevel: 1, xp: 0 };
       var lk   = likeMap[String(p.postId || '')] || { count: 0, likedByMe: false };
       return {
         postId:       p.postId,
@@ -832,6 +842,7 @@ function apiModuleForumGetPosts(sessionToken, moduleId, section) {
         createdAt:    p.createdAt,
         userProfession:   info.profession,
         userCurrentLevel: info.currentLevel,
+        userXp:           info.xp,
         likeCount:    lk.count,
         likedByMe:    lk.likedByMe
       };
