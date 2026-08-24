@@ -8,3 +8,5 @@ api/**
 node_modules/**
 *.md
 *.mjs
+v1-verscel.vercel.app.html
+Scripts_backup.html

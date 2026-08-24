@@ -92,6 +92,47 @@ function dbReadAll_(sheetName) {
   return rows;
 }
 
+// Row count without materialising the sheet. dbReadAll_ builds one object per
+// row (a headers.forEach for every row), so asking it for a .length on a sheet
+// like Attempts — one row per answer submitted, forever — costs seconds.
+function dbCountRows_(sheetName) {
+  if (_DB_SCOPE && _DB_SCOPE[sheetName]) return _DB_SCOPE[sheetName].length;
+  try {
+    var lastRow = dbGetSheet_(sheetName).getLastRow();
+    return lastRow < 2 ? 0 : lastRow - 1;
+  } catch (e) {
+    return 0;
+  }
+}
+
+// Read only the named columns. Pulls one narrow range per field instead of the
+// full row width, so scanning a 19-column sheet for two fields moves roughly a
+// tenth of the cells. Returns plain objects with no __rowNumber — read-only.
+function dbReadFields_(sheetName, fields) {
+  if (_DB_SCOPE && _DB_SCOPE[sheetName]) return _DB_SCOPE[sheetName];
+  var sheet = dbGetSheet_(sheetName);
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  var headers = dbGetHeaders_(sheetName);
+  var count = lastRow - 1;
+  var cols = [];
+  fields.forEach(function(field) {
+    var idx = headers.indexOf(field);
+    if (idx !== -1) {
+      cols.push({ name: field, values: sheet.getRange(2, idx + 1, count, 1).getValues() });
+    }
+  });
+
+  var rows = [];
+  for (var i = 0; i < count; i++) {
+    var obj = {};
+    for (var c = 0; c < cols.length; c++) obj[cols[c].name] = cols[c].values[i][0];
+    rows.push(obj);
+  }
+  return rows;
+}
+
 function dbFindOne_(sheetName, fieldName, value) {
   var rows = dbReadAll_(sheetName);
   var target = String(value || '').trim().toLowerCase();

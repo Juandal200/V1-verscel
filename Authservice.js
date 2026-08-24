@@ -164,7 +164,12 @@ var AuthService = {
 
     var codeHash = this.hashCode_(email, code);
 
-    return dbWithScriptLock_(function() {
+    // Only the check-and-consume of the one-time code needs the global lock.
+    // Everything after it — user upsert, session, dashboard — used to run inside
+    // it too, so a login held a mutex shared with all 41 other writers (answer
+    // submission included) while it built the whole home screen. That is what
+    // pushed verification past the client's 30s ceiling.
+    var otpName = dbWithScriptLock_(function() {
       var rows = dbReadAll_('LoginCodes')
         .filter(function(row) {
           return normalizeEmail_(row.email) === email && row.status === 'PENDING';
@@ -209,10 +214,17 @@ var AuthService = {
         usedAt: now_()
       });
 
+      return otp.name || '';
+    });
+
+    // Past this point the code is consumed, so no concurrent request can be
+    // working on this email — the lock has nothing left to protect. A single
+    // read scope collapses the repeated Users reads below into one.
+    return dbWithReadScope_(function() {
       var profile = {
         googleSub: 'email:' + email,
         email: email,
-        name: otp.name || email
+        name: otpName || email
       };
 
       var user = UserService.getOrCreateFromGoogleProfile(profile);

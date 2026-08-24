@@ -13,7 +13,9 @@ var DashboardService = {
 
   getAdminHome_: function(user) {
     var users = dbReadAll_('Users');
-    var attempts = dbReadAll_('Attempts');
+    // Attempts is only ever counted here, never read. Materialising it meant a
+    // full-sheet scan on every admin login.
+    var attemptCount = dbCountRows_('Attempts');
 
     var activeUsers = users.filter(function(u) {
       return u.status === USER_STATUS.ACTIVE;
@@ -29,7 +31,7 @@ var DashboardService = {
         totalUsers: users.length,
         activeUsers: activeUsers,
         pendingUsers: pendingUsers,
-        totalAttempts: attempts.length
+        totalAttempts: attemptCount
       }
     };
   },
@@ -51,7 +53,9 @@ var DashboardService = {
   },
 
   getStudentHome_: function(user) {
-    var attempts = dbReadAll_('Attempts').filter(function(a) {
+    // Only userId and correct are read below, so pull those two columns rather
+    // than every cell of every attempt ever recorded.
+    var attempts = dbReadFields_('Attempts', ['userId', 'correct']).filter(function(a) {
       return a.userId === user.userId;
     });
 
