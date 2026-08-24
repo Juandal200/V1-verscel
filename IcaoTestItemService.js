@@ -121,23 +121,27 @@ function addMissingIcaoTestItems() {
   var sheet = ss.getSheetByName(ICAO_ITEMS_SHEET_);
   if (!sheet) return setupIcaoTestItems();
 
+  // Presence is keyed on itemId ALONE, deliberately ignoring which bank it sits
+  // in. The seed is factory content; if part_2a_1 already exists anywhere it has
+  // been placed, possibly under a renamed bank. Keying on bank+itemId meant that
+  // renaming DEFAULT to VERSION_A and then running this would silently re-inject
+  // all 19 factory rows as a second DEFAULT bank — which the random picker would
+  // then start serving to candidates.
   var last = sheet.getLastRow();
   var have = {};
   if (last > 1) {
-    var idCol   = headers.indexOf('itemId') + 1;
-    var bankCol = headers.indexOf('bank') + 1;
-    var ids   = sheet.getRange(2, idCol,   last - 1, 1).getValues();
-    var banks = sheet.getRange(2, bankCol, last - 1, 1).getValues();
+    var idCol = headers.indexOf('itemId') + 1;
+    var ids   = sheet.getRange(2, idCol, last - 1, 1).getValues();
     for (var i = 0; i < ids.length; i++) {
-      var b = String(banks[i][0] || ICAO_ITEMS_BANK_).trim().toUpperCase();
-      have[b + '|' + String(ids[i][0] || '').trim()] = true;
+      var id = String(ids[i][0] || '').trim();
+      if (id) have[id] = true;
     }
   }
 
   var stamp = now_();
   var rows = [];
   ICAO_TEST_SEED_.forEach(function(it) {
-    if (have[ICAO_ITEMS_BANK_ + '|' + it.itemId]) return;
+    if (have[it.itemId]) return;
     rows.push(_icaoSeedRow_(it, headers, stamp));
   });
 
