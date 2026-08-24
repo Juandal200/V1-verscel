@@ -22770,7 +22770,7 @@
   var _t = { history:[], audioIdx:0, imageIdx:0, audioCache:{}, audioEl:null, busy:false,
              timerIv:null, _pendingId:null, _pendingB64:null, _qaMode:false, _imageInjected:false,
              _awaitingActivation:false, _finishShown:false, _examDone:false,
-             examinerTurns:0, segments:[], _lastSepKey:null,
+             examinerTurns:0, segments:[], _lastSepKey:null, _started:false,
              // Section-scoped runs. Full exam = the whole range; a scoped run
              // narrows the audio window and switches off the parts outside it, so
              // one section can be exercised without sitting the other twenty-five
@@ -22915,7 +22915,8 @@
     setTimeout(function(){ _teaSetPart('1'); }, 0);
     _t._pendingId=null; _t._pendingB64=null; _t._qaMode=false; _t._imageInjected=false;
     _t._awaitingActivation=false; _t._finishShown=false; _t._examDone=false;
-    _t.examinerTurns=0; _t.segments=[]; _t._lastSepKey=null;
+    _t.examinerTurns=0; _t.segments=[]; _t._lastSepKey=null; _t._started=false;
+    window._teaStarting = false;
     _t.scope=''; _t.scopeStart=0; _t.scopeEnd=0;
     _t.scopeImages=true; _t.scopeInterview=true;
     _t.sectionReports=[]; _t._sectionsDone={}; _t._awaitingAck=false;
@@ -23297,10 +23298,16 @@
   function _addPartSeparator(key) {
     var chat = document.getElementById('teaCards'); if (!chat) return;
     var meta = _PART_META[key]; if (!meta) return;
-    // Two callers used to be able to announce the same section back to back.
-    if (_t._lastSepKey === key) return;
+
+    // Ask the DOM, not a flag. A state-based guard is defeated by anything that
+    // resets _t or starts a second exam instance, and the header kept appearing
+    // twice despite one call site and a _lastSepKey check. The transcript itself
+    // is the only reliable record of what has already been announced.
+    if (document.getElementById('teaSep_' + key)) return;
     _t._lastSepKey = key;
+
     var div = document.createElement('div');
+    div.id = 'teaSep_' + key;
     div.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;margin:18px 0 10px;';
     div.innerHTML =
       '<div style="display:flex;align-items:center;gap:10px;width:100%;">' +
@@ -24480,6 +24487,8 @@
   }
 
   function _startExam() {
+    if (_t._started) return;
+    _t._started = true;
     var content = document.getElementById('contentArea'); if(!content) return;
     content.innerHTML =
       '<div class="tea-exam-shell" style="display:flex;flex-direction:column;height:calc(100vh - 60px);background:#080c10;">' +
@@ -24548,8 +24557,15 @@
   }
 
   window._teaBegin = function(scope) {
+    // Only the main Begin button was disabled on click; the six section buttons
+    // were not, so a second click started a second exam on top of the first.
+    if (window._teaStarting) return;
+    window._teaStarting = true;
+
     _unlockAudio();   // synchronous — MUST stay in the click gesture to unlock autoplay
     window._teaScope = String(scope || '');
+    Array.prototype.slice.call(document.querySelectorAll('.tea-begin-shell button'))
+      .forEach(function(b) { b.disabled = true; });
     // Start the opening clip downloading now, alongside the bank load, so it is
     // ready before the examiner's first turn rather than after it.
     var _scopeKey = String(scope || 'FULL').toUpperCase() || 'FULL';
