@@ -170,6 +170,24 @@ var DB_SCHEMA = {
     'audioFileId'
   ],
 
+  IcaoTestSectionReports: [
+    'reportId',
+    'userId',
+    'bank',
+    'scope',
+    'section',
+    'pronunciation',
+    'structure',
+    'vocabulary',
+    'fluency',
+    'comprehension',
+    'interactions',
+    'strength',
+    'improve',
+    'note',
+    'createdAt'
+  ],
+
   IcaoTestResults: [
     'resultId',
     'userId',

@@ -22686,7 +22686,8 @@
              // narrows the audio window and switches off the parts outside it, so
              // one section can be exercised without sitting the other twenty-five
              // minutes. scopeEnd is exclusive.
-             scope:'', scopeStart:0, scopeEnd:0, scopeImages:true, scopeInterview:true };
+             scope:'', scopeStart:0, scopeEnd:0, scopeImages:true, scopeInterview:true,
+             sectionReports:[], _sectionsDone:{} };
 
   // Translates a section name into the slice of the exam that should actually run.
   // Returns the opening instruction for the examiner, which has to be explicit:
@@ -22761,6 +22762,7 @@
     _t.examinerTurns=0; _t.segments=[];
     _t.scope=''; _t.scopeStart=0; _t.scopeEnd=0;
     _t.scopeImages=true; _t.scopeInterview=true;
+    _t.sectionReports=[]; _t._sectionsDone={};
     if (_t.timerIv) clearInterval(_t.timerIv);
     if (_t.audioEl) { _t.audioEl.pause(); _t.audioEl=null; }
   }
@@ -23038,6 +23040,15 @@
   // "Part 2A · Item 3 of 6" and what follows it. The rail shows which of the five
   // parts you are in but never which item, so there was no way to tell how much of
   // a section was left.
+  // Report on a section at the moment it ends, then carry on with `after`.
+  function _teaRequestSectionReport(section, after) {
+    if (_t._sectionsDone[section]) { after(); return; }
+    _t._sectionsDone[section] = true;
+    _t._afterReport = after;
+    _setStatus('Marking this section...', 'thinking');
+    _sendMsg('[SECTION_COMPLETE: ' + section + ']');
+  }
+
   function _teaSetStep(now, next) {
     var a = document.getElementById('teaStepNow');
     var b = document.getElementById('teaStepNext');
@@ -23245,6 +23256,76 @@
     window.speechSynthesis.speak(utter);
   }
 
+  var _TEA_DESCRIPTORS = ['pronunciation','structure','vocabulary','fluency','comprehension','interactions'];
+
+  function _teaBandColor(b) {
+    return b >= 5 ? '#00d48e' : b === 4 ? '#5b9bd5' : b > 0 ? '#e05252' : '#3a4a5a';
+  }
+
+  function _renderSectionReport(rep) {
+    var cards = document.getElementById('teaCards'); if (!cards) return;
+    var scored = _TEA_DESCRIPTORS.filter(function(k) { return Number(rep.bands[k]) > 0; });
+    var avg = scored.length
+      ? Math.round(scored.reduce(function(a, k) { return a + Number(rep.bands[k]); }, 0) / scored.length * 10) / 10
+      : 0;
+
+    var box = document.createElement('div');
+    box.className = 'tea-score-box';
+    box.style.cssText = 'border-color:#2d3a4a;animation:teaRepIn .45s ease both;';
+    box.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;">' +
+        '<div><div class="tea-part-badge" style="margin:0;">SECTION COMPLETE</div>' +
+        '<div style="font-size:0.95rem;font-weight:800;color:#dde2e6;margin-top:5px;">' + safeText(rep.section) + '</div></div>' +
+        '<div style="text-align:right;"><div style="font-size:1.8rem;font-weight:900;line-height:1;color:' + _teaBandColor(Math.round(avg)) + ';">' +
+          (avg || '—') + '</div><div style="font-size:0.6rem;letter-spacing:.12em;color:#4a6280;text-transform:uppercase;">provisional</div></div>' +
+      '</div>' +
+      _TEA_DESCRIPTORS.map(function(k) {
+        var v = Number(rep.bands[k]) || 0;
+        var pct = v > 0 ? (v / 6) * 100 : 0;
+        return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">' +
+          '<div style="width:98px;font-size:0.68rem;letter-spacing:.06em;color:#5b7690;text-transform:uppercase;">' + k + '</div>' +
+          '<div style="flex:1;height:6px;background:#161f2b;border-radius:4px;overflow:hidden;">' +
+            '<div style="height:100%;width:' + pct + '%;background:' + _teaBandColor(v) + ';' +
+              'border-radius:4px;transition:width .7s cubic-bezier(.2,.8,.3,1);"></div>' +
+          '</div>' +
+          '<div style="width:26px;text-align:right;font-size:0.78rem;font-weight:800;color:' + _teaBandColor(v) + ';">' +
+            (v > 0 ? v : '·') + '</div>' +
+        '</div>';
+      }).join('') +
+      (rep.strength ? '<div style="margin-top:11px;font-size:0.78rem;color:#8fa3bb;"><b style="color:#00d48e;">Strength</b> · ' + safeText(rep.strength) + '</div>' : '') +
+      (rep.improve  ? '<div style="margin-top:4px;font-size:0.78rem;color:#8fa3bb;"><b style="color:#e0a252;">Work on</b> · ' + safeText(rep.improve) + '</div>' : '') +
+      (rep.note     ? '<div style="margin-top:8px;font-size:0.72rem;color:#5b7690;line-height:1.6;">' + safeText(rep.note) + '</div>' : '') +
+      '<div style="margin-top:9px;font-size:0.64rem;color:#3a4a5a;">A dot means this section gave no evidence for that descriptor.</div>';
+    cards.appendChild(box);
+    _scrollChat();
+
+    if (!document.getElementById('_teaRepAnim')) {
+      var st = document.createElement('style');
+      st.id = '_teaRepAnim';
+      st.textContent = '@keyframes teaRepIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}';
+      document.head.appendChild(st);
+    }
+  }
+
+  function _saveSectionReport(rep) {
+    _t.sectionReports = _t.sectionReports || [];
+    _t.sectionReports.push(rep);
+    try {
+      google.script.run
+        .withSuccessHandler(function() {})
+        .withFailureHandler(function() {})
+        .apiSaveIcaoSectionReport(AppState.sessionToken, {
+          bank:    TEA_BANK,
+          scope:   _t.scope || 'FULL',
+          section: rep.section,
+          bands:   rep.bands,
+          strength: rep.strength || '',
+          improve:  rep.improve  || '',
+          note:     rep.note     || ''
+        });
+    } catch (e) {}
+  }
+
   function _speakExaminer(text, onDone) {
     // Detect final JSON evaluation payload
     var jsonData = null;
@@ -23253,6 +23334,22 @@
     if (jStart !== -1 && jEnd > jStart) {
       try { jsonData = JSON.parse(trimmed.slice(jStart, jEnd + 1)); } catch(e) { jsonData = null; }
     }
+    // A section report is a card, never speech — reading a table of band scores
+    // aloud is slow and unusable, and it is the written record that matters.
+    if (jsonData && jsonData.section_report && jsonData.section_report.bands) {
+      _renderSectionReport(jsonData.section_report);
+      _saveSectionReport(jsonData.section_report);
+      _setStatus('Section complete', 'idle');
+      // A report is an interruption, not a turn: the normal state machine would
+      // fall through every branch without matching one and leave the candidate
+      // with nothing to press. Resume whatever was interrupted instead.
+      _t.busy = false;
+      var after = _t._afterReport;
+      _t._afterReport = null;
+      if (after) after(); else onDone();
+      return;
+    }
+
     if (jsonData && jsonData.student_view) {
       var cards = document.getElementById('teaCards');
       if (cards) {
@@ -23933,6 +24030,17 @@
     _speakExaminer(msg, function() {
       _t.busy = false;
 
+      // The section report is asked for as JSON. If the model answers with prose
+      // instead, _speakExaminer never intercepts it and the continuation is still
+      // pending — so run it here rather than leaving the exam with nothing to
+      // press. A missing report costs a card; a stalled exam costs the sitting.
+      if (_t._afterReport) {
+        var pending = _t._afterReport;
+        _t._afterReport = null;
+        pending();
+        return;
+      }
+
       // Any response to AUDIO_READY — activate the pending card
       if (_t._awaitingActivation && _t._pendingId) {
         _t._awaitingActivation = false;
@@ -23943,8 +24051,16 @@
       // After Q&A for an audio item — enable input and show Next button
       if (_t._qaMode) {
         _t._qaMode = false;
-        _setEnabled(true);
-        _showNextAudioBtn();
+        // Crossing out of a section is the moment to report on it, while the
+        // evidence is the section's own and not yet mixed with the next one's.
+        var justFinished = _getPartKey(_t.audioIdx - 1);
+        var nowIn        = _getPartKey(_t.audioIdx);
+        var resume = function() { _setEnabled(true); _showNextAudioBtn(); };
+        if (justFinished && justFinished !== nowIn) {
+          _teaRequestSectionReport('Part ' + justFinished, resume);
+          return;
+        }
+        resume();
         return;
       }
 
@@ -23955,8 +24071,12 @@
         var lower = msg.toLowerCase();
         if (lower.indexOf('part 2') !== -1 || lower.indexOf('listening') !== -1 ||
             lower.indexOf('first recording') !== -1) {
-          _addPartSeparator('2A');
-          _queueNextAudio();
+          // Part 1 is a section too, and it is the only one whose end is not an
+          // audio-item boundary.
+          _teaRequestSectionReport('Part 1', function() {
+            _addPartSeparator('2A');
+            _queueNextAudio();
+          });
           return;
         }
         // Part 2 is triggered by sniffing the examiner's own prose for a keyword,

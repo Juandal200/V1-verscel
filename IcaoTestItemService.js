@@ -501,3 +501,48 @@ function apiGetIcaoTestItems(sessionToken, bank) {
     return { ok: false, error: (err && err.message) || 'Failed to load item bank' };
   }
 }
+
+
+/**
+ * Stores one end-of-section report. Sections are graded as the exam runs so a
+ * candidate sees where they stand before the end, and so a partial sitting still
+ * leaves a record — the final table only ever existed for a completed exam.
+ * Creates its own sheet, because a report that fails to save is worse than useless.
+ */
+function apiSaveIcaoSectionReport(sessionToken, payload) {
+  try {
+    var user = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    payload = payload || {};
+    var bands = payload.bands || {};
+
+    var name = 'IcaoTestSectionReports';
+    var ss = dbGetSpreadsheet_();
+    if (!ss.getSheetByName(name)) {
+      var sh = ss.insertSheet(name);
+      sh.getRange(1, 1, 1, DB_SCHEMA[name].length).setValues([DB_SCHEMA[name]])
+        .setFontWeight('bold').setBackground('#0f172a').setFontColor('#ffffff');
+      sh.setFrozenRows(1);
+    }
+
+    dbAppend_(name, {
+      reportId:      'SEC-' + String(user.userId || '').slice(-6) + '-' + Date.now(),
+      userId:        user.userId,
+      bank:          String(payload.bank    || ''),
+      scope:         String(payload.scope   || ''),
+      section:       String(payload.section || ''),
+      pronunciation: Number(bands.pronunciation) || 0,
+      structure:     Number(bands.structure)     || 0,
+      vocabulary:    Number(bands.vocabulary)    || 0,
+      fluency:       Number(bands.fluency)       || 0,
+      comprehension: Number(bands.comprehension) || 0,
+      interactions:  Number(bands.interactions)  || 0,
+      strength:      String(payload.strength || ''),
+      improve:       String(payload.improve  || ''),
+      note:          String(payload.note     || ''),
+      createdAt:     now_()
+    });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || 'Save failed' };
+  }
+}
