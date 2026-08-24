@@ -22681,7 +22681,76 @@
   var _t = { history:[], audioIdx:0, imageIdx:0, audioCache:{}, audioEl:null, busy:false,
              timerIv:null, _pendingId:null, _pendingB64:null, _qaMode:false, _imageInjected:false,
              _awaitingActivation:false, _finishShown:false, _examDone:false,
-             examinerTurns:0, segments:[] };
+             examinerTurns:0, segments:[],
+             // Section-scoped runs. Full exam = the whole range; a scoped run
+             // narrows the audio window and switches off the parts outside it, so
+             // one section can be exercised without sitting the other twenty-five
+             // minutes. scopeEnd is exclusive.
+             scope:'', scopeStart:0, scopeEnd:0, scopeImages:true, scopeInterview:true };
+
+  // Translates a section name into the slice of the exam that should actually run.
+  // Returns the opening instruction for the examiner, which has to be explicit:
+  // told only "start at Part 2B" a model will still open with pleasantries and an
+  // interview, because that is what the rest of its prompt says to do.
+  function _teaApplyScope(scope) {
+    var key = String(scope || '').toUpperCase();
+    _t.scope = key;
+
+    function firstOf(sec) {
+      for (var i = 0; i < TEA_ORDER.length; i++) if (_teaSectionAt(i) === sec) return i;
+      return -1;
+    }
+    function afterLastOf(sec) {
+      for (var i = TEA_ORDER.length - 1; i >= 0; i--) if (_teaSectionAt(i) === sec) return i + 1;
+      return -1;
+    }
+
+    // Full exam
+    if (!key || key === 'FULL') {
+      _t.scopeStart = 0; _t.scopeEnd = TEA_ORDER.length;
+      _t.scopeImages = true; _t.scopeInterview = true;
+      return 'Begin the examination now. Greet the candidate and start Part 1.';
+    }
+
+    var head = 'TEST MODE — this is a partial run for checking the application, not a real ' +
+               'examination. Conduct ONLY the section named below. Do not conduct any other ' +
+               'section, do not greet at length, and do not announce sections that are not ' +
+               'running. When the named section is finished, say "That completes this section." ' +
+               'and stop.\n\n';
+
+    if (key === '1') {
+      _t.scopeStart = 0; _t.scopeEnd = 0;
+      _t.scopeImages = false; _t.scopeInterview = true;
+      return head + 'Run Part 1 (the interview) only. Begin with the first question immediately.';
+    }
+
+    if (key === '3') {
+      _t.scopeStart = TEA_ORDER.length; _t.scopeEnd = TEA_ORDER.length;
+      _t.scopeImages = true; _t.scopeInterview = false;
+      return head + 'Run Part 3 (picture description) only. The application will send you the ' +
+             'picture. Wait for it, then discuss it. Ask no interview questions.';
+    }
+
+    if (key === 'SCORE') {
+      _t.scopeStart = TEA_ORDER.length; _t.scopeEnd = TEA_ORDER.length;
+      _t.scopeImages = false; _t.scopeInterview = false;
+      return head + 'Skip every section. The application is about to send [EXAM_COMPLETE]. ' +
+             'Produce the final scoring table from the (empty) evidence so the report layout ' +
+             'can be checked.';
+    }
+
+    var start = firstOf(key), end = afterLastOf(key);
+    if (start === -1 || end === -1) {   // unknown section — fall back to the full exam
+      _t.scopeStart = 0; _t.scopeEnd = TEA_ORDER.length;
+      _t.scopeImages = true; _t.scopeInterview = true;
+      return 'Begin the examination now. Greet the candidate and start Part 1.';
+    }
+    _t.scopeStart = start; _t.scopeEnd = end;
+    _t.scopeImages = false; _t.scopeInterview = false;
+    return head + 'Run Part ' + key + ' only — ' + (end - start) + ' recording(s). ' +
+           'Say one short line to introduce it, then stop and wait: the application loads ' +
+           'the recording and will tell you when it has been heard. Ask no interview questions.';
+  }
 
   function _resetState() {
     _t.history=[]; _t.audioIdx=0; _t.imageIdx=0; _t.audioCache={}; _t.busy=false;
@@ -22690,6 +22759,8 @@
     _t._pendingId=null; _t._pendingB64=null; _t._qaMode=false; _t._imageInjected=false;
     _t._awaitingActivation=false; _t._finishShown=false; _t._examDone=false;
     _t.examinerTurns=0; _t.segments=[];
+    _t.scope=''; _t.scopeStart=0; _t.scopeEnd=0;
+    _t.scopeImages=true; _t.scopeInterview=true;
     if (_t.timerIv) clearInterval(_t.timerIv);
     if (_t.audioEl) { _t.audioEl.pause(); _t.audioEl=null; }
   }
@@ -23144,7 +23215,7 @@
 
   // Step 1: fetch audio FIRST, then inject AUDIO_READY — eliminates polling entirely
   function _queueNextAudio() {
-    if (_t.audioIdx >= TEA_ORDER.length || _t._pendingId) return;
+    if (_t.audioIdx >= _t.scopeEnd || _t._pendingId) return;
     var id = TEA_ORDER[_t.audioIdx];
 
     // Show part separator when transitioning between 2A → 2B or 2B → 2C
@@ -23424,14 +23495,17 @@
     btn.className = 'tea-send-btn';
     btn.style     = 'margin:8px 16px;align-self:flex-start;';
     var _nextKey = _getPartKey(_t.audioIdx);
-    btn.textContent = _t.audioIdx >= TEA_ORDER.length
-      ? 'Continue to Part 3 →'
-      : _nextKey === '2C' ? 'Next Situation →'
-      : 'Next Recording →';
+    var _more    = _t.audioIdx < _t.scopeEnd;
+    btn.textContent = _more
+      ? (_nextKey === '2C' ? 'Next Situation →' : 'Next Recording →')
+      : (_t.scopeImages ? 'Continue to Part 3 →' : 'Finish section →');
     btn.onclick = function() {
       btn.remove();
-      if (_t.audioIdx < TEA_ORDER.length) {
+      if (_more) {
         _queueNextAudio();
+      } else if (!_t.scopeImages) {
+        // Scoped run: nothing follows this section, so go straight to scoring.
+        if (!_t._finishShown) { _t._finishShown = true; _showFinishBtn(); }
       } else if (_t.imageIdx < TEA_IMAGES.length) {
         _teaSetPart('3');
         var img = TEA_IMAGES[_t.imageIdx++];
@@ -23782,7 +23856,7 @@
       _setEnabled(true);
 
       // Detect Part 2 start — Gemini mentions listening/Part 2 and no audio queued yet
-      if (_t.audioIdx === 0 && !_t._pendingId) {
+      if (_t.audioIdx === _t.scopeStart && _t.audioIdx < _t.scopeEnd && !_t._pendingId) {
         var lower = msg.toLowerCase();
         if (lower.indexOf('part 2') !== -1 || lower.indexOf('listening') !== -1 ||
             lower.indexOf('first recording') !== -1) {
@@ -23807,7 +23881,7 @@
       // and each advances imageIdx — so one picture was injected here, the button
       // injected the next, and the first was never discussed. The button wins
       // while it exists; this takes over for the images after it.
-      if (_t.audioIdx >= TEA_ORDER.length && _t.imageIdx < TEA_IMAGES.length &&
+      if (_t.scopeImages && _t.audioIdx >= _t.scopeEnd && _t.imageIdx < TEA_IMAGES.length &&
           !_t._imageInjected && !document.getElementById('teaNextBtn')) {
         var img = TEA_IMAGES[_t.imageIdx++];
         if (_t.imageIdx >= TEA_IMAGES.length) _t._imageInjected = true;
@@ -23817,7 +23891,15 @@
       }
 
       // After both images have been discussed — show "Finish Exam" button
-      if (_t.audioIdx >= TEA_ORDER.length && _t._imageInjected && !_t._finishShown) {
+      // A scoped run has no pictures, so waiting for _imageInjected would never
+      // let the finish button appear and the section could not be closed.
+      //
+      // A Part 1 run has neither audio nor pictures, so that condition is already
+      // true on the opening turn — the finish button would appear before a single
+      // question had been asked. Five questions means at least six turns.
+      var _sectionRan = _t.scope !== '1' || _t.examinerTurns >= 6;
+      if (_t.audioIdx >= _t.scopeEnd && _sectionRan &&
+          (_t.scopeImages ? _t._imageInjected : true) && !_t._finishShown) {
         _t._finishShown = true;
         _showFinishBtn();
       }
@@ -23866,6 +23948,33 @@
 
     // Show a "Begin" screen first — user must click to unlock autoplay
     var _isAdmin = window.AppState && AppState.user && AppState.user.role === 'ADMIN';
+    // Sitting the full 25-30 minutes to reach Part 2C is not a way to debug Part
+    // 2C. Each of these runs that section alone, with the real examiner, real
+    // audio and real grading — just without everything either side of it.
+    var _sections = [
+      ['1',     'Part 1 · Interview'],
+      ['2A',    'Part 2A · Readbacks'],
+      ['2B',    'Part 2B · Dialogues'],
+      ['2C',    'Part 2C · Situations'],
+      ['3',     'Part 3 · Pictures'],
+      ['SCORE', 'Scoring only']
+    ];
+    var _sectionPicker = _isAdmin
+      ? '<div style="margin-top:18px;text-align:center;">' +
+          '<div style="font-size:0.7rem;letter-spacing:.14em;color:#3a4a5a;text-transform:uppercase;margin-bottom:8px;">' +
+            'Test a single section' +
+          '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:340px;">' +
+            _sections.map(function(sc) {
+              return '<button onclick="window._teaBegin(\'' + sc[0] + '\')" ' +
+                'style="padding:7px 12px;background:transparent;border:1px solid #2a3a4a;' +
+                'color:#5b7690;border-radius:8px;font-size:0.72rem;cursor:pointer;">' +
+                sc[1] + '</button>';
+            }).join('') +
+          '</div>' +
+        '</div>'
+      : '';
+
     var _debugBtn = _isAdmin
       ? '<button onclick="window._teaRunTest()" ' +
           'style="margin-top:4px;padding:8px 20px;background:transparent;border:1px solid #2a3a4a;' +
@@ -23886,6 +23995,7 @@
           'Begin Exam' +
         '</button>' +
         _debugBtn +
+        _sectionPicker +
       '</div>';
 
     // The intro screen is read for several seconds — warm the examiner voice now so
@@ -23937,11 +24047,12 @@
       if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();_submit();}
     });
 
-    _sendMsg('Begin the TEA examination now. Greet the candidate and start Part 1.');
+    _sendMsg(_teaApplyScope(window._teaScope || ''));
   }
 
-  window._teaBegin = function() {
+  window._teaBegin = function(scope) {
     _unlockAudio();   // synchronous — MUST stay in the click gesture to unlock autoplay
+    window._teaScope = String(scope || '');
     var btn = document.getElementById('teaBeginBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Preparing exam...'; }
     // Load the item bank before the first examiner turn, so the exam never
