@@ -23480,6 +23480,21 @@
 
     _setStatus('Examiner speaking...', 'speaking');
 
+    // Exactly one resolution per turn. _onExaminerMsg does ALL of its state work
+    // in this callback — clears busy, advances the part — so firing it twice
+    // double-advances and never firing it freezes the exam with busy=true.
+    var _spoke = false;
+    function _done() {
+      if (_spoke) return;
+      _spoke = true;
+      _t._exDone = null;
+      _teaVizStop();
+      onDone();
+    }
+    // Published so a replay can release the examiner's turn before taking over
+    // the shared audio element — see the play handler in _activatePendingAudio.
+    _t._exDone = _done;
+
     // A phrase the examiner repeats every item is fetched as a recording, not
     // synthesised. Falls through to live synthesis when the wording drifts.
     var lineId = TEA_LINES[_teaNormLine(text)];
@@ -23508,23 +23523,9 @@
     _teaVizSpeak(_t.audioEl);
   }
 
+  // _done is supplied by the caller; it must be the SAME resolver the line-lookup
+  // branch uses, or a turn can resolve twice or not at all.
   function _teaSpeakLive(text, _done) {
-
-    // Exactly one resolution per turn. _onExaminerMsg does ALL of its state work
-    // in this callback — clears busy, advances the part — so firing it twice
-    // double-advances and never firing it freezes the exam with busy=true.
-    var _spoke = false;
-    function _done() {
-      if (_spoke) return;
-      _spoke = true;
-      _t._exDone = null;
-      _teaVizStop();
-      onDone();
-    }
-    // Published so a replay can release the examiner's turn before taking over
-    // the shared audio element — see the play handler in _activatePendingAudio.
-    _t._exDone = _done;
-
     // Unscripted speech still costs a synthesis, but only once per wording: the
     // examiner repeats itself constantly and re-synthesising an identical line is
     // both a wait and a chance to fall back to the robot voice.
