@@ -22796,6 +22796,17 @@
   // but with country USA and a different voice — a different cache key, so it does
   // nothing for a British examiner. And that warm-up happens at app launch, long
   // before anyone opens an exam, by which point Apps Script has gone cold again.
+  // Replays are graded evidence, but sending them mid-exam would make the examiner
+  // stop and acknowledge each one. They travel with [EXAM_COMPLETE] instead, which
+  // is when grading actually happens.
+  function _teaReplayReport() {
+    var m = (_t && _t.listens) || {};
+    var twice = Object.keys(m).filter(function(k) { return Number(m[k]) >= 2; });
+    if (!twice.length) return '[EXAM_COMPLETE | replays: none — every recording answered on a single hearing]';
+    return '[EXAM_COMPLETE | replays: ' + twice.length + ' item(s) heard twice: ' +
+           twice.join(', ') + ' — COMPREHENSION is capped at Level 4]';
+  }
+
   function _teaPrewarmVoice() {
     try {
       _teaGasAudio('Ready.', EXAMINER_VOICE, EXAMINER_LANG, 0.95, function() {});
@@ -22953,7 +22964,7 @@
     // Audio ready — enable play button immediately
     var b64 = _t._pendingB64;
     btn.disabled = false;
-    if (st) st.textContent = 'Ready — press play';
+    if (st) st.textContent = 'Press play when ready';
 
     // A real ICAO listening item allows a second hearing, but it is not free:
     // needing the repeat IS the comprehension evidence. Two listens maximum, and
@@ -22966,15 +22977,6 @@
     function _teaAdvance() {
       var cont = document.getElementById('teaContinue_' + id);
       if (cont) cont.remove();
-      btn.disabled = true;
-      // Once the item has moved on, "one replay available" is a lie — the offer is
-      // gone. Say what actually happened so the card reads as a record.
-      if (st) {
-        var _used = Number(_t.listens[id] || 0);
-        st.textContent = _used >= TEA_MAX_LISTENS
-          ? 'Answered \u00b7 2 of 2 listens used'
-          : 'Answered \u00b7 1 listen';
-      }
       _t.audioIdx++;
       _t._pendingId = null; _t._pendingB64 = null;
       _t._qaMode = true;
@@ -22982,13 +22984,15 @@
       _sendMsg(_completeMsg());
     }
 
+    // Kept only for the failure path, where the candidate genuinely needs a way
+    // past a clip that will not play.
     function _teaOfferChoice() {
       if (document.getElementById('teaContinue_' + id)) return;
       var cont = document.createElement('button');
       cont.id        = 'teaContinue_' + id;
       cont.className = 'tea-send-btn';
       cont.style     = 'margin-left:8px;';
-      cont.textContent = 'Continue to questions';
+      cont.textContent = 'Skip this recording';
       cont.onclick = _teaAdvance;
       if (btn.parentNode) btn.parentNode.appendChild(cont);
     }
@@ -23005,7 +23009,7 @@
       _t.audioEl = new Audio('data:audio/mp3;base64,' + b64);
       btn.innerHTML = '&#9646;&#9646;';
       btn.disabled = true;
-      if (st) st.textContent = 'Playing\u2026';
+      if (st) st.textContent = 'Listening \u00b7 do not respond yet';
 
       // onended was the ONLY route forward, so a clip that failed or stalled left
       // the item frozen on "Playing…" with the button disabled — no replay, no
@@ -23027,14 +23031,21 @@
         }
 
         var n = Number(_t.listens[id] || 0);
-        if (n >= TEA_MAX_LISTENS) {
-          btn.disabled = true;
-          if (st) st.textContent = 'Complete \u00b7 2 of 2 listens used';
+
+        if (n === 1) {
+          // Questions come straight away — no button between hearing the clip and
+          // being asked about it. Replay stays live DURING the questions instead of
+          // gating them, so it is something available while you think rather than a
+          // step you must clear.
+          btn.disabled = false;
+          if (st) st.textContent = 'Answer the examiner \u00b7 1 replay available';
           _teaAdvance();
         } else {
-          btn.disabled = false;
-          if (st) st.textContent = 'Played once \u00b7 one replay available (caps comprehension at Level 4)';
-          _teaOfferChoice();
+          // Second hearing, taken during the questions. The examiner has already
+          // asked, so nothing is re-sent mid-exam — the count is reported with
+          // [EXAM_COMPLETE], which is when grading happens.
+          btn.disabled = true;
+          if (st) st.textContent = 'Answer the examiner \u00b7 2 of 2 listens used';
         }
       }
 
@@ -23227,17 +23238,17 @@
         } else {
           // Pipeline failed — fall back to Gemini live grading via conversation
           _t._examDone = false;
-          _sendMsg('[EXAM_COMPLETE]');
+          _sendMsg(_teaReplayReport());
         }
       })
       .catch(function() {
         _t._examDone = false;
-        _sendMsg('[EXAM_COMPLETE]');
+        _sendMsg(_teaReplayReport());
       });
     } else {
       // No audio recorded — fall back to Gemini live grading
       _t._examDone = false;
-      _sendMsg('[EXAM_COMPLETE]');
+      _sendMsg(_teaReplayReport());
     }
   }
 
