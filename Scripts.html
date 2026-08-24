@@ -22760,19 +22760,46 @@
     return _TEA_LANG_COUNTRY[String(lang || '')] || 'USA';
   }
   // cb(errOrNull, audioBase64)
-  function _teaGasAudio(text, voice, lang, rate, cb) {
+  //
+  // Retries once. A cold Apps Script or an uncached clip can miss the first call,
+  // and without a retry that single failure fell through to _browserSpeak for good
+  // — which is why the examiner sounded robotic at the start of an exam and
+  // human afterwards. The simulator already retries for exactly this reason; the
+  // delay is short here because the alternative is the candidate sitting in
+  // silence.
+  function _teaGasAudio(text, voice, lang, rate, cb, _isRetry) {
     google.script.run
       .withSuccessHandler(function(res) {
-        if (res && res.ok && res.audioBase64) cb(null, res.audioBase64);
-        else cb((res && res.error) || 'Audio unavailable');
+        if (res && res.ok && res.audioBase64) { cb(null, res.audioBase64); return; }
+        if (!_isRetry) {
+          setTimeout(function() { _teaGasAudio(text, voice, lang, rate, cb, true); }, 1200);
+          return;
+        }
+        cb((res && res.error) || 'Audio unavailable');
       })
-      .withFailureHandler(function(e) { cb((e && e.message) || 'Audio request failed'); })
+      .withFailureHandler(function(e) {
+        if (!_isRetry) {
+          setTimeout(function() { _teaGasAudio(text, voice, lang, rate, cb, true); }, 1200);
+          return;
+        }
+        cb((e && e.message) || 'Audio request failed');
+      })
       .apiGenerateIcaoTestVoice(AppState.sessionToken, {
         text:         String(text || ''),
         country:      _teaCountryForLang(lang),
         voice:        String(voice || ''),
         speakingRate: Number(rate || 0.95)
       });
+  }
+
+  // Warm the EXAMINER's voice specifically. enterApplication already pre-warms TTS,
+  // but with country USA and a different voice — a different cache key, so it does
+  // nothing for a British examiner. And that warm-up happens at app launch, long
+  // before anyone opens an exam, by which point Apps Script has gone cold again.
+  function _teaPrewarmVoice() {
+    try {
+      _teaGasAudio('Ready.', EXAMINER_VOICE, EXAMINER_LANG, 0.95, function() {});
+    } catch (e) {}
   }
 
   // The five stages the examiner prompt actually runs, so the rail matches the exam
@@ -23475,6 +23502,10 @@
         '</button>' +
         _debugBtn +
       '</div>';
+
+    // The intro screen is read for several seconds — warm the examiner voice now so
+    // the exam's first line is already cached rather than synthesised live.
+    setTimeout(_teaPrewarmVoice, 200);
   }
 
   function _startExam() {
