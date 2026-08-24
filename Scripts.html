@@ -22909,12 +22909,32 @@
   // Replays are graded evidence, but sending them mid-exam would make the examiner
   // stop and acknowledge each one. They travel with [EXAM_COMPLETE] instead, which
   // is when grading actually happens.
+  // Graduated by TOTAL replays across the exam, not per item. One repeat on a
+  // hard clip is not the same as needing half the recordings twice, and a single
+  // binary cap treated them identically.
+  //   0-2 replays  no cap, Level 6 reachable
+  //   3-5 replays  capped at Level 5
+  //   6+  replays  capped at Level 4
+  function _teaComprehensionCap(replays) {
+    if (replays <= 2) return 6;
+    if (replays <= 5) return 5;
+    return 4;
+  }
+
   function _teaReplayReport() {
     var m = (_t && _t.listens) || {};
     var twice = Object.keys(m).filter(function(k) { return Number(m[k]) >= 2; });
-    if (!twice.length) return '[EXAM_COMPLETE | replays: none — every recording answered on a single hearing]';
-    return '[EXAM_COMPLETE | replays: ' + twice.length + ' item(s) heard twice: ' +
-           twice.join(', ') + ' — COMPREHENSION is capped at Level 4]';
+    var cap = _teaComprehensionCap(twice.length);
+
+    if (!twice.length) {
+      return '[EXAM_COMPLETE | replays: 0 — every recording answered on a single ' +
+             'hearing | COMPREHENSION_CAP: 6 (no cap)]';
+    }
+    // The cap is computed here rather than left to the examiner to derive, so the
+    // band never depends on the model doing arithmetic correctly.
+    return '[EXAM_COMPLETE | replays: ' + twice.length + ' of 12 items heard twice (' +
+           twice.join(', ') + ') | COMPREHENSION_CAP: ' + cap +
+           (cap === 6 ? ' (no cap)' : '') + ']';
   }
 
   function _teaPrewarmVoice() {

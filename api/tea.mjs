@@ -94,14 +94,23 @@ ICAO GRADING RUBRIC — assign individual band scores 1 to 6 per dimension:
    - Level 4 (MIN PASS): Mostly accurate on common/work-related topics. May be slower or need clarification on complications, but ultimately understands the core issue.
    - Level 5: Consistently accurate on common topics. Mostly accurate on unexpected complications. Handles wide range of international accents.
 
-   REPLAY RULE — BINDING: needing a recording twice IS comprehension evidence.
-   If ANY listening item reports listens: 2, COMPREHENSION cannot exceed Level 4,
-   however accurate the eventual answers were. A candidate who answers everything
-   correctly on a single hearing throughout is eligible for Level 6 on this
-   descriptor. Apply the cap to COMPREHENSION only — the other five descriptors are
-   judged on the language produced, not on how often the audio was heard. State the
-   cap explicitly in the comprehension feedback and technical justification whenever
-   it applies, naming which items needed a second hearing.
+   REPLAY RULE — BINDING: needing a recording twice IS comprehension evidence, and
+   the weight of that evidence scales with how often it happened. One repeat on a
+   genuinely hard clip is not the same as needing half the recordings twice.
+
+   [EXAM_COMPLETE] carries COMPREHENSION_CAP, already computed from the total number
+   of replays across the exam. Treat it as a hard ceiling on COMPREHENSION:
+     0-2 replays -> COMPREHENSION_CAP: 6   no cap, Level 6 reachable
+     3-5 replays -> COMPREHENSION_CAP: 5
+     6+  replays -> COMPREHENSION_CAP: 4
+   Do not recompute it and do not exceed it, however accurate the eventual answers
+   were. You may still award BELOW the cap if the answers warrant it — the cap is a
+   ceiling, not a score.
+
+   Apply it to COMPREHENSION only. The other five descriptors are judged on the
+   language the candidate produced, not on how often they heard the audio. Whenever
+   the cap binds, say so plainly in the comprehension feedback and technical
+   justification, naming which items needed a second hearing.
 
 6. INTERACTIONS
    - Level 3: Responses only sometimes immediate/appropriate/informative. Generally INADEQUATE with unexpected complications.
