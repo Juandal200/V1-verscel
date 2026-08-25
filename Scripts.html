@@ -22679,9 +22679,36 @@
   // same normalised lookup that finds their audio identifies them here.
   var _TEA_CLOSING_IDS = { line_ack_next: 1, line_ack_next_picture: 1, line_section_close: 1 };
 
+  // Cached: normalised closing phrase -> true. Built from the bank the first time
+  // it is needed, so it always reflects whatever wording the sheet holds.
+  var _teaClosingPhrases = null;
+
+  function _teaClosingSet() {
+    if (_teaClosingPhrases) return _teaClosingPhrases;
+    _teaClosingPhrases = [];
+    Object.keys(TEA_LINES || {}).forEach(function(norm) {
+      if (_TEA_CLOSING_IDS[TEA_LINES[norm]]) _teaClosingPhrases.push(norm);
+    });
+    return _teaClosingPhrases;
+  }
+
+  // CONTAINS, not equals.
+  //
+  // Exact matching is right for choosing which recording to play, but wrong for
+  // deciding whether an item is over: a model asked to say a line on its own will
+  // regularly say it with a sentence attached — "Thank you. Next recording. We have
+  // four more." — and the whole-message lookup then matched nothing. The item never
+  // closed, the button never appeared, and the exam limped forward on the four-turn
+  // safety net instead, which is what the console has been reporting.
   function _teaIsItemClosingLine(text) {
-    var id = TEA_LINES[_teaNormLine(text)];
-    return !!(id && _TEA_CLOSING_IDS[id]);
+    var norm = _teaNormLine(text);
+    if (!norm) return false;
+    if (_TEA_CLOSING_IDS[TEA_LINES[norm]]) return true;      // exact — the common case
+    var set = _teaClosingSet();
+    for (var i = 0; i < set.length; i++) {
+      if (set[i] && norm.indexOf(set[i]) !== -1) return true;
+    }
+    return false;
   }
 
   function _teaNormLine(text) {
@@ -22754,6 +22781,7 @@
             TEA_SECTIONS  = res.sections || null;
             TEA_INTERVIEW = res.interview || [];
             TEA_LINES     = res.lines || {};
+            _teaClosingPhrases = null;   // rebuild from the bank just loaded
             TEA_BANK      = res.bank || '';
             if (res.images && res.images.length) TEA_IMAGES = res.images;
             finish('sheet · version ' + TEA_BANK + ' of ' + (res.versions || 1) +
@@ -24797,7 +24825,14 @@
         // to word a transition — "let us move to the second section" matches none of
         // these, and the exam then sat in Part 1 for ever.
         var lower  = msg.toLowerCase();
-        var closed = TEA_LINES[_teaNormLine(msg)] === 'line_part1_close';
+        // Same leniency as the item closing lines: the examiner may wrap the
+        // handover in a sentence, and an exact match would then miss it entirely.
+        var _p1 = null;
+        Object.keys(TEA_LINES || {}).forEach(function(k) {
+          if (TEA_LINES[k] === 'line_part1_close') _p1 = k;
+        });
+        var _nm = _teaNormLine(msg);
+        var closed = !!(_p1 && _nm.indexOf(_p1) !== -1);
         if (closed ||
             lower.indexOf('part 2') !== -1 || lower.indexOf('listening') !== -1 ||
             lower.indexOf('first recording') !== -1) {
