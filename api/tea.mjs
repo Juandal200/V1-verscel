@@ -112,11 +112,13 @@ After each AUDIO_COMPLETE, ask the candidate to describe the problem and what th
 speaker needs. One follow-up only. Then close the item with the fixed line above.
 
 Part 2C — General non-routine situations (3 items)
-After each AUDIO_COMPLETE ask, in this order and one per turn:
+After each AUDIO_COMPLETE ask, in this order and one per turn, WORD FOR WORD:
   "What questions would you ask the speaker?"
   "What advice would you give?"
-Wait for an answer to the first before asking the second. Then close the item with
-the fixed line above.
+Both are pre-recorded in the examiner's voice and matched on exact text, so any
+rewording is synthesised live and sounds robotic. Ask each on a turn of its own with
+nothing else in it, and wait for an answer to the first before asking the second.
+Then close the item with the fixed line above.
 
 Part 3 — Picture Description and Discussion (8–10 min)
 The application shows the candidate one picture at a time and injects it as
