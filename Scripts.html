@@ -22677,7 +22677,7 @@
 
   // The two fixed lines that end an item. Both are LINE items in the bank, so the
   // same normalised lookup that finds their audio identifies them here.
-  var _TEA_CLOSING_IDS = { line_ack_next: 1, line_section_close: 1 };
+  var _TEA_CLOSING_IDS = { line_ack_next: 1, line_ack_next_picture: 1, line_section_close: 1 };
 
   function _teaIsItemClosingLine(text) {
     var id = TEA_LINES[_teaNormLine(text)];
@@ -23999,6 +23999,26 @@
   }
 
   // Step 3: after Q&A, show "Next Recording" button so user controls pacing
+  // Put the next picture on screen and hand the item to the examiner. Mirrors
+  // _queueNextAudio: the app decides when an item starts, the examiner conducts it,
+  // and its fixed closing line is what ends it.
+  function _teaShowNextImage() {
+    if (_t.imageIdx >= TEA_IMAGES.length) return;
+    _teaSetPart('3');
+    var img = TEA_IMAGES[_t.imageIdx++];
+    if (_t.imageIdx >= TEA_IMAGES.length) _t._imageInjected = true;
+    _teaSetStep('Part 3 · Picture ' + _t.imageIdx + ' of ' + TEA_IMAGES.length,
+                _t.imageIdx < TEA_IMAGES.length
+                  ? 'Picture ' + (_t.imageIdx + 1) + ' of ' + TEA_IMAGES.length
+                  : 'Scoring');
+    _addImageCard(img);
+    _t._qaMode      = false;
+    _t._awaitingAck = true;
+    _t._ackTurns    = 0;
+    _setEnabled(false);
+    _sendMsg('[' + img.id.toUpperCase() + ': ' + img.desc + ']');
+  }
+
   function _showNextAudioBtn() {
     // audioIdx already points at the NEXT item, so the header should too — it read
     // "Item 1 of 6" while offering the button that starts item 2.
@@ -24012,13 +24032,19 @@
     btn.id        = 'teaNextBtn';
     btn.className = 'tea-send-btn';
     btn.style     = 'margin:8px 16px;align-self:flex-start;';
-    var _nextKey = _getPartKey(_t.audioIdx);
-    var _more    = _t.audioIdx < _t.scopeEnd;
-    var _isEnd   = !_more && !_t.scopeImages;
+    var _nextKey  = _getPartKey(_t.audioIdx);
+    var _more     = _t.audioIdx < _t.scopeEnd;
+    var _inPart3  = _t.scopeImages && _t.imageIdx > 0;        // a picture has been shown
+    var _morePics = _t.scopeImages && _t.imageIdx < TEA_IMAGES.length;
+    // Once Part 3 has started, "Continue to Part 3" is no longer the offer — the
+    // offer is the next picture, or the report after the last one.
+    var _isEnd    = !_more && !_morePics;
 
     btn.textContent = _more
       ? (_nextKey === '2C' ? 'Next Situation →' : 'Next Recording →')
-      : (_t.scopeImages ? 'Continue to Part 3 →' : 'Finish and get my report →');
+      : _morePics
+        ? (_inPart3 ? 'Next Picture →' : 'Continue to Part 3 →')
+        : 'Finish and get my report →';
 
     // The end of a run used to take two clicks: "Finish section" only revealed a
     // second "Finish Exam & Get Score" button further down a scrolled transcript,
@@ -24028,17 +24054,9 @@
 
     btn.onclick = function() {
       btn.remove();
-      if (_more) {
-        _queueNextAudio();
-      } else if (_isEnd) {
-        _t._finishShown = true;
-        _finishExam();
-      } else if (_t.imageIdx < TEA_IMAGES.length) {
-        _teaSetPart('3');
-        var img = TEA_IMAGES[_t.imageIdx++];
-        _addImageCard(img);
-        _sendMsg('[' + img.id.toUpperCase() + ': ' + img.desc + ']');
-      }
+      if (_more)         { _queueNextAudio(); }
+      else if (_morePics){ _teaShowNextImage(); }
+      else               { _t._finishShown = true; _finishExam(); }
     };
     cards.appendChild(btn);
     cards.scrollTop = cards.scrollHeight;
@@ -24591,17 +24609,20 @@
       }
 
       // Part 3 — inject images once all audio done, one per examiner turn
-      // Part 3 is entered EITHER by the "Continue to Part 3" button or by this
-      // automatic injection. While that button is still on screen both are armed,
-      // and each advances imageIdx — so one picture was injected here, the button
-      // injected the next, and the first was never discussed. The button wins
-      // while it exists; this takes over for the images after it.
-      if (_t.scopeImages && _t.audioIdx >= _t.scopeEnd && _t.imageIdx < TEA_IMAGES.length &&
-          !_t._imageInjected && !document.getElementById('teaNextBtn')) {
-        var img = TEA_IMAGES[_t.imageIdx++];
-        if (_t.imageIdx >= TEA_IMAGES.length) _t._imageInjected = true;
-        _addImageCard(img);
-        _sendMsg('[' + img.id.toUpperCase() + ': ' + img.desc + ']');
+      // Part 3 used to advance a picture on EVERY examiner turn once the audio was
+      // done: picture one went up, and the very next turn put picture two on top of
+      // it, before the first had been discussed at all. With two pictures that is
+      // half the section. Pictures are now shown one at a time by button, exactly
+      // like the recordings, and the turn that ends one is the same fixed closing
+      // line that ends a listening item.
+      //
+      // The exception is the FIRST picture of a Part 3-only run, which has no
+      // preceding item to offer a button after — without this the run opens, the
+      // examiner speaks, and nothing else ever happens. Guarded on imageIdx being
+      // zero, so it starts the section and never advances within it.
+      if (_t.scopeImages && _t.audioIdx >= _t.scopeEnd && _t.imageIdx === 0 &&
+          !_t._awaitingAck && !document.getElementById('teaNextBtn')) {
+        _teaShowNextImage();
         return;
       }
 
