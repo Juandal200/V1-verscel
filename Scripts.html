@@ -22688,12 +22688,24 @@
   // it is needed, so it always reflects whatever wording the sheet holds.
   var _teaClosingPhrases = null;
 
+  // Known independently of the bank. Whether an item is finished is FLOW CONTROL,
+  // and flow control must not stop working because a sheet failed to load, an item
+  // was switched off, or somebody edited a row. The bank decides which recording to
+  // play; it does not get to decide whether the exam can move on.
+  var _TEA_CLOSING_FALLBACK = [
+    'thank you next recording',
+    'thank you that completes this section',
+    'thank you next picture'
+  ];
+
   function _teaClosingSet() {
     if (_teaClosingPhrases) return _teaClosingPhrases;
-    _teaClosingPhrases = [];
+    var seen = {}, out = [];
+    _TEA_CLOSING_FALLBACK.forEach(function(p) { if (!seen[p]) { seen[p] = 1; out.push(p); } });
     Object.keys(TEA_LINES || {}).forEach(function(norm) {
-      if (_TEA_CLOSING_IDS[TEA_LINES[norm]]) _teaClosingPhrases.push(norm);
+      if (_TEA_CLOSING_IDS[TEA_LINES[norm]] && !seen[norm]) { seen[norm] = 1; out.push(norm); }
     });
+    _teaClosingPhrases = out;
     return _teaClosingPhrases;
   }
 
@@ -22706,14 +22718,27 @@
   // closed, the button never appeared, and the exam limped forward on the four-turn
   // safety net instead, which is what the console has been reporting.
   function _teaIsItemClosingLine(text) {
-    var norm = _teaNormLine(text);
+    var raw  = String(text || '');
+    var norm = _teaNormLine(raw);
     if (!norm) return false;
+
     if (_TEA_CLOSING_IDS[TEA_LINES[norm]]) return true;      // exact — the common case
     var set = _teaClosingSet();
     for (var i = 0; i < set.length; i++) {
       if (set[i] && norm.indexOf(set[i]) !== -1) return true;
     }
-    return false;
+
+    // Tolerance for the wording drifting further than a fixed phrase can follow.
+    // The commonest drift is the examiner simply saying "Thank you." and stopping,
+    // which is unmistakably the end of an item to a human and matched nothing here —
+    // leaving the candidate with no button and the exam limping to its safety net.
+    //
+    // Narrow on purpose: it must OPEN with the thanks, ask nothing, and be short.
+    // "Thank you. And what does the speaker need?" is a follow-up, not a closure,
+    // and must keep the floor with the candidate.
+    if (raw.indexOf('?') !== -1) return false;
+    if (norm.indexOf('thank you') !== 0) return false;
+    return norm.split(' ').length <= 12;
   }
 
   function _teaNormLine(text) {
@@ -24858,10 +24883,17 @@
       // Hand the floor back and wait for the closing line.
       if (_t._awaitingAck) {
         _t._ackTurns = Number(_t._ackTurns || 0) + 1;
+        if (window.console && console.warn) {
+          console.warn('[ICAO test] turn ' + _t._ackTurns + ' with no closing line: ' +
+                       JSON.stringify(String(msg).slice(0, 160)));
+        }
         // Safety net. If the wording ever drifts far enough not to match, the
         // candidate would sit with no way to move on at all — so past any
         // plausible number of follow-ups, offer the button regardless.
-        if (_t._ackTurns >= 4) {
+        // Three, not four. 2C is the longest legitimate case — a question, an
+        // answer, the second question — so anything past three turns is the model
+        // failing to close, and every extra turn is the candidate stuck.
+        if (_t._ackTurns >= 3) {
           _t._awaitingAck = false;
           _t._ackTurns = 0;
           _setEnabled(true);
