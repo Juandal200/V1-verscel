@@ -22675,6 +22675,15 @@
   // late and, on a cold server, in the browser's robot voice.
   var TEA_LINES     = {};
 
+  // The two fixed lines that end an item. Both are LINE items in the bank, so the
+  // same normalised lookup that finds their audio identifies them here.
+  var _TEA_CLOSING_IDS = { line_ack_next: 1, line_section_close: 1 };
+
+  function _teaIsItemClosingLine(text) {
+    var id = TEA_LINES[_teaNormLine(text)];
+    return !!(id && _TEA_CLOSING_IDS[id]);
+  }
+
   function _teaNormLine(text) {
     return String(text || '')
       .toLowerCase()
@@ -22776,7 +22785,8 @@
              // one section can be exercised without sitting the other twenty-five
              // minutes. scopeEnd is exclusive.
              scope:'', scopeStart:0, scopeEnd:0, scopeImages:true, scopeInterview:true,
-             sectionReports:[], _sectionsDone:{}, _awaitingAck:false, _reportPending:null };
+             sectionReports:[], _sectionsDone:{}, _awaitingAck:false, _ackTurns:0,
+             _reportPending:null };
 
   // Translates a section name into the slice of the exam that should actually run.
   // Returns the opening instruction for the examiner, which has to be explicit:
@@ -22919,7 +22929,8 @@
     window._teaStarting = false;
     _t.scope=''; _t.scopeStart=0; _t.scopeEnd=0;
     _t.scopeImages=true; _t.scopeInterview=true;
-    _t.sectionReports=[]; _t._sectionsDone={}; _t._awaitingAck=false; _t._reportPending=null;
+    _t.sectionReports=[]; _t._sectionsDone={}; _t._awaitingAck=false; _t._ackTurns=0;
+    _t._reportPending=null;
     if (_t.timerIv) clearInterval(_t.timerIv);
     if (_t.audioEl) { _t.audioEl.pause(); _t.audioEl=null; }
   }
@@ -23752,11 +23763,14 @@
     // Build the AUDIO_COMPLETE message with type hint for the AI
     function _completeMsg() {
       var key = _getPartKey(itemIdx);
+      // These hints used to contradict the prompt: 2A was told here to "ask 1-2
+      // comprehension questions" while the prompt fixes one exact question, word
+      // for word. Two instructions pulling different ways on the same turn.
       var note = key === '2C'
-        ? 'type:SITUATION — ask questions about the situation then give practical aviation advice'
+        ? 'type:SITUATION — ask the two fixed Part 2C questions, one per turn, then close the item'
         : key === '2B'
-          ? 'type:EXTENDED_DIALOGUE — ask 2-3 detailed comprehension questions'
-          : 'type:SHORT_READBACK — ask 1-2 comprehension questions';
+          ? 'type:EXTENDED_DIALOGUE — ask what the problem is and what the speaker needs, at most one follow-up, then close the item'
+          : 'type:SHORT_READBACK — ask the fixed Part 2A question, then close the item';
       // listens is graded evidence, not a UI detail — see the COMPREHENSION rule
       // in the examiner prompt.
       var _n = Number((_t.listens && _t.listens[id]) || 1);
@@ -24485,10 +24499,16 @@
         return;
       }
 
-      // The examiner has acknowledged the answer ("Thank you. Recording four of
-      // six next.") — only now is the item genuinely finished.
-      if (_t._awaitingAck) {
+      // An item is finished when the examiner says the fixed acknowledgement, not
+      // simply on the turn after the question. 2A asks everything in one turn, so
+      // "the next message" happened to be the acknowledgement there — but 2B takes
+      // a follow-up and 2C asks two questions in sequence, and treating those as the
+      // acknowledgement would put a Next Recording button on screen while the
+      // examiner was still asking. Match the wording; it is fixed and pre-recorded,
+      // so this is the same lookup that plays its audio.
+      if (_t._awaitingAck && _teaIsItemClosingLine(msg)) {
         _t._awaitingAck = false;
+        _t._ackTurns = 0;
         _setEnabled(true);
         _showNextAudioBtn();
         // _setEnabled says "Your turn — speak or type", which is not what this
@@ -24498,6 +24518,27 @@
         _setStatus(_t.audioIdx < _t.scopeEnd
           ? 'Answered — press Next Recording'
           : 'Section finished — press the button below', 'idle');
+        return;
+      }
+
+      // Still mid-item: a follow-up question, or the second half of a 2C pair.
+      // Hand the floor back and wait for the closing line.
+      if (_t._awaitingAck) {
+        _t._ackTurns = Number(_t._ackTurns || 0) + 1;
+        // Safety net. If the wording ever drifts far enough not to match, the
+        // candidate would sit with no way to move on at all — so past any
+        // plausible number of follow-ups, offer the button regardless.
+        if (_t._ackTurns >= 4) {
+          _t._awaitingAck = false;
+          _t._ackTurns = 0;
+          _setEnabled(true);
+          _showNextAudioBtn();
+          if (window.console && console.warn) {
+            console.warn('[ICAO test] no closing line after 4 turns — advancing anyway');
+          }
+          return;
+        }
+        _setEnabled(true);
         return;
       }
 
@@ -24511,7 +24552,11 @@
         // The button used to appear on this turn — the one where the examiner ASKS
         // the questions — so it was possible to skip straight past answering. It
         // now waits for the acknowledgement that follows the candidate's answer.
-        var resume = function() { _setEnabled(true); _t._awaitingAck = true; };
+        var resume = function() {
+          _setEnabled(true);
+          _t._awaitingAck = true;
+          _t._ackTurns    = 0;
+        };
         if (justFinished && justFinished !== nowIn) {
           _teaRequestSectionReport('Part ' + justFinished, resume);
           return;
