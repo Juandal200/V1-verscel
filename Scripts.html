@@ -6645,7 +6645,12 @@
 
       // Route through Web Audio bandpass (300–3 400 Hz) to simulate VHF radio bandwidth.
       // Falls back to direct playback silently if AudioContext is unavailable.
-      var _ctx = SimMedia.bgCtx && SimMedia.bgCtx.state !== 'closed' ? SimMedia.bgCtx : null;
+      // 'running', not merely 'not closed'. Attaching to a suspended or interrupted
+      // context reroutes the element into a graph that produces no sound, and the
+      // clip then plays through to its end in silence — the failure that silenced
+      // the ICAO exam from Part 2 onwards. The filter is worth having; it is not
+      // worth playing nothing.
+      var _ctx = SimMedia.bgCtx && SimMedia.bgCtx.state === 'running' ? SimMedia.bgCtx : null;
       if (_ctx) {
         try {
           var _src = _ctx.createMediaElementSource(a);
@@ -23141,30 +23146,44 @@
   }
 
   // Examiner speaking — tap the element that is already playing.
+  // The ring no longer listens to the exam's audio, and deliberately so.
+  //
+  // It used to run playback through a Web Audio analyser via
+  // createMediaElementSource. That call REROUTES an element: once attached it is
+  // audible only through ctx.destination, and every route to that destination has
+  // to keep working for the rest of the sitting. A guard checked the context was
+  // running at the moment of attaching — but a context can be suspended or, on
+  // Safari, interrupted at any point afterwards, and every element already attached
+  // to it then goes silent together. Which is exactly the reported failure: Part 1
+  // played, the exam moved to Part 2, and from there neither the examiner nor the
+  // recordings could be heard at all, while the app carried on believing each clip
+  // had played and counting the listens.
+  //
+  // An accurate ring is not worth a silent examination. The element is now left
+  // completely alone and the ring is animated from whether it is playing. The mic
+  // visualiser is untouched: a MediaStreamSource analyses a capture stream and
+  // reroutes nothing.
   function _teaVizSpeak(audioEl) {
     _teaVizStop();
-    var ctx = _teaVizCtx();
-    if (!ctx || !audioEl) return;
+    if (!audioEl) return;
 
-    // HARD GUARD. createMediaElementSource REROUTES the element's audio through the
-    // Web Audio graph — once attached, it is only audible via ctx.destination. If
-    // the context is suspended by autoplay policy the exam would go completely
-    // silent, which is far worse than a ring that does not move. Only attach to a
-    // context that is genuinely running; otherwise leave the element alone.
-    if (ctx.state !== 'running') return;
+    var ring = document.getElementById('teaRing');
+    if (!ring) return;
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) return;
 
-    try {
-      // An element can only be connected once; reuse the source on a replay.
-      if (!audioEl._teaSrc) {
-        audioEl._teaSrc = ctx.createMediaElementSource(audioEl);
-        audioEl._teaSrc.connect(ctx.destination);   // keep it audible
-      }
-      var an = ctx.createAnalyser();
-      an.fftSize = 128;
-      an.smoothingTimeConstant = 0.75;
-      audioEl._teaSrc.connect(an);
-      _teaVizRun(an, 'rgba(0,212,142,.55)');
-    } catch (e) { /* visual only — never let it break playback */ }
+    var t0 = Date.now();
+    (function frame() {
+      _teaViz.raf = requestAnimationFrame(frame);
+      if (!audioEl || audioEl.paused || audioEl.ended) { _teaVizStop(); return; }
+      // Two detuned sines, so it reads as speech cadence rather than a metronome.
+      var ms    = Date.now() - t0;
+      var level = 0.45 + 0.30 * Math.sin(ms / 155) + 0.25 * Math.sin(ms / 63);
+      level = Math.max(0, Math.min(1, level));
+      ring.style.transform = 'scale(' + (1 + level * 0.045).toFixed(3) + ')';
+      ring.style.boxShadow = '0 0 ' + (10 + level * 30).toFixed(0) + 'px rgba(0,212,142,' +
+                             (0.18 + level * 0.4).toFixed(2) + ')';
+    })();
   }
 
   // Candidate recording — tap the live mic stream.
@@ -25416,7 +25435,10 @@ function _dcPlayAudio() {
       var _dctx = (typeof SimMedia !== 'undefined' && SimMedia.bgCtx && SimMedia.bgCtx.state !== 'closed')
         ? SimMedia.bgCtx
         : new (window.AudioContext || window.webkitAudioContext)();
+      // resume() is asynchronous, so the state can still be 'suspended' here.
+      // Attaching anyway routes the clip into a silent graph.
       if (_dctx.state === 'suspended') _dctx.resume();
+      if (_dctx.state !== 'running') throw new Error('audio context not running');
       var _dsrc = _dctx.createMediaElementSource(_dcAudio);
       var _dhp  = _dctx.createBiquadFilter();
       _dhp.type = 'highpass'; _dhp.frequency.value = 300; _dhp.Q.value = 0.7;
