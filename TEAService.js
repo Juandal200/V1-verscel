@@ -14,7 +14,16 @@ var TEA_SHEET_HEADERS = [
   'Drive Report',
   // Which item bank this sitting drew from. Versions can differ in difficulty, so
   // results from different banks are not comparable without knowing which was sat.
-  'Version'
+  'Version',
+  // How it was graded. 'pipeline' scored transcribed speech with pace, pause and
+  // hesitation data; 'conversation' scored the text of the conversation because
+  // there was no recorded audio or the pipeline failed. They are not equivalent
+  // evidence, and a results table that hides which is which is worse than one
+  // without the column.
+  'Source',
+  // Which part of the exam ran. FULL is a real sitting; 2A, 2B, 2C, 1, 3 and SCORE
+  // are section test runs and must not be read as exam results.
+  'Scope'
 ];
 
 /**
@@ -100,7 +109,9 @@ function _teaAppendSheetRow_(data, fileUrl) {
     scores.comprehension       || '',
     scores.interactions        || '',
     fileUrl                    || '',
-    data.bank                  || ''
+    data.bank                  || '',
+    data.source                || 'pipeline',
+    data.scope                 || 'FULL'
   ]);
 }
 
@@ -130,4 +141,73 @@ function _teaGetOrCreateSheet_() {
   sheet.appendRow(TEA_SHEET_HEADERS);
   sheet.setFrozenRows(1);
   return sheet;
+}
+
+
+/**
+ * Saves a result that was graded conversationally rather than through the audio
+ * pipeline.
+ *
+ * The pipeline path has always persisted its results. The fallback path — used
+ * whenever the pipeline fails AND for every sitting answered by typing, since
+ * there is then no recorded audio to transcribe — rendered a report on screen and
+ * kept nothing. Those sittings simply did not exist afterwards, which is a poor
+ * position to be in when the thing being judged is the quality of the grading.
+ *
+ * Same Drive file and same summary row as the pipeline, marked so the two can be
+ * told apart.
+ */
+function apiSaveIcaoExamResult(sessionToken, payload) {
+  try {
+    var user = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    payload = payload || {};
+    var sv = payload.student_view || {};
+    var av = payload.admin_view   || {};
+
+    function band(d) { return (sv[d] && sv[d].score) || 0; }
+    function fb(d)   { return (sv[d] && sv[d].feedback) || ''; }
+
+    var data = {
+      candidateId: String(user.email || user.userId || 'unknown'),
+      examDate:    String(payload.examDate || now_()),
+      savedAt:     now_(),
+      bank:        String(payload.bank  || ''),
+      scope:       String(payload.scope || 'FULL'),
+      source:      'conversation',
+      overallBand: Number(sv.overall_band) || 0,
+      scores: {
+        pronunciation: band('pronunciation'), structure:     band('structure'),
+        vocabulary:    band('vocabulary'),    fluency:       band('fluency'),
+        comprehension: band('comprehension'), interactions:  band('interactions')
+      },
+      studentFeedback: {
+        pronunciation: fb('pronunciation'), structure:     fb('structure'),
+        vocabulary:    fb('vocabulary'),    fluency:       fb('fluency'),
+        comprehension: fb('comprehension'), interactions:  fb('interactions')
+      },
+      adminReport: {
+        annotatedTranscript:    (av && av.transcript) || '',
+        technicalJustification: (av && av.technical_justification) || {}
+      },
+      // No Whisper output on this path, so the conversation itself is the record of
+      // what the candidate actually said.
+      enrichedTranscript: _teaFlattenHistory_(payload.history),
+      sectionReports: payload.sectionReports || []
+    };
+
+    var folder  = _teaGetOrCreateFolder_();
+    var fileUrl = _teaSaveJsonReport_(folder, data);
+    _teaAppendSheetRow_(data, fileUrl);
+    return { ok: true, driveFileUrl: fileUrl };
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || 'Save failed' };
+  }
+}
+
+function _teaFlattenHistory_(history) {
+  if (!history || !history.length) return '';
+  return history.map(function(m) {
+    var who = m.role === 'assistant' ? 'EXAMINER' : 'CANDIDATE';
+    return who + ': ' + String(m.content || '');
+  }).join('\n\n');
 }

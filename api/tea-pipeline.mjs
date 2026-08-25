@@ -427,7 +427,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { segments = [], history = [], candidateId = 'unknown', examDate, mockTranscript, bank = '' } = req.body;
+    const { segments = [], history = [], candidateId = 'unknown', examDate, mockTranscript, bank = '', scope = 'FULL' } = req.body;
 
     // ── Mock mode: skip Whisper entirely, grade a pre-built transcript ──
     // Triggered by passing mockTranscript in the request body (test/debug only).
@@ -501,6 +501,8 @@ export default async function handler(req, res) {
       examDate:   examDate || new Date().toISOString(),
       savedAt:    new Date().toISOString(),
       bank:       bank || '',
+      scope:      scope || 'FULL',
+      source:     'pipeline',
 
       // Top-line result
       overallBand: sv.overall_band,

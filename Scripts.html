@@ -23616,6 +23616,10 @@
       _lockExamUI();
       var band = jsonData.student_view.overall_band;
       _showReportScreen(jsonData);
+      // This path used to keep nothing at all — it is reached whenever the audio
+      // pipeline fails and for every sitting answered by typing, since there is
+      // then no recording to transcribe. Those results existed only on screen.
+      _teaSaveConversationResult(jsonData);
       var summary = 'The examination is now complete. Your overall ICAO band is ' + band + '. Please review your results below.';
       _teaSay(summary, onDone);
       return;
@@ -24165,7 +24169,8 @@
           history:     _t.history,
           candidateId: candidateId,
           examDate:    new Date().toISOString(),
-          bank:        TEA_BANK
+          bank:        TEA_BANK,
+          scope:       _t.scope || 'FULL'
         })
       })
       .then(function(r) { return r.json(); })
@@ -24388,6 +24393,29 @@
   // sitting under six spent audio cards with the exam chrome — ring, part rail,
   // input bar — still around it, so the thing the candidate came for was the least
   // prominent object on the page.
+  function _teaSaveConversationResult(json) {
+    try {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (window.console && console.log) {
+            console.log('[ICAO test] result saved: ' + ((res && res.driveFileUrl) || (res && res.error) || '?'));
+          }
+        })
+        .withFailureHandler(function(e) {
+          if (window.console && console.warn) console.warn('[ICAO test] result save failed', e);
+        })
+        .apiSaveIcaoExamResult(AppState.sessionToken, {
+          student_view:   json.student_view,
+          admin_view:     json.admin_view,
+          history:        _t.history,
+          sectionReports: _t.sectionReports || [],
+          bank:           TEA_BANK,
+          scope:          _t.scope || 'FULL',
+          examDate:       new Date().toISOString()
+        });
+    } catch (e) {}
+  }
+
   function _showReportScreen(json) {
     if (_t._gradingLoader && _t._gradingLoader.stop) { try { _t._gradingLoader.stop(); } catch (e) {} }
     if (_t.timerIv) clearInterval(_t.timerIv);
