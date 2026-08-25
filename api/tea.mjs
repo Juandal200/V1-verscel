@@ -259,38 +259,51 @@ export default async function handler(req, res) {
     // with nothing in the UI to say why. Set GEMINI_MODEL in Vercel to change it
     // without a deploy; verify what your key can actually reach with:
     //   curl "https://generativelanguage.googleapis.com/v1beta/models?key=$GEMINI_API_KEY"
-    const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' +
-      encodeURIComponent(MODEL) + ':generateContent?key=' +
-      encodeURIComponent(apiKey);
+    // Retrying a saturated model harder does not unsaturate it. When the primary
+    // stays overloaded the exam has to move to another model or it simply stops,
+    // and a candidate mid-test cannot wait out a capacity spike.
+    const MODELS = [
+      process.env.GEMINI_MODEL || 'gemini-3.5-flash',
+      process.env.GEMINI_FALLBACK_MODEL || 'gemini-2.5-flash'
+    ].filter((m, i, a) => m && a.indexOf(m) === i);
 
     const body = JSON.stringify({
       contents:         contents,
       generationConfig: { maxOutputTokens: 4096, temperature: 0.7 }
     });
 
-    // Retry up to 4 times on 503 / high-demand errors, with exponential backoff
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-    let response, data, attempt = 0;
+    const isOverloadErr = (res, d) =>
+      res.status === 503 || res.status === 429 ||
+      (d && d.error && typeof d.error.message === 'string' &&
+       /high demand|overload|unavailable|quota/i.test(d.error.message));
 
-    while (attempt < 4) {
-      response = await fetch(url, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body
-      });
-      data = await response.json();
+    let response, data, MODEL;
 
-      if (response.ok) break;
+    outer:
+    for (let mi = 0; mi < MODELS.length; mi++) {
+      MODEL = MODELS[mi];
+      const url = 'https://generativelanguage.googleapis.com/v1beta/models/' +
+        encodeURIComponent(MODEL) + ':generateContent?key=' + encodeURIComponent(apiKey);
 
-      const isOverload = response.status === 503 ||
-        (data.error && typeof data.error.message === 'string' &&
-         data.error.message.toLowerCase().indexOf('high demand') !== -1);
+      // Fewer attempts on the primary than before: the time is better spent moving
+      // to a model that can answer than waiting on one that cannot.
+      for (let attempt = 0; attempt < 3; attempt++) {
+        response = await fetch(url, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body
+        });
+        data = await response.json();
 
-      if (!isOverload) break;
+        if (response.ok) break outer;
+        if (!isOverloadErr(response, data)) break;   // a real error — do not shop around
 
-      attempt++;
-      if (attempt < 4) {
-        console.log('[TEA] overload retry ' + attempt + ' — waiting ' + (attempt * 2) + 's');
-        await sleep(attempt * 2000);
+        if (attempt < 2) {
+          console.log('[TEA] ' + MODEL + ' overloaded, retry ' + (attempt + 1));
+          await sleep(1500 * (attempt + 1));
+        }
+      }
+      if (mi < MODELS.length - 1) {
+        console.log('[TEA] falling back from ' + MODEL + ' to ' + MODELS[mi + 1]);
       }
     }
 

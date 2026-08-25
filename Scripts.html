@@ -24477,9 +24477,17 @@
     _t.busy=true; _setEnabled(false); _showThinking();
     _chat(text, function(err, msg) {
       if (err) {
+        // _setEnabled(true) writes "Your turn — speak or type" over whatever the
+        // status said, so every failure here looked like a normal prompt to speak
+        // against an empty transcript — the exam appearing to do nothing at all
+        // rather than reporting that the examiner could not be reached.
         _removeThinking();
-        _setStatus('Error: ' + err, 'thinking');
-        _setEnabled(true); _t.busy=false; return;
+        _t.busy = false;
+        _setEnabled(true);
+        _setStatus('Examiner unreachable — ' + err, 'thinking');
+        _addMsg('system', 'The examiner could not be reached: ' + err +
+                          '. Your answer was not lost — send it again.');
+        return;
       }
       _onExaminerMsg(msg);
     });
@@ -24626,10 +24634,17 @@
     // Belt and braces: the bank load already kicks this off, but if it lost the
     // race the fetch is still ahead of the examiner's first turn.
     _teaPrefetchOpening(_t.scope || 'FULL');
-    _teaSetStep(_t.scope === '3'     ? 'Part 3 · Picture description'
-              : _t.scope === 'SCORE' ? 'Scoring'
-              :                        'Part 1 · Interview',
-                (_t.scope && _t.scope !== '1') ? '' : _teaStepForIndex(_t.scopeStart));
+    // Only Part 1 and the full exam actually open on the interview. A scoped 2A,
+    // 2B or 2C run opens on its own first recording, and labelling it "Part 1 ·
+    // Interview" said the run was doing something it was not.
+    _teaSetStep(
+      _t.scope === '3'     ? 'Part 3 · Picture description'
+    : _t.scope === 'SCORE' ? 'Scoring'
+    : (!_t.scope || _t.scope === 'FULL' || _t.scope === '1') ? 'Part 1 · Interview'
+    : _teaStepForIndex(_t.scopeStart),
+      (!_t.scope || _t.scope === 'FULL' || _t.scope === '1')
+        ? _teaStepForIndex(_t.scopeStart)
+        : _teaStepForIndex(_t.scopeStart + 1));
     _sendMsg(_opening);
 
     // Part 1 runs five or six minutes with the network otherwise idle. Use it to
