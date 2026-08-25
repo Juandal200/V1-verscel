@@ -24587,8 +24587,15 @@
 
       // Detect Part 2 start — Gemini mentions listening/Part 2 and no audio queued yet
       if (_t.audioIdx === _t.scopeStart && _t.audioIdx < _t.scopeEnd && !_t._pendingId) {
-        var lower = msg.toLowerCase();
-        if (lower.indexOf('part 2') !== -1 || lower.indexOf('listening') !== -1 ||
+        // Part 1 ends on a fixed, pre-recorded line, the same way every item in the
+        // exam now does. The keyword sniff below is kept only as a fallback: it was
+        // the sole mechanism, and it is a guess about how a language model chooses
+        // to word a transition — "let us move to the second section" matches none of
+        // these, and the exam then sat in Part 1 for ever.
+        var lower  = msg.toLowerCase();
+        var closed = TEA_LINES[_teaNormLine(msg)] === 'line_part1_close';
+        if (closed ||
+            lower.indexOf('part 2') !== -1 || lower.indexOf('listening') !== -1 ||
             lower.indexOf('first recording') !== -1) {
           // Part 1 is a section too, and it is the only one whose end is not an
           // audio-item boundary.
