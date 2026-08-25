@@ -23535,6 +23535,17 @@
     return 4;
   }
 
+  // How the candidate answered, so the examiner does not score what it never heard.
+  function _teaInputModeNote() {
+    var spoken = (_t.segments && _t.segments.length) || 0;
+    if (spoken > 0) return '';
+    return ' | INPUT: TYPED — the candidate answered in writing. There is no audio ' +
+           'and no speech to assess. Report PRONUNCIATION and FLUENCY as 0 (not ' +
+           'assessed) and say plainly in their feedback that they were not assessed ' +
+           'because the answers were typed. Do not infer either from written text, ' +
+           'and base the overall band only on the descriptors you could observe.';
+  }
+
   function _teaReplayReport() {
     var m = (_t && _t.listens) || {};
     var twice = Object.keys(m).filter(function(k) { return Number(m[k]) >= 2; });
@@ -23542,13 +23553,13 @@
 
     if (!twice.length) {
       return '[EXAM_COMPLETE | replays: 0 — every recording answered on a single ' +
-             'hearing | COMPREHENSION_CAP: 6 (no cap)]';
+             'hearing | COMPREHENSION_CAP: 6 (no cap)' + _teaInputModeNote() + ']';
     }
     // The cap is computed here rather than left to the examiner to derive, so the
     // band never depends on the model doing arithmetic correctly.
     return '[EXAM_COMPLETE | replays: ' + twice.length + ' of 12 items heard twice (' +
            twice.join(', ') + ') | COMPREHENSION_CAP: ' + cap +
-           (cap === 6 ? ' (no cap)' : '') + ']';
+           (cap === 6 ? ' (no cap)' : '') + _teaInputModeNote() + ']';
   }
 
   function _teaPrewarmVoice() {
