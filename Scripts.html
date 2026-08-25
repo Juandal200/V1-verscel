@@ -22838,7 +22838,7 @@
              timerIv:null, _pendingId:null, _pendingB64:null, _qaMode:false, _imageInjected:false,
              _awaitingActivation:false, _finishShown:false, _examDone:false,
              examinerTurns:0, segments:[], _lastSepKey:null, _started:false, _timeWarned:false,
-             _openingDone:false, _scopeNote:null,
+             _openingDone:false, _scopeNote:null, _awaitingFinalReport:0,
              // Section-scoped runs. Full exam = the whole range; a scoped run
              // narrows the audio window and switches off the parts outside it, so
              // one section can be exercised without sitting the other twenty-five
@@ -22987,6 +22987,7 @@
     _t._awaitingActivation=false; _t._finishShown=false; _t._examDone=false;
     _t.examinerTurns=0; _t.segments=[]; _t._lastSepKey=null; _t._started=false;
     _t._timeWarned=false; _t._openingDone=false; _t._scopeNote=null;
+    _t._awaitingFinalReport=0;
     window._teaStarting = false;
     _t.scope=''; _t.scopeStart=0; _t.scopeEnd=0;
     _t.scopeImages=true; _t.scopeInterview=true;
@@ -23745,6 +23746,7 @@
     }
 
     if (jsonData && jsonData.student_view) {
+      _t._awaitingFinalReport = 0;
       _lockExamUI();
       var band = jsonData.student_view.overall_band;
       _showReportScreen(jsonData);
@@ -24369,19 +24371,19 @@
           if (_t._gradingLoader && _t._gradingLoader.stop) { try { _t._gradingLoader.stop(); } catch (e) {} }
           _teaRestoreExamShell();
           _unlockExamUI();
-          _sendMsg(_teaReplayReport());
+          _teaRequestFinalReport();
         }
       })
       .catch(function() {
         if (_t._gradingLoader && _t._gradingLoader.stop) { try { _t._gradingLoader.stop(); } catch (e) {} }
         _teaRestoreExamShell();
         _unlockExamUI();
-        _sendMsg(_teaReplayReport());
+        _teaRequestFinalReport();
       });
     } else {
       // No audio recorded — fall back to Gemini live grading
       _unlockExamUI();
-      _sendMsg(_teaReplayReport());
+      _teaRequestFinalReport();
     }
   }
 
@@ -24591,6 +24593,51 @@
     }
     proceed();
   }
+
+  // The conversational grading fallback asks the examiner for the report and waits.
+  // Nothing was watching for it to arrive: if the reply was not a scoring payload —
+  // a refusal, prose, malformed JSON — the state machine simply enabled the input
+  // and the candidate was left on "Finishing your report" with an empty transcript
+  // and no way forward, having just sat the whole exam. Ask again, then say so.
+  function _teaRequestFinalReport() {
+    _t._awaitingFinalReport = Number(_t._awaitingFinalReport || 0) + 1;
+    _setEnabled(false);
+    _setStatus(_t._awaitingFinalReport > 1
+      ? 'Scoring — attempt ' + _t._awaitingFinalReport + '…'
+      : 'Scoring your examination…', 'thinking');
+    var strict = _t._awaitingFinalReport > 1
+      ? '\n\nReturn ONLY the JSON object with student_view and admin_view. No text ' +
+        'before or after it, no code fences, no explanation.'
+      : '';
+    _sendMsg(_teaReplayReport() + strict);
+  }
+
+  function _teaReportFailed() {
+    var host = document.getElementById('contentArea'); if (!host) return;
+    if (_t._gradingLoader && _t._gradingLoader.stop) { try { _t._gradingLoader.stop(); } catch (e) {} }
+    host.innerHTML =
+      '<div style="min-height:calc(100vh - 60px);background:#080c10;display:flex;' +
+        'align-items:center;justify-content:center;padding:24px;">' +
+        '<div style="max-width:420px;text-align:center;">' +
+          '<div style="font-size:2rem;margin-bottom:12px;">\u26A0\uFE0F</div>' +
+          '<div style="font-size:1.05rem;font-weight:800;color:#dde2e6;margin-bottom:8px;">' +
+            'The report could not be produced</div>' +
+          '<div style="font-size:0.84rem;color:#8fa3bb;line-height:1.6;margin-bottom:20px;">' +
+            'Your examination was saved and nothing you did is lost. The scoring step ' +
+            'failed to return a result — this is usually temporary.</div>' +
+          '<button class="tea-send-btn" onclick="window._teaRetryReport()" ' +
+            'style="background:#00d48e;color:#000;padding:12px 26px;">Try scoring again</button>' +
+          '<button class="tea-send-btn" onclick="window._teaExitToHome()" ' +
+            'style="margin-left:8px;padding:12px 22px;">Back to Home</button>' +
+        '</div>' +
+      '</div>';
+  }
+
+  window._teaRetryReport = function() {
+    _t._awaitingFinalReport = 0;
+    _teaRestoreExamShell();
+    _teaRequestFinalReport();
+  };
 
   function _teaRestoreExamShell() {
     var host = document.getElementById('contentArea');
@@ -24845,6 +24892,17 @@
       // input and offers buttons, which is how the final report ended up sitting
       // under "Your turn — speak or type" with a Next Recording button.
       if (_t._examDone) return;
+
+      // A report was asked for and this reply was not one — _speakExaminer renders
+      // the report itself and clears the flag, so reaching here means the examiner
+      // answered with something else. Ask once more, insisting on the JSON, and if
+      // that fails too say so rather than leaving the candidate on a dead screen.
+      if (_t._awaitingFinalReport) {
+        if (_t._awaitingFinalReport < 3) { _teaRequestFinalReport(); return; }
+        _t._awaitingFinalReport = 0;
+        _teaReportFailed();
+        return;
+      }
 
       // The section report is asked for as JSON. If the model answers with prose
       // instead, _speakExaminer never intercepts it and the continuation is still
