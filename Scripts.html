@@ -23996,16 +23996,25 @@
     btn.style     = 'margin:8px 16px;align-self:flex-start;';
     var _nextKey = _getPartKey(_t.audioIdx);
     var _more    = _t.audioIdx < _t.scopeEnd;
+    var _isEnd   = !_more && !_t.scopeImages;
+
     btn.textContent = _more
       ? (_nextKey === '2C' ? 'Next Situation →' : 'Next Recording →')
-      : (_t.scopeImages ? 'Continue to Part 3 →' : 'Finish section →');
+      : (_t.scopeImages ? 'Continue to Part 3 →' : 'Finish and get my report →');
+
+    // The end of a run used to take two clicks: "Finish section" only revealed a
+    // second "Finish Exam & Get Score" button further down a scrolled transcript,
+    // which is easy to miss entirely — and a candidate who misses it is left telling
+    // the examiner they have finished and hoping. One button, one click.
+    if (_isEnd) btn.style = 'margin:8px 16px;align-self:flex-start;background:#00d48e;color:#000;';
+
     btn.onclick = function() {
       btn.remove();
       if (_more) {
         _queueNextAudio();
-      } else if (!_t.scopeImages) {
-        // Scoped run: nothing follows this section, so go straight to scoring.
-        if (!_t._finishShown) { _t._finishShown = true; _showFinishBtn(); }
+      } else if (_isEnd) {
+        _t._finishShown = true;
+        _finishExam();
       } else if (_t.imageIdx < TEA_IMAGES.length) {
         _teaSetPart('3');
         var img = TEA_IMAGES[_t.imageIdx++];
@@ -24130,6 +24139,8 @@
 
   // Called by the Finish button — uses pipeline if audio was recorded, else falls back to Gemini live grading
   function _finishExam() {
+    if (_t._finishing) return;
+    _t._finishing = true;
     _lockExamUI();
 
     if (_t.segments.length > 0) {
