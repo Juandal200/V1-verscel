@@ -211,3 +211,85 @@ function _teaFlattenHistory_(history) {
     return who + ': ' + String(m.content || '');
   }).join('\n\n');
 }
+
+
+/**
+ * A candidate's own exam history.
+ *
+ * Results have been accumulating in two places — the TEA Results tab and
+ * IcaoTestSectionReports — readable only by an admin. The person the reports
+ * describe had no way to see them, which makes a report a one-time thing you
+ * either read on the day or lose.
+ *
+ * Reads the results tab directly rather than through dbReadAll_: it predates
+ * DB_SCHEMA and is not registered there.
+ */
+function apiGetMyIcaoResults(sessionToken) {
+  try {
+    var user  = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    var email = String(user.email || '').trim().toLowerCase();
+
+    var results = [];
+    try {
+      var sheet   = _teaGetOrCreateSheet_();
+      var lastRow = sheet.getLastRow();
+      if (lastRow > 1) {
+        var width = Math.max(sheet.getLastColumn(), TEA_SHEET_HEADERS.length);
+        var rows  = sheet.getRange(2, 1, lastRow - 1, width).getValues();
+        var idx   = {};
+        TEA_SHEET_HEADERS.forEach(function(h, i) { idx[h] = i; });
+
+        rows.forEach(function(r) {
+          if (String(r[idx['Candidate']] || '').trim().toLowerCase() !== email) return;
+          results.push({
+            date:    String(r[idx['Date']] || ''),
+            band:    Number(r[idx['Overall Band']]) || 0,
+            scores: {
+              pronunciation: Number(r[idx['Pronunciation']]) || 0,
+              structure:     Number(r[idx['Structure']])     || 0,
+              vocabulary:    Number(r[idx['Vocabulary']])    || 0,
+              fluency:       Number(r[idx['Fluency']])       || 0,
+              comprehension: Number(r[idx['Comprehension']]) || 0,
+              interactions:  Number(r[idx['Interactions']])  || 0
+            },
+            version: String(r[idx['Version']] || ''),
+            source:  String(r[idx['Source']]  || 'pipeline'),
+            scope:   String(r[idx['Scope']]   || 'FULL')
+          });
+        });
+      }
+    } catch (e) { /* no results tab yet */ }
+
+    var sections = [];
+    try {
+      dbReadAll_('IcaoTestSectionReports').forEach(function(r) {
+        if (String(r.userId || '') !== String(user.userId)) return;
+        sections.push({
+          section:  String(r.section || ''),
+          scope:    String(r.scope   || ''),
+          bands: {
+            pronunciation: Number(r.pronunciation) || 0,
+            structure:     Number(r.structure)     || 0,
+            vocabulary:    Number(r.vocabulary)    || 0,
+            fluency:       Number(r.fluency)       || 0,
+            comprehension: Number(r.comprehension) || 0,
+            interactions:  Number(r.interactions)  || 0
+          },
+          strength:  String(r.strength || ''),
+          improve:   String(r.improve  || ''),
+          note:      String(r.note     || ''),
+          createdAt: String(r.createdAt || '')
+        });
+      });
+    } catch (e) { /* sheet not created yet */ }
+
+    // Newest first, and the Drive report link is deliberately NOT returned: those
+    // files carry the admin view, which is not the candidate's to read.
+    results.sort(function(a, b) { return String(b.date).localeCompare(String(a.date)); });
+    sections.sort(function(a, b) { return String(b.createdAt).localeCompare(String(a.createdAt)); });
+
+    return { ok: true, results: results, sections: sections };
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || 'Could not load results' };
+  }
+}

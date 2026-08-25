@@ -24385,6 +24385,8 @@
       '</div>' +
       '<button class="tea-send-btn" onclick="window._teaExitToHome()" ' +
         'style="background:#00d48e;color:#000;padding:12px 28px;">Back to Home</button>' +
+      '<button class="tea-send-btn" onclick="window._teaMyResults()" ' +
+        'style="margin-left:8px;padding:12px 22px;">My results</button>' +
     '</div>';
 
     html += '</div>';
@@ -24460,6 +24462,150 @@
             '<div class="tea-part-badge" style="font-size:0.75rem;padding:5px 16px;">ICAO TEST · RESULT</div>' +
           '</div>' +
           '<div class="tea-score-box">' + _renderScoreJSON(json) + '</div>' +
+        '</div>' +
+      '</div>';
+    try { window.scrollTo(0, 0); host.scrollTop = 0; } catch (e) {}
+  }
+
+  // ── My results ────────────────────────────────────────────────────────────
+  window._teaMyResults = function() {
+    var host = document.getElementById('contentArea'); if (!host) return;
+    host.innerHTML =
+      '<div style="min-height:calc(100vh - 60px);background:#080c10;padding:26px 16px 60px;">' +
+        '<div style="max-width:760px;margin:0 auto;">' +
+          '<div style="text-align:center;color:#4a6280;font-size:0.85rem;padding:40px 0;">Loading your results…</div>' +
+        '</div>' +
+      '</div>';
+
+    google.script.run
+      .withSuccessHandler(function(res) { _renderMyResults(res); })
+      .withFailureHandler(function(e) {
+        _renderMyResults({ ok: false, error: (e && e.message) || 'Could not load results' });
+      })
+      .apiGetMyIcaoResults(AppState.sessionToken);
+  };
+
+  function _teaBandColorFor(b) {
+    return b >= 5 ? '#00d48e' : b === 4 ? '#5b9bd5' : b > 0 ? '#e05252' : '#3a4a5a';
+  }
+
+  function _renderMyResults(res) {
+    var host = document.getElementById('contentArea'); if (!host) return;
+    var results  = (res && res.results)  || [];
+    var sections = (res && res.sections) || [];
+
+    function head(title, sub) {
+      return '<div style="margin:22px 0 10px;">' +
+        '<div style="font-size:0.68rem;letter-spacing:.14em;color:#4a6280;text-transform:uppercase;">' + title + '</div>' +
+        (sub ? '<div style="font-size:0.74rem;color:#3a4a5a;margin-top:3px;">' + sub + '</div>' : '') +
+      '</div>';
+    }
+
+    function bandChip(b) {
+      return '<div style="width:44px;height:44px;border-radius:12px;flex-shrink:0;display:flex;' +
+        'align-items:center;justify-content:center;font-size:1.25rem;font-weight:900;' +
+        'background:' + _teaBandColorFor(b) + '1f;color:' + _teaBandColorFor(b) + ';">' + (b || '—') + '</div>';
+    }
+
+    function bars(scores) {
+      return _TEA_DESCRIPTORS.map(function(k) {
+        var v = Number(scores[k]) || 0;
+        return '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;">' +
+          '<div style="width:92px;font-size:0.62rem;letter-spacing:.05em;color:#4a6280;text-transform:uppercase;">' + k + '</div>' +
+          '<div style="flex:1;height:5px;background:#161f2b;border-radius:3px;overflow:hidden;">' +
+            '<div style="height:100%;width:' + (v > 0 ? (v / 6) * 100 : 0) + '%;background:' + _teaBandColorFor(v) + ';"></div>' +
+          '</div>' +
+          '<div style="width:20px;text-align:right;font-size:0.7rem;font-weight:800;color:' + _teaBandColorFor(v) + ';">' +
+            (v > 0 ? v : '·') + '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function when(iso) {
+      if (!iso) return '';
+      var d = new Date(iso);
+      return isNaN(d.getTime()) ? String(iso).slice(0, 16).replace('T', ' ')
+        : d.toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    var body = '';
+
+    if (!res || !res.ok) {
+      body = '<div style="text-align:center;color:#e05252;font-size:0.85rem;padding:40px 0;">' +
+             _esc((res && res.error) || 'Could not load your results.') + '</div>';
+    } else if (!results.length && !sections.length) {
+      body = '<div style="text-align:center;padding:48px 16px;">' +
+        '<div style="font-size:2rem;margin-bottom:10px;">🎧</div>' +
+        '<div style="font-size:0.95rem;color:#c8d8e8;font-weight:700;margin-bottom:6px;">No results yet</div>' +
+        '<div style="font-size:0.82rem;color:#5b7690;max-width:380px;margin:0 auto;">' +
+          'Sit the ICAO Language Proficiency Test and your band, your six descriptor ' +
+          'scores and the examiner\'s notes will appear here.</div>' +
+      '</div>';
+    } else {
+      // Full sittings first — a section test run is not an exam result and should
+      // not be read as one.
+      var full = results.filter(function(r) { return (r.scope || 'FULL') === 'FULL'; });
+      var part = results.filter(function(r) { return (r.scope || 'FULL') !== 'FULL'; });
+
+      if (full.length) {
+        body += head('Full examinations', full.length + ' sitting' + (full.length === 1 ? '' : 's'));
+        body += full.map(function(r) {
+          return '<div class="tea-score-box" style="margin-bottom:10px;">' +
+            '<div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;">' +
+              bandChip(r.band) +
+              '<div style="flex:1;min-width:0;">' +
+                '<div style="font-size:0.88rem;font-weight:800;color:#dde2e6;">' +
+                  (r.band >= 5 ? 'Extended' : r.band === 4 ? 'Operational' : r.band === 3 ? 'Pre-Operational' : 'Below Operational') +
+                '</div>' +
+                '<div style="font-size:0.72rem;color:#5b7690;">' + _esc(when(r.date)) +
+                  (r.version ? ' · version ' + _esc(r.version) : '') +
+                  (r.source === 'conversation' ? ' · typed answers' : '') +
+                '</div>' +
+              '</div>' +
+            '</div>' + bars(r.scores) +
+          '</div>';
+        }).join('');
+      }
+
+      if (part.length) {
+        body += head('Section practice', 'Partial runs — not a full examination result');
+        body += part.map(function(r) {
+          return '<div class="tea-score-box" style="margin-bottom:8px;opacity:.78;">' +
+            '<div style="display:flex;gap:10px;align-items:center;">' +
+              bandChip(r.band) +
+              '<div><div style="font-size:0.82rem;font-weight:700;color:#c8d8e8;">Part ' + _esc(r.scope) + '</div>' +
+              '<div style="font-size:0.7rem;color:#5b7690;">' + _esc(when(r.date)) + '</div></div>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
+
+      if (sections.length) {
+        body += head('Section feedback', 'What the examiner noted as each section ended');
+        body += sections.slice(0, 24).map(function(sr) {
+          return '<div class="tea-score-box" style="margin-bottom:8px;">' +
+            '<div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:8px;">' +
+              '<div style="font-size:0.84rem;font-weight:800;color:#dde2e6;">' + _esc(sr.section) + '</div>' +
+              '<div style="font-size:0.7rem;color:#5b7690;">' + _esc(when(sr.createdAt)) + '</div>' +
+            '</div>' + bars(sr.bands) +
+            (sr.strength ? '<div style="margin-top:8px;font-size:0.76rem;color:#8fa3bb;"><b style="color:#00d48e;">Strength</b> · ' + _esc(sr.strength) + '</div>' : '') +
+            (sr.improve  ? '<div style="margin-top:3px;font-size:0.76rem;color:#8fa3bb;"><b style="color:#e0a252;">Work on</b> · ' + _esc(sr.improve) + '</div>' : '') +
+          '</div>';
+        }).join('');
+      }
+    }
+
+    host.innerHTML =
+      '<div style="min-height:calc(100vh - 60px);background:#080c10;padding:26px 16px 60px;overflow-y:auto;">' +
+        '<div style="max-width:760px;margin:0 auto;">' +
+          '<div style="text-align:center;margin-bottom:6px;">' +
+            '<div class="tea-part-badge" style="font-size:0.75rem;padding:5px 16px;">MY ICAO TEST HISTORY</div>' +
+          '</div>' +
+          body +
+          '<div style="text-align:center;margin-top:26px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">' +
+            '<button class="tea-send-btn" onclick="window.renderTeaExam()" style="background:#00d48e;color:#000;">Take the test</button>' +
+            '<button class="tea-send-btn" onclick="window._teaExitToHome()">Back to Home</button>' +
+          '</div>' +
         '</div>' +
       '</div>';
     try { window.scrollTo(0, 0); host.scrollTop = 0; } catch (e) {}
@@ -24741,6 +24887,11 @@
         '<div style="font-size:0.85rem;color:#4a6280;text-align:center;max-width:320px;line-height:1.6;">' +
           'This is a full ICAO aviation English proficiency exam.<br>The examiner will speak. Respond via microphone.' +
         '</div>' +
+        '<button onclick="window._teaMyResults()" ' +
+          'style="padding:9px 22px;background:transparent;border:1px solid #2a3a4a;' +
+          'color:#8fa3bb;border-radius:10px;font-size:0.82rem;cursor:pointer;">' +
+          'My results' +
+        '</button>' +
         '<button id="teaBeginBtn" onclick="window._teaBegin()" ' +
           'style="padding:14px 40px;background:#00d48e;color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:8px;">' +
           'Begin Exam' +
