@@ -22780,6 +22780,7 @@
              timerIv:null, _pendingId:null, _pendingB64:null, _qaMode:false, _imageInjected:false,
              _awaitingActivation:false, _finishShown:false, _examDone:false,
              examinerTurns:0, segments:[], _lastSepKey:null, _started:false, _timeWarned:false,
+             _openingDone:false,
              // Section-scoped runs. Full exam = the whole range; a scoped run
              // narrows the audio window and switches off the parts outside it, so
              // one section can be exercised without sitting the other twenty-five
@@ -22926,7 +22927,7 @@
     _t._pendingId=null; _t._pendingB64=null; _t._qaMode=false; _t._imageInjected=false;
     _t._awaitingActivation=false; _t._finishShown=false; _t._examDone=false;
     _t.examinerTurns=0; _t.segments=[]; _t._lastSepKey=null; _t._started=false;
-    _t._timeWarned=false;
+    _t._timeWarned=false; _t._openingDone=false;
     window._teaStarting = false;
     _t.scope=''; _t.scopeStart=0; _t.scopeEnd=0;
     _t.scopeImages=true; _t.scopeInterview=true;
@@ -23917,6 +23918,9 @@
       if (used >= TEA_MAX_LISTENS) return;
       _t.listens[id] = used + 1;
       _teaCue('listen');
+      // A clip that "plays" in a fraction of a second was never heard. Remember when
+      // it started so the end can be judged against it.
+      var _playStart = Date.now();
 
       var cont = document.getElementById('teaContinue_' + id);
       if (cont) cont.remove();
@@ -23952,6 +23956,29 @@
           _t.listens[id] = Math.max(0, Number(_t.listens[id] || 1) - 1);
           btn.disabled = false;
           if (st) st.textContent = 'Playback failed \u00b7 press play to retry, or continue';
+          _teaOfferChoice();
+          return;
+        }
+
+        // A recording is several seconds long. Ending in under a second means it
+        // never actually sounded — an empty or unreadable clip, or a browser that
+        // accepted play() and produced nothing. That used to be indistinguishable
+        // from a normal listen: the count went up, the button greyed out, and the
+        // candidate was asked about audio they had not heard.
+        var _elapsed = (Date.now() - _playStart) / 1000;
+        var _dur = Number(_t.audioEl && _t.audioEl.duration) || 0;
+        if (window.console && console.log) {
+          console.log('[ICAO test] ' + id + ' play ended after ' + _elapsed.toFixed(2) +
+                      's (duration ' + (_dur ? _dur.toFixed(2) + 's' : 'unknown') +
+                      ', ' + Math.round((b64 || '').length / 1024) + 'KB)');
+        }
+        if (_elapsed < 1) {
+          _t.listens[id] = Math.max(0, Number(_t.listens[id] || 1) - 1);
+          btn.disabled = false;
+          if (st) st.textContent = 'That recording produced no sound — press play to retry';
+          _addMsg('system', 'Recording ' + id + ' did not play (ended after ' +
+                            _elapsed.toFixed(1) + 's). Press play to try again, or ' +
+                            'use Skip if it will not sound.');
           _teaOfferChoice();
           return;
         }
@@ -24703,6 +24730,23 @@
         return;
       }
 
+      // The opening line is a greeting with no question in it — that is exactly what
+      // makes it a fixed, pre-recordable sentence. Left alone, the exam then invited
+      // the candidate to speak with nothing asked of them. Ask for the first
+      // question the moment the greeting has been spoken.
+      if (!_t._openingDone) {
+        var _openId = TEA_LINES[_teaNormLine(msg)];
+        if (_openId && String(_openId).indexOf('line_open') === 0) {
+          _t._openingDone = true;
+          if (!_t.scope || _t.scope === 'FULL' || _t.scope === '1') {
+            _setEnabled(false);
+            _sendMsg('[BEGIN_PART_1 — the greeting has been played. Ask your first ' +
+                     'interview question now, on its own, with no further preamble.]');
+            return;
+          }
+        }
+      }
+
       // Still mid-item: a follow-up question, or the second half of a 2C pair.
       // Hand the floor back and wait for the closing line.
       if (_t._awaitingAck) {
@@ -24734,16 +24778,12 @@
         // The button used to appear on this turn — the one where the examiner ASKS
         // the questions — so it was possible to skip straight past answering. It
         // now waits for the acknowledgement that follows the candidate's answer.
-        var resume = function() {
-          _setEnabled(true);
-          _t._awaitingAck = true;
-          _t._ackTurns    = 0;
-        };
-        if (justFinished && justFinished !== nowIn) {
-          _teaRequestSectionReport('Part ' + justFinished, resume);
-          return;
-        }
-        resume();
+        // No per-section report. There is ONE report, at the end of the exam — a
+        // card appearing mid-exam interrupts the sitting to announce a provisional
+        // band that the final report then supersedes.
+        _setEnabled(true);
+        _t._awaitingAck = true;
+        _t._ackTurns    = 0;
         return;
       }
 
@@ -24765,7 +24805,8 @@
           // audio-item boundary.
           // _queueNextAudio draws the separator for whichever section it enters,
           // so adding one here printed "PART 2A — SHORT READBACKS" twice.
-          _teaRequestSectionReport('Part 1', _queueNextAudio);
+          _addPartSeparator('2A');
+          _queueNextAudio();
           return;
         }
         // Part 2 is triggered by sniffing the examiner's own prose for a keyword,
