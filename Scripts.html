@@ -23613,16 +23613,9 @@
     }
 
     if (jsonData && jsonData.student_view) {
-      var cards = document.getElementById('teaCards');
-      if (cards) {
-        var box = document.createElement('div');
-        box.className = 'tea-score-box';
-        box.innerHTML = _renderScoreJSON(jsonData);
-        cards.appendChild(box);
-        _scrollChat();
-      }
       _lockExamUI();
       var band = jsonData.student_view.overall_band;
+      _showReportScreen(jsonData);
       var summary = 'The examination is now complete. Your overall ICAO band is ' + band + '. Please review your results below.';
       _teaSay(summary, onDone);
       return;
@@ -23708,7 +23701,7 @@
 
   // ── Audio item management ────────────────────────────────────────────────
 
-  // Step 1: fetch audio FIRST, then inject AUDIO_READY — eliminates polling entirely
+  // Step 1: fetch the clip, then show its card. No round trip to the examiner.
   function _queueNextAudio() {
     if (_t.audioIdx >= _t.scopeEnd || _t._pendingId) return;
     var id = TEA_ORDER[_t.audioIdx];
@@ -23727,13 +23720,18 @@
 
     _fetchAudio(id, function(err, b64) {
       _t._pendingB64 = err ? false : b64; // false = failed, b64 = ready
-      // Only NOW tell Gemini — audio is confirmed ready or failed
-      _t._awaitingActivation = true;
-      _sendMsg('[AUDIO_READY: ' + id + ']');
+      // Every recording used to cost TWO round trips to the examiner: one for
+      // AUDIO_READY just to gate showing the play button, and one for
+      // AUDIO_COMPLETE to get the question. The first bought nothing — the card is
+      // ours to show — and both got slower as the conversation grew. The card now
+      // appears the moment the clip is in hand, and AUDIO_COMPLETE still carries
+      // the item, its type and its transcript, which is everything the examiner
+      // needs to ask about it.
+      _activatePendingAudio();
     });
   }
 
-  // Step 2: activate the card — called when AI responds to AUDIO_READY
+  // Step 2: put the play card on screen, ready or failed.
   function _activatePendingAudio() {
     var id = _t._pendingId;
     var sc = TEA_AUDIO[id];
@@ -24135,7 +24133,18 @@
     _lockExamUI();
 
     if (_t.segments.length > 0) {
-      _setStatus('Processing exam results — this may take a minute...', 'thinking');
+      // Grading runs Whisper over every spoken answer and then scores six
+      // descriptors — a minute or more. A status line under a spent transcript
+      // gave no sense that anything was happening.
+      var _grading = window.renderRadarLoader
+        ? window.renderRadarLoader('Marking your examination', [
+            'Transcribing your answers\u2026',
+            'Measuring pace, pauses and hesitation\u2026',
+            'Scoring against the six ICAO descriptors\u2026',
+            'Writing your report\u2026'
+          ], 'This takes about a minute. Please do not close this tab.')
+        : { stop: function() {} };
+      _t._gradingLoader = _grading;
       var candidateId = (window.AppState && AppState.user && AppState.user.email) || 'anonymous';
       fetch('/api/tea-pipeline', {
         method: 'POST',
@@ -24151,23 +24160,22 @@
       .then(function(r) { return r.json(); })
       .then(function(d) {
         if (d.ok && d.student_view) {
-          var cards = document.getElementById('teaCards');
-          if (cards) {
-            var box = document.createElement('div');
-            box.className = 'tea-score-box';
-            box.innerHTML = _renderScoreJSON(d);
-            cards.appendChild(box);
-            _scrollChat();
-          }
           var band = d.student_view.overall_band;
+          _showReportScreen(d);
           _teaSay('The examination is now complete. Your overall ICAO band is ' + band + '. Please review your results below.', function() {});
         } else {
-          // Pipeline failed — fall back to Gemini live grading via conversation
+          // Pipeline failed — fall back to Gemini live grading via conversation.
+          // The loader owns the screen at this point, so the exam has to be put
+          // back before the conversation can continue in it.
+          if (_t._gradingLoader && _t._gradingLoader.stop) { try { _t._gradingLoader.stop(); } catch (e) {} }
+          _teaRestoreExamShell();
           _unlockExamUI();
           _sendMsg(_teaReplayReport());
         }
       })
       .catch(function() {
+        if (_t._gradingLoader && _t._gradingLoader.stop) { try { _t._gradingLoader.stop(); } catch (e) {} }
+        _teaRestoreExamShell();
         _unlockExamUI();
         _sendMsg(_teaReplayReport());
       });
@@ -24335,6 +24343,57 @@
     return html;
   }
 
+  // The grading loader takes over contentArea, so if grading falls back to the
+  // conversational path there is no longer a transcript, a status line or an input
+  // bar for it to use. This puts a minimal one back — enough for the fallback to
+  // run and report, and enough that a second failure leaves something on screen
+  // rather than a loader spinning for ever.
+  function _teaRestoreExamShell() {
+    var host = document.getElementById('contentArea');
+    if (!host || document.getElementById('teaCards')) return;
+    host.innerHTML =
+      '<div class="tea-exam-shell" style="display:flex;flex-direction:column;height:calc(100vh - 60px);background:#080c10;">' +
+        '<div class="tea-stage">' +
+          '<div id="teaRing" class="tea-ring tea-ring--thinking"><div class="tea-ring-inner">EX</div></div>' +
+          '<div class="tea-stage-text">' +
+            '<div id="teaStepNow" class="tea-step-now">Finishing your report</div>' +
+            '<div id="teaStepNext" class="tea-step-next"></div>' +
+            '<div id="teaStatusLabel" class="tea-status-label"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div id="teaCards" class="tea-cards"></div>' +
+        '<div class="tea-input-bar">' +
+          '<button id="teaMic" class="tea-mic-btn" onclick="window._teaMicToggle()">&#127908;</button>' +
+          '<textarea id="teaInput" class="tea-textarea" rows="1" placeholder="Speak via mic or type and press Enter..."></textarea>' +
+        '</div>' +
+      '</div>';
+    var ta = document.getElementById('teaInput');
+    if (ta) ta.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _submit(); }
+    });
+  }
+
+  // The result gets its own screen. Appending it to the transcript left the report
+  // sitting under six spent audio cards with the exam chrome — ring, part rail,
+  // input bar — still around it, so the thing the candidate came for was the least
+  // prominent object on the page.
+  function _showReportScreen(json) {
+    if (_t._gradingLoader && _t._gradingLoader.stop) { try { _t._gradingLoader.stop(); } catch (e) {} }
+    if (_t.timerIv) clearInterval(_t.timerIv);
+    var host = document.getElementById('contentArea');
+    if (!host) return;
+    host.innerHTML =
+      '<div style="min-height:calc(100vh - 60px);background:#080c10;padding:26px 16px 60px;overflow-y:auto;">' +
+        '<div style="max-width:760px;margin:0 auto;">' +
+          '<div style="text-align:center;margin-bottom:20px;">' +
+            '<div class="tea-part-badge" style="font-size:0.75rem;padding:5px 16px;">ICAO TEST · RESULT</div>' +
+          '</div>' +
+          '<div class="tea-score-box">' + _renderScoreJSON(json) + '</div>' +
+        '</div>' +
+      '</div>';
+    try { window.scrollTo(0, 0); host.scrollTop = 0; } catch (e) {}
+  }
+
   window._teaExitToHome = function() {
     try { if (_t.audioEl) _t.audioEl.pause(); } catch (e) {}
     try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
@@ -24384,13 +24443,6 @@
         var pending = _t._afterReport;
         _t._afterReport = null;
         pending();
-        return;
-      }
-
-      // Any response to AUDIO_READY — activate the pending card
-      if (_t._awaitingActivation && _t._pendingId) {
-        _t._awaitingActivation = false;
-        _activatePendingAudio();
         return;
       }
 
