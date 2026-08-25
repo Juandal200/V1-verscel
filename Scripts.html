@@ -22779,7 +22779,7 @@
   var _t = { history:[], audioIdx:0, imageIdx:0, audioCache:{}, audioEl:null, busy:false,
              timerIv:null, _pendingId:null, _pendingB64:null, _qaMode:false, _imageInjected:false,
              _awaitingActivation:false, _finishShown:false, _examDone:false,
-             examinerTurns:0, segments:[], _lastSepKey:null, _started:false,
+             examinerTurns:0, segments:[], _lastSepKey:null, _started:false, _timeWarned:false,
              // Section-scoped runs. Full exam = the whole range; a scoped run
              // narrows the audio window and switches off the parts outside it, so
              // one section can be exercised without sitting the other twenty-five
@@ -22926,6 +22926,7 @@
     _t._pendingId=null; _t._pendingB64=null; _t._qaMode=false; _t._imageInjected=false;
     _t._awaitingActivation=false; _t._finishShown=false; _t._examDone=false;
     _t.examinerTurns=0; _t.segments=[]; _t._lastSepKey=null; _t._started=false;
+    _t._timeWarned=false;
     window._teaStarting = false;
     _t.scope=''; _t.scopeStart=0; _t.scopeEnd=0;
     _t.scopeImages=true; _t.scopeInterview=true;
@@ -22944,6 +22945,20 @@
       var s = Math.floor((Date.now() - start) / 1000);
       var m = Math.floor(s / 60); s = s % 60;
       el.textContent = (m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+
+      // The exam is specified at 25-30 minutes and the clock only ever counted up,
+      // so a candidate had no way of knowing they were over until it was too late
+      // to matter. Colour it as it goes, and say so once. It is NOT enforced: cutting
+      // someone off mid-answer would destroy the sitting, and in a real examination
+      // the timing is the examiner's judgement, not a stopwatch.
+      if (m >= 30)      { el.style.color = '#e05252'; }
+      else if (m >= 25) { el.style.color = '#e0a252'; }
+
+      if (m >= 25 && !_t._timeWarned) {
+        _t._timeWarned = true;
+        _addMsg('system', 'You are 25 minutes in. A full examination runs 25 to 30 ' +
+                          'minutes — keep your answers moving.');
+      }
     }, 1000);
   }
 
@@ -24236,11 +24251,14 @@
 
   function _showFinishBtn() {
     var cards = document.getElementById('teaCards'); if (!cards) return;
+    if (document.getElementById('teaFinishBtn')) return;
     var btn = document.createElement('button');
     btn.id        = 'teaFinishBtn';
     btn.className = 'tea-send-btn';
     btn.style     = 'margin:12px 16px;align-self:flex-start;background:#00d48e;color:#000;';
-    btn.textContent = 'Finish Exam & Get Score →';
+    // Same wording as the button _showNextAudioBtn offers at the end of a run. Two
+    // labels for one action reads as two different actions.
+    btn.textContent = 'Finish and get my report →';
     btn.onclick = function() {
       btn.remove();
       _finishExam();

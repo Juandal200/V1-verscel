@@ -10799,6 +10799,11 @@ p, li, td, th, h1, h2, h3, h4,
 
 /* Shrink the animated ring + stage on small phones to give chat area more room */
 @media (max-width: 480px) {
+  /* .tea-cards is a fixed 46vh, which is right on a desktop and wrong on a phone:
+     with the header, the ring and the input bar around it there is not 54vh of
+     other chrome to spare, so the transcript squeezed everything else. Give it the
+     leftover space on a small screen instead of a fixed share. */
+  .tea-cards      { flex: 1 1 auto !important; min-height: 120px !important; }
   .tea-ring       { width: 82px !important; height: 82px !important; }
   .tea-ring-inner { width: 62px !important; height: 62px !important; font-size: 0.88rem !important; }
   .tea-stage      { padding: 14px 16px 8px !important; gap: 10px !important; }
