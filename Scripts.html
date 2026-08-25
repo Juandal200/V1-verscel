@@ -22813,7 +22813,7 @@
              timerIv:null, _pendingId:null, _pendingB64:null, _qaMode:false, _imageInjected:false,
              _awaitingActivation:false, _finishShown:false, _examDone:false,
              examinerTurns:0, segments:[], _lastSepKey:null, _started:false, _timeWarned:false,
-             _openingDone:false,
+             _openingDone:false, _scopeNote:null,
              // Section-scoped runs. Full exam = the whole range; a scoped run
              // narrows the audio window and switches off the parts outside it, so
              // one section can be exercised without sitting the other twenty-five
@@ -22896,13 +22896,14 @@
     }
 
     // Full exam
+    // The application speaks the greeting itself now, so the examiner is told what
+    // the candidate has already heard rather than asked to say it.
     function opening(k) {
       var line = _teaOpeningFor(k);
       return line
-        ? 'Your FIRST reply must be exactly this sentence and nothing else — no ' +
-          'greeting of your own, no extra words, no question:\n"' + line + '"\n' +
-          'It is pre-recorded in the examiner\'s voice and matched on exact text; ' +
-          'anything else is synthesised live and comes out robotic. Then stop and wait.\n\n'
+        ? 'The candidate has already been greeted. They have heard, in the ' +
+          'examiner\'s voice: "' + line + '" Do not greet them again and do not ' +
+          'repeat it.\n\n'
         : '';
     }
 
@@ -22960,7 +22961,7 @@
     _t._pendingId=null; _t._pendingB64=null; _t._qaMode=false; _t._imageInjected=false;
     _t._awaitingActivation=false; _t._finishShown=false; _t._examDone=false;
     _t.examinerTurns=0; _t.segments=[]; _t._lastSepKey=null; _t._started=false;
-    _t._timeWarned=false; _t._openingDone=false;
+    _t._timeWarned=false; _t._openingDone=false; _t._scopeNote=null;
     window._teaStarting = false;
     _t.scope=''; _t.scopeStart=0; _t.scopeEnd=0;
     _t.scopeImages=true; _t.scopeInterview=true;
@@ -23869,7 +23870,9 @@
       // listens is graded evidence, not a UI detail — see the COMPREHENSION rule
       // in the examiner prompt.
       var _n = Number((_t.listens && _t.listens[id]) || 1);
-      return '[AUDIO_COMPLETE: ' + id + ' | ' + note +
+      var prefix = '';
+      if (_t._scopeNote) { prefix = _t._scopeNote + '\n\n'; _t._scopeNote = null; }
+      return prefix + '[AUDIO_COMPLETE: ' + id + ' | ' + note +
              ' | listens: ' + _n +
              ' | transcript: "' + sc.transcript + '"]';
     }
@@ -24137,7 +24140,9 @@
     _t._awaitingAck = true;
     _t._ackTurns    = 0;
     _setEnabled(false);
-    _sendMsg('[' + img.id.toUpperCase() + ': ' + img.desc + ']');
+    var _pfx = '';
+    if (_t._scopeNote) { _pfx = _t._scopeNote + '\n\n'; _t._scopeNote = null; }
+    _sendMsg(_pfx + '[' + img.id.toUpperCase() + ': ' + img.desc + ']');
   }
 
   function _showNextAudioBtn() {
@@ -24522,6 +24527,46 @@
   // bar for it to use. This puts a minimal one back — enough for the fallback to
   // run and report, and enough that a second failure leaves something on screen
   // rather than a loader spinning for ever.
+  // Speak the greeting from its recording, then start the section — asking the
+  // examiner for question one where a section actually begins with a question, and
+  // going straight to the first item where it does not.
+  function _teaOpenExam(scopeNote) {
+    var text = _teaOpeningFor(_t.scope || 'FULL');
+    var key  = _teaNormLine(text);
+    var isInterview = (!_t.scope || _t.scope === 'FULL' || _t.scope === '1');
+
+    function proceed() {
+      if (_t.scope === 'SCORE') { _setEnabled(true); return; }
+      if (isInterview) {
+        _setEnabled(false);
+        _sendMsg(scopeNote + '\n\n[BEGIN_PART_1 — the greeting has already been ' +
+                 'played to the candidate. Do not greet them again. Ask your first ' +
+                 'interview question now, on its own, with no preamble.]');
+        return;
+      }
+      if (_t.scopeImages && _t.audioIdx >= _t.scopeEnd) {
+        // The section context rides along with the first item rather than costing a
+        // turn of its own.
+        _t._scopeNote = scopeNote;
+        _teaShowNextImage();
+        return;
+      }
+      _t._scopeNote = scopeNote;
+      _addPartSeparator(_getPartKey(_t.scopeStart));
+      _queueNextAudio();
+    }
+
+    if (text) {
+      _addMsg('examiner', text);
+      var b64 = _t.exCache && _t.exCache[key];
+      if (b64) { _teaPlayExaminer(b64, text, proceed); return; }
+      // Not fetched yet — say it live rather than start in silence.
+      _teaSay(text, proceed);
+      return;
+    }
+    proceed();
+  }
+
   function _teaRestoreExamShell() {
     var host = document.getElementById('contentArea');
     if (!host || document.getElementById('teaCards')) return;
@@ -24807,23 +24852,6 @@
           ? 'Answered — press Next Recording'
           : 'Section finished — press the button below', 'idle');
         return;
-      }
-
-      // The opening line is a greeting with no question in it — that is exactly what
-      // makes it a fixed, pre-recordable sentence. Left alone, the exam then invited
-      // the candidate to speak with nothing asked of them. Ask for the first
-      // question the moment the greeting has been spoken.
-      if (!_t._openingDone) {
-        var _openId = TEA_LINES[_teaNormLine(msg)];
-        if (_openId && String(_openId).indexOf('line_open') === 0) {
-          _t._openingDone = true;
-          if (!_t.scope || _t.scope === 'FULL' || _t.scope === '1') {
-            _setEnabled(false);
-            _sendMsg('[BEGIN_PART_1 — the greeting has been played. Ask your first ' +
-                     'interview question now, on its own, with no further preamble.]');
-            return;
-          }
-        }
       }
 
       // Still mid-item: a follow-up question, or the second half of a 2C pair.
@@ -25117,7 +25145,18 @@
       (!_t.scope || _t.scope === 'FULL' || _t.scope === '1')
         ? _teaStepForIndex(_t.scopeStart)
         : _teaStepForIndex(_t.scopeStart + 1));
-    _sendMsg(_opening);
+    // The APP speaks the greeting, not the examiner.
+    //
+    // It was the examiner's first turn, and everything depended on it coming back
+    // word for word: the recording is looked up by exact text, and the client
+    // watched for it to know when to ask for question one. It never matched. So the
+    // greeting was synthesised live against a cold server — the robot voice — and
+    // the exam then handed the candidate the floor having asked them nothing.
+    //
+    // Nothing about that line needs the model. It is fixed, it is already recorded,
+    // and the app knows which one to play. Saying it here removes the robot, removes
+    // the silence, and removes a round trip.
+    _teaOpenExam(_opening);
 
     // Part 1 runs five or six minutes with the network otherwise idle. Use it to
     // pull the opening recordings down, so the listening section starts instantly
