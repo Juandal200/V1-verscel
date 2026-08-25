@@ -22997,6 +22997,16 @@
   }
 
   // ── API ───────────────────────────────────────────────────────────────────
+  // Transient upstream failures — a capacity spike, a dropped connection — used to
+  // end the turn and put an error on screen. Mid-examination that is close to
+  // ending the sitting: the candidate has answered, and the only thing they can do
+  // is say it again and hope. Retry the request itself a few times first; the
+  // history is unchanged, so a retry is simply the same turn asked again.
+  function _teaIsTransient(msg) {
+    return /high demand|overload|unavailable|busy|timeout|timed out|network|failed to fetch|503|429/i
+      .test(String(msg || ''));
+  }
+
   function _chat(userText, cb) {
     if (userText !== null) _t.history.push({ role:'user', content:userText });
 
@@ -23011,20 +23021,42 @@
       setTimeout(function() { cb(err, msg); }, 0);
     }
 
-    fetch('/api/tea', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        history:         _t.history,
-        interviewTopics: TEA_INTERVIEW,
-        bank:            TEA_BANK
+    var body = JSON.stringify({
+      history:         _t.history,
+      interviewTopics: TEA_INTERVIEW,
+      bank:            TEA_BANK
+    });
+
+    var MAX_TRIES = 4;
+    (function attempt(n) {
+      fetch('/api/tea', {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: body
       })
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if (d.ok && d.message) { _t.history.push({ role:'assistant', content:d.message }); _once(null, d.message); }
-      else _once(d.error || 'API error');
-    })
-    .catch(function(e){ _once((e && e.message) || 'Network error'); });
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if (d.ok && d.message) {
+          _t.history.push({ role:'assistant', content:d.message });
+          _once(null, d.message);
+          return;
+        }
+        var err = d.error || 'API error';
+        if (n < MAX_TRIES && _teaIsTransient(err)) {
+          _setStatus('Examiner busy — retrying (' + n + ' of ' + (MAX_TRIES - 1) + ')…', 'thinking');
+          setTimeout(function() { attempt(n + 1); }, 1500 * n);
+          return;
+        }
+        _once(err);
+      })
+      .catch(function(e){
+        var err = (e && e.message) || 'Network error';
+        if (n < MAX_TRIES) {
+          _setStatus('Connection lost — retrying (' + n + ' of ' + (MAX_TRIES - 1) + ')…', 'thinking');
+          setTimeout(function() { attempt(n + 1); }, 1500 * n);
+          return;
+        }
+        _once(err);
+      });
+    })(1);
   }
 
   // Clips are pre-rendered to Drive by renderIcaoTestAudio(), so this is a file

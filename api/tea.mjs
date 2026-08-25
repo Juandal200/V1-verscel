@@ -302,7 +302,11 @@ export default async function handler(req, res) {
     // and a candidate mid-test cannot wait out a capacity spike.
     const MODELS = [
       process.env.GEMINI_MODEL || 'gemini-3.5-flash',
-      process.env.GEMINI_FALLBACK_MODEL || 'gemini-2.5-flash'
+      process.env.GEMINI_FALLBACK_MODEL || 'gemini-2.5-flash',
+      // A third rung. Two were not enough: a capacity spike took both out at once
+      // mid-exam, which ends the sitting — there is no "try again later" for someone
+      // twenty minutes into an examination.
+      process.env.GEMINI_FALLBACK_MODEL_2 || 'gemini-2.0-flash'
     ].filter((m, i, a) => m && a.indexOf(m) === i);
 
     const body = JSON.stringify({
