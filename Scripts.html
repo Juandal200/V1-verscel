@@ -24442,20 +24442,53 @@
     html += '</div>';
 
     // 6 descriptor cards (student view)
+    //
+    // Pronunciation and fluency are measured from speech. If the candidate typed,
+    // there was none — the examiner is told to return 0 for both, and the card says
+    // so in the candidate's own words rather than leaving a bare zero to be read as
+    // "you scored nothing".
+    var _typed = !(_t.segments && _t.segments.length);
+    var _unheard = { pronunciation: 1, fluency: 1 };
+
     html += '<div class="tea-score-descriptors">';
     descriptors.forEach(function(d) {
-      var desc = sv[d];
-      var s = desc.score;
-      var sc = s >= 5 ? '#00d48e' : s === 4 ? '#5b9bd5' : '#e05252';
-      html += '<div class="tea-score-descriptor">';
+      var desc = sv[d] || {};
+      var s = Number(desc.score) || 0;
+      var na = (s === 0) || (_typed && _unheard[d]);
+      var sc = na ? '#3a4a5a' : s >= 5 ? '#00d48e' : s === 4 ? '#5b9bd5' : '#e05252';
+      html += '<div class="tea-score-descriptor"' + (na ? ' style="opacity:.72;"' : '') + '>';
       html += '<div class="tea-score-descriptor-header">';
       html += '<span class="tea-score-descriptor-name">' + d.charAt(0).toUpperCase() + d.slice(1) + '</span>';
-      html += '<span class="tea-score-badge" style="background:' + sc + ';">' + s + '</span>';
+      html += '<span class="tea-score-badge" style="background:' + sc + ';' +
+              (na ? 'font-size:0.62rem;padding:3px 9px;letter-spacing:.06em;' : '') + '">' +
+              (na ? 'NOT ASSESSED' : s) + '</span>';
       html += '</div>';
-      html += '<div class="tea-score-descriptor-feedback">' + desc.feedback + '</div>';
+      html += '<div class="tea-score-descriptor-feedback">' +
+        (na
+          ? (_typed && _unheard[d]
+              ? 'Not assessed — you answered in writing, so there was no speech to ' +
+                'listen to. ' + (d === 'pronunciation'
+                  ? 'Pronunciation can only be judged from a spoken answer.'
+                  : 'Fluency is judged from pace, pauses and hesitation, which only ' +
+                    'exist in speech.') +
+                ' Speak your answers to be scored on this.'
+              : 'Not assessed — this sitting gave no evidence for it.')
+          : _esc(desc.feedback || '')) +
+        '</div>';
       html += '</div>';
     });
     html += '</div>';
+
+    if (_typed) {
+      html += '<div style="margin-top:12px;padding:11px 14px;border-radius:10px;' +
+        'background:#1a2230;border:1px solid #2d3a4a;font-size:0.78rem;color:#8fa3bb;' +
+        'line-height:1.6;">' +
+        '<b style="color:#e0a252;">This band is partial.</b> You typed your answers, ' +
+        'so two of the six descriptors could not be assessed and the overall band is ' +
+        'based only on the four that could. A real examination is spoken — sit it ' +
+        'again with the microphone for a complete result.' +
+      '</div>';
+    }
 
     // Admin view — collapsible
     if (av) {
