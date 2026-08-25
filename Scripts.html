@@ -23452,6 +23452,18 @@
   var EXAMINER_LANG  = 'en-GB';
 
   // Browser TTS fallback — used when Chirp3-HD call fails for any reason
+  // Say something in the examiner's voice, falling back to the browser synthesiser
+  // only if that fails. The closing summary used _browserSpeak directly, so the
+  // exam ended in the robot voice every single time regardless of how well the
+  // rest of it had sounded — the last thing a candidate hears, and the one line
+  // that cannot be pre-recorded because it names their band.
+  function _teaSay(text, done) {
+    var settled = false;
+    function fin() { if (settled) return; settled = true; _teaVizStop(); if (done) done(); }
+    _setStatus('Examiner speaking...', 'speaking');
+    _teaSpeakLive(text, fin);
+  }
+
   function _browserSpeak(text, onDone) {
     if (!window.speechSynthesis) { onDone(); return; }
     window.speechSynthesis.cancel();
@@ -23612,7 +23624,7 @@
       _lockExamUI();
       var band = jsonData.student_view.overall_band;
       var summary = 'The examination is now complete. Your overall ICAO band is ' + band + '. Please review your results below.';
-      _browserSpeak(summary, onDone);
+      _teaSay(summary, onDone);
       return;
     }
 
@@ -24148,7 +24160,7 @@
             _scrollChat();
           }
           var band = d.student_view.overall_band;
-          _browserSpeak('The examination is now complete. Your overall ICAO band is ' + band + '. Please review your results below.', function() {});
+          _teaSay('The examination is now complete. Your overall ICAO band is ' + band + '. Please review your results below.', function() {});
         } else {
           // Pipeline failed — fall back to Gemini live grading via conversation
           _unlockExamUI();
