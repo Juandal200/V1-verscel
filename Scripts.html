@@ -23055,11 +23055,23 @@
     });
 
     var MAX_TRIES = 4;
+    // A request that never comes back was the one failure this had no answer for.
+    // The retry only ever fired on a REPLY — an error, a rejection — so a hung
+    // request simply hung, and the exam sat on "Thinking…" indefinitely. The final
+    // report is the worst place for that: it is the longest generation in the
+    // sitting and the one the candidate is actually waiting for.
+    var TIMEOUT_MS = 60000;
     (function attempt(n) {
+      var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      var bail = setTimeout(function() {
+        try { if (ctl) ctl.abort(); } catch (e) {}
+      }, TIMEOUT_MS);
+
       fetch('/api/tea', {
-        method:'POST', headers:{'Content-Type':'application/json'}, body: body
+        method:'POST', headers:{'Content-Type':'application/json'}, body: body,
+        signal: ctl ? ctl.signal : undefined
       })
-      .then(function(r){ return r.json(); })
+      .then(function(r){ clearTimeout(bail); return r.json(); })
       .then(function(d){
         if (d.ok && d.message) {
           _t.history.push({ role:'assistant', content:d.message });
@@ -23075,9 +23087,12 @@
         _once(err);
       })
       .catch(function(e){
-        var err = (e && e.message) || 'Network error';
+        clearTimeout(bail);
+        var aborted = e && (e.name === 'AbortError' || /abort/i.test(String(e.message || '')));
+        var err = aborted ? 'The examiner did not respond in time' : ((e && e.message) || 'Network error');
         if (n < MAX_TRIES) {
-          _setStatus('Connection lost — retrying (' + n + ' of ' + (MAX_TRIES - 1) + ')…', 'thinking');
+          _setStatus((aborted ? 'Taking too long — retrying (' : 'Connection lost — retrying (') +
+                     n + ' of ' + (MAX_TRIES - 1) + ')…', 'thinking');
           setTimeout(function() { attempt(n + 1); }, 1500 * n);
           return;
         }

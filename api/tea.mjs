@@ -327,6 +327,13 @@ export default async function handler(req, res) {
       generationConfig: { maxOutputTokens: 4096, temperature: 0.7 }
     });
 
+    // A budget for the whole handler. Three models times three attempts, with
+    // backoff between them, can outlast the serverless function itself — and when
+    // the function dies mid-flight the caller gets no response at all, which is
+    // indistinguishable from a hang. Better to give up inside the budget and say so
+    // than to be killed and say nothing.
+    const DEADLINE = Date.now() + 50000;
+    const timeLeft = () => DEADLINE - Date.now();
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const isOverloadErr = (res, d) =>
       res.status === 503 || res.status === 429 ||
@@ -344,17 +351,36 @@ export default async function handler(req, res) {
       // Fewer attempts on the primary than before: the time is better spent moving
       // to a model that can answer than waiting on one that cannot.
       for (let attempt = 0; attempt < 3; attempt++) {
-        response = await fetch(url, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body
-        });
-        data = await response.json();
+        // Do not start a call there is no time left to finish.
+        if (timeLeft() < 12000) { console.log('[TEA] out of budget before ' + MODEL); break outer; }
+
+        // And do not let one call hang the whole handler either.
+        const ctl = new AbortController();
+        const bail = setTimeout(() => ctl.abort(), Math.max(8000, timeLeft() - 3000));
+        try {
+          response = await fetch(url, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body,
+            signal: ctl.signal
+          });
+          data = await response.json();
+        } catch (e) {
+          clearTimeout(bail);
+          console.log('[TEA] ' + MODEL + ' attempt ' + (attempt + 1) + ' failed: ' + e.message);
+          data = { error: { message: 'upstream timeout' } };
+          response = { ok: false, status: 504 };
+          if (timeLeft() < 12000) break outer;
+          continue;
+        }
+        clearTimeout(bail);
 
         if (response.ok) break outer;
         if (!isOverloadErr(response, data)) break;   // a real error — do not shop around
 
-        if (attempt < 2) {
+        if (attempt < 2 && timeLeft() > 15000) {
           console.log('[TEA] ' + MODEL + ' overloaded, retry ' + (attempt + 1));
           await sleep(1500 * (attempt + 1));
+        } else {
+          break;
         }
       }
       if (mi < MODELS.length - 1) {
