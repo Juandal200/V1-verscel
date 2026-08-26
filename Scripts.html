@@ -17297,10 +17297,17 @@
       '<div class="prog-shell">' +
         pageHeader +
 
-        _progPillarDivider('Course Learning') +
+        // The three places a student actually trains, named the way they are named
+        // everywhere else in the product. "Course Learning" and "ATC Communication
+        // Training" described the same things, but a student comparing the menu with
+        // this page had to work out which was which.
+        _progPillarDivider('Interactive Rooms') +
         '<div id="progLmsCol"><div class="prog-section">' + _lmsLoadingSkeleton() + '</div></div>' +
 
-        _progPillarDivider('ATC Communication Training') +
+        _progPillarDivider('Mock Test Center') +
+        '<div id="progMockCol"><div class="prog-section">' + _lmsLoadingSkeleton() + '</div></div>' +
+
+        _progPillarDivider('Radio Communications Simulator') +
         atcStats +
         levelMap +
         '<div id="progRoutesCol">' + _progSection('ATC Routes', null, _skeletonCards(2)) + '</div>' +
@@ -17312,6 +17319,7 @@
 
     _hydrateProgressView();
     _hydrateProgressLms();
+    _hydrateProgressMock();
     _hydrateCertsSection();
     hydrateSubscriptionStatus();
   }
@@ -17812,6 +17820,109 @@
       })
       .withFailureHandler(function() {})
       .apiGetMyProgress(AppState.sessionToken);
+  }
+
+  // Mock Test Center — the ICAO proficiency sittings.
+  //
+  // Only FULL sittings are counted. A section practice run scores a band from a
+  // fraction of the exam, and averaging those in, or letting one be the headline,
+  // would report a proficiency level that was never demonstrated.
+  function _hydrateProgressMock() {
+    var col = byId('progMockCol');
+    if (!col || !AppState.sessionToken || typeof google === 'undefined' ||
+        !google.script || !google.script.run) return;
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        var col = byId('progMockCol');
+        if (!col) return;
+        col.innerHTML = _renderMockProgress(res);
+      })
+      .withFailureHandler(function() {
+        var col = byId('progMockCol');
+        if (col) col.innerHTML = '';
+      })
+      .apiGetMyIcaoResults(AppState.sessionToken);
+  }
+
+  function _renderMockProgress(res) {
+    var all  = (res && res.ok && res.results) || [];
+    var full = all.filter(function(r) { return (r.scope || 'FULL') === 'FULL' && r.band > 0; });
+    var practice = all.length - full.length;
+
+    if (!full.length) {
+      return '<div class="prog-section">' +
+        '<p class="prog-empty-hint">No mock test taken yet. ' +
+          'The ICAO Language Proficiency Test gives you a band across the six ' +
+          'descriptors and shows exactly where you stand.' +
+          (practice ? ' (' + practice + ' section practice run' + (practice === 1 ? '' : 's') + ' so far.)' : '') +
+        '</p></div>';
+    }
+
+    var latest = full[0];                       // the API returns newest first
+    var best   = full.reduce(function(a, b) { return b.band > a.band ? b : a; }, full[0]);
+    var col = function(b) { return b >= 5 ? '#00d48e' : b === 4 ? '#5b9bd5' : '#e05252'; };
+    var lbl = function(b) {
+      return b >= 5 ? 'Extended' : b === 4 ? 'Operational'
+           : b === 3 ? 'Pre-Operational' : 'Below Operational';
+    };
+
+    // Listed here rather than borrowed from the exam module: that lives in a later
+    // IIFE and is not in scope on this page. Reaching for it would have thrown the
+    // moment a student with a sitting opened Progress.
+    var DESCRIPTORS = ['pronunciation','structure','vocabulary','fluency','comprehension','interactions'];
+    var bars = DESCRIPTORS.map(function(k) {
+      var v = Number((latest.scores || {})[k]) || 0;
+      var na = v === 0;
+      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">' +
+        '<div style="width:104px;font-size:0.66rem;letter-spacing:.05em;color:var(--muted);' +
+          'text-transform:uppercase;">' + k + '</div>' +
+        '<div style="flex:1;height:6px;background:rgba(148,163,184,.14);border-radius:4px;overflow:hidden;">' +
+          '<div style="height:100%;width:' + (na ? 0 : (v / 6) * 100) + '%;background:' +
+            col(v) + ';border-radius:4px;"></div>' +
+        '</div>' +
+        '<div style="width:34px;text-align:right;font-size:0.74rem;font-weight:800;color:' +
+          (na ? 'var(--muted)' : col(v)) + ';">' + (na ? '—' : v) + '</div>' +
+      '</div>';
+    }).join('');
+
+    // Only meaningful once there is something to compare against.
+    var trend = '';
+    if (full.length > 1) {
+      var prev = full[1].band, diff = latest.band - prev;
+      trend = '<span style="font-size:0.72rem;color:' +
+        (diff > 0 ? '#00d48e' : diff < 0 ? '#e05252' : 'var(--muted)') + ';margin-left:8px;">' +
+        (diff > 0 ? '▲ up ' + diff + ' from last time'
+         : diff < 0 ? '▼ down ' + Math.abs(diff) + ' from last time'
+         : '— same as last time') + '</span>';
+    }
+
+    return '<div class="prog-section">' +
+      '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px;">' +
+        '<div style="text-align:center;">' +
+          '<div style="font-size:2.6rem;font-weight:900;line-height:1;color:' + col(latest.band) + ';">' +
+            latest.band + '</div>' +
+          '<div style="font-size:0.64rem;letter-spacing:.12em;color:var(--muted);' +
+            'text-transform:uppercase;margin-top:2px;">Current band</div>' +
+        '</div>' +
+        '<div style="flex:1;min-width:200px;">' +
+          '<div style="font-size:0.95rem;font-weight:800;color:var(--text);">' +
+            lbl(latest.band) + trend + '</div>' +
+          '<div style="font-size:0.76rem;color:var(--muted);margin-top:3px;">' +
+            full.length + ' full sitting' + (full.length === 1 ? '' : 's') +
+            ' · best band ' + best.band +
+            (practice ? ' · ' + practice + ' section practice' : '') +
+          '</div>' +
+        '</div>' +
+        '<button class="btn primary" style="padding:9px 18px;" ' +
+          'onclick="window.renderTeaExam()">Take the test</button>' +
+      '</div>' +
+      bars +
+      '<p class="prog-empty-hint" style="margin-top:10px;">' +
+        'Bands are from your most recent full sitting. A dash means that descriptor ' +
+        'was not assessed.' +
+      '</p>' +
+    '</div>';
   }
 
   function _hydrateProgressLms() {
