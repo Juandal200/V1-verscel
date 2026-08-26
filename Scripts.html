@@ -23080,8 +23080,13 @@
         }
         var err = d.error || 'API error';
         if (n < MAX_TRIES && _teaIsTransient(err)) {
-          _setStatus('Examiner busy — retrying (' + n + ' of ' + (MAX_TRIES - 1) + ')…', 'thinking');
-          setTimeout(function() { attempt(n + 1); }, 1500 * n);
+          // Count ATTEMPTS, not retries. "retrying (3 of 3)" was followed by a
+          // fourth attempt and another minute of waiting, so the one number on
+          // screen was the one thing it could not be trusted on.
+          _setStatus('Examiner busy — attempt ' + (n + 1) + ' of ' + MAX_TRIES + '…', 'thinking');
+          // Longer gaps for a capacity spike. 1.5s, 3s, 4.5s is not a wait, it is
+          // three more requests into the same queue that just turned us away.
+          setTimeout(function() { attempt(n + 1); }, 3000 * n);
           return;
         }
         _once(err);
@@ -23091,9 +23096,9 @@
         var aborted = e && (e.name === 'AbortError' || /abort/i.test(String(e.message || '')));
         var err = aborted ? 'The examiner did not respond in time' : ((e && e.message) || 'Network error');
         if (n < MAX_TRIES) {
-          _setStatus((aborted ? 'Taking too long — retrying (' : 'Connection lost — retrying (') +
-                     n + ' of ' + (MAX_TRIES - 1) + ')…', 'thinking');
-          setTimeout(function() { attempt(n + 1); }, 1500 * n);
+          _setStatus((aborted ? 'Taking too long — attempt ' : 'Connection lost — attempt ') +
+                     (n + 1) + ' of ' + MAX_TRIES + '…', 'thinking');
+          setTimeout(function() { attempt(n + 1); }, 3000 * n);
           return;
         }
         _once(err);
