@@ -164,8 +164,17 @@ function apiSaveIcaoExamResult(sessionToken, payload) {
     var sv = payload.student_view || {};
     var av = payload.admin_view   || {};
 
-    function band(d) { return (sv[d] && sv[d].score) || 0; }
-    function fb(d)   { return (sv[d] && sv[d].feedback) || ''; }
+    // The conversational grader now returns a bare integer per descriptor; the
+    // audio pipeline still returns { score, feedback }. Accept either rather than
+    // silently recording every band as zero.
+    function band(d) {
+      var v = sv[d];
+      return Number(v && typeof v === 'object' ? v.score : v) || 0;
+    }
+    function fb(d) {
+      var v = sv[d];
+      return (v && typeof v === 'object' && v.feedback) ? String(v.feedback) : '';
+    }
 
     var data = {
       candidateId: String(user.email || user.userId || 'unknown'),
@@ -197,7 +206,10 @@ function apiSaveIcaoExamResult(sessionToken, payload) {
 
     var folder  = _teaGetOrCreateFolder_();
     var fileUrl = _teaSaveJsonReport_(folder, data);
-    _teaAppendSheetRow_(data, fileUrl);
+    // The examiner's working arrives in a second request, well after the bands, and
+    // is filed as its own document. Appending a second summary row for it would put
+    // the same sitting in the results table twice.
+    if (payload.sheetRow !== false) _teaAppendSheetRow_(data, fileUrl);
     return { ok: true, driveFileUrl: fileUrl };
   } catch (err) {
     return { ok: false, error: (err && err.message) || 'Save failed' };

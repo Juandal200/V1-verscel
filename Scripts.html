@@ -22839,6 +22839,7 @@
              _awaitingActivation:false, _finishShown:false, _examDone:false,
              examinerTurns:0, segments:[], _lastSepKey:null, _started:false, _timeWarned:false,
              _openingDone:false, _scopeNote:null, _awaitingFinalReport:0,
+             _adminAsked:false, _studentView:null,
              // Section-scoped runs. Full exam = the whole range; a scoped run
              // narrows the audio window and switches off the parts outside it, so
              // one section can be exercised without sitting the other twenty-five
@@ -22987,7 +22988,7 @@
     _t._awaitingActivation=false; _t._finishShown=false; _t._examDone=false;
     _t.examinerTurns=0; _t.segments=[]; _t._lastSepKey=null; _t._started=false;
     _t._timeWarned=false; _t._openingDone=false; _t._scopeNote=null;
-    _t._awaitingFinalReport=0;
+    _t._awaitingFinalReport=0; _t._adminAsked=false; _t._studentView=null;
     window._teaStarting = false;
     _t.scope=''; _t.scopeStart=0; _t.scopeEnd=0;
     _t.scopeImages=true; _t.scopeInterview=true;
@@ -23784,6 +23785,11 @@
       _lockExamUI();
       var band = jsonData.student_view.overall_band;
       _showReportScreen(jsonData);
+      _t._studentView = jsonData.student_view;
+      // The candidate has their result. Everything the examiner has to say about
+      // HOW it was reached is fetched now, in the background, and filed with the
+      // sitting — so a capacity spike costs the examiner's working, not the band.
+      _teaFetchAdminReport();
       // This path used to keep nothing at all — it is reached whenever the audio
       // pipeline fails and for every sitting answered by typing, since there is
       // then no recording to transcribe. Those results existed only on screen.
@@ -24490,10 +24496,16 @@
     var _typed = !(_t.segments && _t.segments.length);
     var _unheard = { pronunciation: 1, fluency: 1 };
 
+    // The band arrives as a bare integer now. The audio pipeline still returns
+    // {score, feedback}, so accept either rather than making the two graders agree
+    // on a shape before either can be displayed.
+    function _bandOf(v) {
+      return Number(v && typeof v === 'object' ? v.score : v) || 0;
+    }
+
     html += '<div class="tea-score-descriptors">';
     descriptors.forEach(function(d) {
-      var desc = sv[d] || {};
-      var s = Number(desc.score) || 0;
+      var s = _bandOf(sv[d]);
       var na = (s === 0) || (_typed && _unheard[d]);
       var sc = na ? '#3a4a5a' : s >= 5 ? '#00d48e' : s === 4 ? '#5b9bd5' : '#e05252';
       html += '<div class="tea-score-descriptor"' + (na ? ' style="opacity:.72;"' : '') + '>';
@@ -24503,18 +24515,20 @@
               (na ? 'font-size:0.62rem;padding:3px 9px;letter-spacing:.06em;' : '') + '">' +
               (na ? 'NOT ASSESSED' : s) + '</span>';
       html += '</div>';
-      html += '<div class="tea-score-descriptor-feedback">' +
-        (na
-          ? (_typed && _unheard[d]
-              ? 'Not assessed — you answered in writing, so there was no speech to ' +
-                'listen to. ' + (d === 'pronunciation'
-                  ? 'Pronunciation can only be judged from a spoken answer.'
-                  : 'Fluency is judged from pace, pauses and hesitation, which only ' +
-                    'exist in speech.') +
-                ' Speak your answers to be scored on this.'
-              : 'Not assessed — this sitting gave no evidence for it.')
-          : _esc(desc.feedback || '')) +
-        '</div>';
+      // Only the not-assessed cases carry text. The report is the bands; the
+      // examiner's reasoning belongs in the admin record, not on the result screen.
+      if (na) {
+        html += '<div class="tea-score-descriptor-feedback">' +
+          (_typed && _unheard[d]
+            ? 'Not assessed — you answered in writing, so there was no speech to ' +
+              'listen to. ' + (d === 'pronunciation'
+                ? 'Pronunciation can only be judged from a spoken answer.'
+                : 'Fluency is judged from pace, pauses and hesitation, which only ' +
+                  'exist in speech.') +
+              ' Speak your answers to be scored on this.'
+            : 'Not assessed — this sitting gave no evidence for it.') +
+          '</div>';
+      }
       html += '</div>';
     });
     html += '</div>';
@@ -24694,6 +24708,42 @@
         'before or after it, no code fences, no explanation.'
       : '';
     _sendMsg(_teaReplayReport() + strict);
+  }
+
+  // Asked for after the report is already on screen. Nothing waits on it, nothing
+  // breaks without it, and it is never allowed to interrupt what the candidate is
+  // reading — so it goes straight to storage and says nothing either way.
+  function _teaFetchAdminReport() {
+    if (_t._adminAsked) return;
+    _t._adminAsked = true;
+    var hist = (_t.history || []).concat([
+      { role: 'user', content: '[ADMIN_REPORT — the candidate already has their bands. ' +
+        'Return only the admin_view object: the candidate turns with inline pins, the ' +
+        'annotations, and the technical justification.]' }
+    ]);
+    fetch('/api/tea', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ history: hist, bank: TEA_BANK })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d || !d.ok || !d.message) return;
+      var parsed = _teaParsePayload(d.message);
+      if (!parsed || !parsed.admin_view) return;
+      google.script.run
+        .withSuccessHandler(function() {})
+        .withFailureHandler(function() {})
+        .apiSaveIcaoExamResult(AppState.sessionToken, {
+          student_view: _t._studentView || {},
+          admin_view:   parsed.admin_view,
+          sheetRow:     false,
+          history:      _t.history,
+          bank:         TEA_BANK,
+          scope:        _t.scope || 'FULL',
+          examDate:     new Date().toISOString()
+        });
+    })
+    .catch(function() {});
   }
 
   function _teaReportFailed() {
