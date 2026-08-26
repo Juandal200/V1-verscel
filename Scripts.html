@@ -24499,20 +24499,17 @@
           // Pipeline failed — fall back to Gemini live grading via conversation.
           // The loader owns the screen at this point, so the exam has to be put
           // back before the conversation can continue in it.
-          if (_t._gradingLoader && _t._gradingLoader.stop) { try { _t._gradingLoader.stop(); } catch (e) {} }
-          _teaRestoreExamShell();
           _unlockExamUI();
           _teaRequestFinalReport();
         }
       })
       .catch(function() {
-        if (_t._gradingLoader && _t._gradingLoader.stop) { try { _t._gradingLoader.stop(); } catch (e) {} }
-        _teaRestoreExamShell();
         _unlockExamUI();
         _teaRequestFinalReport();
       });
     } else {
-      // No audio recorded — fall back to Gemini live grading
+      // No audio recorded — fall back to Gemini live grading. This path never had a
+      // loader at all, so a typed sitting scored behind a blank screen.
       _unlockExamUI();
       _teaRequestFinalReport();
     }
@@ -24772,12 +24769,32 @@
   // a refusal, prose, malformed JSON — the state machine simply enabled the input
   // and the candidate was left on "Finishing your report" with an empty transcript
   // and no way forward, having just sat the whole exam. Ask again, then say so.
+  function _teaStartGradingLoader(msg) {
+    // Keep the radar up for the WHOLE wait, not just the pipeline half of it.
+    // Scoring fell back to a conversational request and the loader was torn down to
+    // put the exam shell back — so the longest part of the wait, the part the
+    // candidate is actually waiting through, ran behind a one-line status on an
+    // empty screen.
+    if (_t._gradingLoader) {
+      var el = document.getElementById('radarLoaderMsg');
+      if (el && msg) el.textContent = msg;
+      return;
+    }
+    _t._gradingLoader = window.renderRadarLoader
+      ? window.renderRadarLoader('Marking your examination', [
+          msg || 'Scoring against the six ICAO descriptors\u2026',
+          'Weighing each descriptor against the evidence\u2026',
+          'Deciding the overall band\u2026'
+        ], 'Your examination is already saved. This usually takes under a minute.')
+      : { stop: function() {} };
+  }
+
   function _teaRequestFinalReport() {
     _t._awaitingFinalReport = Number(_t._awaitingFinalReport || 0) + 1;
     _setEnabled(false);
-    _setStatus(_t._awaitingFinalReport > 1
-      ? 'Scoring — attempt ' + _t._awaitingFinalReport + '…'
-      : 'Scoring your examination…', 'thinking');
+    _teaStartGradingLoader(_t._awaitingFinalReport > 1
+      ? 'Scoring — attempt ' + _t._awaitingFinalReport + '\u2026'
+      : 'Scoring against the six ICAO descriptors\u2026');
     var strict = _t._awaitingFinalReport > 1
       ? '\n\nReturn ONLY the JSON object with student_view and admin_view. No text ' +
         'before or after it, no code fences, no explanation.'
@@ -24845,8 +24862,8 @@
 
   window._teaRetryReport = function() {
     _t._awaitingFinalReport = 0;
-    _teaRestoreExamShell();
-    _teaRequestFinalReport();
+    _t._gradingLoader = null;   // the failure screen replaced it
+    _teaRequestFinalReport();   // brings the radar back up
   };
 
   function _teaRestoreExamShell() {
