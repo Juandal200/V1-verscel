@@ -22682,7 +22682,9 @@
 
   // The two fixed lines that end an item. Both are LINE items in the bank, so the
   // same normalised lookup that finds their audio identifies them here.
-  var _TEA_CLOSING_IDS = { line_ack_next: 1, line_ack_next_picture: 1, line_section_close: 1 };
+  var _TEA_CLOSING_IDS = {
+    line_ack_next: 1, line_ack_next_picture: 1, line_section_close: 1, line_exam_end: 1
+  };
 
   // Cached: normalised closing phrase -> true. Built from the bank the first time
   // it is needed, so it always reflects whatever wording the sheet holds.
@@ -22695,7 +22697,8 @@
   var _TEA_CLOSING_FALLBACK = [
     'thank you next recording',
     'thank you that completes this section',
-    'thank you next picture'
+    'thank you next picture',
+    'thank you that is the end of the exam'
   ];
 
   function _teaClosingSet() {
@@ -22840,6 +22843,7 @@
              examinerTurns:0, segments:[], _lastSepKey:null, _started:false, _timeWarned:false,
              _openingDone:false, _scopeNote:null, _awaitingFinalReport:0,
              _adminAsked:false, _studentView:null, _clipPlaying:false, _afterClip:null,
+             _comparing:false,
              // Section-scoped runs. Full exam = the whole range; a scoped run
              // narrows the audio window and switches off the parts outside it, so
              // one section can be exercised without sitting the other twenty-five
@@ -22989,7 +22993,7 @@
     _t.examinerTurns=0; _t.segments=[]; _t._lastSepKey=null; _t._started=false;
     _t._timeWarned=false; _t._openingDone=false; _t._scopeNote=null;
     _t._awaitingFinalReport=0; _t._adminAsked=false; _t._studentView=null;
-    _t._clipPlaying=false; _t._afterClip=null;
+    _t._clipPlaying=false; _t._afterClip=null; _t._comparing=false;
     window._teaStarting = false;
     _t.scope=''; _t.scopeStart=0; _t.scopeEnd=0;
     _t.scopeImages=true; _t.scopeInterview=true;
@@ -24229,6 +24233,53 @@
     _sendMsg(_pfx + '[' + img.id.toUpperCase() + ': ' + img.desc + ']');
   }
 
+  // Part 3 ends by putting both pictures back on screen together and comparing
+  // them. The comparison questions ask about "the first image" and "the second",
+  // which only means anything if the candidate can see both at once — the section
+  // used to finish on picture two with picture one long since scrolled away.
+  function _teaShowComparison() {
+    if (_t._comparing) return;
+    _t._comparing = true;
+    _teaSetPart('3');
+    _teaSetStep('Part 3 · Comparing both pictures', 'Scoring');
+
+    var chat = document.getElementById('teaCards');
+    if (chat) {
+      var wrap = document.createElement('div');
+      wrap.className = 'tea-msg examiner';
+      var av = document.createElement('div');
+      av.className = 'tea-avatar'; av.textContent = 'EX';
+      wrap.appendChild(av);
+      var card = document.createElement('div');
+      card.className = 'tea-image-card';
+      card.innerHTML =
+        '<div class="tea-image-card-label">BOTH PICTURES — COMPARE</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;">' +
+          TEA_IMAGES.map(function(img, i) {
+            return '<div style="flex:1 1 46%;min-width:180px;">' +
+              '<div style="font-size:0.62rem;letter-spacing:.1em;color:#5b7690;' +
+                'text-transform:uppercase;margin-bottom:4px;">Image ' + (i + 1) + '</div>' +
+              (img.src
+                ? '<img src="' + _esc(img.src) + '" alt="Image ' + (i + 1) + '" ' +
+                  'style="width:100%;border-radius:8px;display:block;">'
+                : '<div style="font-size:0.72rem;color:#8fa3bb;line-height:1.5;">' +
+                  _esc(img.desc || '') + '</div>') +
+            '</div>';
+          }).join('') +
+        '</div>';
+      wrap.appendChild(card);
+      chat.appendChild(wrap);
+      _scrollChat();
+    }
+
+    _t._qaMode      = false;
+    _t._awaitingAck = true;
+    _t._ackTurns    = 0;
+    _setEnabled(false);
+    _sendMsg('[COMPARE_PICTURES — both pictures are now on screen side by side. ' +
+             'Ask the two fixed comparison questions, one per turn, then close the exam.]');
+  }
+
   function _showNextAudioBtn() {
     // audioIdx already points at the NEXT item, so the header should too — it read
     // "Item 1 of 6" while offering the button that starts item 2.
@@ -24236,8 +24287,11 @@
       _teaSetStep(_teaStepForIndex(_t.audioIdx), _teaStepForIndex(_t.audioIdx + 1));
     }
     var cards = document.getElementById('teaCards'); if (!cards) return;
-    // Remove any existing next button
+    // Both this and _showFinishBtn can offer "Finish and get my report", under
+    // different ids, so nothing stopped the two appearing together — which is
+    // exactly what happened at the end of Part 3.
     var old = document.getElementById('teaNextBtn'); if (old) old.remove();
+    var fin = document.getElementById('teaFinishBtn'); if (fin) fin.remove();
     var btn = document.createElement('button');
     btn.id        = 'teaNextBtn';
     btn.className = 'tea-send-btn';
@@ -24246,14 +24300,16 @@
     var _more     = _t.audioIdx < _t.scopeEnd;
     var _inPart3  = _t.scopeImages && _t.imageIdx > 0;        // a picture has been shown
     var _morePics = _t.scopeImages && _t.imageIdx < TEA_IMAGES.length;
-    // Once Part 3 has started, "Continue to Part 3" is no longer the offer — the
-    // offer is the next picture, or the report after the last one.
-    var _isEnd    = !_more && !_morePics;
+    // After the last picture comes the comparison, not the report.
+    var _toCompare = !_more && !_morePics && _t.scopeImages &&
+                     TEA_IMAGES.length > 1 && !_t._comparing;
+    var _isEnd    = !_more && !_morePics && !_toCompare;
 
     btn.textContent = _more
       ? (_nextKey === '2C' ? 'Next Situation →' : 'Next Recording →')
       : _morePics
         ? (_inPart3 ? 'Next Picture →' : 'Continue to Part 3 →')
+        : _toCompare ? 'Compare both pictures →'
         : 'Finish and get my report →';
 
     // The end of a run used to take two clicks: "Finish section" only revealed a
@@ -24264,9 +24320,10 @@
 
     btn.onclick = function() {
       btn.remove();
-      if (_more)         { _queueNextAudio(); }
-      else if (_morePics){ _teaShowNextImage(); }
-      else               { _t._finishShown = true; _finishExam(); }
+      if (_more)          { _queueNextAudio(); }
+      else if (_morePics) { _teaShowNextImage(); }
+      else if (_toCompare){ _teaShowComparison(); }
+      else                { _t._finishShown = true; _finishExam(); }
     };
     cards.appendChild(btn);
     cards.scrollTop = cards.scrollHeight;
@@ -24464,6 +24521,7 @@
   function _showFinishBtn() {
     var cards = document.getElementById('teaCards'); if (!cards) return;
     if (document.getElementById('teaFinishBtn')) return;
+    var stale = document.getElementById('teaNextBtn'); if (stale) stale.remove();
     var btn = document.createElement('button');
     btn.id        = 'teaFinishBtn';
     btn.className = 'tea-send-btn';
