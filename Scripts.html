@@ -22838,10 +22838,8 @@
 
   // ── State ─────────────────────────────────────────────────────────────────
   var _t = { history:[], audioIdx:0, imageIdx:0, audioCache:{}, audioEl:null, busy:false,
-             timerIv:null, _pendingId:null, _pendingB64:null, _qaMode:false, _imageInjected:false,
-             _awaitingActivation:false, _finishShown:false, _examDone:false,
-             examinerTurns:0, segments:[], _lastSepKey:null, _started:false, _timeWarned:false,
-             _openingDone:false, _scopeNote:null, _awaitingFinalReport:0,
+             timerIv:null, _pendingId:null, _pendingB64:null, _qaMode:false, _imageInjected:false, _finishShown:false, _examDone:false,
+             examinerTurns:0, segments:[], _lastSepKey:null, _started:false, _timeWarned:false, _scopeNote:null, _awaitingFinalReport:0,
              _adminAsked:false, _studentView:null, _clipPlaying:false, _afterClip:null,
              _comparing:false,
              // Section-scoped runs. Full exam = the whole range; a scoped run
@@ -22849,7 +22847,7 @@
              // one section can be exercised without sitting the other twenty-five
              // minutes. scopeEnd is exclusive.
              scope:'', scopeStart:0, scopeEnd:0, scopeImages:true, scopeInterview:true,
-             sectionReports:[], _sectionsDone:{}, _awaitingAck:false, _ackTurns:0,
+             _sectionsDone:{}, _awaitingAck:false, _ackTurns:0,
              _reportPending:null };
 
   // Translates a section name into the slice of the exam that should actually run.
@@ -22988,17 +22986,15 @@
     _t.history=[]; _t.audioIdx=0; _t.imageIdx=0; _t.audioCache={}; _t.busy=false;
     _t.listens={};
     setTimeout(function(){ _teaSetPart('1'); }, 0);
-    _t._pendingId=null; _t._pendingB64=null; _t._qaMode=false; _t._imageInjected=false;
-    _t._awaitingActivation=false; _t._finishShown=false; _t._examDone=false;
+    _t._pendingId=null; _t._pendingB64=null; _t._qaMode=false; _t._imageInjected=false; _t._finishShown=false; _t._examDone=false;
     _t.examinerTurns=0; _t.segments=[]; _t._lastSepKey=null; _t._started=false;
-    _t._timeWarned=false; _t._openingDone=false; _t._scopeNote=null;
+    _t._timeWarned=false; _t._scopeNote=null;
     _t._awaitingFinalReport=0; _t._adminAsked=false; _t._studentView=null;
     _t._clipPlaying=false; _t._afterClip=null; _t._comparing=false;
     window._teaStarting = false;
     _t.scope=''; _t.scopeStart=0; _t.scopeEnd=0;
     _t.scopeImages=true; _t.scopeInterview=true;
-    _t.sectionReports=[]; _t._sectionsDone={}; _t._awaitingAck=false; _t._ackTurns=0;
-    _t._reportPending=null;
+    _t._sectionsDone={}; _t._awaitingAck=false; _t._ackTurns=0;
     if (_t.timerIv) clearInterval(_t.timerIv);
     if (_t.audioEl) { _t.audioEl.pause(); _t.audioEl=null; }
   }
@@ -23370,49 +23366,7 @@
   // starts with the examiner saying "Part 2A", which trips the Part-2 detection
   // and used to request a Part 1 report for an interview that never happened —
   // producing a card reading "Part 1 was not administered in this test run".
-  function _teaSectionWasRun(section) {
-    var key = String(section).replace(/^Part\s*/i, '').toUpperCase();
-    if (key === '1') return !!_t.scopeInterview && _t.examinerTurns > 2;
-    if (key === '3') return !!_t.scopeImages && _t.imageIdx > 0;
-    // An audio section counts only once every one of its in-scope items is behind us.
-    var last = -1;
-    for (var i = _t.scopeStart; i < _t.scopeEnd; i++) if (_teaSectionAt(i) === key) last = i;
-    return last !== -1 && _t.audioIdx > last;
-  }
 
-  function _teaRequestSectionReport(section, after) {
-    if (_t._sectionsDone[section]) { after(); return; }
-
-    // If nothing follows this section, the full report is moments away. Two score
-    // cards back to back, the second superseding the first, is noise — the final
-    // one is the result and should be the only thing at the end.
-    if (_t.audioIdx >= _t.scopeEnd && !_t.scopeImages) {
-      _t._sectionsDone[section] = true;
-      if (window.console && console.log) {
-        console.log('[ICAO test] skipped ' + section + ' report — final report follows');
-      }
-      after();
-      return;
-    }
-    if (!_teaSectionWasRun(section)) {
-      if (window.console && console.log) {
-        console.log('[ICAO test] skipped report for ' + section +
-                    ' — not run in this sitting (audioIdx ' + _t.audioIdx +
-                    ', scope ' + (_t.scope || 'FULL') + ')');
-      }
-      _t._sectionsDone[section] = true;
-      after();
-      return;
-    }
-    if (window.console && console.log) {
-      console.log('[ICAO test] section report: ' + section + ' at audioIdx ' + _t.audioIdx);
-    }
-    _t._sectionsDone[section] = true;
-    _t._afterReport = after;
-    _t._reportPending = section;
-    _setStatus('Marking this section...', 'thinking');
-    _sendMsg('[SECTION_COMPLETE: ' + section + ']');
-  }
 
   function _teaSetStep(now, next) {
     var a = document.getElementById('teaStepNow');
@@ -23659,69 +23613,7 @@
     return b >= 5 ? '#00d48e' : b === 4 ? '#5b9bd5' : b > 0 ? '#e05252' : '#3a4a5a';
   }
 
-  function _renderSectionReport(rep) {
-    var cards = document.getElementById('teaCards'); if (!cards) return;
-    var scored = _TEA_DESCRIPTORS.filter(function(k) { return Number(rep.bands[k]) > 0; });
-    var avg = scored.length
-      ? Math.round(scored.reduce(function(a, k) { return a + Number(rep.bands[k]); }, 0) / scored.length * 10) / 10
-      : 0;
 
-    var box = document.createElement('div');
-    box.className = 'tea-score-box';
-    box.style.cssText = 'border-color:#2d3a4a;animation:teaRepIn .45s ease both;';
-    box.innerHTML =
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;">' +
-        '<div><div class="tea-part-badge" style="margin:0;">SECTION COMPLETE</div>' +
-        '<div style="font-size:0.95rem;font-weight:800;color:#dde2e6;margin-top:5px;">' + _esc(rep.section) + '</div></div>' +
-        '<div style="text-align:right;"><div style="font-size:1.8rem;font-weight:900;line-height:1;color:' + _teaBandColor(Math.round(avg)) + ';">' +
-          (avg || '—') + '</div><div style="font-size:0.6rem;letter-spacing:.12em;color:#4a6280;text-transform:uppercase;">provisional</div></div>' +
-      '</div>' +
-      _TEA_DESCRIPTORS.map(function(k) {
-        var v = Number(rep.bands[k]) || 0;
-        var pct = v > 0 ? (v / 6) * 100 : 0;
-        return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">' +
-          '<div style="width:98px;font-size:0.68rem;letter-spacing:.06em;color:#5b7690;text-transform:uppercase;">' + k + '</div>' +
-          '<div style="flex:1;height:6px;background:#161f2b;border-radius:4px;overflow:hidden;">' +
-            '<div style="height:100%;width:' + pct + '%;background:' + _teaBandColor(v) + ';' +
-              'border-radius:4px;transition:width .7s cubic-bezier(.2,.8,.3,1);"></div>' +
-          '</div>' +
-          '<div style="width:26px;text-align:right;font-size:0.78rem;font-weight:800;color:' + _teaBandColor(v) + ';">' +
-            (v > 0 ? v : '·') + '</div>' +
-        '</div>';
-      }).join('') +
-      (rep.strength ? '<div style="margin-top:11px;font-size:0.78rem;color:#8fa3bb;"><b style="color:#00d48e;">Strength</b> · ' + _esc(rep.strength) + '</div>' : '') +
-      (rep.improve  ? '<div style="margin-top:4px;font-size:0.78rem;color:#8fa3bb;"><b style="color:#e0a252;">Work on</b> · ' + _esc(rep.improve) + '</div>' : '') +
-      (rep.note     ? '<div style="margin-top:8px;font-size:0.72rem;color:#5b7690;line-height:1.6;">' + _esc(rep.note) + '</div>' : '') +
-      '<div style="margin-top:9px;font-size:0.64rem;color:#3a4a5a;">A dot means this section gave no evidence for that descriptor.</div>';
-    cards.appendChild(box);
-    _scrollChat();
-
-    if (!document.getElementById('_teaRepAnim')) {
-      var st = document.createElement('style');
-      st.id = '_teaRepAnim';
-      st.textContent = '@keyframes teaRepIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:none;}}';
-      document.head.appendChild(st);
-    }
-  }
-
-  function _saveSectionReport(rep) {
-    _t.sectionReports = _t.sectionReports || [];
-    _t.sectionReports.push(rep);
-    try {
-      google.script.run
-        .withSuccessHandler(function() {})
-        .withFailureHandler(function() {})
-        .apiSaveIcaoSectionReport(AppState.sessionToken, {
-          bank:    TEA_BANK,
-          scope:   _t.scope || 'FULL',
-          section: rep.section,
-          bands:   rep.bands,
-          strength: rep.strength || '',
-          improve:  rep.improve  || '',
-          note:     rep.note     || ''
-        });
-    } catch (e) {}
-  }
 
   // Machine payloads the examiner sends for rendering, never for saying out loud.
   // Detection is deliberately by MARKER rather than by successful parse: a payload
@@ -23745,43 +23637,21 @@
   function _speakExaminer(text, onDone) {
     var jsonData = _teaParsePayload(text);
 
-    // Looks like a payload but would not parse. Do not speak it and do not show
-    // it — say one short line so the exam keeps moving.
+    // Machine payloads are rendered, never spoken. One that will not parse is still
+    // a payload — do not read braces and field names aloud to the candidate; the
+    // caller decides what to do about the missing report.
     if (!jsonData && _teaIsPayload(text)) {
-      _t._reportPending = null;
-      // No card can be rendered from a payload that will not parse, so leave a
-      // visible trace rather than having the section end in silence.
-      _addMsg('system', 'Section marked — report unavailable for this section.');
-      _setStatus('Section marked', 'idle');
-      onDone();
-      return;
-    }
-    // A section report is a card, never speech — reading a table of band scores
-    // aloud is slow and unusable, and it is the written record that matters.
-    // Only render a report we actually asked for. The guard on _teaRequestSectionReport
-    // decides WHEN a section is over, but nothing stopped the examiner volunteering a
-    // report of its own accord — which is how a "Part 2A" card arrived at item 4 with
-    // two recordings still to come, and again at item 6.
-    if (jsonData && jsonData.section_report && !_t._reportPending) {
-      if (window.console && console.log) {
-        console.log('[ICAO test] ignored an unrequested section report at audioIdx ' + _t.audioIdx);
-      }
       onDone();
       return;
     }
 
-    if (jsonData && jsonData.section_report && jsonData.section_report.bands) {
-      _t._reportPending = null;
-      _renderSectionReport(jsonData.section_report);
-      _saveSectionReport(jsonData.section_report);
-      _setStatus('Section complete', 'idle');
-      // A report is an interruption, not a turn: the normal state machine would
-      // fall through every branch without matching one and leave the candidate
-      // with nothing to press. Resume whatever was interrupted instead.
-      _t.busy = false;
-      var after = _t._afterReport;
-      _t._afterReport = null;
-      if (after) after(); else onDone();
+    // Mid-exam section reports were removed: there is ONE report, at the end. The
+    // examiner can still volunteer one, so it is ignored rather than rendered.
+    if (jsonData && jsonData.section_report) {
+      if (window.console && console.log) {
+        console.log('[ICAO test] ignored an unrequested section report');
+      }
+      onDone();
       return;
     }
 
@@ -24866,30 +24736,6 @@
     _teaRequestFinalReport();   // brings the radar back up
   };
 
-  function _teaRestoreExamShell() {
-    var host = document.getElementById('contentArea');
-    if (!host || document.getElementById('teaCards')) return;
-    host.innerHTML =
-      '<div class="tea-exam-shell" style="display:flex;flex-direction:column;height:calc(100vh - 60px);background:#080c10;">' +
-        '<div class="tea-stage">' +
-          '<div id="teaRing" class="tea-ring tea-ring--thinking"><div class="tea-ring-inner">EX</div></div>' +
-          '<div class="tea-stage-text">' +
-            '<div id="teaStepNow" class="tea-step-now">Finishing your report</div>' +
-            '<div id="teaStepNext" class="tea-step-next"></div>' +
-            '<div id="teaStatusLabel" class="tea-status-label"></div>' +
-          '</div>' +
-        '</div>' +
-        '<div id="teaCards" class="tea-cards"></div>' +
-        '<div class="tea-input-bar">' +
-          '<button id="teaMic" class="tea-mic-btn" onclick="window._teaMicToggle()">&#127908;</button>' +
-          '<textarea id="teaInput" class="tea-textarea" rows="1" placeholder="Speak via mic or type and press Enter..."></textarea>' +
-        '</div>' +
-      '</div>';
-    var ta = document.getElementById('teaInput');
-    if (ta) ta.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); _submit(); }
-    });
-  }
 
   // The result gets its own screen. Appending it to the transcript left the report
   // sitting under six spent audio cards with the exam chrome — ring, part rail,
@@ -24910,7 +24756,6 @@
           student_view:   json.student_view,
           admin_view:     json.admin_view,
           history:        _t.history,
-          sectionReports: _t.sectionReports || [],
           bank:           TEA_BANK,
           scope:          _t.scope || 'FULL',
           examDate:       new Date().toISOString()
@@ -25048,19 +24893,10 @@
         }).join('');
       }
 
-      if (sections.length) {
-        body += head('Section feedback', 'What the examiner noted as each section ended');
-        body += sections.slice(0, 24).map(function(sr) {
-          return '<div class="tea-score-box" style="margin-bottom:8px;">' +
-            '<div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:8px;">' +
-              '<div style="font-size:0.84rem;font-weight:800;color:#dde2e6;">' + _esc(sr.section) + '</div>' +
-              '<div style="font-size:0.7rem;color:#5b7690;">' + _esc(when(sr.createdAt)) + '</div>' +
-            '</div>' + bars(sr.bands) +
-            (sr.strength ? '<div style="margin-top:8px;font-size:0.76rem;color:#8fa3bb;"><b style="color:#00d48e;">Strength</b> · ' + _esc(sr.strength) + '</div>' : '') +
-            (sr.improve  ? '<div style="margin-top:3px;font-size:0.76rem;color:#8fa3bb;"><b style="color:#e0a252;">Work on</b> · ' + _esc(sr.improve) + '</div>' : '') +
-          '</div>';
-        }).join('');
-      }
+      // The "Section feedback" panel was removed with the mid-exam section reports
+      // themselves. Leaving it would have shown a handful of historical cards that
+      // could never grow again — a panel frozen in the past reads as a broken
+      // feature, which is worse than not offering it.
     }
 
     host.innerHTML =
@@ -25137,7 +24973,6 @@
       // press. A missing report costs a card; a stalled exam costs the sitting.
       if (_t._afterReport) {
         var pending = _t._afterReport;
-        _t._afterReport = null;
         pending();
         return;
       }
