@@ -17204,8 +17204,32 @@
   // ══════════════════════════════════════════════════════════════
   //  STUDENT PROGRESS
   // ══════════════════════════════════════════════════════════════
-  function _progPillarDivider(label) {
-    return '<div class="prog-pillar-divider"><span class="prog-pillar-label">' + label + '</span></div>';
+  // Deliberately muted accents. This is a professional record of someone's
+  // proficiency, so the three areas are distinguished by hue rather than by
+  // brightness — enough to separate them at a glance, not enough to look like a
+  // dashboard competing for attention.
+  var _PROG_PILLARS = {
+    rooms:     { icon: '\u25A6', accent: '#7ea8c4', tint: 'rgba(126,168,196,.10)',
+                 sub: 'Guided modules — video, quiz, listening, speaking' },
+    mock:      { icon: '\u2713', accent: '#c9a961', tint: 'rgba(201,169,97,.10)',
+                 sub: 'Full ICAO proficiency examination' },
+    simulator: { icon: '\u25CE', accent: '#8fb996', tint: 'rgba(143,185,150,.10)',
+                 sub: 'Live radio read-back practice' }
+  };
+
+  function _progPillarDivider(label, key) {
+    var p = _PROG_PILLARS[key] || {};
+    var vars = p.accent
+      ? 'style="--pillar-accent:' + p.accent + ';--pillar-tint:' + p.tint + ';"'
+      : '';
+    return '<div class="prog-pillar-divider" ' + vars + '>' +
+      (p.icon ? '<span class="prog-pillar-icon">' + p.icon + '</span>' : '') +
+      '<span class="prog-pillar-head">' +
+        '<span class="prog-pillar-label">' + label + '</span>' +
+        (p.sub ? '<span class="prog-pillar-sub">' + p.sub + '</span>' : '') +
+      '</span>' +
+      '<span class="prog-pillar-rule"></span>' +
+    '</div>';
   }
 
   function _lmsLoadingSkeleton() {
@@ -17301,13 +17325,13 @@
         // everywhere else in the product. "Course Learning" and "ATC Communication
         // Training" described the same things, but a student comparing the menu with
         // this page had to work out which was which.
-        _progPillarDivider('Interactive Rooms') +
+        _progPillarDivider('Interactive Rooms', 'rooms') +
         '<div id="progLmsCol"><div class="prog-section">' + _lmsLoadingSkeleton() + '</div></div>' +
 
-        _progPillarDivider('Mock Test Center') +
+        _progPillarDivider('Mock Test Center', 'mock') +
         '<div id="progMockCol"><div class="prog-section">' + _lmsLoadingSkeleton() + '</div></div>' +
 
-        _progPillarDivider('Radio Communications Simulator') +
+        _progPillarDivider('Radio Communications Simulator', 'simulator') +
         atcStats +
         levelMap +
         '<div id="progRoutesCol">' + _progSection('ATC Routes', null, _skeletonCards(2)) + '</div>' +
@@ -17845,6 +17869,17 @@
       .apiGetMyIcaoResults(AppState.sessionToken);
   }
 
+  // Band colours, kept to the same three the exam report uses so a band means the
+  // same thing wherever it appears. Muted rather than saturated: this is a record
+  // of proficiency, not an alert.
+  function _progBandColor(b) {
+    return b >= 5 ? '#6fae7f' : b === 4 ? '#7ea8c4' : b > 0 ? '#c47f7f' : 'var(--muted)';
+  }
+  function _progBandName(b) {
+    return b >= 5 ? 'Extended' : b === 4 ? 'Operational'
+         : b === 3 ? 'Pre-Operational' : b > 0 ? 'Below Operational' : '\u2014';
+  }
+
   function _renderMockProgress(res) {
     var all  = (res && res.ok && res.results) || [];
     var full = all.filter(function(r) { return (r.scope || 'FULL') === 'FULL' && r.band > 0; });
@@ -17852,75 +17887,81 @@
 
     if (!full.length) {
       return '<div class="prog-section">' +
-        '<p class="prog-empty-hint">No mock test taken yet. ' +
-          'The ICAO Language Proficiency Test gives you a band across the six ' +
-          'descriptors and shows exactly where you stand.' +
+        '<p class="prog-empty-hint">' +
+          'No mock test taken yet. The ICAO Language Proficiency Test gives you a band ' +
+          'across all six descriptors and shows exactly where you stand.' +
           (practice ? ' (' + practice + ' section practice run' + (practice === 1 ? '' : 's') + ' so far.)' : '') +
-        '</p></div>';
+        '</p>' +
+        '<div style="margin-top:14px;">' +
+          '<button class="btn primary" onclick="window.renderTeaExam()">Take the test</button>' +
+        '</div>' +
+      '</div>';
     }
 
-    var latest = full[0];                       // the API returns newest first
+    var latest = full[0];                       // newest first
     var best   = full.reduce(function(a, b) { return b.band > a.band ? b : a; }, full[0]);
-    var col = function(b) { return b >= 5 ? '#00d48e' : b === 4 ? '#5b9bd5' : '#e05252'; };
-    var lbl = function(b) {
-      return b >= 5 ? 'Extended' : b === 4 ? 'Operational'
-           : b === 3 ? 'Pre-Operational' : 'Below Operational';
-    };
+    var accent = _progBandColor(latest.band);
 
-    // Listed here rather than borrowed from the exam module: that lives in a later
-    // IIFE and is not in scope on this page. Reaching for it would have thrown the
-    // moment a student with a sitting opened Progress.
+    // Only meaningful once there is a previous sitting to compare against.
+    var trendVal = '\u2014', trendSub = 'First sitting', trendCol = 'var(--muted)';
+    if (full.length > 1) {
+      var diff = latest.band - full[1].band;
+      trendVal = diff > 0 ? '\u25B2 +' + diff : diff < 0 ? '\u25BC ' + diff : '\u2014';
+      trendSub = diff === 0 ? 'Unchanged' : 'Since last sitting';
+      trendCol = diff > 0 ? '#6fae7f' : diff < 0 ? '#c47f7f' : 'var(--muted)';
+    }
+
+    // Same four-card grid the simulator pillar uses, so the two read as one page.
+    var stats =
+      '<div class="prog-stats-row">' +
+        _pStat('Current Band', latest.band, _progBandName(latest.band), accent) +
+        _pStat('Best Band',    best.band,   _progBandName(best.band),   _progBandColor(best.band)) +
+        _pStat('Sittings',     full.length, 'Full examinations',        'var(--silver)') +
+        _pStat('Trend',        trendVal,    trendSub,                   trendCol) +
+      '</div>';
+
     var DESCRIPTORS = ['pronunciation','structure','vocabulary','fluency','comprehension','interactions'];
     var bars = DESCRIPTORS.map(function(k) {
-      var v = Number((latest.scores || {})[k]) || 0;
+      var v  = Number((latest.scores || {})[k]) || 0;
       var na = v === 0;
-      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">' +
-        '<div style="width:104px;font-size:0.66rem;letter-spacing:.05em;color:var(--muted);' +
-          'text-transform:uppercase;">' + k + '</div>' +
-        '<div style="flex:1;height:6px;background:rgba(148,163,184,.14);border-radius:4px;overflow:hidden;">' +
-          '<div style="height:100%;width:' + (na ? 0 : (v / 6) * 100) + '%;background:' +
-            col(v) + ';border-radius:4px;"></div>' +
-        '</div>' +
-        '<div style="width:34px;text-align:right;font-size:0.74rem;font-weight:800;color:' +
-          (na ? 'var(--muted)' : col(v)) + ';">' + (na ? '—' : v) + '</div>' +
+      return '<div class="prog-desc-row">' +
+        '<span class="prog-desc-name">' + k + '</span>' +
+        '<span class="prog-desc-val" style="color:' + (na ? 'var(--muted)' : _progBandColor(v)) + ';">' +
+          (na ? '\u2014' : v) + '</span>' +
+        '<span class="prog-desc-track">' +
+          '<span class="prog-desc-fill" style="width:' + (na ? 0 : (v / 6) * 100) + '%;' +
+            'background:' + _progBandColor(v) + ';"></span>' +
+        '</span>' +
       '</div>';
     }).join('');
 
-    // Only meaningful once there is something to compare against.
-    var trend = '';
-    if (full.length > 1) {
-      var prev = full[1].band, diff = latest.band - prev;
-      trend = '<span style="font-size:0.72rem;color:' +
-        (diff > 0 ? '#00d48e' : diff < 0 ? '#e05252' : 'var(--muted)') + ';margin-left:8px;">' +
-        (diff > 0 ? '▲ up ' + diff + ' from last time'
-         : diff < 0 ? '▼ down ' + Math.abs(diff) + ' from last time'
-         : '— same as last time') + '</span>';
-    }
-
     return '<div class="prog-section">' +
-      '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px;">' +
-        '<div style="text-align:center;">' +
-          '<div style="font-size:2.6rem;font-weight:900;line-height:1;color:' + col(latest.band) + ';">' +
-            latest.band + '</div>' +
-          '<div style="font-size:0.64rem;letter-spacing:.12em;color:var(--muted);' +
-            'text-transform:uppercase;margin-top:2px;">Current band</div>' +
+      '<div class="prog-band-hero" style="--band-accent:' + accent + ';--band-tint:' +
+        (latest.band >= 5 ? 'rgba(111,174,127,.09)'
+         : latest.band === 4 ? 'rgba(126,168,196,.09)' : 'rgba(196,127,127,.09)') + ';">' +
+        '<div>' +
+          '<div class="prog-band-figure">' + latest.band + '</div>' +
+          '<div class="prog-band-cap">ICAO Band</div>' +
         '</div>' +
-        '<div style="flex:1;min-width:200px;">' +
-          '<div style="font-size:0.95rem;font-weight:800;color:var(--text);">' +
-            lbl(latest.band) + trend + '</div>' +
-          '<div style="font-size:0.76rem;color:var(--muted);margin-top:3px;">' +
-            full.length + ' full sitting' + (full.length === 1 ? '' : 's') +
-            ' · best band ' + best.band +
-            (practice ? ' · ' + practice + ' section practice' : '') +
+        '<div style="flex:1;min-width:180px;">' +
+          '<div class="prog-band-name">' + _progBandName(latest.band) + '</div>' +
+          '<div class="prog-band-meta">' +
+            'Most recent full sitting' +
+            (practice ? ' \u00B7 ' + practice + ' section practice' : '') +
           '</div>' +
         '</div>' +
         '<button class="btn primary" style="padding:9px 18px;" ' +
           'onclick="window.renderTeaExam()">Take the test</button>' +
       '</div>' +
-      bars +
-      '<p class="prog-empty-hint" style="margin-top:10px;">' +
-        'Bands are from your most recent full sitting. A dash means that descriptor ' +
-        'was not assessed.' +
+      stats +
+      '<div style="margin-top:18px;">' +
+        '<div style="font-size:0.68rem;letter-spacing:.12em;text-transform:uppercase;' +
+          'color:var(--muted);margin-bottom:9px;">Descriptors \u00B7 most recent sitting</div>' +
+        bars +
+      '</div>' +
+      '<p class="prog-empty-hint" style="margin-top:12px;">' +
+        'A dash means that descriptor was not assessed \u2014 typed answers cannot be ' +
+        'scored for pronunciation or fluency.' +
       '</p>' +
     '</div>';
   }
