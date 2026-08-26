@@ -23003,6 +23003,7 @@
              timerIv:null, _pendingId:null, _pendingB64:null, _qaMode:false, _imageInjected:false, _finishShown:false, _examDone:false,
              examinerTurns:0, segments:[], _lastSepKey:null, _started:false, _timeWarned:false, _scopeNote:null, _awaitingFinalReport:0,
              _adminAsked:false, _studentView:null, _clipPlaying:false, _afterClip:null,
+             _introsSaid:{},
              _comparing:false,
              // Section-scoped runs. Full exam = the whole range; a scoped run
              // narrows the audio window and switches off the parts outside it, so
@@ -23152,7 +23153,7 @@
     _t.examinerTurns=0; _t.segments=[]; _t._lastSepKey=null; _t._started=false;
     _t._timeWarned=false; _t._scopeNote=null;
     _t._awaitingFinalReport=0; _t._adminAsked=false; _t._studentView=null;
-    _t._clipPlaying=false; _t._afterClip=null; _t._comparing=false;
+    _t._clipPlaying=false; _t._afterClip=null; _t._comparing=false; _t._introsSaid={};
     window._teaStarting = false;
     _t.scope=''; _t.scopeStart=0; _t.scopeEnd=0;
     _t.scopeImages=true; _t.scopeInterview=true;
@@ -23582,7 +23583,8 @@
 
   var _PART_META = {
     '2A': { title: 'Part 2A — Short Readbacks', sub: '6 short pilot/controller audio clips' },
-    '2B': { title: 'Part 2B — Extended Dialogues', sub: '3 longer aviation exchanges' },
+    '2B': { title: 'Part 2B — Extended Dialogues',
+            sub: '3 longer aviation exchanges — you may take notes' },
     '2C': { title: 'Part 2C — Situation Analysis', sub: '3 situations — questions & advice' }
   };
 
@@ -23937,7 +23939,10 @@
     var prevKey = _getPartKey(_t.audioIdx - 1);
     var currKey = _getPartKey(_t.audioIdx);
     if (currKey) _teaSetPart(currKey);
-    if (currKey && currKey !== prevKey) _addPartSeparator(currKey);
+    if (currKey && currKey !== prevKey) {
+      _addPartSeparator(currKey);
+      _teaSectionIntro(currKey);
+    }
 
     _t._pendingId  = id;
     _t._pendingB64 = null;
@@ -23956,6 +23961,30 @@
       // needs to ask about it.
       _activatePendingAudio();
     });
+  }
+
+  // A one-off line as a section opens, where the section needs saying something the
+  // separator cannot. 2B's recordings run several times longer than 2A's, and a
+  // candidate who does not know that has no reason to reach for a pen until it is
+  // already too late to catch the detail.
+  //
+  // Spoken by the app from its recording, like the greeting — the examiner is not
+  // asked for it, so it costs no turn and cannot arrive in the robot voice.
+  var _TEA_SECTION_INTRO = {
+    '2B': 'These recordings are longer. You may take notes if you wish.'
+  };
+
+  function _teaSectionIntro(key) {
+    var text = _TEA_SECTION_INTRO[key];
+    if (!text) return;
+    _t._introsSaid = _t._introsSaid || {};
+    if (_t._introsSaid[key]) return;
+    _t._introsSaid[key] = true;
+
+    _addMsg('examiner', text);
+    var b64 = _t.exCache && _t.exCache[_teaNormLine(text)];
+    if (b64) _teaPlayExaminer(b64, text, function() {});
+    else     _teaSay(text, function() {});
   }
 
   // Step 2: put the play card on screen, ready or failed.
