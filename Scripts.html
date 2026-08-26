@@ -25277,7 +25277,13 @@
       // true on the opening turn — the finish button would appear before a single
       // question had been asked. Five questions means at least six turns.
       var _sectionRan = _t.scope !== '1' || _t.examinerTurns >= 6;
-      if (_t.audioIdx >= _t.scopeEnd && _sectionRan &&
+      // Part 3 is not over when the last picture has been SHOWN — it is over after
+      // both have been compared. This branch only knew about _imageInjected, which
+      // is true the moment picture two appears, so it could offer Finish while the
+      // comparison was still to come and skip it entirely. Two paths decided when
+      // Part 3 ended and only one of them knew the comparison existed.
+      var _comparisonDue = _t.scopeImages && TEA_IMAGES.length > 1 && !_t._comparing;
+      if (_t.audioIdx >= _t.scopeEnd && _sectionRan && !_comparisonDue &&
           (_t.scopeImages ? _t._imageInjected : true) && !_t._finishShown) {
         _t._finishShown = true;
         _showFinishBtn();
