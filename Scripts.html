@@ -9521,7 +9521,11 @@
   }
 
   // Cache loaded certs so the onclick can reference by index (avoids JSON/double-quote escaping issues in HTML attributes)
-  var _certViewCache = [];
+  // Assigned from the certificates hydration in a later IIFE as well as here, so it
+  // has to be a real global — a `var` scoped to this one made that write a
+  // ReferenceError under strict mode. Same fault as _progStudentData, on the same
+  // page, and it would have thrown the moment that one was fixed.
+  window._certViewCache = [];
 
   function viewCertByIndex(idx) {
     var c = _certViewCache[idx];
@@ -14410,8 +14414,14 @@
   }
 
   var _lastProgressReportData = null;
-  var _progStudentData = null;
-  var _progLmsData = null;
+  // Shared across two IIFEs: declared and read here, assigned by the progress
+  // renderers in a later one. A `var` here is local to this scope, so the later
+  // assignment was writing to a variable that did not exist — under "use strict"
+  // that is a ReferenceError, which is why viewing Progress as a student threw
+  // "Can't find variable: _progStudentData". True globals instead, so both scopes
+  // reach the same thing.
+  window._progStudentData = null;
+  window._progLmsData     = null;
 
   function _renderProgressReport(res, backFnOrBool) {
     var backFn = typeof backFnOrBool === 'string' ? backFnOrBool : (backFnOrBool ? 'renderAdminProgress()' : null);
