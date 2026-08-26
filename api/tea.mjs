@@ -332,7 +332,11 @@ export default async function handler(req, res) {
     // the function dies mid-flight the caller gets no response at all, which is
     // indistinguishable from a hang. Better to give up inside the budget and say so
     // than to be killed and say nothing.
-    const DEADLINE = Date.now() + 50000;
+    // Fifty seconds was set for a conversational turn and then applied to the final
+    // report as well, which is a far larger generation: a full exam history in, a
+    // complete scoring JSON out. It was timing out on the work it most needed to
+    // finish.
+    const DEADLINE = Date.now() + 105000;
     const timeLeft = () => DEADLINE - Date.now();
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const isOverloadErr = (res, d) =>
@@ -352,7 +356,7 @@ export default async function handler(req, res) {
       // to a model that can answer than waiting on one that cannot.
       for (let attempt = 0; attempt < 3; attempt++) {
         // Do not start a call there is no time left to finish.
-        if (timeLeft() < 12000) { console.log('[TEA] out of budget before ' + MODEL); break outer; }
+        if (timeLeft() < 15000) { console.log('[TEA] out of budget before ' + MODEL); break outer; }
 
         // And do not let one call hang the whole handler either.
         // Bound each call so one slow model cannot eat the entire budget. Giving
@@ -360,7 +364,9 @@ export default async function handler(req, res) {
         // the fallbacks, and the whole handler returned "upstream timeout" without
         // ever having tried the other two.
         const ctl = new AbortController();
-        const slice = Math.min(26000, Math.max(8000, timeLeft() - 3000));
+        // Enough for a real report, still bounded so a hanging model leaves room
+        // for the two behind it.
+        const slice = Math.min(45000, Math.max(8000, timeLeft() - 5000));
         const bail = setTimeout(() => ctl.abort(), slice);
         try {
           response = await fetch(url, {

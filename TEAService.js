@@ -293,3 +293,45 @@ function apiGetMyIcaoResults(sessionToken) {
     return { ok: false, error: (err && err.message) || 'Could not load results' };
   }
 }
+
+
+/**
+ * Saves the transcript of a completed sitting BEFORE it has been scored.
+ *
+ * Nothing was written until a report existed, so an examination that finished but
+ * failed to score left no trace at all: twenty-five minutes of a candidate's work,
+ * gone because the last step timed out. The sitting and the score are separate
+ * facts, and the first does not depend on the second.
+ *
+ * The row is marked PENDING with no bands. If scoring later succeeds a normal row
+ * is written alongside it; the pending row stays as the record that the exam was
+ * actually sat.
+ */
+function apiSaveIcaoTranscript(sessionToken, payload) {
+  try {
+    var user = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    payload = payload || {};
+
+    var data = {
+      candidateId: String(user.email || user.userId || 'unknown'),
+      examDate:    String(payload.examDate || now_()),
+      savedAt:     now_(),
+      bank:        String(payload.bank  || ''),
+      scope:       String(payload.scope || 'FULL'),
+      source:      'transcript-only',
+      overallBand: '',
+      scores:      {},
+      studentFeedback: {},
+      adminReport: { annotatedTranscript: '', technicalJustification: {} },
+      enrichedTranscript: _teaFlattenHistory_(payload.history),
+      note: 'PENDING — the sitting completed; scoring had not produced a report when this was saved.'
+    };
+
+    var folder  = _teaGetOrCreateFolder_();
+    var fileUrl = _teaSaveJsonReport_(folder, data);
+    _teaAppendSheetRow_(data, fileUrl);
+    return { ok: true, driveFileUrl: fileUrl };
+  } catch (err) {
+    return { ok: false, error: (err && err.message) || 'Save failed' };
+  }
+}

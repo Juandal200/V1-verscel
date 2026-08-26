@@ -23060,7 +23060,10 @@
     // request simply hung, and the exam sat on "Thinking…" indefinitely. The final
     // report is the worst place for that: it is the longest generation in the
     // sitting and the one the candidate is actually waiting for.
-    var TIMEOUT_MS = 60000;
+    // The final report is a much larger generation than a turn of conversation, so
+    // it gets a much longer leash. Holding it to a turn's timeout was aborting the
+    // one call in the exam that genuinely needs the time.
+    var TIMEOUT_MS = _t._awaitingFinalReport ? 115000 : 60000;
     (function attempt(n) {
       var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
       var bail = setTimeout(function() {
@@ -24363,6 +24366,23 @@
     _t._finishing = true;
     _lockExamUI();
 
+    // Save the sitting BEFORE trying to score it. Nothing was written until a
+    // report existed, so an exam that finished but failed to score left no trace
+    // at all — twenty-five minutes of work gone because the last step timed out.
+    // Whether the exam happened and what it scored are separate facts, and the
+    // first does not depend on the second.
+    try {
+      google.script.run
+        .withSuccessHandler(function() {})
+        .withFailureHandler(function() {})
+        .apiSaveIcaoTranscript(AppState.sessionToken, {
+          history:  _t.history,
+          bank:     TEA_BANK,
+          scope:    _t.scope || 'FULL',
+          examDate: new Date().toISOString()
+        });
+    } catch (e) {}
+
     if (_t.segments.length > 0) {
       // Grading runs Whisper over every spoken answer and then scores six
       // descriptors — a minute or more. A status line under a spent transcript
@@ -24687,8 +24707,9 @@
           '<div style="font-size:1.05rem;font-weight:800;color:#dde2e6;margin-bottom:8px;">' +
             'The report could not be produced</div>' +
           '<div style="font-size:0.84rem;color:#8fa3bb;line-height:1.6;margin-bottom:20px;">' +
-            'Your examination was saved and nothing you did is lost. The scoring step ' +
-            'failed to return a result — this is usually temporary.</div>' +
+            'Your examination and everything you said were saved before scoring began, ' +
+            'so nothing is lost. Only the scoring step failed, and that is usually ' +
+            'temporary — try it again, or come back to it from My results.</div>' +
           '<button class="tea-send-btn" onclick="window._teaRetryReport()" ' +
             'style="background:#00d48e;color:#000;padding:12px 26px;">Try scoring again</button>' +
           '<button class="tea-send-btn" onclick="window._teaExitToHome()" ' +
