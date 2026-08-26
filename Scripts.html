@@ -25132,6 +25132,22 @@
         // rather than reporting that the examiner could not be reached.
         _removeThinking();
         _t.busy = false;
+
+        // A failed request never reached the state machine — the handler returned
+        // here — so a report that was asked for and never came back left the
+        // candidate at "Finishing your report" with an input box, rather than at
+        // the failure screen built for exactly this. Escalate it here instead.
+        if (_t._awaitingFinalReport) {
+          if (_t._awaitingFinalReport < 3) {
+            _setStatus('Scoring failed — trying again…', 'thinking');
+            setTimeout(_teaRequestFinalReport, 2000);
+            return;
+          }
+          _t._awaitingFinalReport = 0;
+          _teaReportFailed();
+          return;
+        }
+
         _setEnabled(true);
         _setStatus('Examiner unreachable — ' + err, 'thinking');
         _addMsg('system', 'The examiner could not be reached: ' + err +

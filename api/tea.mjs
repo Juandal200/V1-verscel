@@ -355,8 +355,13 @@ export default async function handler(req, res) {
         if (timeLeft() < 12000) { console.log('[TEA] out of budget before ' + MODEL); break outer; }
 
         // And do not let one call hang the whole handler either.
+        // Bound each call so one slow model cannot eat the entire budget. Giving
+        // the first attempt everything meant a model that hangs left nothing for
+        // the fallbacks, and the whole handler returned "upstream timeout" without
+        // ever having tried the other two.
         const ctl = new AbortController();
-        const bail = setTimeout(() => ctl.abort(), Math.max(8000, timeLeft() - 3000));
+        const slice = Math.min(26000, Math.max(8000, timeLeft() - 3000));
+        const bail = setTimeout(() => ctl.abort(), slice);
         try {
           response = await fetch(url, {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, body,
