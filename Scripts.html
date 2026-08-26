@@ -22839,7 +22839,7 @@
              _awaitingActivation:false, _finishShown:false, _examDone:false,
              examinerTurns:0, segments:[], _lastSepKey:null, _started:false, _timeWarned:false,
              _openingDone:false, _scopeNote:null, _awaitingFinalReport:0,
-             _adminAsked:false, _studentView:null,
+             _adminAsked:false, _studentView:null, _clipPlaying:false, _afterClip:null,
              // Section-scoped runs. Full exam = the whole range; a scoped run
              // narrows the audio window and switches off the parts outside it, so
              // one section can be exercised without sitting the other twenty-five
@@ -22989,6 +22989,7 @@
     _t.examinerTurns=0; _t.segments=[]; _t._lastSepKey=null; _t._started=false;
     _t._timeWarned=false; _t._openingDone=false; _t._scopeNote=null;
     _t._awaitingFinalReport=0; _t._adminAsked=false; _t._studentView=null;
+    _t._clipPlaying=false; _t._afterClip=null;
     window._teaStarting = false;
     _t.scope=''; _t.scopeStart=0; _t.scopeEnd=0;
     _t.scopeImages=true; _t.scopeInterview=true;
@@ -23846,6 +23847,18 @@
   }
 
   function _teaPlayExaminer(b64, text, _done) {
+    // Wait for a recording to finish before speaking over it.
+    //
+    // The examiner and the clips share one audio element, so an examiner turn that
+    // arrived mid-replay paused the recording and took the element — the candidate
+    // heard their replay cut off part way through. A replay is the one moment in
+    // the exam where the recording is the thing being listened to, and interrupting
+    // it costs the listen it was meant to give back.
+    if (_t._clipPlaying) {
+      _t._afterClip = function() { _teaPlayExaminer(b64, text, _done); };
+      return;
+    }
+
     if (_t.audioEl) _t.audioEl.pause();
     _t.audioEl = new Audio('data:audio/mp3;base64,' + b64);
     _t.audioEl.crossOrigin = 'anonymous';
@@ -24084,6 +24097,7 @@
       if (_t.audioEl) _t.audioEl.pause();
       _t.audioEl = new Audio('data:audio/mp3;base64,' + b64);
       _t.audioEl.crossOrigin = 'anonymous';
+      _t._clipPlaying = true;
       btn.innerHTML = '&#9646;&#9646;';
       btn.disabled = true;
       if (st) st.textContent = 'Listening \u00b7 do not respond yet';
@@ -24098,6 +24112,9 @@
         _settled = true;
         clearTimeout(_stall);
         _teaVizStop();
+        _t._clipPlaying = false;
+        // Anything the examiner wanted to say while the clip held the floor.
+        if (_t._afterClip) { var q = _t._afterClip; _t._afterClip = null; setTimeout(q, 250); }
         btn.innerHTML = '&#9654;';
 
         if (failed) {
