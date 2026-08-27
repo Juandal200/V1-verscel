@@ -6433,6 +6433,11 @@
   }
 
   function simMediaPauseAll() {
+    // Stop the warning tones at once. Leaving them to notice the pause on their own
+    // next tick means up to 2.5 more seconds of alarm after the screen says PAUSED.
+    try { _stopAltBeep(); } catch (e) {}
+    try { _stopHdgBeep(); } catch (e) {}
+
     if (window.speechSynthesis && window.speechSynthesis.speaking) {
       try { window.speechSynthesis.pause(); } catch (e) {}
     }
@@ -6489,12 +6494,27 @@
 
   function simMediaTogglePause() {
     if (SimMedia.isPaused) {
+      // Credit the paused span back to any warning that was already running, so a
+      // deviation corrected in five seconds is not recorded as a two-minute one
+      // because the student paused while it was showing.
+      if (_pauseStartedAt) {
+        var _paused = Date.now() - _pauseStartedAt;
+        if (_warnAltStartTime) _warnAltStartTime += _paused;
+        if (_warnHdgStartTime) _warnHdgStartTime += _paused;
+        _pauseStartedAt = 0;
+      }
       SimMedia.isPaused = false;
       simMediaResumeAll();
+      // Pausing cleared the alarm intervals, and they only ever start on the
+      // transition into a warning — which already happened. Without this a
+      // deviation that is still live comes back silent after a resume.
+      try { if (_altWarning && isGameActive) _startAltBeep(); } catch (e) {}
+      try { if (_hdgWarning && isGameActive) _startHdgBeep(); } catch (e) {}
       _simMediaUpdatePauseBtn(false);
       document.body.classList.remove('sim-paused');
     } else {
       SimMedia.isPaused = true;
+      _pauseStartedAt = Date.now();
       simMediaPauseAll();
       _simMediaUpdatePauseBtn(true);
       document.body.classList.add('sim-paused');
@@ -6945,6 +6965,7 @@
   var _targetHeading    = 360;
   var _altWarning       = false;
   var _hdgWarning       = false;
+  var _pauseStartedAt   = 0;
   var _warnAltStartTime = 0;
   var _warnHdgStartTime = 0;
   var _flightSessionId  = '';
@@ -7012,6 +7033,10 @@
     _playWarningBeep(880);
     _altBeepInterval = setInterval(function() {
       if (!isGameActive || !_altWarning) { _stopAltBeep(); return; }
+      // Pause silenced the ATC audio, the background and the video, but not this —
+      // it runs on its own interval and only ever checked isGameActive. A paused
+      // screen carried on sounding the off-altitude alarm every 2.5 seconds.
+      if (typeof SimMedia !== 'undefined' && SimMedia.isPaused) return;
       _playWarningBeep(880);
     }, 2500);
   }
@@ -7024,6 +7049,7 @@
     _playWarningBeep(660);
     _hdgBeepInterval = setInterval(function() {
       if (!isGameActive || !_hdgWarning) { _stopHdgBeep(); return; }
+      if (typeof SimMedia !== 'undefined' && SimMedia.isPaused) return;
       _playWarningBeep(660);
     }, 2500);
   }
