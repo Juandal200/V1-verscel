@@ -4341,9 +4341,16 @@
     setActiveNav('Simulator');
     var _tok = _navToken;
 
-    byId('contentArea').innerHTML =
-      _simTabStrip('flight') +
-      '<div class="panel">' + _skeletonCards(4, true) + '</div>';
+    // Four grey bars said nothing about how long this would take or what it was
+    // doing, and this screen waits on three separate calls before it can paint. The
+    // radar loader is what every other slow screen in the app uses.
+    var _simLoader = renderRadarLoader(
+      'RADIO COMMUNICATIONS SIMULATOR',
+      ['Loading your training levels\u2026',
+       'Checking exam and placement status\u2026',
+       'Preparing the level map\u2026'],
+      'Connecting to training server'
+    );
 
     // Fetch VR config (admin panel use) and today's server-side assignments (rendering)
     google.script.run
@@ -4371,6 +4378,9 @@
     function _tryRenderLevelMapWithExams() {
       if (_catalogRes === null || _examRes === null || _placementRes === null) return;
       if (_navToken !== _tok) return;
+      // Every exit from here paints over the loader, so stop it once rather than at
+      // each branch — a missed branch leaves the radar spinning under the content.
+      if (_simLoader && _simLoader.stop) _simLoader.stop();
       if (_catalogErr) { showContentError(_catalogErr); return; }
       AppState.examStatus      = (_examRes && _examRes.ok) ? (_examRes.exams || []) : [];
       AppState.placementStatus = (_placementRes && _placementRes.ok) ? _placementRes : { status: 'not_taken' };
@@ -12393,15 +12403,26 @@
   function renderModules() {
     setActiveNav('Modules');
     var _tok = _navToken;
-    byId('contentArea').innerHTML = '<div class="panel">' + _skeletonCards(4) + '</div>';
+    // Same treatment as the simulator hub — the two sit on one tab strip, and a
+    // student switching between them should not meet two different kinds of wait.
+    var _modLoader = renderRadarLoader(
+      'INTERACTIVE ROOMS',
+      ['Loading your modules\u2026', 'Checking what you have completed\u2026', 'Building your roadmap\u2026'],
+      'Connecting to training server'
+    );
 
     google.script.run
       .withSuccessHandler(function(res) {
         if (_navToken !== _tok) return;
+        if (_modLoader && _modLoader.stop) _modLoader.stop();
         if (!res || !res.ok) { showContentError(res && res.error ? res.error : 'Could not load modules.'); return; }
         _renderModuleRoadmap(res.modules || []);
       })
-      .withFailureHandler(function(err) { if (_navToken !== _tok) return; handleServerError(err); })
+      .withFailureHandler(function(err) {
+        if (_navToken !== _tok) return;
+        if (_modLoader && _modLoader.stop) _modLoader.stop();
+        handleServerError(err);
+      })
       .apiModuleGetAll(AppState.sessionToken);
   }
 
