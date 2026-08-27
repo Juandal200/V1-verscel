@@ -2025,7 +2025,6 @@ function safeUserForClient_(user) {
     status:               String(user.status || 'PENDING'),
     currentLevel:         Number(user.currentLevel  || 1),
     currentCountry:       String(user.currentCountry || ''),
-    assignedInstructorId: String(user.assignedInstructorId || ''),
     assignedGroupId:      String(user.assignedGroupId || ''),
     createdAt:  user.createdAt  instanceof Date ? formatDateForClient_(user.createdAt)  : String(user.createdAt  || ''),
     updatedAt:  user.updatedAt  instanceof Date ? formatDateForClient_(user.updatedAt)  : String(user.updatedAt  || ''),
