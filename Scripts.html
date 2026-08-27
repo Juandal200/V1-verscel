@@ -14577,15 +14577,27 @@
   function renderMyProgress() {
     setActiveNav('Modules');
     var _tok = _navToken;
-    byId('contentArea').innerHTML = '<div class="panel">' + _skeletonStats() + '</div>';
+    // A student's own progress report, showing bare stat skeletons while the whole
+    // screen waits — where the Progress tab beside it already uses the radar. Two
+    // student-facing views of the same thing should not wait in two different ways.
+    var _mpLoader = renderRadarLoader(
+      'MY PROGRESS',
+      ['Loading your training record\u2026', 'Gathering module results\u2026', 'Calculating your averages\u2026'],
+      'Connecting to training server'
+    );
 
     google.script.run
       .withSuccessHandler(function(res) {
         if (_navToken !== _tok) return;
+        if (_mpLoader && _mpLoader.stop) _mpLoader.stop();
         if (!res || !res.ok) { showContentError(res && res.error ? res.error : 'Could not load progress.'); return; }
         _renderProgressReport(res, false);
       })
-      .withFailureHandler(function(err) { if (_navToken !== _tok) return; handleServerError(err); })
+      .withFailureHandler(function(err) {
+        if (_navToken !== _tok) return;
+        if (_mpLoader && _mpLoader.stop) _mpLoader.stop();
+        handleServerError(err);
+      })
       .apiGetProgressReport(AppState.sessionToken, null);
   }
 
