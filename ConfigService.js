@@ -80,10 +80,19 @@ var DB_SCHEMA = {
     'createdBy',
     'createdAt',
     'updatedAt',
+    // Columns 24-27 already exist in the sheet and were simply never declared here.
+    // Because dbReadAll_ maps by POSITION, an undeclared column is invisible — and
+    // the next field appended to this list lands on top of it, which is exactly what
+    // targetAltitude did to phaseLabel. Declared in the order the sheet holds them.
+    'phaseLabel',
+    // col25 carries a blank header in the sheet and unknown contents. Named only so
+    // that appending a real field does not land on it; nothing reads it.
+    'legacyColumn25',
+    'emergencyTriggerPhase',
+    'keywordsText',
     // The altitude ATC instructed, stated rather than inferred. It drives the
     // deviation warning and the analytics behind it, so it is assessment data and
-    // should not be re-derived from prose on every run. Appended last: dbReadAll_
-    // maps columns by position.
+    // should not be re-derived from prose on every run.
     'targetAltitude'
   ],
 
