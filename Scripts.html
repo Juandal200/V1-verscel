@@ -7211,9 +7211,40 @@
     if (box) box.focus();
   }
 
+  // Altitude is only a live instrument where the aircraft is actually changing or
+  // holding one under ATC instruction. On the ground — taxi out, take-off roll, taxi
+  // in — there is no altitude to fly, and on approach and landing the read-back is
+  // about the clearance rather than a level to maintain.
+  //
+  // Showing a number in those phases was not just decoration: it drifted, it raised
+  // the off-altitude warning, and it beeped. The student was being marked down for
+  // failing to hold an altitude that made no sense to be holding.
+  var _ALT_PHASES = { DEPARTURE: 1, CRUISE: 1, DESCEND: 1 };
+
+  function _phaseHasAltitude(phaseCode) {
+    return !!_ALT_PHASES[normalizePhaseCode(phaseCode)];
+  }
+
+  function _setAltPanelVisible(on) {
+    var card = byId('altInstrument');
+    if (!card) return;
+    // Hide the row, not just the card. The card is the row's only child, so hiding
+    // it alone left the row's padding and gap behind as an unexplained blank space
+    // in the flight profile.
+    var row = card.closest ? card.closest('.sim-instruments-row') : card.parentNode;
+    (row || card).style.display = on ? '' : 'none';
+  }
+
   function loadLevelData(levelId, phaseCode, atcText, driftSeed) {
     _flightLevel = Number(levelId) || 1;
     _rng = driftSeed ? _seededRng(_hashStr(driftSeed)) : Math.random.bind(Math);
+
+    // Decided before the config call, so the panel never flashes a stale number
+    // from the previous phase while the request is in flight.
+    var altPhase = _phaseHasAltitude(phaseCode);
+    _setAltPanelVisible(altPhase);
+    if (!altPhase) { stopFlightDrift(); return; }
+
     if (typeof google === 'undefined' || !google.script || !google.script.run) return;
     google.script.run
       .withSuccessHandler(function(cfg) {
