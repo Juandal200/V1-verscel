@@ -86,6 +86,11 @@
     rec.start();
   }
 
+  // Whether a recording is in progress. The recorder is scoped to this IIFE, and
+  // the simulator needs to know — pressing Enter mid-recording has to stop it first
+  // rather than send an empty box.
+  window.isMicRecording = function() { return !!_gMicActive; };
+
   window.startMicInput = function(textareaId, btnId, expectedReadback, onTranscript) {
     var btn = document.getElementById(btnId);
 
@@ -6936,7 +6941,7 @@
             '<article class="sim-readback-priority-card">' +
               '<div class="sim-section-title"><span>PILOT READ-BACK</span><span class="sim-helper-text">Repeat the clearance exactly as a pilot would.</span></div>' +
               '<textarea id="pilotReadback" class="sim-readback-priority-input" placeholder="Type your pilot read-back here..."></textarea>' +
-              '<button id="simMicBtn" class="demo-mic-btn" onclick="startMicInput(\'pilotReadback\',\'simMicBtn\')">&#127908; Tap to speak</button>' +
+              '<button id="simMicBtn" class="demo-mic-btn" onclick="startMicInput(\'pilotReadback\',\'simMicBtn\',\'\',window._simOnTranscript)">&#127908; Tap to speak</button>' +
               '<div id="simFeedbackBox" class="sim-feedback-box"></div>' +
               '<div class="sim-action-row"><button id="simSendReadbackBtn" class="btn primary big-action" onclick="immersiveSendReadback()">Send read-back</button></div>' +
               '<textarea id="studentAnswer" class="legacy-bridge-field"></textarea>' +
@@ -7195,6 +7200,29 @@
   }
 
 
+  // Submitting from the keyboard. If the microphone is still recording, stop it and
+  // wait: the transcript has to arrive before there is anything to send, and sending
+  // now would submit whatever was in the box before they spoke.
+  var _sendAfterTranscript = false;
+
+  function _simSubmitReadback() {
+    if (window.isMicRecording && window.isMicRecording()) {
+      _sendAfterTranscript = true;
+      // A second call to startMicInput is how the recorder is stopped.
+      window.startMicInput('pilotReadback', 'simMicBtn', '', window._simOnTranscript);
+      return;
+    }
+    if (typeof immersiveSendReadback === 'function') immersiveSendReadback();
+  }
+
+  // Called once Whisper has returned. Only sends if Enter asked for it — tapping the
+  // mic to stop should still leave the transcript on screen to be read and edited.
+  window._simOnTranscript = function() {
+    if (!_sendAfterTranscript) return;
+    _sendAfterTranscript = false;
+    if (typeof immersiveSendReadback === 'function') immersiveSendReadback();
+  };
+
   function _bindCommsKeyHandler() {
     var box = byId('pilotReadback');
 
@@ -7208,13 +7236,20 @@
     if (_commsKeyHandler) document.removeEventListener('keydown', _commsKeyHandler, true);
 
     _commsKeyHandler = function(e) {
-      if (!isGameActive) return;
-      if (typeof SimMedia !== 'undefined' && SimMedia.isPaused) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-      // Enter still belongs to the read-back box — it is how a typed answer is
-      // submitted — so only claim it while the box does not have focus.
-      var inBox = document.activeElement === box;
+      // Enter submits in EVERY phase. The flight keys below need an active game,
+      // but sending a read-back is the one thing every phase has — gating it on
+      // isGameActive would have left it dead in exactly the phases that now have no
+      // altitude, which is most of them.
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        _simSubmitReadback();
+        return;
+      }
+
+      if (!isGameActive) return;
+      if (typeof SimMedia !== 'undefined' && SimMedia.isPaused) return;
 
       if (e.key === 'ArrowUp') {
         e.preventDefault();
@@ -7223,10 +7258,6 @@
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         currentAltitude = Math.max(500, currentAltitude - 100);
-        _updateFlightDisplays();
-      } else if (e.key === 'Enter' && !inBox) {
-        e.preventDefault();
-        currentHeading = _clampHeading(currentHeading + 5);
         _updateFlightDisplays();
       }
     };
@@ -7269,12 +7300,18 @@
     // from the previous phase while the request is in flight.
     var altPhase = _phaseHasAltitude(phaseCode);
     _setAltPanelVisible(altPhase);
-    if (!altPhase) { stopFlightDrift(); return; }
+    if (!altPhase) {
+      // No flying here, but Enter must still send the read-back — so rebind after
+      // stopping the drift, which tears the handler down.
+      stopFlightDrift();
+      _bindCommsKeyHandler();
+      return;
+    }
 
     if (typeof google === 'undefined' || !google.script || !google.script.run) return;
     google.script.run
       .withSuccessHandler(function(cfg) {
-        if (!cfg || !cfg.enableControls) { stopFlightDrift(); return; }
+        if (!cfg || !cfg.enableControls) { stopFlightDrift(); _bindCommsKeyHandler(); return; }
         isGameActive      = true;
         currentAltitude   = Number(cfg.startAltitude || 5000);
         currentHeading    = _clampHeading(Number(cfg.startHeading || 360));
