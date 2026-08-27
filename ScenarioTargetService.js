@@ -122,6 +122,11 @@ function seedScenarioTargets(apply) {
   return { ok: true, written: wouldWrite, alreadySet: alreadySet, unreadable: unreadable };
 }
 
+/** No-arg wrapper — the Apps Script Run button cannot pass arguments. */
+function applyScenarioTargets() {
+  return seedScenarioTargets(true);
+}
+
 /**
  * Every altitude-phase scenario with no usable target — the ones where the warning,
  * the beep and the deviation analytics are silently doing nothing.
