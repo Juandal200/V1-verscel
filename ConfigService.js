@@ -79,7 +79,12 @@ var DB_SCHEMA = {
     'version',
     'createdBy',
     'createdAt',
-    'updatedAt'
+    'updatedAt',
+    // The altitude ATC instructed, stated rather than inferred. It drives the
+    // deviation warning and the analytics behind it, so it is assessment data and
+    // should not be re-derived from prose on every run. Appended last: dbReadAll_
+    // maps columns by position.
+    'targetAltitude'
   ],
 
   Attempts: [
