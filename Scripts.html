@@ -6959,7 +6959,9 @@
     var _driftRoute = AppState.training && AppState.training.route || {};
     var _driftSeed  = (_driftRoute.routeId || _driftRoute.flightScenarioId || _driftRoute.routeName || 'r') +
                       '|' + (scenario.level || 1) + '|' + (scenario.phaseCode || '');
-    loadLevelData(scenario.level || AppState.training && AppState.training.selectedLevel || 1, scenario.phaseCode || '', atcText || '', _driftSeed);
+    loadLevelData(scenario.level || AppState.training && AppState.training.selectedLevel || 1,
+                  scenario.phaseCode || '', atcText || '', _driftSeed,
+                  Number(scenario.targetAltitude) || 0);
   }
 
   // ── Flight Profile Mini-Game ──────────────────────────────────────────────
@@ -7292,7 +7294,7 @@
     (row || card).style.display = on ? '' : 'none';
   }
 
-  function loadLevelData(levelId, phaseCode, atcText, driftSeed) {
+  function loadLevelData(levelId, phaseCode, atcText, driftSeed, statedTarget) {
     _flightLevel = Number(levelId) || 1;
     _rng = driftSeed ? _seededRng(_hashStr(driftSeed)) : Math.random.bind(Math);
 
@@ -7324,11 +7326,23 @@
         _hasAtcTargetAlt  = false;
         _hasAtcTargetHdg  = false;
         _flightSessionId  = 'fs_' + Date.now();
-        // Parse ATC text to set instructed targets
+        // The scenario's own target wins. It is stated in the sheet, so it does not
+        // depend on the phrasing of a sentence parsing correctly — which is how a
+        // clearance reading "3,000 FEET" ended up with no target at all, and no
+        // warning, and no beep, indistinguishable from one that worked.
+        if (statedTarget && statedTarget >= 500 && statedTarget <= 45000) {
+          _targetAltitude  = statedTarget;
+          _hasAtcTargetAlt = true;
+        }
+
+        // Parsing is the fallback now, for scenarios whose target has not been
+        // filled in yet. Heading has no column, so it is still parsed outright.
         if (atcText) {
           var parsed = _parseFlightTargetsFromAtc(atcText);
-          if (parsed.altitude !== null) { _targetAltitude = parsed.altitude; _hasAtcTargetAlt = true; }
-          if (parsed.heading  !== null) { _targetHeading  = parsed.heading;  _hasAtcTargetHdg = true; }
+          if (!_hasAtcTargetAlt && parsed.altitude !== null) {
+            _targetAltitude = parsed.altitude; _hasAtcTargetAlt = true;
+          }
+          if (parsed.heading !== null) { _targetHeading = parsed.heading; _hasAtcTargetHdg = true; }
         }
         _updateFlightDisplays();
         _bindCommsKeyHandler();
@@ -7352,7 +7366,12 @@
 
   function _parseFlightTargetsFromAtc(text) {
     if (!text) return { altitude: null, heading: null };
-    var t = text.toUpperCase();
+    // Strip thousands separators between digit groups before anything reads a
+    // number. /\b(\d{3,5})\s+FEET\b/ against "3,000 FEET" puts the word boundary
+    // after the comma and captures "000", which then fails the range check and
+    // yields nothing at all — no target, no warning, no beep, and no way to tell it
+    // apart from a scenario that works.
+    var t = text.toUpperCase().replace(/(\d)[,\s](\d{3})\b/g, '$1$2');
     var altitude = null, heading = null;
     var DIGIT_WORDS = '(?:ZERO|ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE)';
 
@@ -7384,10 +7403,28 @@
       }
     }
 
-    // Altitude: numeric feet "3000 FEET"
+    // Altitude: numeric feet "3000 FEET" / "3000 FT"
+    //
+    // Each branch validates its own result. They were guarded by `altitude === null`
+    // while a bad match set 0 — not null — so every spoken-form branch below was
+    // skipped, and the range check that would have rejected it only ran at the very
+    // end. A comma did not merely break this branch: it disabled the fallbacks that
+    // would otherwise have caught the same clearance.
     if (altitude === null) {
-      var feetNum = t.match(/\b(\d{3,5})\s+FEET\b/);
-      if (feetNum) altitude = parseInt(feetNum[1], 10);
+      var feetNum = t.match(/\b(\d{3,5})\s*(?:FEET|FT)\b/);
+      if (feetNum) {
+        var fv = parseInt(feetNum[1], 10);
+        altitude = (fv >= 500 && fv <= 45000) ? fv : null;
+      }
+    }
+
+    // Altitude: an instruction with no unit — "DESCEND TO 2500", "MAINTAIN 12000"
+    if (altitude === null) {
+      var bare = t.match(/\b(?:MAINTAIN|CLIMB|DESCEND|ALTITUDE|HEIGHT)(?:\s+(?:TO|AND\s+MAINTAIN))?\s+(\d{3,5})\b/);
+      if (bare) {
+        var bv = parseInt(bare[1], 10);
+        altitude = (bv >= 500 && bv <= 45000) ? bv : null;
+      }
     }
 
     // Altitude: spoken thousands "THREE THOUSAND FEET" / "THREE THOUSAND"

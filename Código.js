@@ -2064,6 +2064,10 @@ function safeScenarioForClient_(s) {
     audioUrl: String(s.audioUrl || ''),
     isActive: s.isActive === true || String(s.isActive).toUpperCase() === 'TRUE',
     version: Number(s.version || 1),
+    // The altitude ATC instructed, stated by the scenario rather than re-derived
+    // from its text on every run. This is a whitelist, so a field absent here never
+    // reaches the client however faithfully the sheet records it.
+    targetAltitude: Number(s.targetAltitude) || 0,
     createdBy: String(s.createdBy || ''),
     createdAt: s.createdAt instanceof Date ? formatDateForClient_(s.createdAt) : String(s.createdAt || ''),
     updatedAt: s.updatedAt instanceof Date ? formatDateForClient_(s.updatedAt) : String(s.updatedAt || '')
