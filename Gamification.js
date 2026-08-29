@@ -206,13 +206,13 @@ function sendRequest(sessionToken, friendEmail) {
       var fromName = userIdx[from] || myEmail;
       MailApp.sendEmail({
         to:      friendEmail,
-        subject: 'AEROCOMMS — Squadron invitation from ' + fromName,
+        subject: 'aerocomms — Squadron invitation from ' + fromName,
         htmlBody: _emailWrap_(
           '<table width="100%" cellpadding="0" cellspacing="0" style="text-align:center;margin-bottom:24px;">' +
             '<tr><td>' +
-              '<img src="' + getLogoDataUrl() + '" alt="AEROCOMMS" style="width:64px;height:64px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.35);">' +
+              '<img src="' + getLogoDataUrl() + '" alt="aerocomms" style="width:64px;height:64px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.35);">' +
             '</td></tr>' +
-            '<tr><td style="padding-top:12px;font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#00d48e;">AEROCOMMS</td></tr>' +
+            '<tr><td style="padding-top:12px;font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#00d48e;">aerocomms</td></tr>' +
             '<tr><td style="padding-top:3px;font-size:12px;color:#4a6280;">Aviation English Interactive Campus</td></tr>' +
           '</table>' +
           '<div style="background:rgba(0,212,142,0.07);border:1px solid rgba(0,212,142,0.18);border-radius:12px;padding:18px 20px;margin:0 0 20px;text-align:center;">' +
@@ -220,7 +220,7 @@ function sendRequest(sessionToken, friendEmail) {
             '<div style="font-size:15px;font-weight:700;color:#00d48e;">Squadron Invitation</div>' +
           '</div>' +
           '<p style="margin:0 0 12px;font-size:14px;color:#dde6f0;line-height:1.6;">' +
-            '<strong style="color:#dde6f0;">' + fromName + '</strong> wants to add you to their squadron on AEROCOMMS.' +
+            '<strong style="color:#dde6f0;">' + fromName + '</strong> wants to add you to their squadron on aerocomms.' +
           '</p>' +
           '<p style="margin:0 0 24px;font-size:13px;color:#8fa3bb;line-height:1.6;">Log in and open the <strong style="color:#dde6f0;">Squadron</strong> tab to accept or decline the invitation.</p>' +
           '<p style="margin:0;font-size:12px;color:#2d4a63;">Sent from ' + myEmail + '</p>'
@@ -376,13 +376,13 @@ function sendChallenge(sessionToken, targetEmail, scenarioName, myScore) {
       var scoreText   = (scoreValue !== '') ? ' Their score to beat: <strong>' + scoreValue + '</strong>.' : '';
       MailApp.sendEmail({
         to:      targetEmail,
-        subject: 'AEROCOMMS — ' + chalName + ' has challenged you!',
+        subject: 'aerocomms — ' + chalName + ' has challenged you!',
         htmlBody: _emailWrap_(
           '<table width="100%" cellpadding="0" cellspacing="0" style="text-align:center;margin-bottom:24px;">' +
             '<tr><td>' +
-              '<img src="' + getLogoDataUrl() + '" alt="AEROCOMMS" style="width:64px;height:64px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(245,158,11,0.4);">' +
+              '<img src="' + getLogoDataUrl() + '" alt="aerocomms" style="width:64px;height:64px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(245,158,11,0.4);">' +
             '</td></tr>' +
-            '<tr><td style="padding-top:12px;font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#f59e0b;">AEROCOMMS</td></tr>' +
+            '<tr><td style="padding-top:12px;font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#f59e0b;">aerocomms</td></tr>' +
             '<tr><td style="padding-top:3px;font-size:12px;color:#4a6280;">Aviation English Interactive Campus</td></tr>' +
           '</table>' +
           '<div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.22);border-radius:12px;padding:18px 20px;margin:0 0 20px;text-align:center;">' +

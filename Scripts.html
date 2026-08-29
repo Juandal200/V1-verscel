@@ -6896,7 +6896,7 @@
         '<div class="sim-left-col">' +
         '<div class="sim-cockpit-header">' +
           '<div class="sim-header-brand">' +
-            '<img src="' + (document.getElementById('appLogoHidden') ? document.getElementById('appLogoHidden').src : '') + '" class="sim-header-logo" alt="AEROCOMMS">' +
+            '<img src="' + (document.getElementById('appLogoHidden') ? document.getElementById('appLogoHidden').src : '') + '" class="sim-header-logo" alt="aerocomms">' +
             '<div>' +
               '<p class="eyebrow">Live simulator</p>' +
               '<h2>Exercise ' + safeText(currentIndex + 1) + ' of ' + safeText(total) + '</h2>' +
@@ -14739,7 +14739,7 @@
     }).join('');
 
     var html = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
-      '<title>AEROCOMMS Progress Report</title>' +
+      '<title>aerocomms Progress Report</title>' +
       '<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;color:#111;background:#fff;padding:40px;}' +
       'h1{font-size:22px;font-weight:800;color:#0f172a;margin-bottom:4px;}' +
       '.sub{font-size:13px;color:#6b7280;margin-bottom:28px;}' +
@@ -14753,7 +14753,7 @@
       '</style></head><body>' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;">' +
         '<div>' +
-          '<h1>AEROCOMMS — Progress Report</h1>' +
+          '<h1>aerocomms — Progress Report</h1>' +
           '<div class="sub">' + safeText(res.userName || '') + ' · Generated ' + dateStr + '</div>' +
         '</div>' +
         '<button onclick="window.print()" style="padding:8px 18px;background:#0ea5e9;color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;">Print / Save PDF</button>' +
@@ -14822,7 +14822,7 @@
       '</tr>';
     }).join('') : '<tr><td colspan="6" style="padding:20px;text-align:center;color:#9ca3af;font-size:12px;">No modules attempted yet.</td></tr>';
 
-    var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>AEROCOMMS Progress Report</title>' +
+    var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>aerocomms Progress Report</title>' +
       '<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,Helvetica,sans-serif;color:#111;background:#fff;padding:40px 48px;}' +
       'h1{font-size:20px;font-weight:800;color:#0f172a;margin:0;}' +
       'h2{font-size:13px;font-weight:800;color:#0f172a;letter-spacing:.06em;text-transform:uppercase;margin:0 0 14px;}' +
@@ -14841,7 +14841,7 @@
       // ── Report header ──────────────────────────────────────────────
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px;">' +
         '<div>' +
-          '<div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#0ea5e9;margin-bottom:6px;">AEROCOMMS</div>' +
+          '<div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#0ea5e9;margin-bottom:6px;">aerocomms</div>' +
           '<h1>Progress Report</h1>' +
           (name ? '<div class="sub">' + name + '</div>' : '') +
           '<div class="sub">Generated ' + dateStr + '</div>' +
@@ -26541,7 +26541,7 @@ function _aeroShowInstallBar(mode) {
   var body, action;
   if (mode === 'ios') {
     body =
-      '<p style="margin:0 0 4px;font-weight:700;font-size:0.9rem;">Add AEROCOMMS to your home screen</p>' +
+      '<p style="margin:0 0 4px;font-weight:700;font-size:0.9rem;">Add aerocomms to your home screen</p>' +
       '<p style="margin:0;font-size:0.78rem;line-height:1.5;color:#b9b9b9;">' +
         'Tap ' + shareGlyph + ' below, then <strong style="color:#e6e6e6;">Add to Home Screen</strong>. ' +
         'Keeps you signed in and turns on your streak reminders.</p>';
@@ -26550,7 +26550,7 @@ function _aeroShowInstallBar(mode) {
       'onclick="_aeroDismissInstall()">Got it</button>';
   } else {
     body =
-      '<p style="margin:0 0 4px;font-weight:700;font-size:0.9rem;">Install AEROCOMMS</p>' +
+      '<p style="margin:0 0 4px;font-weight:700;font-size:0.9rem;">Install aerocomms</p>' +
       '<p style="margin:0;font-size:0.78rem;line-height:1.5;color:#b9b9b9;">' +
         'Adds an icon to your device \u2014 full screen, works offline, streak reminders.</p>';
     action =
@@ -26655,13 +26655,13 @@ function _aeroPageInstall(btn) {
       if (b) b.innerHTML =
         '<p style="margin:0;font-size:0.95rem;font-weight:700;color:#22c55e;">✓ Installing…</p>' +
         '<p style="margin:6px 0 0;font-size:0.82rem;color:var(--muted,#808080);">' +
-        'Look for the AEROCOMMS icon on your home screen.</p>';
+        'Look for the aerocomms icon on your home screen.</p>';
     } else if (btn) {
       btn.disabled = false;
-      btn.textContent = 'Install AEROCOMMS';
+      btn.textContent = 'Install aerocomms';
     }
   }).catch(function () {
-    if (btn) { btn.disabled = false; btn.textContent = 'Install AEROCOMMS'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Install aerocomms'; }
   });
 }
 
@@ -26673,13 +26673,13 @@ function _aeroRenderInstallPage() {
   try {
     var hidden = document.getElementById('appLogoHidden');
     if (hidden && hidden.src) {
-      logo = '<img src="' + hidden.src + '" alt="AEROCOMMS" ' +
+      logo = '<img src="' + hidden.src + '" alt="aerocomms" ' +
              'style="width:300px;max-width:82%;height:auto;margin:0 auto 18px;display:block;' +
              'object-fit:contain;filter:drop-shadow(0 0 32px rgba(255,255,255,.12));">';
     }
   } catch (e) {}
   if (!logo) {
-    logo = '<h2 style="margin:0 0 18px;font-size:1.5rem;letter-spacing:.06em;">AEROCOMMS</h2>';
+    logo = '<h2 style="margin:0 0 18px;font-size:1.5rem;letter-spacing:.06em;">aerocomms</h2>';
   }
 
   var share =
@@ -26706,7 +26706,7 @@ function _aeroRenderInstallPage() {
         step(1, 'Tap the <strong style="color:var(--white,#fff);">Share</strong> button ' + share +
                 ' at the bottom of your screen.') +
         step(2, 'Scroll down and choose <strong style="color:var(--white,#fff);">Add to Home Screen</strong>.') +
-        step(3, 'Tap <strong style="color:var(--white,#fff);">Add</strong>. The AEROCOMMS icon appears on your home screen.') +
+        step(3, 'Tap <strong style="color:var(--white,#fff);">Add</strong>. The aerocomms icon appears on your home screen.') +
       '</ul>';
     note = 'You only do this once.';
   } else if (_aeroIsInAppBrowser()) {
@@ -26721,7 +26721,7 @@ function _aeroRenderInstallPage() {
   } else {
     inner =
       '<button class="btn primary full" id="_aeroPageBtn" onclick="_aeroPageInstall(this)">' +
-      'Install AEROCOMMS</button>' +
+      'Install aerocomms</button>' +
       '<p id="_aeroPageHint" style="margin:12px 0 0;font-size:0.82rem;color:var(--muted,#808080);">' +
       'Your phone will ask you to confirm.</p>';
     note = '';
@@ -26738,7 +26738,7 @@ function _aeroRenderInstallPage() {
       logo +
       '<p class="eyebrow" style="margin-bottom:16px;">Interactive Campus of Aviation English</p>' +
       '<h1 style="margin:0 0 8px;font-size:1.32rem;line-height:1.3;color:var(--white,#fff);">' +
-        'Add AEROCOMMS to your phone</h1>' +
+        'Add aerocomms to your phone</h1>' +
       '<p style="margin:0 0 22px;font-size:0.88rem;line-height:1.6;color:var(--muted,#808080);">' +
         'Opens full screen, works without signal, and keeps you signed in.</p>' +
       '<div id="_aeroPageStep" style="background:var(--panel,rgba(18,18,18,.97));' +

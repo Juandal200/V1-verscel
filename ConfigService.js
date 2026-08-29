@@ -701,7 +701,7 @@ function _emailWrap_(bodyHtml) {
       '</div>' +
       '<div style="border-top:1px solid rgba(255,255,255,0.07);padding:16px 36px;background:#000000;">' +
         '<p style="margin:0;font-size:11px;color:#555555;text-align:center;letter-spacing:0.5px;">' +
-          'AEROCOMMS &mdash; ICAO Aviation Training Platform. You are receiving this email because you have an account on this platform.' +
+          'aerocomms &mdash; ICAO Aviation Training Platform. You are receiving this email because you have an account on this platform.' +
         '</p>' +
       '</div>' +
     '</div>' +

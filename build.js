@@ -190,8 +190,8 @@ html = html.replace(/(<style[^>]*>)([\s\S]*?)(<\/style>)/gi, function(_, open, c
 
   // 8. manifest.json
   fs.writeFileSync(path.join(DIST, 'manifest.json'), JSON.stringify({
-    name: 'AEROCOMMS',
-    short_name: 'AEROCOMMS',
+    name: 'aerocomms',
+    short_name: 'aerocomms',
     description: 'ICAO Language Proficiency Training Platform',
     start_url: '/',
     display: 'standalone',

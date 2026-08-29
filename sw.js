@@ -69,7 +69,7 @@ self.addEventListener('fetch', function(e) {
 self.addEventListener('push', function(e) {
   var data = {};
   try { data = e.data ? e.data.json() : {}; } catch(_) {}
-  var title = data.title || 'AEROCOMMS';
+  var title = data.title || 'aerocomms';
   var opts  = {
     body:  data.body  || 'Keep your streak alive!',
     icon:  data.icon  || '/icon-192.png',

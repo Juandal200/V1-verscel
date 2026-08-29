@@ -700,7 +700,7 @@ var TourService = (function () {
     var testLogoBlob   = Utilities.newBlob(Utilities.base64Decode(testLogoBase64), 'image/png', 'logo.png');
     MailApp.sendEmail({
       to:       email,
-      subject:  '[TEST PREVIEW] AEROCOMMS — Tour ' + tour.weekNumber + ' · New Scenarios Available',
+      subject:  '[TEST PREVIEW] aerocomms — Tour ' + tour.weekNumber + ' · New Scenarios Available',
       htmlBody: _emailWrap_(
         '<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 16px;margin-bottom:20px;font-size:12px;color:#f59e0b;font-weight:700;letter-spacing:0.5px;">TEST PREVIEW — This is how the weekly email looks to your students</div>' +
         _buildWeeklyEmail_(name, stats, entries.length || 1, tour, appUrl, isDoubleXp, String(user.profession || 'PILOT').toUpperCase())
@@ -783,7 +783,7 @@ var TourService = (function () {
         var wkLogoBlob   = Utilities.newBlob(Utilities.base64Decode(wkLogoBase64), 'image/png', 'logo.png');
         MailApp.sendEmail({
           to:       email,
-          subject:  'AEROCOMMS — Tour ' + tour.weekNumber + ' · New Scenarios Available',
+          subject:  'aerocomms — Tour ' + tour.weekNumber + ' · New Scenarios Available',
           htmlBody: _emailWrap_(_buildWeeklyEmail_(name, stats, totalRanked, tour, appUrl, isDoubleXp, profession)),
           inlineImages: { aerocommsLogo: wkLogoBlob }
         });
@@ -823,7 +823,7 @@ var TourService = (function () {
     var logoBlock =
       '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">' +
         '<tr><td align="center">' +
-          '<img src="cid:aerocommsLogo" alt="AEROCOMMS" style="width:160px;height:93px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.35);display:block;margin:0 auto;">' +
+          '<img src="cid:aerocommsLogo" alt="aerocomms" style="width:160px;height:93px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.35);display:block;margin:0 auto;">' +
           '<div style="padding-top:8px;font-size:11px;color:#4a6280;letter-spacing:1.5px;font-family:Arial,Helvetica,sans-serif;">AVIATION ENGLISH INTERACTIVE CAMPUS</div>' +
         '</td></tr>' +
       '</table>';

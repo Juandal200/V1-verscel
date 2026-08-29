@@ -1,7 +1,7 @@
 {
   "name": "aerocomms",
   "version": "1.0.0",
-  "description": "AEROCOMMS ICAO Trainer — Vercel frontend",
+  "description": "aerocomms ICAO Trainer — Vercel frontend",
   "scripts": {
     "build": "node build.js",
     "dev": "node build.js && npx serve dist -p 3000"
