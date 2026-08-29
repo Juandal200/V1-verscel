@@ -26612,4 +26612,181 @@ window.addEventListener('appinstalled', function () {
 window._aeroInstallInit   = _aeroInstallInit;
 window._aeroDismissInstall = _aeroDismissInstall;
 window._aeroDoInstall      = _aeroDoInstall;
+
+/* ── /install ─────────────────────────────────────────────────────────────────
+   The landing page behind the brochure QR code.
+
+   A QR scanned with the phone's own camera opens in Safari on iOS and Chrome on
+   Android — the only two browsers that can add an icon to the home screen — so
+   the scan itself removes the biggest obstacle. What it cannot do is skip the
+   confirmation: neither OS lets a page install itself. This page exists to make
+   the remaining taps obvious and immediate, rather than waiting on the timed
+   banner and competing with everything else on the home screen.
+
+   Rendered as an overlay rather than a route, so it does not have to negotiate
+   with the app's own screen management. It sits on top, and dismissing it simply
+   reveals the app already booted underneath.
+────────────────────────────────────────────────────────────────────────────── */
+var _AERO_INSTALL_PATHS = { '/install': 1, '/install/': 1, '/app': 1, '/app/': 1 };
+
+function _aeroInstallPageWanted() {
+  try {
+    if (_AERO_INSTALL_PATHS[String(location.pathname || '').toLowerCase()]) return true;
+    return /(^|[?&])install=1(&|$)/.test(String(location.search || '').slice(1));
+  } catch (e) { return false; }
+}
+
+function _aeroCloseInstallPage() {
+  var el = document.getElementById('_aeroInstallPage');
+  if (el && el.parentNode) el.parentNode.removeChild(el);
+  // Leave a clean URL so a refresh lands on the app, not back here.
+  try { if (history.replaceState) history.replaceState(null, '', '/'); } catch (e) {}
+}
+
+function _aeroPageInstall(btn) {
+  if (!_aeroDeferredPrompt) return;
+  var evt = _aeroDeferredPrompt;
+  _aeroDeferredPrompt = null;
+  if (btn) { btn.disabled = true; btn.textContent = 'Check your screen…'; }
+  evt.prompt();
+  evt.userChoice.then(function (choice) {
+    if (choice && choice.outcome === 'accepted') {
+      var b = document.getElementById('_aeroPageStep');
+      if (b) b.innerHTML =
+        '<p style="margin:0;font-size:0.95rem;font-weight:700;color:#22c55e;">✓ Installing…</p>' +
+        '<p style="margin:6px 0 0;font-size:0.82rem;color:var(--muted,#808080);">' +
+        'Look for the AEROCOMMS icon on your home screen.</p>';
+    } else if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Install AEROCOMMS';
+    }
+  }).catch(function () {
+    if (btn) { btn.disabled = false; btn.textContent = 'Install AEROCOMMS'; }
+  });
+}
+
+function _aeroRenderInstallPage() {
+  if (document.getElementById('_aeroInstallPage')) return;
+  if (_aeroIsStandalone()) { _aeroCloseInstallPage(); return; }  // already installed
+
+  var logo = '';
+  try {
+    var hidden = document.getElementById('appLogoHidden');
+    if (hidden && hidden.src) {
+      logo = '<img src="' + hidden.src + '" alt="AEROCOMMS" ' +
+             'style="width:300px;max-width:82%;height:auto;margin:0 auto 18px;display:block;' +
+             'object-fit:contain;filter:drop-shadow(0 0 32px rgba(255,255,255,.12));">';
+    }
+  } catch (e) {}
+  if (!logo) {
+    logo = '<h2 style="margin:0 0 18px;font-size:1.5rem;letter-spacing:.06em;">AEROCOMMS</h2>';
+  }
+
+  var share =
+    '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="#0a84ff" stroke-width="2" ' +
+    'stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px;">' +
+    '<path d="M12 16V3"/><path d="M8 7l4-4 4 4"/>' +
+    '<path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>';
+
+  function step(n, html) {
+    return '' +
+      '<li style="display:flex;gap:12px;align-items:flex-start;text-align:left;margin-bottom:14px;">' +
+        '<span style="flex:0 0 26px;width:26px;height:26px;border-radius:50%;' +
+        'background:rgba(255,255,255,.08);border:1px solid var(--line,rgba(186,186,186,.12));' +
+        'font-size:0.8rem;font-weight:800;line-height:25px;text-align:center;color:var(--white,#fff);">' +
+        n + '</span>' +
+        '<span style="flex:1;font-size:0.9rem;line-height:1.55;color:var(--text,#cacaca);">' + html + '</span>' +
+      '</li>';
+  }
+
+  var inner, note;
+  if (_aeroIsIOS()) {
+    inner =
+      '<ul style="list-style:none;margin:0;padding:0;">' +
+        step(1, 'Tap the <strong style="color:var(--white,#fff);">Share</strong> button ' + share +
+                ' at the bottom of your screen.') +
+        step(2, 'Scroll down and choose <strong style="color:var(--white,#fff);">Add to Home Screen</strong>.') +
+        step(3, 'Tap <strong style="color:var(--white,#fff);">Add</strong>. The AEROCOMMS icon appears on your home screen.') +
+      '</ul>';
+    note = 'You only do this once.';
+  } else if (_aeroIsInAppBrowser()) {
+    // Facebook/Instagram/LinkedIn browsers cannot install at all.
+    inner =
+      '<p style="margin:0;font-size:0.92rem;line-height:1.6;color:var(--text,#cacaca);">' +
+      'Open this page in <strong style="color:var(--white,#fff);">Chrome</strong> or ' +
+      '<strong style="color:var(--white,#fff);">Safari</strong> to add the app to your home screen.</p>' +
+      '<p style="margin:10px 0 0;font-size:0.82rem;color:var(--muted,#808080);">' +
+      'Use the menu in the corner and choose “Open in browser”.</p>';
+    note = '';
+  } else {
+    inner =
+      '<button class="btn primary full" id="_aeroPageBtn" onclick="_aeroPageInstall(this)">' +
+      'Install AEROCOMMS</button>' +
+      '<p id="_aeroPageHint" style="margin:12px 0 0;font-size:0.82rem;color:var(--muted,#808080);">' +
+      'Your phone will ask you to confirm.</p>';
+    note = '';
+  }
+
+  var page = document.createElement('div');
+  page.id = '_aeroInstallPage';
+  page.style.cssText =
+    'position:fixed;inset:0;z-index:100000;overflow-y:auto;-webkit-overflow-scrolling:touch;' +
+    'background:var(--bg,#0d0d0d);color:var(--text,#cacaca);' +
+    'padding:max(28px,env(safe-area-inset-top)) 20px calc(28px + env(safe-area-inset-bottom));';
+  page.innerHTML =
+    '<div style="max-width:400px;margin:0 auto;text-align:center;">' +
+      logo +
+      '<p class="eyebrow" style="margin-bottom:16px;">Interactive Campus of Aviation English</p>' +
+      '<h1 style="margin:0 0 8px;font-size:1.32rem;line-height:1.3;color:var(--white,#fff);">' +
+        'Add AEROCOMMS to your phone</h1>' +
+      '<p style="margin:0 0 22px;font-size:0.88rem;line-height:1.6;color:var(--muted,#808080);">' +
+        'Opens full screen, works without signal, and keeps you signed in.</p>' +
+      '<div id="_aeroPageStep" style="background:var(--panel,rgba(18,18,18,.97));' +
+        'border:1px solid var(--line,rgba(186,186,186,.12));border-radius:16px;padding:20px 18px;">' +
+        inner +
+      '</div>' +
+      (note ? '<p style="margin:14px 0 0;font-size:0.78rem;color:var(--muted,#808080);">' + note + '</p>' : '') +
+      '<button onclick="_aeroCloseInstallPage()" ' +
+        'style="margin-top:26px;background:none;border:0;padding:8px;cursor:pointer;' +
+        'font-size:0.82rem;color:var(--muted,#808080);text-decoration:underline;">' +
+        'Continue in the browser instead</button>' +
+    '</div>';
+
+  document.body.appendChild(page);
+
+  // Chrome only lets us call prompt() once beforeinstallprompt has fired, and that
+  // can lag the first paint. Fall back to the menu route rather than leaving a
+  // button that does nothing when tapped.
+  if (!_aeroIsIOS() && !_aeroIsInAppBrowser()) {
+    var btn = document.getElementById('_aeroPageBtn');
+    if (btn && !_aeroDeferredPrompt) {
+      btn.disabled = true;
+      setTimeout(function () {
+        if (_aeroDeferredPrompt) { btn.disabled = false; return; }
+        var host = document.getElementById('_aeroPageStep');
+        if (!host) return;
+        host.innerHTML =
+          '<ul style="list-style:none;margin:0;padding:0;">' +
+            step(1, 'Open the <strong style="color:var(--white,#fff);">⋮</strong> menu at the top right.') +
+            step(2, 'Choose <strong style="color:var(--white,#fff);">Install app</strong> or ' +
+                    '<strong style="color:var(--white,#fff);">Add to Home screen</strong>.') +
+          '</ul>';
+      }, 4000);
+    }
+  }
+}
+
+window._aeroRenderInstallPage = _aeroRenderInstallPage;
+window._aeroCloseInstallPage  = _aeroCloseInstallPage;
+window._aeroPageInstall       = _aeroPageInstall;
+
+// Show it as early as possible — this is the first thing a QR scanner sees.
+(function () {
+  if (!_aeroInstallPageWanted()) return;
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _aeroRenderInstallPage);
+  } else {
+    _aeroRenderInstallPage();
+  }
+})();
 </script>
