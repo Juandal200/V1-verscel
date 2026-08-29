@@ -1213,6 +1213,7 @@
     } catch(e) {}
 
     if (window._gamStartPoll) setTimeout(_gamStartPoll, 2000);
+    if (window._aeroInstallInit) _aeroInstallInit();
 
     // Skip the GAS call when bootstrap already loaded this data (session-restore path)
     if (window._bootstrapLoaded) {
@@ -1544,7 +1545,7 @@
             if (!('Notification' in window) || !('PushManager' in window)) return '';
             if (Notification.permission === 'denied') return '';
             if (localStorage.getItem('_aeroPushSub')) return '';
-            return '<button class="btn secondary" style="width:100%;font-size:0.78rem;margin-top:8px;opacity:0.8;" onclick="event.stopPropagation();_enablePushNotifications();this.textContent=\'✓ Reminders on\';this.disabled=true;">🔔 Enable streak reminders</button>';
+            return '<button class="btn secondary" style="width:100%;font-size:0.78rem;margin-top:8px;opacity:0.8;" onclick="event.stopPropagation();_enablePushNotifications(this);">🔔 Enable streak reminders</button>';
           } catch(e) { return ''; }
         })();
         // Time left in the STREAK day, taken from the server. Computing it here as
@@ -26378,11 +26379,14 @@ function _dcAdminOptRow(idx, letter, value, correct) {
   '</div>';
 }
 
+// Resolves true only once the browser has issued a subscription. The caller needs
+// to know: permission being granted is not the same as push actually working, and
+// the UI used to claim success before either had happened.
 function _subscribePush() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return Promise.resolve(false);
   var vapidKey = window.APP_CONFIG && window.APP_CONFIG.vapidPublicKey;
-  if (!vapidKey) return;
-  navigator.serviceWorker.ready.then(function(reg) {
+  if (!vapidKey) return Promise.resolve(false);
+  return navigator.serviceWorker.ready.then(function(reg) {
     return reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: _urlBase64ToUint8Array(vapidKey)
@@ -26390,13 +26394,15 @@ function _subscribePush() {
   }).then(function(sub) {
     try { localStorage.setItem('_aeroPushSub', '1'); } catch(e) {}
     var token = AppState && AppState.sessionToken;
-    if (!token) return;
+    if (!token) return true;   // subscribed locally; the server copy can wait
     google.script.run
       .withSuccessHandler(function() {})
       .withFailureHandler(function() {})
       .apiSavePushSubscription({ sessionToken: token, subscription: sub.toJSON() });
+    return true;
   }).catch(function(err) {
     console.warn('[push] subscribe failed', err);
+    return false;
   });
 }
 
@@ -26407,13 +26413,203 @@ function _initPushNotifications() {
   }
 }
 
-function _enablePushNotifications() {
+// btn is optional. When present it is driven from the ACTUAL result: the old
+// call site flipped the label to "Reminders on" synchronously in its onclick,
+// before the permission dialog had even been answered, so a student who tapped
+// Block was still told their reminders were on.
+function _enablePushNotifications(btn) {
   if (!('Notification' in window)) return;
+  var label = btn && btn.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = 'Asking\u2026'; }
   Notification.requestPermission().then(function(perm) {
-    if (perm === 'granted') _subscribePush();
+    if (perm !== 'granted') {
+      if (!btn) return;
+      // "default" means dismissed without choosing — let them try again.
+      btn.textContent = (perm === 'denied') ? 'Reminders blocked' : label;
+      btn.disabled    = (perm === 'denied');
+      return;
+    }
+    return Promise.resolve(_subscribePush()).then(function(ok) {
+      if (!btn) return;
+      btn.textContent = ok ? '\u2713 Reminders on' : 'Could not enable \u2014 try again';
+      btn.disabled    = !!ok;
+    });
+  }).catch(function() {
+    if (btn) { btn.disabled = false; btn.textContent = label; }
   });
 }
 
 window._initPushNotifications  = _initPushNotifications;
 window._enablePushNotifications = _enablePushNotifications;
+
+/* ── Add to Home Screen ───────────────────────────────────────────────────────
+   Two different jobs behind one banner.
+
+   Android/Chrome fires beforeinstallprompt once the site qualifies as installable.
+   We keep the event and re-fire it from our own button, so the offer lands when a
+   student has actually used the app instead of ten seconds after they arrive,
+   which is when Chrome would otherwise raise it and get dismissed.
+
+   iOS never fires that event, and Safari surfaces no install affordance at all —
+   Add to Home Screen is buried in the Share sheet and Apple does not advertise it.
+   So the only thing we can do there is explain the two taps. That matters more
+   than presentation: iOS delivers web push ONLY to home-screen apps, and Safari
+   clears a site's localStorage after roughly seven days without a visit, which
+   here means icao_session_token and any half-finished route. Installed, neither
+   limitation applies.
+────────────────────────────────────────────────────────────────────────────── */
+var _aeroDeferredPrompt = null;
+var _AERO_INSTALL_KEY   = '_aeroInstallDismissedAt';
+var _AERO_SNOOZE_DAYS   = 21;
+
+function _aeroIsStandalone() {
+  try {
+    if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+  } catch (e) {}
+  return window.navigator.standalone === true; // iOS home-screen apps
+}
+
+function _aeroIsIOS() {
+  var ua = navigator.userAgent || '';
+  if (/iPad|iPhone|iPod/.test(ua)) return true;
+  // iPadOS 13+ reports itself as a Mac; the touch points give it away.
+  return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+}
+
+// In-app browsers (LinkedIn, Instagram, Facebook, Chrome Custom Tabs) cannot add
+// to the home screen, and on Android they never receive beforeinstallprompt. The
+// instructions would simply be wrong there, so say nothing and catch the student
+// next time they open the app in a real browser.
+function _aeroIsInAppBrowser() {
+  var ua = navigator.userAgent || '';
+  return /FBAN|FBAV|FB_IAB|Instagram|LinkedInApp|Line\/|MicroMessenger|Twitter/i.test(ua);
+}
+
+function _aeroInstallSnoozed() {
+  try {
+    var at = parseInt(localStorage.getItem(_AERO_INSTALL_KEY) || '0', 10);
+    return !!at && (Date.now() - at) < _AERO_SNOOZE_DAYS * 864e5;
+  } catch (e) { return false; }
+}
+
+function _aeroDismissInstall() {
+  try { localStorage.setItem(_AERO_INSTALL_KEY, String(Date.now())); } catch (e) {}
+  var el = document.getElementById('_aeroInstallBar');
+  if (!el) return;
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(10px)';
+  setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 250);
+}
+
+function _aeroDoInstall() {
+  if (!_aeroDeferredPrompt) return;
+  var evt = _aeroDeferredPrompt;
+  _aeroDeferredPrompt = null;
+  evt.prompt();
+  evt.userChoice.then(function (choice) {
+    // Dismissing Chrome's own dialog is a real "no" — snooze rather than re-ask.
+    if (choice && choice.outcome !== 'accepted') _aeroDismissInstall();
+    else {
+      var el = document.getElementById('_aeroInstallBar');
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    }
+  }).catch(function () {});
+}
+
+function _aeroShowInstallBar(mode) {
+  if (document.getElementById('_aeroInstallBar')) return;
+
+  var narrow = window.innerWidth <= 768;
+  var bar = document.createElement('div');
+  bar.id = '_aeroInstallBar';
+  bar.style.cssText =
+    'position:fixed;z-index:99998;left:12px;right:12px;' +
+    'bottom:' + (narrow ? 'calc(72px + env(safe-area-inset-bottom) + 12px)' : '24px') + ';' +
+    (narrow ? '' : 'left:auto;right:24px;max-width:380px;') +
+    'background:rgba(18,18,18,.97);border:1px solid rgba(0,229,160,.35);' +
+    'border-radius:14px;padding:14px 16px;color:#fff;' +
+    'box-shadow:0 12px 32px rgba(0,0,0,.55);' +
+    'backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);' +
+    'opacity:0;transform:translateY(10px);transition:opacity .3s ease,transform .3s ease;';
+
+  var shareGlyph =
+    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#0af" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ' +
+    'style="vertical-align:-3px;margin:0 2px;"><path d="M12 16V3"/><path d="M8 7l4-4 4 4"/>' +
+    '<path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>';
+
+  var body, action;
+  if (mode === 'ios') {
+    body =
+      '<p style="margin:0 0 4px;font-weight:700;font-size:0.9rem;">Add AEROCOMMS to your home screen</p>' +
+      '<p style="margin:0;font-size:0.78rem;line-height:1.5;color:#b9b9b9;">' +
+        'Tap ' + shareGlyph + ' below, then <strong style="color:#e6e6e6;">Add to Home Screen</strong>. ' +
+        'Keeps you signed in and turns on your streak reminders.</p>';
+    action =
+      '<button class="btn secondary" style="padding:7px 14px;font-size:0.78rem;white-space:nowrap;" ' +
+      'onclick="_aeroDismissInstall()">Got it</button>';
+  } else {
+    body =
+      '<p style="margin:0 0 4px;font-weight:700;font-size:0.9rem;">Install AEROCOMMS</p>' +
+      '<p style="margin:0;font-size:0.78rem;line-height:1.5;color:#b9b9b9;">' +
+        'Adds an icon to your device \u2014 full screen, works offline, streak reminders.</p>';
+    action =
+      '<button class="btn primary" style="padding:7px 14px;font-size:0.78rem;white-space:nowrap;" ' +
+      'onclick="_aeroDoInstall()">Install</button>' +
+      '<button class="btn secondary" style="padding:7px 12px;font-size:0.78rem;" ' +
+      'onclick="_aeroDismissInstall()">Later</button>';
+  }
+
+  bar.innerHTML =
+    '<div style="display:flex;gap:12px;align-items:flex-start;">' +
+      '<div style="flex:1;min-width:0;">' + body + '</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;">' + action + '</div>';
+
+  document.body.appendChild(bar);
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      bar.style.opacity = '1';
+      bar.style.transform = 'translateY(0)';
+    });
+  });
+}
+
+function _aeroInstallInit() {
+  if (_aeroIsStandalone()) return;      // already installed — nothing to offer
+  if (_aeroIsInAppBrowser()) return;    // cannot install from here
+  if (_aeroInstallSnoozed()) return;
+
+  // iOS: no event will ever arrive, so show the instructions on a delay once the
+  // student is settled. Skipped on desktop Safari, where there is no home screen.
+  if (_aeroIsIOS()) {
+    setTimeout(function () {
+      if (!_aeroIsStandalone() && !_aeroInstallSnoozed()) _aeroShowInstallBar('ios');
+    }, 12000);
+  }
+  // Android is handled by the beforeinstallprompt listener registered below.
+}
+
+// Chrome fires this as soon as the site qualifies, which can be well before login.
+// Capture it whenever it lands; the banner is only raised once a session is active.
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault();              // suppress Chrome's own bar, we place our own
+  _aeroDeferredPrompt = e;
+  if (_aeroIsStandalone() || _aeroInstallSnoozed()) return;
+  if (!window.AppState || !AppState.sessionToken) return;
+  setTimeout(function () {
+    if (_aeroDeferredPrompt && !_aeroInstallSnoozed()) _aeroShowInstallBar('android');
+  }, 8000);
+});
+
+window.addEventListener('appinstalled', function () {
+  _aeroDeferredPrompt = null;
+  var el = document.getElementById('_aeroInstallBar');
+  if (el && el.parentNode) el.parentNode.removeChild(el);
+  try { localStorage.removeItem(_AERO_INSTALL_KEY); } catch (e) {}
+});
+
+window._aeroInstallInit   = _aeroInstallInit;
+window._aeroDismissInstall = _aeroDismissInstall;
+window._aeroDoInstall      = _aeroDoInstall;
 </script>

@@ -6,7 +6,6 @@
 // ─────────────────────────────────────────────────────────────────────────────
 const fs            = require('fs');
 const path          = require('path');
-const { execSync }  = require('child_process');
 const { minify }    = require('terser');
 
 const ROOT = __dirname;
@@ -162,17 +161,32 @@ html = html.replace(/(<style[^>]*>)([\s\S]*?)(<\/style>)/gi, function(_, open, c
   const kb = Math.round(fs.statSync(path.join(DIST, 'index.html')).size / 1024);
   console.log('✓ dist/index.html  (' + kb + ' KB)');
 
-  // 7. PWA icons — resize LOGOF.png (2048×2048) via macOS sips
-  const logoSrc = path.join(ROOT, 'LOGOF.png');
-  if (fs.existsSync(logoSrc)) {
-    try {
-      execSync('sips -z 192 192 "' + logoSrc + '" --out "' + path.join(DIST, 'icon-192.png') + '" > /dev/null 2>&1');
-      execSync('sips -z 512 512 "' + logoSrc + '" --out "' + path.join(DIST, 'icon-512.png') + '" > /dev/null 2>&1');
-      console.log('✓ PWA icons generated (192×192, 512×512)');
-    } catch(e) {
-      console.warn('⚠ Icon generation skipped:', e.message);
+  // 7. PWA icons — copied from pre-rendered PNGs committed at the repo root.
+  //
+  // These used to be resized here from LOGOF.png with `sips`, which exists only on
+  // macOS. Vercel builds on Linux, so the call threw, the catch swallowed it as a
+  // warning, and the build succeeded with no icons in dist at all. Requests for them
+  // then fell through the catch-all rewrite in vercel.json and returned index.html
+  // as text/html — a 200, so it never looked like a failure — and Chrome, seeing two
+  // icons that would not load, refused to treat the site as installable. The icons
+  // were only ever correct on a Mac, where nobody was looking.
+  //
+  // Regenerate after a logo change:
+  //   sips -z 192 192 LOGOF.png --out icon-192.png
+  //   sips -z 512 512 LOGOF.png --out icon-512.png
+  const ICON_SIZES = [192, 512];
+  ICON_SIZES.forEach(function(size) {
+    const name = 'icon-' + size + '.png';
+    const src  = path.join(ROOT, name);
+    if (!fs.existsSync(src)) {
+      // Fail loudly. A missing icon silently disables installation, which is the
+      // exact failure this replaced.
+      throw new Error(name + ' is missing from the repo root — the PWA cannot be ' +
+                      'installed without it. Regenerate it with the sips command above.');
     }
-  }
+    fs.copyFileSync(src, path.join(DIST, name));
+  });
+  console.log('✓ PWA icons copied (192×192, 512×512)');
 
   // 8. manifest.json
   fs.writeFileSync(path.join(DIST, 'manifest.json'), JSON.stringify({

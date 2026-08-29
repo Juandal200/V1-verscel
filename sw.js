@@ -1,4 +1,4 @@
-var CACHE = 'aerocomms-v4'; // bump version
+var CACHE = 'aerocomms-v5'; // bump version
 
 // install: pre-cache the shell
 self.addEventListener('install', function(e) {
