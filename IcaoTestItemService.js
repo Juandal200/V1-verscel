@@ -622,3 +622,177 @@ function _icaoNormLine_(text) {
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * SCRIPTED TEST — the ordered step list a sitting is played from.
+ *
+ * The exam used to be conducted by the language model: it decided what to say
+ * next, in its own words, and the client tried to follow along. Nearly every
+ * fault we chased came from that — wording drifting away from the phrases the
+ * client watched for, turns advancing twice or not at all, and above all the
+ * voice, because a line invented at the moment it is needed has to be
+ * synthesised live and can arrive late or not at all.
+ *
+ * Here the sitting is data. Rows in orderIndex order, each one a step: something
+ * the examiner says, a recording to play, an image to show, or a question that
+ * opens the mic. The model still grades, once, at the end, on the full
+ * transcript — which is the part it is actually good at.
+ *
+ * A version is a bank. Set every row's voice to a US voice and bank A is
+ * American throughout, examiner included, because the examiner's own lines are
+ * rows too. Adding version D is data entry plus renderIcaoTestAudio.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+// Fallback answer windows, used only when a row leaves answerSeconds blank, so a
+// half-filled bank still runs. A populated sheet overrides all of these.
+var ICAO_DEFAULT_ANSWER_SECS_ = {
+  INTERVIEW: 120,
+  IMAGE:     120,
+  '2A':       60,
+  '2B':       90,
+  '2C':       60
+};
+
+function _icaoAnswerSecs_(row) {
+  var raw = String(row.answerSeconds == null ? '' : row.answerSeconds).trim();
+  if (raw !== '') {
+    var n = Number(raw);
+    // A row that explicitly says 0 means "play and move on" — honour it.
+    if (!isNaN(n) && n >= 0) return Math.min(600, Math.round(n));
+  }
+  var type = String(row.itemType || '').toUpperCase();
+  if (type === 'LINE')  return 0;   // transitions never open the mic
+  if (type === 'AUDIO') return 0;   // the recording is listened to, not answered
+  if (type === 'INTERVIEW') return ICAO_DEFAULT_ANSWER_SECS_.INTERVIEW;
+  if (type === 'IMAGE')     return ICAO_DEFAULT_ANSWER_SECS_.IMAGE;
+  return ICAO_DEFAULT_ANSWER_SECS_[String(row.section || '').toUpperCase()] || 0;
+}
+
+/**
+ * The whole sitting, in order, for one bank.
+ *
+ * Returns ok:false rather than throwing; the client shows the failure instead of
+ * starting an exam it cannot finish.
+ */
+function apiGetIcaoTestScript(sessionToken, bank) {
+  try {
+    AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+
+    var rows;
+    try {
+      rows = dbReadAll_(ICAO_ITEMS_SHEET_);
+    } catch (e) {
+      return { ok: false, error: 'Item sheet not set up. Run setupIcaoTestItems().' };
+    }
+
+    var usable = _icaoUsableBanks_(rows);
+    if (!usable.length) return { ok: false, error: 'No usable version in the item bank.' };
+
+    // No bank named means "any version": one is drawn per sitting, so a candidate
+    // cannot predict which paper they will get and a retake is unlikely to repeat.
+    var wanted = String(bank || '').trim().toUpperCase();
+    if (!wanted || usable.indexOf(wanted) === -1) {
+      wanted = usable[Math.floor(Math.random() * usable.length)];
+    }
+
+    var steps = [];
+    rows.filter(function(r) {
+      if (String(r.isActive).toUpperCase() === 'FALSE') return false;
+      return String(r.bank || ICAO_ITEMS_BANK_).trim().toUpperCase() === wanted;
+    }).sort(function(a, b) {
+      return (Number(a.orderIndex) || 0) - (Number(b.orderIndex) || 0);
+    }).forEach(function(r) {
+      var id   = String(r.itemId || '').trim();
+      if (!id) return;
+      var type = String(r.itemType || '').toUpperCase();
+      var text = String(r.script || '').trim();
+
+      // A step that neither speaks, shows, nor asks would be a silent gap.
+      var imageUrl = String(r.imageUrl || '').trim();
+      var secs     = _icaoAnswerSecs_(r);
+      if (!text && !imageUrl && !secs) return;
+
+      steps.push({
+        id:      id,
+        kind:    type,
+        section: String(r.section || '').trim().toUpperCase(),
+        // What the examiner says, or — for a recording — what is heard. The client
+        // never displays this; it is carried so the grader sees what was played.
+        text:    text,
+        transcript: String(r.transcript || text || ''),
+        label:      String(r.label || ''),
+        imageUrl:   imageUrl,
+        // Whether a pre-rendered clip exists. Without one the client would have to
+        // synthesise live, which is the failure mode this design removes — so the
+        // client can warn before a sitting rather than during one.
+        hasAudio: !!String(r.audioFileId || '').trim(),
+        answerSeconds: secs,
+        // Only the Part 2 recordings may be replayed, and replays cap the
+        // comprehension band. Nothing else in the sitting is repeatable.
+        replayable: type === 'AUDIO'
+      });
+    });
+
+    if (!steps.length) return { ok: false, error: 'Version ' + wanted + ' has no usable rows.' };
+
+    var missing = steps.filter(function(s) { return s.text && !s.hasAudio; })
+                       .map(function(s) { return s.id; });
+
+    return {
+      ok: true,
+      bank: wanted,
+      versions: usable.length,
+      steps: steps,
+      // Named so the client can say which rows still need renderIcaoTestAudio,
+      // instead of discovering it mid-exam.
+      unrendered: missing
+    };
+  } catch (err) {
+    return apiError_('apiGetIcaoTestScript', err);
+  }
+}
+
+/**
+ * Reports what each version contains and whether it is ready to sit.
+ * Run from the editor — IcaoTestItemService.gs.
+ */
+function checkIcaoTestVersions() {
+  var rows = dbReadAll_(ICAO_ITEMS_SHEET_);
+  var banks = {};
+  rows.forEach(function(r) {
+    if (String(r.isActive).toUpperCase() === 'FALSE') return;
+    var b = String(r.bank || ICAO_ITEMS_BANK_).trim().toUpperCase();
+    if (!banks[b]) banks[b] = { total: 0, audio: 0, image: 0, interview: 0, line: 0,
+                                unrendered: [], voices: {} };
+    var t = String(r.itemType || '').toUpperCase();
+    var e = banks[b];
+    e.total++;
+    if (t === 'AUDIO')     e.audio++;
+    if (t === 'IMAGE')     e.image++;
+    if (t === 'INTERVIEW') e.interview++;
+    if (t === 'LINE')      e.line++;
+    if (String(r.script || '').trim() && !String(r.audioFileId || '').trim()) {
+      e.unrendered.push(String(r.itemId || '?'));
+    }
+    var v = String(r.voice || '').trim();
+    if (v) e.voices[v] = (e.voices[v] || 0) + 1;
+  });
+
+  var out = [];
+  Object.keys(banks).sort().forEach(function(b) {
+    var e = banks[b];
+    out.push('VERSION ' + b + ' — ' + e.total + ' rows: ' +
+             e.audio + ' audio, ' + e.image + ' image, ' +
+             e.interview + ' interview, ' + e.line + ' lines');
+    var vs = Object.keys(e.voices);
+    out.push('   voices: ' + (vs.length ? vs.join(', ') : '(none set — falls back to the default)'));
+    out.push(e.unrendered.length
+      ? '   NOT RENDERED (' + e.unrendered.length + '): ' + e.unrendered.slice(0, 12).join(', ') +
+        (e.unrendered.length > 12 ? ' …' : '') + '  → run renderIcaoTestAudio'
+      : '   all audio rendered — ready to sit');
+  });
+
+  var msg = out.length ? out.join('\n') : 'No active rows in ' + ICAO_ITEMS_SHEET_ + '.';
+  Logger.log(msg);
+  return msg;
+}

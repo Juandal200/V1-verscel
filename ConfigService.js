@@ -181,7 +181,11 @@ var DB_SCHEMA = {
     'isActive',
     'createdAt',
     'updatedAt',
-    'audioFileId'
+    'audioFileId',
+    // Seconds of answer time this row opens for the candidate. Blank or 0 means
+    // the row only plays and moves on — every intro, transition and closing line.
+    // Timing lives beside the content so a new version is still only data entry.
+    'answerSeconds'
   ],
 
   IcaoTestSectionReports: [
