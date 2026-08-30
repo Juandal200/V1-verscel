@@ -190,10 +190,21 @@ html = html.replace(/(<style[^>]*>)([\s\S]*?)(<\/style>)/gi, function(_, open, c
 
   // 8. manifest.json
   fs.writeFileSync(path.join(DIST, 'manifest.json'), JSON.stringify({
+    // id pins the app's identity to the origin, so later manifest edits update
+    // the installed app instead of registering a second one alongside it.
+    id: '/',
     name: 'aerocomms',
     short_name: 'aerocomms',
     description: 'ICAO Language Proficiency Training Platform',
     start_url: '/',
+    // scope draws the boundary of the app. A standalone web app that navigates
+    // outside it does not stay standalone — iOS reopens the page inside Safari
+    // UI, so the URL bar and toolbar appear within what is otherwise an
+    // installed app. Any copy installed while this lived on v1-verscel.vercel.app
+    // hits exactly that: launching follows the 307 to the new origin, which is
+    // cross-origin and therefore out of scope, and the chrome comes back.
+    // Declaring it explicitly stops the default from being inferred.
+    scope: '/',
     display: 'standalone',
     background_color: '#0d0d0d',
     theme_color: '#0d0d0d',
