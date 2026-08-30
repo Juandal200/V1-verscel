@@ -23348,7 +23348,11 @@
     _t.scopeImages=true; _t.scopeInterview=true;
     _t._sectionsDone={}; _t._awaitingAck=false; _t._ackTurns=0;
     if (_t.timerIv) clearInterval(_t.timerIv);
-    if (_t.audioEl) { _t.audioEl.pause(); _t.audioEl=null; }
+    // Stop it, but keep it. The element carries the autoplay permission granted
+    // by the Begin click; dropping the reference would hand the next turn a fresh,
+    // locked one. _resetState only runs before Begin today — this makes it safe
+    // wherever it is called from later.
+    if (_t.audioEl) { try { _t.audioEl.pause(); _t.audioEl.removeAttribute('src'); } catch(e) {} }
   }
 
   // ── Timer ─────────────────────────────────────────────────────────────────
@@ -23827,8 +23831,12 @@
     // Apps Script cold-starts after every deploy, and the first call can simply be
     // slow rather than broken. One quick retry was not enough to ride that out, and
     // giving up costs the candidate a whole listening item.
+    // Raised from 3. Three tries over 2.4s gave up while a phone on mobile data was
+    // still perfectly capable of answering, and giving up was the whole route to the
+    // robot voice. Five tries spans ~9s, which is a pause a candidate reads as the
+    // examiner thinking rather than as a fault.
     var attempt = Number(_attempt || 0);
-    var MAX_ATTEMPTS = 3;
+    var MAX_ATTEMPTS = 5;
     function _again() {
       if (attempt + 1 >= MAX_ATTEMPTS) return false;
       setTimeout(function() {
@@ -23942,6 +23950,53 @@
     function fin() { if (settled) return; settled = true; _teaVizStop(); if (done) done(); }
     _setStatus('Examiner speaking...', 'speaking');
     _teaSpeakLive(text, fin);
+  }
+
+  // What happens when a line genuinely cannot be voiced.
+  //
+  // This used to be _browserSpeak — the phone's built-in speechSynthesis. In an
+  // ICAO test that is worse than silence: comprehension is being graded, and the
+  // candidate is suddenly listening to a different voice from the one the exam is
+  // calibrated on. A wrong voice is a wrong test.
+  //
+  // Showing the line instead costs nothing the exam is measuring. The graded
+  // listening material is the Part 2 recordings, which are pre-rendered files and
+  // never come through here; what does come through here is the examiner's own
+  // speech — instructions and questions — and reading those is no easier than
+  // hearing them.
+  function _teaExaminerUnvoiced(text, onDone) {
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
+    var label = document.getElementById('teaStatusLabel');
+    var host  = label && label.parentNode;
+    if (host) {
+      var box = document.getElementById('teaUnvoiced');
+      if (!box) {
+        box = document.createElement('div');
+        box.id = 'teaUnvoiced';
+        box.style.cssText =
+          'margin-top:12px;padding:12px 14px;border-radius:12px;text-align:left;' +
+          'background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.35);';
+        host.appendChild(box);
+      }
+      box.innerHTML =
+        '<p style="margin:0 0 6px;font-size:.66rem;font-weight:800;letter-spacing:.14em;' +
+        'text-transform:uppercase;color:#eab308;">Examiner \u00b7 audio unavailable</p>' +
+        '<p style="margin:0;font-size:.92rem;line-height:1.55;color:var(--text,#cacaca);">' +
+        _esc(String(text || '')) + '</p>';
+      box.style.display = '';
+    }
+    if (window.console && console.warn) {
+      console.warn('[ICAO test] could not voice a line, shown as text instead');
+    }
+    // Give it time to be read, then release the turn — the exam must not freeze.
+    var ms = Math.min(14000, 2500 + String(text || '').split(/\s+/).length * 380);
+    setTimeout(onDone, ms);
+  }
+
+  // Clear the notice as soon as a later line speaks normally.
+  function _teaClearUnvoiced() {
+    var box = document.getElementById('teaUnvoiced');
+    if (box) box.style.display = 'none';
   }
 
   function _browserSpeak(text, onDone) {
@@ -24086,14 +24141,15 @@
       return;
     }
 
-    if (_t.audioEl) _t.audioEl.pause();
-    _t.audioEl = new Audio('data:audio/mp3;base64,' + b64);
-    _t.audioEl.crossOrigin = 'anonymous';
-    _t.audioEl.onended = _done;
-    _t.audioEl.onerror = _done;
-    var p = _t.audioEl.play();
-    if (p && p.catch) p.catch(function() { _teaVizStop(); _browserSpeak(text, _done); });
-    _teaVizSpeak(_t.audioEl);
+    var el = _teaAudioEl();
+    _teaClearUnvoiced();
+    try { el.pause(); } catch (e) {}
+    el.onended = _done;
+    el.onerror = _done;
+    el.src = 'data:audio/mp3;base64,' + b64;
+    var p = el.play();
+    if (p && p.catch) p.catch(function() { _teaVizStop(); _teaExaminerUnvoiced(text, _done); });
+    _teaVizSpeak(el);
   }
 
   // _done is supplied by the caller; it must be the SAME resolver the line-lookup
@@ -24107,7 +24163,7 @@
     if (_t.exCache[key]) { _teaPlayExaminer(_t.exCache[key], text, _done); return; }
 
     _teaGasAudio(text, EXAMINER_VOICE, EXAMINER_LANG, 0.95, function(err, b64) {
-      if (!b64) { _browserSpeak(text, _done); return; }
+      if (!b64) { _teaExaminerUnvoiced(text, _done); return; }
       _t.exCache[key] = b64;
       _teaPlayExaminer(b64, text, _done);
     });
@@ -24348,9 +24404,9 @@
       if (_t._exDone) _t._exDone();
       try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
 
-      if (_t.audioEl) _t.audioEl.pause();
-      _t.audioEl = new Audio('data:audio/mp3;base64,' + b64);
-      _t.audioEl.crossOrigin = 'anonymous';
+      _teaAudioEl();
+      try { _t.audioEl.pause(); } catch (e) {}
+      _t.audioEl.src = 'data:audio/mp3;base64,' + b64;
       _t._clipPlaying = true;
       btn.innerHTML = '&#9646;&#9646;';
       btn.disabled = true;
@@ -25553,6 +25609,26 @@
 
   // ── Render ────────────────────────────────────────────────────────────────
   // Called SYNCHRONOUSLY inside the click handler — must happen before any async ops
+  // A zero-length WAV. Playing it inside the Begin gesture is what actually
+  // unlocks the element for the rest of the exam.
+  var _TEA_SILENT = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+
+  // ONE audio element for the whole exam.
+  //
+  // Mobile browsers grant permission to an element, not to the page: an element
+  // constructed later, outside a user gesture, starts locked again. Every examiner
+  // turn used to build a fresh `new Audio(...)` after a network round trip — long
+  // after any tap — so play() was rejected and the catch handler dropped the exam
+  // into the phone's own robot voice. Desktop does not enforce this, which is why
+  // it only ever showed up on a phone.
+  function _teaAudioEl() {
+    if (!_t.audioEl) {
+      _t.audioEl = new Audio();
+      _t.audioEl.preload = 'auto';
+    }
+    return _t.audioEl;
+  }
+
   function _unlockAudio() {
     try {
       var ac = new (window.AudioContext || window.webkitAudioContext)();
@@ -25563,6 +25639,14 @@
       window.speechSynthesis.speak(new SpeechSynthesisUtterance(''));
       window.speechSynthesis.cancel();
     }
+    // MUST stay synchronous — this runs inside the Begin click, and the unlock is
+    // only granted to work started within the gesture itself.
+    try {
+      var el = _teaAudioEl();
+      el.src = _TEA_SILENT;
+      var p = el.play();
+      if (p && p.catch) p.catch(function() {});
+    } catch(e) {}
   }
 
   function renderTeaExam() {
