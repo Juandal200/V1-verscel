@@ -91,6 +91,19 @@
     box-sizing: border-box;
   }
 
+  /* The page canvas — what shows outside the body box.
+     body's background is a gradient, and a gradient paints only inside body's
+     own box. Beyond it the canvas falls back to background-color, which was
+     never set on either element, so it rendered white. iOS Safari makes that
+     very visible: it rubber-bands past the content, and it tints its own URL
+     bar and toolbar from the colour it samples at the top and bottom edges —
+     so both were coming back white against an otherwise black app.
+     --bg is declared on :root, which IS this element, so this follows the
+     light theme without a second rule. */
+  html {
+    background-color: var(--bg);
+  }
+
   body {
     margin: 0;
     min-height: 100vh;
