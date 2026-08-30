@@ -25104,6 +25104,12 @@
         loader.stop();
         window._teaStarting = false;
         if (!res || !res.ok) {
+          // Bank not set up yet — the conversational exam still works off the
+          // built-in constants, so use it rather than leaving no exam at all.
+          if (window.console && console.warn) {
+            console.warn('[ICAO test] no scripted bank:', (res && res.error) || 'unknown');
+          }
+          if (typeof window._teaBegin === 'function') { window._teaBegin(bank); return; }
           _scStage('<div class="panel" style="margin:16px;"><h3>Could not start</h3><p>' +
             _esc((res && res.error) || 'The item bank is unavailable.') + '</p></div>');
           return;
@@ -25132,6 +25138,16 @@
       .withFailureHandler(function (e) {
         loader.stop();
         window._teaStarting = false;
+        // The client ships through Vercel and the server through clasp, so there is
+        // always a window where this build is live and apiGetIcaoTestScript is not
+        // yet deployed. Dead-ending there would take the exam down for everyone
+        // over a deploy ordering detail. Fall through to the conversational exam,
+        // which needs nothing new server-side.
+        if (window.console && console.warn) {
+          console.warn('[ICAO test] scripted start failed, using the conversational exam:',
+                       (e && e.message) || e);
+        }
+        if (typeof window._teaBegin === 'function') { window._teaBegin(bank); return; }
         _scStage('<div class="panel" style="margin:16px;"><h3>Could not start</h3><p>' +
           _esc((e && e.message) || 'The training server did not respond.') + '</p></div>');
       })
