@@ -24821,6 +24821,323 @@
     }
   }
 
+  /* ══ SCRIPTED SITTING ═══════════════════════════════════════════════════════
+     The exam as a list of steps rather than a conversation.
+
+     Every line is a row in the item bank with a clip already rendered to Drive, so
+     nothing is synthesised at the moment it is needed — which is the only reason
+     the robot voice was ever reachable. Nothing is improvised, so no wording can
+     drift away from what the client is watching for, and no turn can advance twice
+     or stall.
+
+     Grading is untouched. This fills _t.history and _t.segments in exactly the
+     shape the pipeline already expects and then calls _finishExam, so the report,
+     the saving and the fallbacks all behave as they do today.
+  ═══════════════════════════════════════════════════════════════════════════ */
+  var _sc = { steps: [], i: 0, bank: '', running: false, timer: null, deadline: 0 };
+
+  function _scEl(id) { return document.getElementById(id); }
+
+  function _scStage(html) {
+    var cards = _scEl('teaCards');
+    if (cards) cards.innerHTML = html;
+  }
+
+  // Every step resolves through here exactly once, whatever happened, so a failed
+  // clip or a denied microphone costs that step and not the sitting.
+  function _scOnce(fn) {
+    var used = false;
+    return function () { if (used) return; used = true; try { fn(); } catch (e) {} };
+  }
+
+  function _scSpeak(step, done) {
+    done = _scOnce(done);
+    if (!step.text) { done(); return; }
+    _setStatus('Examiner speaking…', 'speaking');
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.ok || !res.audioBase64) { _teaExaminerUnvoiced(step.text, done); return; }
+        var el = _teaAudioEl();
+        _teaClearUnvoiced();
+        try { el.pause(); } catch (e) {}
+        el.onended = done;
+        el.onerror = function () { _teaExaminerUnvoiced(step.text, done); };
+        el.src = 'data:audio/mp3;base64,' + res.audioBase64;
+        var p = el.play();
+        if (p && p.catch) p.catch(function () { _teaVizStop(); _teaExaminerUnvoiced(step.text, done); });
+        _teaVizSpeak(el);
+      })
+      .withFailureHandler(function () { _teaExaminerUnvoiced(step.text, done); })
+      .apiGetIcaoTestAudio(AppState.sessionToken, step.id);
+  }
+
+  function _scClearTimer() {
+    if (_sc.timer) { clearInterval(_sc.timer); _sc.timer = null; }
+  }
+
+  function _scCountdown(seconds, onExpire) {
+    _scClearTimer();
+    _sc.deadline = Date.now() + seconds * 1000;
+    function tick() {
+      var left = Math.max(0, Math.round((_sc.deadline - Date.now()) / 1000));
+      var el = _scEl('scClock');
+      if (el) {
+        el.textContent = Math.floor(left / 60) + ':' + ('0' + (left % 60)).slice(-2);
+        // Amber inside the last fifteen seconds — enough warning to finish a
+        // sentence, not so early that it rushes the whole answer.
+        el.style.color = left <= 15 ? '#eab308' : 'var(--muted,#808080)';
+      }
+      if (left <= 0) { _scClearTimer(); onExpire(); }
+    }
+    tick();
+    _sc.timer = setInterval(tick, 500);
+  }
+
+  // Record one answer. Resolves with the transcript (possibly empty) either way —
+  // a candidate who says nothing has still answered, and the grader is entitled to
+  // see that rather than have the exam stall waiting for sound.
+  function _scRecord(step, done) {
+    done = _scOnce(done);
+    var stopped = false;
+
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+      // No recorder: fall back to typing, which the pipeline handles as a typed
+      // sitting — honestly reported as such rather than scored as speech.
+      _scTyped(step, done);
+      return;
+    }
+
+    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      .then(function (stream) {
+        var chunks = [];
+        var mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg']
+          .filter(function (t) { return MediaRecorder.isTypeSupported(t); })[0] || '';
+        var rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+        _sc.rec = rec;
+        _teaVizMic(stream);
+
+        rec.ondataavailable = function (e) { if (e.data && e.data.size > 0) chunks.push(e.data); };
+
+        rec.onstop = function () {
+          stopped = true;
+          _teaVizStop();
+          stream.getTracks().forEach(function (t) { t.stop(); });
+          _setStatus('Saving your answer…', 'thinking');
+
+          var type = rec.mimeType || 'audio/webm';
+          var blob = new Blob(chunks, { type: type });
+
+          // The recording is the graded evidence, so it is kept regardless of
+          // whether transcription succeeds.
+          var reader = new FileReader();
+          reader.onloadend = function () {
+            try {
+              _t.segments.push({
+                id: 'seg_' + _t.segments.length,
+                partLabel: step.section || step.kind || '',
+                audioBase64: String(reader.result).split(',')[1]
+              });
+            } catch (e) {}
+          };
+          reader.readAsDataURL(blob);
+
+          fetch('/api/whisper', { method: 'POST', headers: { 'Content-Type': type }, body: blob })
+            .then(function (r) { return r.json(); })
+            .then(function (d) { done(d && d.ok ? String(d.transcript || '') : ''); })
+            .catch(function () { done(''); });
+        };
+
+        rec.start();
+        _setStatus('Your turn — speak now', 'listening');
+        _teaCue('listen');
+      })
+      .catch(function (err) {
+        if (err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
+          _scTyped(step, done, 'Microphone access was denied. Type your answer instead.');
+          return;
+        }
+        _scTyped(step, done);
+      });
+
+    // Stopping is what the Next button and the expiring clock both do.
+    _sc.stop = function () {
+      if (stopped) return;
+      _scClearTimer();
+      try {
+        if (_sc.rec && _sc.rec.state === 'recording') { _sc.rec.stop(); return; }
+      } catch (e) {}
+      done('');
+    };
+  }
+
+  function _scTyped(step, done, notice) {
+    done = _scOnce(done);
+    _scClearTimer();
+    var host = _scEl('scAnswer');
+    if (!host) { done(''); return; }
+    host.innerHTML =
+      (notice ? '<p style="margin:0 0 10px;font-size:.82rem;color:#eab308;">' + _esc(notice) + '</p>' : '') +
+      '<textarea id="scType" class="input" rows="4" style="width:100%;resize:vertical;" ' +
+      'placeholder="Type your answer"></textarea>' +
+      '<button class="btn primary" id="scTypeSend" style="margin-top:10px;">Submit answer</button>';
+    var send = _scEl('scTypeSend');
+    if (send) send.onclick = function () {
+      var v = _scEl('scType');
+      done(v ? String(v.value || '') : '');
+    };
+    _sc.stop = function () { var v = _scEl('scType'); done(v ? String(v.value || '') : ''); };
+  }
+
+  function _scAnswerUI(step) {
+    var secs = Number(step.answerSeconds || 0);
+    var replay = step.replayable
+      ? '<button class="btn secondary" id="scReplay" style="margin-right:8px;">↻ Replay recording</button>'
+      : '';
+    return '' +
+      '<div style="padding:16px;">' +
+        (step.imageUrl
+          ? '<img src="' + _esc(step.imageUrl) + '" alt="' + _esc(step.label || '') + '" ' +
+            'style="width:100%;max-height:46vh;object-fit:contain;border-radius:14px;margin-bottom:14px;">'
+          : '') +
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">' +
+          '<p class="eyebrow" style="margin:0;">' + _esc(step.section || 'Your answer') + '</p>' +
+          '<span id="scClock" style="font-variant-numeric:tabular-nums;font-weight:800;' +
+          'font-size:1.05rem;color:var(--muted,#808080);">' +
+            Math.floor(secs / 60) + ':' + ('0' + (secs % 60)).slice(-2) +
+          '</span>' +
+        '</div>' +
+        '<div id="scAnswer"></div>' +
+        '<div style="margin-top:14px;">' + replay +
+          '<button class="btn primary" id="scNext">Next →</button>' +
+        '</div>' +
+        '<p style="margin:10px 0 0;font-size:.76rem;color:var(--muted,#808080);">' +
+          'Speak your answer. Press Next when you have finished, or wait for the time to run out.' +
+        '</p>' +
+      '</div>';
+  }
+
+  function _scAsk(step, done) {
+    done = _scOnce(done);
+    _scStage(_scAnswerUI(step));
+
+    var next = _scEl('scNext');
+    if (next) next.onclick = function () { next.disabled = true; if (_sc.stop) _sc.stop(); };
+
+    var rep = _scEl('scReplay');
+    if (rep) rep.onclick = function () {
+      if (_sc.replaysLeft <= 0) { rep.disabled = true; return; }
+      _sc.replaysLeft--;
+      // Counted the way the existing grader counts it: listens per recording, so
+      // _teaComprehensionCap still sees "how many items were heard twice".
+      var rid = (_sc.lastRecording && _sc.lastRecording.id) || step.id;
+      _t.listens[rid] = Number(_t.listens[rid] || 1) + 1;
+      rep.disabled = true;
+      _scSpeak(_sc.lastRecording || step, function () { rep.disabled = _sc.replaysLeft <= 0; });
+    };
+
+    _scRecord(step, function (transcript) {
+      _scClearTimer();
+      _t.history.push({ role: 'user', content: String(transcript || '(no answer given)') });
+      done();
+    });
+
+    var secs = Number(step.answerSeconds || 0);
+    if (secs > 0) _scCountdown(secs, function () { if (_sc.stop) _sc.stop(); });
+  }
+
+  function _scNextStep() {
+    if (!_sc.running) return;
+    if (_sc.i >= _sc.steps.length) { _scFinish(); return; }
+
+    var step = _sc.steps[_sc.i++];
+
+    // A recording is the material, not a prompt: it plays, it may be replayed once,
+    // and the question about it arrives as its own step.
+    if (step.kind === 'AUDIO') {
+      _sc.lastRecording = step;
+      _sc.replaysLeft = 1;
+      _t.listens[step.id] = 1;
+      _setStatus('Listening · do not respond yet', 'speaking');
+      _scStage('<div style="padding:28px 16px;text-align:center;">' +
+        '<p class="eyebrow" style="margin:0 0 8px;">' + _esc(step.section || 'Recording') + '</p>' +
+        '<p style="margin:0;font-size:.9rem;color:var(--muted,#808080);">Listen carefully.</p></div>');
+      _t.history.push({ role: 'assistant', content: '[recording played] ' + step.transcript });
+      _scSpeak(step, _scNextStep);
+      return;
+    }
+
+    if (step.text) _t.history.push({ role: 'assistant', content: step.text });
+
+    // Speak the line, then open the mic if this row asks for an answer.
+    _scSpeak(step, function () {
+      if (Number(step.answerSeconds || 0) > 0 || step.imageUrl) _scAsk(step, _scNextStep);
+      else _scNextStep();
+    });
+  }
+
+  function _scFinish() {
+    _sc.running = false;
+    _scClearTimer();
+    _setStatus('Marking your examination…', 'thinking');
+    _finishExam();
+  }
+
+  window._teaBeginScripted = function (bank) {
+    if (window._teaStarting) return;
+    window._teaStarting = true;
+    _unlockAudio();   // synchronous — must stay inside the click to unlock playback
+
+    Array.prototype.slice.call(document.querySelectorAll('.tea-begin-shell button'))
+      .forEach(function (b) { b.disabled = true; });
+
+    var loader = window.renderRadarLoader
+      ? window.renderRadarLoader('ICAO TEST', [
+          'Loading your examination…',
+          'Selecting a version…',
+          'Preparing the recordings…'
+        ], 'Connecting to training server')
+      : { stop: function () {} };
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        loader.stop();
+        window._teaStarting = false;
+        if (!res || !res.ok) {
+          _scStage('<div class="panel" style="margin:16px;"><h3>Could not start</h3><p>' +
+            _esc((res && res.error) || 'The item bank is unavailable.') + '</p></div>');
+          return;
+        }
+        // A sitting with unrendered lines would fall back to live synthesis, which
+        // is the thing this design removes. Refuse it now, by name, rather than
+        // discover it in the middle of an exam.
+        if (res.unrendered && res.unrendered.length) {
+          _scStage('<div class="panel" style="margin:16px;"><h3>Version ' + _esc(res.bank) +
+            ' is not ready</h3><p>' + res.unrendered.length +
+            ' line(s) have no recording yet. Run <strong>renderIcaoTestAudio</strong> in ' +
+            'IcaoTestItemService.gs, then try again.</p>' +
+            '<p style="font-size:.78rem;color:var(--muted,#808080);">' +
+            _esc(res.unrendered.slice(0, 10).join(', ')) + '</p></div>');
+          return;
+        }
+        _sc.steps   = res.steps || [];
+        _sc.i       = 0;
+        _sc.bank    = res.bank || '';
+        _sc.running = true;
+        TEA_BANK    = _sc.bank;
+        _t.scope    = 'FULL';
+        _teaOpenExam();
+        _scNextStep();
+      })
+      .withFailureHandler(function (e) {
+        loader.stop();
+        window._teaStarting = false;
+        _scStage('<div class="panel" style="margin:16px;"><h3>Could not start</h3><p>' +
+          _esc((e && e.message) || 'The training server did not respond.') + '</p></div>');
+      })
+      .apiGetIcaoTestScript(AppState.sessionToken, String(bank || ''));
+  };
+
   function _showFinishBtn() {
     var cards = document.getElementById('teaCards'); if (!cards) return;
     if (document.getElementById('teaFinishBtn')) return;
@@ -25703,9 +26020,17 @@
           'color:#8fa3bb;border-radius:10px;font-size:0.82rem;cursor:pointer;">' +
           'My results' +
         '</button>' +
-        '<button id="teaBeginBtn" onclick="window._teaBegin()" ' +
+        // Scripted is the primary route now: every line pre-recorded, one version
+        // drawn at random per sitting. The conversational exam is kept alongside
+        // while the scripted one is proven, and reads as the secondary option.
+        '<button id="teaBeginBtn" onclick="window._teaBeginScripted()" ' +
           'style="padding:14px 40px;background:#00d48e;color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:8px;">' +
           'Begin Exam' +
+        '</button>' +
+        '<button onclick="window._teaBegin()" ' +
+          'style="padding:8px 18px;background:transparent;border:1px solid #2a3a4a;' +
+          'color:#6d8299;border-radius:10px;font-size:0.76rem;cursor:pointer;">' +
+          'Conversational exam (legacy)' +
         '</button>' +
         _debugBtn +
         _sectionPicker +
