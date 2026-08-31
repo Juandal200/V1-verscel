@@ -809,3 +809,204 @@ function checkIcaoTestVersions() {
   Logger.log(msg);
   return msg;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * VERSION BUILDER
+ *
+ * A version is a bank, and a bank has to be self-contained: its own recordings,
+ * its own pictures, its own interview questions AND its own copies of the
+ * examiner's lines. The lines matter more than they look — the examiner's voice
+ * comes from those rows, so a bank without them cannot carry its own accent.
+ *
+ * Today VERSION_A holds the material and DEFAULT holds the lines, which means
+ * neither is a complete sitting. icaoBuildVersionA fixes that, then
+ * icaoBuildVersionB / C clone it into other accents to be edited.
+ *
+ * Every function here is safe to run twice: rows are matched by itemId within a
+ * bank and updated rather than duplicated.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+// Written as speech, not as topics. The old rows held a subject for the model to
+// phrase; nothing phrases anything now, so these are the sentences the candidate
+// actually hears. Open rather than yes/no, and operational rather than personal,
+// so each one can carry the two minutes the answer window gives it.
+var ICAO_INTERVIEW_QUESTIONS_ = {
+  interview_1: 'To begin, please tell me about your current position. What aircraft do you fly, and where do you normally operate?',
+  interview_2: 'How long have you been flying, and how did you train for this role?',
+  interview_3: 'Tell me about one operational difficulty you face regularly in your work, and how you deal with it.',
+  interview_4: 'In your opinion, what is the most serious safety issue facing aviation today? Please explain why.',
+  interview_5: 'How has technology changed the way pilots and controllers communicate? What do you think about those changes?'
+};
+
+// Only voices confirmed present in CHIRP3_HD_VOICES. An invented name fails at
+// synthesis time, which in a scripted exam means a row that can never be rendered.
+var ICAO_VERSION_VOICES_ = {
+  US:     { lang: 'en-US', examiner: 'en-US-Chirp3-HD-Charon',
+            speakers: ['en-US-Chirp3-HD-Fenrir','en-US-Chirp3-HD-Puck','en-US-Chirp3-HD-Despina','en-US-Chirp3-HD-Kore'] },
+  INDIAN: { lang: 'en-IN', examiner: 'en-IN-Chirp3-HD-Algieba',
+            speakers: ['en-IN-Chirp3-HD-Enceladus','en-IN-Chirp3-HD-Sadachbia','en-IN-Chirp3-HD-Erinome','en-IN-Chirp3-HD-Laomedeia'] },
+  BRITISH:{ lang: 'en-GB', examiner: 'en-GB-Chirp3-HD-Schedar',
+            speakers: ['en-GB-Chirp3-HD-Iapetus','en-GB-Chirp3-HD-Alnilam','en-GB-Chirp3-HD-Sulafat','en-GB-Chirp3-HD-Aoede'] }
+};
+
+// The examiner speaks with one voice throughout; the recordings rotate through the
+// speaker voices so two consecutive pilots are not the same person. Both stay
+// inside the version's accent.
+function _icaoVoiceFor_(row, spec, nth) {
+  var type = String(row.itemType || '').toUpperCase();
+  if (type === 'AUDIO') return spec.speakers[nth % spec.speakers.length];
+  return spec.examiner;
+}
+
+function _icaoRowsOfBank_(rows, bank) {
+  var want = String(bank).trim().toUpperCase();
+  return rows.filter(function(r) {
+    return String(r.bank || ICAO_ITEMS_BANK_).trim().toUpperCase() === want;
+  });
+}
+
+/**
+ * Applies one accent to a whole bank, and writes the interview questions.
+ *
+ * Changing a voice invalidates the recording made in the old one, so audioFileId
+ * is cleared wherever the voice actually moved — renderIcaoTestAudio then records
+ * that row again. Rows already on the right voice are left alone, so re-running
+ * costs nothing.
+ */
+function _icaoApplyAccent_(bank, accent) {
+  var spec = ICAO_VERSION_VOICES_[String(accent).toUpperCase()];
+  if (!spec) throw new Error('Unknown accent: ' + accent + '. Use US, INDIAN or BRITISH.');
+
+  var rows    = _icaoRowsOfBank_(dbReadAll_(ICAO_ITEMS_SHEET_), bank);
+  var stamp   = new Date().toISOString();
+  var changed = 0, questions = 0, nth = 0;
+
+  rows.sort(function(a, b) { return (Number(a.orderIndex)||0) - (Number(b.orderIndex)||0); })
+      .forEach(function(r) {
+    var patch = {};
+    var type  = String(r.itemType || '').toUpperCase();
+    var voice = _icaoVoiceFor_(r, spec, nth);
+    if (type === 'AUDIO') nth++;
+
+    if (String(r.voice || '').trim() !== voice) { patch.voice = voice; patch.audioFileId = ''; }
+    if (String(r.lang  || '').trim() !== spec.lang) patch.lang = spec.lang;
+
+    // Interview rows used to hold a topic in description and nothing in script.
+    var q = ICAO_INTERVIEW_QUESTIONS_[String(r.itemId || '').trim()];
+    if (type === 'INTERVIEW' && q && String(r.script || '').trim() !== q) {
+      patch.script = q;
+      patch.audioFileId = '';
+      questions++;
+    }
+
+    if (!Object.keys(patch).length) return;
+    patch.updatedAt = stamp;
+    dbUpdateByRow_(ICAO_ITEMS_SHEET_, r.__rowNumber, patch);
+    changed++;
+  });
+
+  return { changed: changed, questions: questions, voice: spec.examiner, lang: spec.lang };
+}
+
+/**
+ * Copies every row of one bank into another, skipping ids the target already has.
+ * Audio is deliberately not carried over — the clone is about to be re-voiced, and
+ * a recording in the wrong accent is worse than none.
+ */
+function _icaoCopyRows_(fromBank, toBank, onlyTypes) {
+  var all   = dbReadAll_(ICAO_ITEMS_SHEET_);
+  var src   = _icaoRowsOfBank_(all, fromBank);
+  var have  = {};
+  _icaoRowsOfBank_(all, toBank).forEach(function(r) { have[String(r.itemId||'').trim()] = true; });
+
+  var stamp = new Date().toISOString();
+  var added = 0;
+  src.forEach(function(r) {
+    var type = String(r.itemType || '').toUpperCase();
+    if (onlyTypes && onlyTypes.indexOf(type) === -1) return;
+    var id = String(r.itemId || '').trim();
+    if (!id || have[id]) return;
+    dbAppend_(ICAO_ITEMS_SHEET_, {
+      itemId: id, bank: String(toBank).trim().toUpperCase(),
+      itemType: r.itemType, section: r.section, orderIndex: r.orderIndex,
+      voice: '', lang: '', script: r.script, transcript: r.transcript,
+      label: r.label, imageUrl: r.imageUrl, description: r.description,
+      isActive: 'TRUE', createdAt: stamp, updatedAt: stamp,
+      audioFileId: '', answerSeconds: r.answerSeconds
+    });
+    added++;
+  });
+  return added;
+}
+
+/**
+ * VERSION_A — American throughout.
+ * Brings the examiner's lines in from DEFAULT, writes the five interview
+ * questions, and puts every row on a US voice.
+ * Run from the editor — IcaoTestItemService.gs. Then run renderIcaoTestAudio.
+ */
+function icaoBuildVersionA() {
+  var lines = _icaoCopyRows_('DEFAULT', 'VERSION_A', ['LINE']);
+  var res   = _icaoApplyAccent_('VERSION_A', 'US');
+  var msg = 'VERSION_A (American)\n' +
+            '  examiner lines copied from DEFAULT: ' + lines + '\n' +
+            '  interview questions written: ' + res.questions + '\n' +
+            '  rows re-voiced: ' + res.changed + ' → ' + res.lang + '\n' +
+            '  NEXT: run renderIcaoTestAudio, then checkIcaoTestVersions';
+  Logger.log(msg);
+  return msg;
+}
+
+/** VERSION_B — the same paper in Indian English, to be edited into new content. */
+function icaoBuildVersionB() {
+  var n   = _icaoCopyRows_('VERSION_A', 'VERSION_B');
+  var res = _icaoApplyAccent_('VERSION_B', 'INDIAN');
+  var msg = 'VERSION_B (Indian)\n' +
+            '  rows copied from VERSION_A: ' + n + '\n' +
+            '  rows voiced: ' + res.changed + ' → ' + res.lang + '\n' +
+            '  It is a COPY of A. Edit the 12 scripts, 5 questions and 2 images to\n' +
+            '  new content, then run renderIcaoTestAudio.';
+  Logger.log(msg);
+  return msg;
+}
+
+/** VERSION_C — the same paper in British English, to be edited into new content. */
+function icaoBuildVersionC() {
+  var n   = _icaoCopyRows_('VERSION_A', 'VERSION_C');
+  var res = _icaoApplyAccent_('VERSION_C', 'BRITISH');
+  var msg = 'VERSION_C (British)\n' +
+            '  rows copied from VERSION_A: ' + n + '\n' +
+            '  rows voiced: ' + res.changed + ' → ' + res.lang + '\n' +
+            '  It is a COPY of A. Edit the 12 scripts, 5 questions and 2 images to\n' +
+            '  new content, then run renderIcaoTestAudio.';
+  Logger.log(msg);
+  return msg;
+}
+
+/** Prints every row of every version, so the content can be read without opening the sheet. */
+function dumpIcaoVersions() {
+  var rows = dbReadAll_(ICAO_ITEMS_SHEET_);
+  var banks = {};
+  rows.forEach(function(r) {
+    var b = String(r.bank || ICAO_ITEMS_BANK_).trim().toUpperCase();
+    (banks[b] = banks[b] || []).push(r);
+  });
+  var out = [];
+  Object.keys(banks).sort().forEach(function(b) {
+    out.push('══ ' + b + ' ══');
+    banks[b].sort(function(x, y) {
+      return String(x.itemType).localeCompare(String(y.itemType)) ||
+             (Number(x.orderIndex)||0) - (Number(y.orderIndex)||0);
+    }).forEach(function(r) {
+      var body = String(r.script || r.description || r.label || '').replace(/\s+/g, ' ');
+      out.push('  ' + String(r.itemType||'?').padEnd(9) +
+               String(r.section||'').padEnd(4) +
+               (String(r.audioFileId||'').trim() ? '♪ ' : '· ') +
+               String(r.voice||'(no voice)').replace('Chirp3-HD-','').padEnd(16) +
+               body.slice(0, 110));
+    });
+  });
+  var msg = out.join('\n');
+  Logger.log(msg);
+  return msg;
+}
