@@ -301,10 +301,23 @@ async function gradeWithICAO(enrichedTranscript, history, apiKey) {
   // conversational examiner there is no candidate waiting — but there IS a sitting
   // already finished and paid for, so failing to grade loses the whole exam.
   // Same ladder tea.mjs uses, and every rung confirmed present on this key.
+  // gemini-pro-latest, not a flash. Grading is the one call in this app with no
+  // latency constraint — the candidate has already finished — and it is the most
+  // reasoning-heavy: read 5,000 words and separate bands whose wording differs by
+  // "only sometimes interfere with ease of understanding" from "frequently
+  // interfere". Flash is distilled for throughput, which buys nothing here.
+  //
+  // The alias rather than a pinned pro because this key's stable pro line stops at
+  // gemini-2.5-pro, two generations behind the flash it replaces. The cost is that
+  // Google can repoint the alias and grading shifts with no deploy on our side —
+  // worth watching if bands drift for no other reason.
+  //
+  // Fallbacks stay on flash: they exist for the case where pro is unreachable, and
+  // a graded exam from a smaller model beats no grade at all.
   const MODELS = [
-    process.env.GEMINI_MODEL || 'gemini-3.5-flash',
-    process.env.GEMINI_FALLBACK_MODEL || 'gemini-2.5-flash',
-    process.env.GEMINI_FALLBACK_MODEL_2 || 'gemini-3.6-flash'
+    process.env.GEMINI_MODEL || 'gemini-pro-latest',
+    process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.5-flash',
+    process.env.GEMINI_FALLBACK_MODEL_2 || 'gemini-2.5-flash'
   ].filter((m, i, a) => m && a.indexOf(m) === i);
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
