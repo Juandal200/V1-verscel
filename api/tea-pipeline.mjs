@@ -133,6 +133,70 @@ OUTPUT — return exactly this JSON, nothing else:
   }
 }`;
 
+// ─── Response schema ─────────────────────────────────────────────────────────
+//
+// Handed to the API as responseSchema so the shape is guaranteed rather than
+// requested. The prompt already asked for JSON and Gemini already agreed to it,
+// and the result still needed a repair pass below that strips markdown fences,
+// walks brace depth to find the object, and patches unescaped quotes and raw
+// newlines inside string values. None of that is needed once the API enforces the
+// shape itself.
+//
+// It mirrors the existing student_view / admin_view contract exactly. That shape
+// is read in seventeen places in the client and two in TEAService, and every exam
+// already saved uses it — changing it would break the report and orphan the
+// history.
+const DESCRIPTORS = ['pronunciation', 'structure', 'vocabulary', 'fluency',
+                     'comprehension', 'interactions'];
+
+const scoredDescriptor = {
+  type: 'object',
+  properties: {
+    score:    { type: 'integer' },
+    feedback: { type: 'string' },
+  },
+  required: ['score', 'feedback'],
+};
+
+const RESPONSE_SCHEMA = {
+  type: 'object',
+  properties: {
+    student_view: {
+      type: 'object',
+      properties: Object.assign(
+        { overall_band: { type: 'integer' } },
+        ...DESCRIPTORS.map((d) => ({ [d]: scoredDescriptor }))
+      ),
+      required: ['overall_band', ...DESCRIPTORS],
+    },
+    admin_view: {
+      type: 'object',
+      properties: {
+        transcript: { type: 'string' },
+        annotations: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id:        { type: 'string' },
+              dimension: { type: 'string' },
+              note:      { type: 'string' },
+            },
+            required: ['id', 'dimension', 'note'],
+          },
+        },
+        technical_justification: {
+          type: 'object',
+          properties: Object.assign({}, ...DESCRIPTORS.map((d) => ({ [d]: { type: 'string' } }))),
+          required: DESCRIPTORS,
+        },
+      },
+      required: ['transcript', 'annotations', 'technical_justification'],
+    },
+  },
+  required: ['student_view', 'admin_view'],
+};
+
 // ─── Whisper verbose transcription ───────────────────────────────────────────
 
 /**
@@ -334,7 +398,18 @@ async function gradeWithICAO(enrichedTranscript, history, apiKey) {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: GRADING_SYSTEM_PROMPT }] },
         contents,
-        generationConfig: { maxOutputTokens: 8192, temperature: 0.3 },
+        generationConfig: {
+          // 8192 truncated. The response carries the annotated transcript verbatim
+          // — 5,000 words is roughly 7,000 tokens on its own — before six
+          // justifications and six feedback paragraphs. A cut-off response is
+          // malformed JSON, which is most of what the repair layer was rescuing.
+          maxOutputTokens: 16384,
+          // An exam has to mark alike performances alike. Two candidates comparing
+          // their reports should not find the difference came from sampling.
+          temperature: 0.0,
+          responseMimeType: 'application/json',
+          responseSchema: RESPONSE_SCHEMA,
+        },
       }),
     });
     data = await response.json();
@@ -376,10 +451,15 @@ async function gradeWithICAO(enrichedTranscript, history, apiKey) {
 
   // ── JSON extraction + repair ──────────────────────────────────────────────
   //
-  // Gemini sometimes: (a) prepends reasoning text before the JSON object,
-  // (b) includes unescaped double quotes inside string values, or
-  // (c) includes raw newlines inside string values.
-  // We handle all three without an external library.
+  // Kept as a safety net, not the primary mechanism. responseSchema now makes the
+  // API guarantee the shape, so on the normal path there is nothing here to fix.
+  // It stays because the fallback models are reached under exactly the conditions
+  // where things are already going wrong, and a grade recovered by patching a
+  // stray quote beats losing a finished exam. Every step below is a no-op on
+  // well-formed input.
+  //
+  // What it used to rescue: Gemini prepending reasoning before the object,
+  // unescaped double quotes inside string values, and raw newlines inside them.
 
   // Step 1: strip markdown fences
   const stripped = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
@@ -438,6 +518,27 @@ async function gradeWithICAO(enrichedTranscript, history, apiKey) {
 
   if (!parsed.student_view || !parsed.admin_view) {
     throw new Error('Gemini JSON missing required keys (student_view / admin_view)');
+  }
+
+  // overall_band is the LOWEST of the six, not an average. A schema can enforce
+  // that the field exists and is an integer; it cannot enforce arithmetic, and the
+  // rule is the single most consequential line in the whole rubric — it decides
+  // whether someone passes. Computing it here means it never depends on the model
+  // doing the comparison correctly.
+  //
+  // A 0 means "not assessed" (pronunciation and fluency on a typed sitting) and is
+  // skipped rather than treated as the lowest score.
+  const sv = parsed.student_view;
+  const observed = DESCRIPTORS
+    .map((d) => sv[d] && Number(sv[d].score))
+    .filter((n) => Number.isFinite(n) && n > 0);
+
+  if (observed.length) {
+    const lowest = Math.min(...observed);
+    if (Number(sv.overall_band) !== lowest) {
+      console.log('[PIPELINE] overall_band corrected:', sv.overall_band, '->', lowest);
+      sv.overall_band = lowest;
+    }
   }
 
   return parsed;
