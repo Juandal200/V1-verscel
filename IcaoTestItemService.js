@@ -676,6 +676,18 @@ var ICAO_DEFAULT_ANSWER_SECS_ = {
   '2C':       60
 };
 
+// An explicit value in the sheet, else the structural default the assembler
+// passes, else the per-type fallback.
+function _icaoRowSecs_(row, fallback) {
+  var raw = String(row.answerSeconds == null ? '' : row.answerSeconds).trim();
+  if (raw !== '') {
+    var n = Number(raw);
+    if (!isNaN(n) && n >= 0) return Math.min(600, Math.round(n));
+  }
+  if (fallback !== undefined) return Number(fallback) || 0;
+  return _icaoAnswerSecs_(row);
+}
+
 function _icaoAnswerSecs_(row) {
   var raw = String(row.answerSeconds == null ? '' : row.answerSeconds).trim();
   if (raw !== '') {
@@ -718,43 +730,105 @@ function apiGetIcaoTestScript(sessionToken, bank) {
       wanted = usable[Math.floor(Math.random() * usable.length)];
     }
 
-    var steps = [];
+    // Assembled from the exam's structure, NOT from a flat orderIndex sort.
+    //
+    // orderIndex is numbered per type — interview 1-5, audio 1-12, images 1-2, and
+    // the lines have their own run — so sorting the whole bank by it interleaves
+    // interview_1, part_2a_1, image_1 and line_2a_question at position 1 and the
+    // running order is meaningless. The duplicate-orderIndex warnings from
+    // checkIcaoTestItems are the same fact seen from the sheet's side.
+    //
+    // Building it here also means adding a thirteenth 2A recording drops into the
+    // right place on its own, with nothing to renumber.
+    var byType = { AUDIO: [], IMAGE: [], INTERVIEW: [], LINE: {} };
     rows.filter(function(r) {
       if (String(r.isActive).toUpperCase() === 'FALSE') return false;
       return String(r.bank || ICAO_ITEMS_BANK_).trim().toUpperCase() === wanted;
     }).sort(function(a, b) {
       return (Number(a.orderIndex) || 0) - (Number(b.orderIndex) || 0);
     }).forEach(function(r) {
-      var id   = String(r.itemId || '').trim();
-      if (!id) return;
-      var type = String(r.itemType || '').toUpperCase();
+      var t = String(r.itemType || '').toUpperCase();
+      if (t === 'LINE') { byType.LINE[String(r.itemId || '').trim()] = r; return; }
+      if (byType[t]) byType[t].push(r);
+    });
+
+    var steps = [];
+
+    function stepOf(r, opts) {
+      opts = opts || {};
+      var t    = String(r.itemType || '').toUpperCase();
       var text = String(r.script || '').trim();
-
-      // A step that neither speaks, shows, nor asks would be a silent gap.
-      var imageUrl = String(r.imageUrl || '').trim();
-      var secs     = _icaoAnswerSecs_(r);
-      if (!text && !imageUrl && !secs) return;
-
-      steps.push({
-        id:      id,
-        kind:    type,
-        section: String(r.section || '').trim().toUpperCase(),
-        // What the examiner says, or — for a recording — what is heard. The client
-        // never displays this; it is carried so the grader sees what was played.
-        text:    text,
+      return {
+        id:       String(r.itemId || '').trim(),
+        kind:     t,
+        section:  opts.section || String(r.section || '').trim().toUpperCase(),
+        text:     text,
         transcript: String(r.transcript || text || ''),
-        label:      String(r.label || ''),
-        imageUrl:   imageUrl,
-        // Whether a pre-rendered clip exists. Without one the client would have to
-        // synthesise live, which is the failure mode this design removes — so the
-        // client can warn before a sitting rather than during one.
+        label:    String(r.label || ''),
+        imageUrl: opts.imageUrl !== undefined ? opts.imageUrl : String(r.imageUrl || '').trim(),
         hasAudio: !!String(r.audioFileId || '').trim(),
-        answerSeconds: secs,
-        // Only the Part 2 recordings may be replayed, and replays cap the
-        // comprehension band. Nothing else in the sitting is repeatable.
-        replayable: type === 'AUDIO'
+        // The sheet wins wherever a row states a time; opts is only the structural
+        // default for a line whose answerSeconds is blank. Without this every
+        // question would inherit LINE's zero and the mic would never open.
+        answerSeconds: _icaoRowSecs_(r, opts.answerSeconds),
+        replayable: t === 'AUDIO'
+      };
+    }
+
+    // A line the bank does not carry is simply not spoken; the sitting still runs.
+    function say(lineId, opts) {
+      var r = byType.LINE[lineId];
+      if (r) steps.push(stepOf(r, opts || {}));
+    }
+
+    function audiosIn(section) {
+      return byType.AUDIO.filter(function(r) {
+        return String(r.section || '').trim().toUpperCase() === section;
+      });
+    }
+
+    // ── Part 1 — interview ──────────────────────────────────────────────────
+    say('line_open_full');
+    byType.INTERVIEW.forEach(function(r) { steps.push(stepOf(r, { section: '1' })); });
+    say('line_part1_close');
+
+    // ── Part 2 — listening. Each recording plays, is questioned, then closed.
+    // 2B is a full retell rather than a specific question, so it gets longer.
+    [['2A', 'line_open_p2',  ['line_2a_question'],            60],
+     ['2B', 'line_2b_intro', ['line_2b_question'],            90],
+     ['2C', '',              ['line_2c_q1', 'line_2c_q2'],    60]].forEach(function(part) {
+      var section = part[0], intro = part[1], questions = part[2], qSecs = part[3];
+      var clips = audiosIn(section);
+      if (!clips.length) return;
+      if (intro) say(intro);
+      clips.forEach(function(clip, i) {
+        steps.push(stepOf(clip));
+        questions.forEach(function(q) { say(q, { section: section, answerSeconds: qSecs }); });
+        // "Next recording" between items, "that completes this section" after the
+        // last one — the candidate is told where they are without being counted at.
+        say(i === clips.length - 1 ? 'line_section_close' : 'line_ack_next', { section: section });
       });
     });
+
+    // ── Part 3 — pictures. The image has to stay on screen while it is described,
+    // so its URL rides on the question step rather than being a step of its own.
+    var pics = byType.IMAGE;
+    if (pics.length) {
+      say('line_open_p3');
+      pics.forEach(function(pic, i) {
+        say('line_p3_describe', { section: '3', answerSeconds: 120,
+                                  imageUrl: String(pic.imageUrl || '').trim() });
+        if (i < pics.length - 1) say('line_ack_next_picture', { section: '3' });
+      });
+      // Comparison needs both pictures in view; the client shows the second and the
+      // candidate has just seen the first.
+      if (pics.length > 1) {
+        var last = String(pics[pics.length - 1].imageUrl || '').trim();
+        say('line_p3_similar',   { section: '3', answerSeconds: 120, imageUrl: last });
+        say('line_p3_different', { section: '3', answerSeconds: 120, imageUrl: last });
+      }
+    }
+    say('line_exam_end');
 
     if (!steps.length) return { ok: false, error: 'Version ' + wanted + ' has no usable rows.' };
 
