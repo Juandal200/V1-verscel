@@ -296,15 +296,25 @@ async function gradeWithICAO(enrichedTranscript, history, apiKey) {
 
   const contents = [...historyContents, gradingTurn];
 
-  const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' +
-    encodeURIComponent(MODEL) + ':generateContent?key=' +
-    encodeURIComponent(apiKey);
+  // Grading had no fallback: it retried ONE model four times and then gave up.
+  // Retrying a saturated model harder does not unsaturate it, and unlike the
+  // conversational examiner there is no candidate waiting — but there IS a sitting
+  // already finished and paid for, so failing to grade loses the whole exam.
+  // Same ladder tea.mjs uses, and every rung confirmed present on this key.
+  const MODELS = [
+    process.env.GEMINI_MODEL || 'gemini-3.5-flash',
+    process.env.GEMINI_FALLBACK_MODEL || 'gemini-2.5-flash',
+    process.env.GEMINI_FALLBACK_MODEL_2 || 'gemini-3.6-flash'
+  ].filter((m, i, a) => m && a.indexOf(m) === i);
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  let response, data, attempt = 0;
+  let response, data, attempt = 0, modelIdx = 0;
 
   while (attempt < 4) {
+    const MODEL = MODELS[Math.min(modelIdx, MODELS.length - 1)];
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' +
+      encodeURIComponent(MODEL) + ':generateContent?key=' +
+      encodeURIComponent(apiKey);
     response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -321,11 +331,26 @@ async function gradeWithICAO(enrichedTranscript, history, apiKey) {
     const isOverload = response.status === 503 ||
       (data.error && typeof data.error.message === 'string' &&
        data.error.message.toLowerCase().includes('high demand'));
+    // A model this key cannot reach is not a transient failure — waiting will
+    // never fix it. Move down the ladder immediately instead of burning the
+    // remaining attempts on a name that does not exist.
+    const isMissing = response.status === 404 || response.status === 400;
 
-    if (!isOverload) break;
+    if (!isOverload && !isMissing) break;
+
+    if (modelIdx < MODELS.length - 1) {
+      modelIdx++;
+      console.log('[PIPELINE] Gemini', MODEL, isMissing ? 'unavailable' : 'overloaded',
+                  '— falling back to', MODELS[modelIdx]);
+      // No sleep on a model change: the next model is not the one that is busy.
+      attempt++;
+      continue;
+    }
+
     attempt++;
     if (attempt < 4) {
-      console.log('[PIPELINE] Gemini overload — retry', attempt, 'in', attempt * 2, 's');
+      console.log('[PIPELINE] Gemini overload on last model — retry', attempt,
+                  'in', attempt * 2, 's');
       await sleep(attempt * 2000);
     }
   }

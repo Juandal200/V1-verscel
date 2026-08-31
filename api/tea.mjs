@@ -354,7 +354,11 @@ export default async function handler(req, res) {
       // A third rung. Two were not enough: a capacity spike took both out at once
       // mid-exam, which ends the sitting — there is no "try again later" for someone
       // twenty minutes into an examination.
-      process.env.GEMINI_FALLBACK_MODEL_2 || 'gemini-2.0-flash'
+      // Was gemini-2.0-flash, which this key cannot reach at all — ListModels does
+      // not return it. The last rung of the ladder was a 404, so the one moment it
+      // existed for (both other models saturated, candidate mid-exam) it could
+      // only fail. gemini-3.6-flash is confirmed present.
+      process.env.GEMINI_FALLBACK_MODEL_2 || 'gemini-3.6-flash'
     ].filter((m, i, a) => m && a.indexOf(m) === i);
 
     const body = JSON.stringify({
