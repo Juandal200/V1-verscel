@@ -380,8 +380,13 @@ function renderIcaoTestAudio(force) {
     // LINE items are the examiner's own repeated phrases. They are pre-rendered
     // for the same reason the recordings are: synthesised live they arrive late
     // and, on a cold start, as the browser's robot voice.
+    // INTERVIEW was excluded because it used to hold a TOPIC, not speech — the
+    // model was handed "years of experience" and phrased the question itself.
+    // A scripted sitting has no one to phrase it, so those rows now carry the
+    // question as written and have to be recorded like any other line. Left out,
+    // every interview row would report as unrendered and refuse the sitting.
     var t = String(r.itemType || '').toUpperCase();
-    if (t !== 'AUDIO' && t !== 'LINE') return;
+    if (t !== 'AUDIO' && t !== 'LINE' && t !== 'INTERVIEW') return;
     var script = String(r.script || '').trim();
     if (!script) return;
 
