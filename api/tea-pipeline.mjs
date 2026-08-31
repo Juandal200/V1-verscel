@@ -31,38 +31,68 @@ The transcript has been post-processed from an acoustic STT pipeline. Read these
 - [um] [uh] [er] [ah] — explicit hesitation markers. Frequent fillers that break sentence flow indicate fluency struggles.
 - [?word](conf:0.XX) — flagged potential mispronunciation based on low acoustic confidence score (0.00–1.00).
 
-ICAO GRADING RUBRIC — assign individual band scores 1–6 per dimension:
+ICAO LANGUAGE PROFICIENCY RATING SCALE (Doc 9835) — assign a band 1-6 per dimension.
+This is the full scale, verbatim. Do not grade against a paraphrase of it.
+Band names: 6 Expert · 5 Extended · 4 Operational · 3 Pre-Operational · 2 Elementary · 1 Pre-Elementary.
+Level 4 is the minimum operational requirement.
 
-1. PRONUNCIATION
-   - Level 3: Accent/stress/rhythm heavily influenced by L1 and FREQUENTLY interferes with ease of understanding.
-   - Level 4 (MIN PASS): Influenced by L1 but ONLY SOMETIMES interferes. Intelligible to the international aeronautical community.
-   - Level 5: RARELY interferes. Always clear and understandable.
+PRONUNCIATION (assumes a dialect and/or accent intelligible to the aeronautical community)
+ 6 Pronunciation, stress, rhythm and intonation, though possibly influenced by the language or regional variation, almost never interfere with ease of understanding.
+ 5 ...though influenced by the first language or regional variation, rarely interfere with ease of understanding.
+ 4 ...are influenced by the first language or regional variation but only sometimes interfere with ease of understanding.
+ 3 ...are influenced by the first language or regional variation and frequently interfere with ease of understanding.
+ 2 ...are heavily influenced by the first language or regional variation and usually interfere with ease of understanding.
+ 1 Performs at a level below the Elementary level.
 
-2. STRUCTURE
-   - Classify every cited error as LOCAL (minor slip — missing article, wrong preposition — that does NOT alter the operational message) or GLOBAL (structural failure that destroys or changes the intended meaning).
-   - Level 3: Basic structures not always controlled. Errors FREQUENTLY interfere with meaning (frequent Global Errors).
-   - Level 4 (MIN PASS): Basic structures USUALLY well controlled. Errors RARELY interfere with meaning (mostly Local Errors; Global Errors rare).
-   - Level 5: Basic structures consistently controlled. Complex structures attempted; errors sometimes interfere.
+STRUCTURE (relevant structures are determined by language functions appropriate to the task)
+ 6 Both basic and complex grammatical structures and sentence patterns are consistently well controlled.
+ 5 Basic grammatical structures and sentence patterns are consistently well controlled. Complex structures are attempted but with errors which sometimes interfere with meaning.
+ 4 Basic grammatical structures and sentence patterns are used creatively and are usually well controlled. Errors may occur, particularly in unusual or unexpected circumstances, but rarely interfere with meaning.
+ 3 Basic grammatical structures and sentence patterns associated with predictable situations are not always well controlled. Errors frequently interfere with meaning.
+ 2 Shows only limited control of a few simple memorized grammatical structures and sentence patterns.
+ 1 Performs at a level below the Elementary level.
 
-3. VOCABULARY
-   - Level 3: Often insufficient. FREQUENTLY UNABLE to paraphrase when lacking a word.
-   - Level 4 (MIN PASS): Usually sufficient for common/work-related topics. CAN OFTEN PARAPHRASE in unusual circumstances.
-   - Level 5: Extensive. Paraphrases consistently and successfully. Sometimes idiomatic. (Penalize idioms that impair radiotelephony clarity.)
+VOCABULARY
+ 6 Vocabulary range and accuracy are sufficient to communicate effectively on a wide variety of familiar and unfamiliar topics. Vocabulary is idiomatic, nuanced and sensitive to register.
+ 5 Vocabulary range and accuracy are sufficient to communicate effectively on common, concrete and work-related topics. Paraphrases consistently and successfully. Vocabulary is sometimes idiomatic.
+ 4 Vocabulary range and accuracy are usually sufficient to communicate effectively on common, concrete and work-related topics. Can often paraphrase successfully when lacking vocabulary in unusual or unexpected circumstances.
+ 3 Vocabulary range and accuracy are often sufficient to communicate on common, concrete or work-related topics, but range is limited and the word choice often inappropriate. Is often unable to paraphrase successfully when lacking vocabulary.
+ 2 Limited vocabulary range consisting only of isolated words and memorized phrases.
+ 1 Performs at a level below the Elementary level.
 
-4. FLUENCY
-   - Level 3: Phrasing/pausing often inappropriate. Hesitations/slowness prevent effective communication. Fillers are distracting.
-   - Level 4 (MIN PASS): Appropriate tempo. Occasional loss of fluency at phraseology-to-spontaneous transition, but does not prevent communication. Fillers not distracting.
-   - Level 5: Speaks at length with relative ease. Uses discourse markers/connectors smoothly.
+FLUENCY
+ 6 Able to speak at length with a natural, effortless flow. Varies speech flow for stylistic effect, e.g. to emphasize a point. Uses appropriate discourse markers and connectors spontaneously.
+ 5 Able to speak at length with relative ease on familiar topics, but may not vary speech flow as a stylistic device. Can make use of appropriate discourse markers or connectors.
+ 4 Produces stretches of language at an appropriate tempo. There may be occasional loss of fluency on transition from rehearsed or formulaic speech to spontaneous interaction, but this does not prevent effective communication. Can make limited use of discourse markers or connectors. Fillers are not distracting.
+ 3 Produces stretches of language, but phrasing and pausing are often inappropriate. Hesitations or slowness in language processing may prevent effective communication. Fillers are sometimes distracting.
+ 2 Can produce very short, isolated, memorized utterances with frequent pausing and a distracting use of fillers to search for expressions and to articulate less familiar words.
+ 1 Performs at a level below the Elementary level.
 
-5. COMPREHENSION
-   - Level 3: Often accurate only under optimum conditions. May fail on complications or unexpected events.
-   - Level 4 (MIN PASS): Mostly accurate on common/work-related topics. May need clarification on complications but ultimately understands the core issue.
-   - Level 5: Consistently accurate. Mostly accurate on unexpected complications. Handles wide range of international accents.
+COMPREHENSION
+ 6 Comprehension is consistently accurate in nearly all contexts and includes comprehension of linguistic and cultural subtleties.
+ 5 Comprehension is accurate on common, concrete and work-related topics and mostly accurate when the speaker is confronted with a linguistic or situational complication or an unexpected turn of events. Is able to comprehend a range of speech varieties (dialect and/or accent) or registers.
+ 4 Comprehension is mostly accurate on common, concrete and work-related topics when the accent or variety used is sufficiently intelligible for an international community of users. When the speaker is confronted with a linguistic or situational complication or an unexpected turn of events, comprehension may be slower or require clarification strategies.
+ 3 Comprehension is often accurate on common, concrete and work-related topics when the accent or variety used is sufficiently intelligible for an international community of users. May fail to understand a linguistic or situational complication or an unexpected turn of events.
+ 2 Comprehension is limited to isolated, memorized phrases when they are carefully and slowly articulated.
+ 1 Performs at a level below the Elementary level.
 
-6. INTERACTIONS
-   - Level 3: Responses only sometimes immediate/appropriate/informative. Generally INADEQUATE with unexpected complications.
-   - Level 4 (MIN PASS): Usually immediate, appropriate, informative. DEALS ADEQUATELY WITH MISUNDERSTANDINGS by checking/confirming/clarifying.
-   - Level 5: Immediately appropriate and informative. Manages speaker/listener relationship with ease.
+INTERACTIONS
+ 6 Interacts with ease in nearly all situations. Is sensitive to verbal and non-verbal cues and responds to them appropriately.
+ 5 Responses are immediate, appropriate and informative. Manages the speaker/listener relationship effectively.
+ 4 Responses are usually immediate, appropriate and informative. Initiates and maintains exchanges even when dealing with an unexpected turn of events. Deals adequately with apparent misunderstandings by checking, confirming or clarifying.
+ 3 Responses are sometimes immediate, appropriate and informative. Can initiate and maintain exchanges with reasonable ease on familiar topics and in predictable situations. Generally inadequate when dealing with an unexpected turn of events.
+ 2 Response time is slow and often inappropriate. Interaction is limited to simple routine exchanges.
+ 1 Performs at a level below the Elementary level.
+
+TWO NOTES ON APPLYING THIS SCALE HERE.
+This is an audio-only test, so the non-verbal cues named at Interactions level 6
+cannot be observed. Judge that descriptor on what is audible and do not withhold a
+6 solely because non-verbal responsiveness could not be demonstrated.
+When citing structural errors, classify each as LOCAL (a minor slip — missing
+article, wrong preposition — that does not alter the operational message) or GLOBAL
+(a failure that destroys or changes the intended meaning). That distinction is an
+analysis aid for the written justification, not an ICAO criterion: the band still
+comes from the descriptor wording above.
 
 CRITICAL RULE: overall_band = the LOWEST score among all six dimensions. It is NOT an average.
 

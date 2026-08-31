@@ -25596,6 +25596,17 @@
             '<div class="tea-part-badge" style="font-size:0.75rem;padding:5px 16px;">ICAO TEST · RESULT</div>' +
           '</div>' +
           '<div class="tea-score-box">' + _renderScoreJSON(json) + '</div>' +
+          // An ICAO language proficiency rating is a licence endorsement, issued by
+          // an authorised examiner and entered against a licence. This is a practice
+          // result produced by software. Showing a band with no qualification invites
+          // a candidate to believe they hold a rating they do not hold, which could
+          // send someone into a real assessment — or a cockpit — on a false premise.
+          '<p style="margin:18px auto 0;max-width:620px;text-align:center;' +
+            'font-size:0.76rem;line-height:1.6;color:#5d7186;">' +
+            'This is a practice result, assessed against the ICAO Doc 9835 rating ' +
+            'scale. It is not an official ICAO language proficiency rating and ' +
+            'cannot be used for licensing. Only an authorised examiner can issue one.' +
+          '</p>' +
         '</div>' +
       '</div>';
     try { window.scrollTo(0, 0); host.scrollTop = 0; } catch (e) {}
