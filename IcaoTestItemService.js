@@ -281,8 +281,11 @@ function checkIcaoTestItems() {
     if (!id)   { problems.push(where + ': itemId is empty'); return; }
     if (!bank) { problems.push(where + ': bank is empty'); }
 
-    if (['AUDIO', 'IMAGE', 'INTERVIEW'].indexOf(type) === -1) {
-      problems.push(where + ': itemType "' + r.itemType + '" is not AUDIO, IMAGE or INTERVIEW');
+    // LINE was added after this check was written — the examiner's own fixed
+    // phrases are rows like any other, and are pre-rendered for the same reason
+    // the recordings are. Omitting it here reported all 16 of them as broken data.
+    if (['AUDIO', 'IMAGE', 'INTERVIEW', 'LINE'].indexOf(type) === -1) {
+      problems.push(where + ': itemType "' + r.itemType + '" is not AUDIO, IMAGE, INTERVIEW or LINE');
       return;
     }
 
@@ -298,7 +301,7 @@ function checkIcaoTestItems() {
     }
     seenOrder[okey] = true;
 
-    byBank[bank] = byBank[bank] || { AUDIO: 0, IMAGE: 0, INTERVIEW: 0 };
+    byBank[bank] = byBank[bank] || { AUDIO: 0, IMAGE: 0, INTERVIEW: 0, LINE: 0 };
     byBank[bank][type]++;
 
     if (type === 'AUDIO') {
@@ -320,6 +323,9 @@ function checkIcaoTestItems() {
     if (type === 'INTERVIEW' && !String(r.description || '').trim()) {
       problems.push(where + ': INTERVIEW has no description — the topic is empty');
     }
+    if (type === 'LINE' && !String(r.script || '').trim()) {
+      problems.push(where + ': LINE has no script — there is nothing for the examiner to say');
+    }
   });
 
   Object.keys(byBank).forEach(function(b) {
@@ -329,6 +335,8 @@ function checkIcaoTestItems() {
       ' recordings (DEFAULT has 12) — it is still served as a complete exam');
     if (!c.IMAGE)     notes.push('bank ' + b + ': no Part 3 pictures');
     if (!c.INTERVIEW) notes.push('bank ' + b + ': no interview topics — Part 1 falls back to the generic prompt topics');
+    if (!c.LINE) notes.push('bank ' + b + ': no examiner lines of its own — a scripted sitting needs them, ' +
+      'and without them the examiner\'s voice cannot follow this version\'s accent');
   });
 
   Logger.log('Banks: ' + JSON.stringify(byBank));
