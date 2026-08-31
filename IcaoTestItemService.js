@@ -766,6 +766,12 @@ function apiGetIcaoTestScript(sessionToken, bank) {
         transcript: String(r.transcript || text || ''),
         label:    String(r.label || ''),
         imageUrl: opts.imageUrl !== undefined ? opts.imageUrl : String(r.imageUrl || '').trim(),
+        // What the picture shows, in words. The grader never sees the image, so
+        // without this it reads "Please describe this picture" followed by an
+        // answer it has no way to judge — a candidate could describe something
+        // else entirely and Part 3 would measure nothing. Sent the same way the
+        // Part 2 recordings send their transcript.
+        imageDesc: opts.imageDesc !== undefined ? opts.imageDesc : String(r.description || '').trim(),
         hasAudio: !!String(r.audioFileId || '').trim(),
         // The sheet wins wherever a row states a time; opts is only the structural
         // default for a line whose answerSeconds is blank. Without this every
@@ -817,15 +823,20 @@ function apiGetIcaoTestScript(sessionToken, bank) {
       say('line_open_p3');
       pics.forEach(function(pic, i) {
         say('line_p3_describe', { section: '3', answerSeconds: 120,
-                                  imageUrl: String(pic.imageUrl || '').trim() });
+                                  imageUrl:  String(pic.imageUrl || '').trim(),
+                                  imageDesc: String(pic.description || '').trim() });
         if (i < pics.length - 1) say('line_ack_next_picture', { section: '3' });
       });
       // Comparison needs both pictures in view; the client shows the second and the
       // candidate has just seen the first.
       if (pics.length > 1) {
         var last = String(pics[pics.length - 1].imageUrl || '').trim();
-        say('line_p3_similar',   { section: '3', answerSeconds: 120, imageUrl: last });
-        say('line_p3_different', { section: '3', answerSeconds: 120, imageUrl: last });
+        // Comparison is about both pictures, so the grader is given both.
+        var both = pics.map(function(p, i) {
+          return 'Image ' + (i + 1) + ': ' + String(p.description || '').trim();
+        }).join('  ');
+        say('line_p3_similar',   { section: '3', answerSeconds: 120, imageUrl: last, imageDesc: both });
+        say('line_p3_different', { section: '3', answerSeconds: 120, imageUrl: last, imageDesc: both });
       }
     }
     say('line_exam_end');

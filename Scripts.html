@@ -23879,6 +23879,47 @@
     return 4;
   }
 
+  // Applies the cap to a returned report.
+  //
+  // The cap used to travel only as a line of text inside the transcript, which
+  // asks the model to notice an instruction and do arithmetic on it. It is not in
+  // the grading prompt at all, so it was almost certainly ignored — and in the
+  // scripted sitting it was never sent in the first place, so a candidate who
+  // replayed all twelve recordings scored exactly like one who replayed none.
+  //
+  // Doing it here makes the number right regardless of what the model returned.
+  // This is a policy about what a replay-dependent listening score is worth, not
+  // a judgement about the candidate's English, which is why it is safe to decide
+  // in code. The band is only ever lowered, never raised.
+  function _teaApplyComprehensionCap(json) {
+    var sv = json && json.student_view;
+    if (!sv || !sv.comprehension) return json;
+
+    var m     = (_t && _t.listens) || {};
+    var twice = Object.keys(m).filter(function(k) { return Number(m[k]) >= 2; });
+    var cap   = _teaComprehensionCap(twice.length);
+    var got   = Number(sv.comprehension.score || 0);
+    if (!got || got <= cap) return json;
+
+    sv.comprehension.score = cap;
+    sv.comprehension.feedback = String(sv.comprehension.feedback || '') +
+      ' Comprehension is capped at Level ' + cap + ' because ' + twice.length +
+      ' recording(s) needed a second hearing.';
+
+    // overall_band is the LOWEST of the six, not an average — so it has to be
+    // recomputed, not just compared against the new comprehension score.
+    var dims = ['pronunciation','structure','vocabulary','fluency','comprehension','interactions'];
+    var low = null;
+    dims.forEach(function(d) {
+      var v = sv[d] && Number(sv[d].score);
+      // 0 means "not assessed" (a typed sitting) and must not drag the band down.
+      if (!v) return;
+      if (low === null || v < low) low = v;
+    });
+    if (low !== null) sv.overall_band = low;
+    return json;
+  }
+
   // How the candidate answered, so the examiner does not score what it never heard.
   function _teaInputModeNote() {
     var spoken = (_t.segments && _t.segments.length) || 0;
@@ -24798,6 +24839,7 @@
       .then(function(r) { return r.json(); })
       .then(function(d) {
         if (d.ok && d.student_view) {
+          _teaApplyComprehensionCap(d);
           var band = d.student_view.overall_band;
           _showReportScreen(d);
           _teaSay('The examination is now complete. Your overall ICAO band is ' + band + '. Please review your results below.', function() {});
@@ -25067,6 +25109,12 @@
       return;
     }
 
+    // The grader never sees the picture. Describing it first is what lets Part 3
+    // be marked at all — otherwise it reads "Please describe this picture" and an
+    // answer it cannot judge. Same shape as "[recording played]" in Part 2.
+    if (step.imageDesc) {
+      _t.history.push({ role: 'assistant', content: '[picture shown] ' + step.imageDesc });
+    }
     if (step.text) _t.history.push({ role: 'assistant', content: step.text });
 
     // Speak the line, then open the mic if this row asks for an answer.
@@ -25079,6 +25127,10 @@
   function _scFinish() {
     _sc.running = false;
     _scClearTimer();
+    // Tell the grader how many recordings needed a second hearing, so its written
+    // justification can reflect it. The band itself is capped in code afterwards
+    // rather than trusted to this line being obeyed.
+    try { _t.history.push({ role: 'user', content: _teaReplayReport() }); } catch (e) {}
     _setStatus('Marking your examination…', 'thinking');
     _finishExam();
   }
