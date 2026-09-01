@@ -9439,3 +9439,41 @@ function apiSyncCoursePosition(sessionToken) {
     return apiError_('apiSyncCoursePosition', err);
   }
 }
+
+/**
+ * Prints what every account can actually reach — role, plan, level cap, mock
+ * attempts. Run from Código.gs.
+ *
+ * The gate is invisible from the outside: an account that skips it looks
+ * identical to one the gate failed on. This says which it is.
+ */
+function checkAllUserAccess() {
+  var users = dbReadAll_('Users');
+  if (!users.length) { Logger.log('No users.'); return 'No users.'; }
+
+  var lines = [];
+  var counts = {};
+  users.forEach(function(u) {
+    var a;
+    try { a = getUserAccessStatus_(u); } catch (e) { a = { plan: 'ERROR:' + e.message }; }
+    counts[a.plan] = (counts[a.plan] || 0) + 1;
+    lines.push(
+      (String(u.email || '(no email)')).slice(0, 34) +
+      '  role=' + String(u.role || '?') +
+      '  status=' + String(u.status || '?') +
+      '  plan=' + String(a.plan) +
+      '  levels=1-' + String(a.maxLevel) +
+      '  exams=' + String(a.examAllowance) +
+      (a.daysLeft != null ? '  ' + a.daysLeft + 'd left' : '')
+    );
+  });
+
+  lines.sort();
+  var summary = Object.keys(counts).sort().map(function(k) {
+    return k + ': ' + counts[k];
+  }).join('  |  ');
+
+  var msg = users.length + ' accounts — ' + summary + '\n' + lines.join('\n');
+  Logger.log(msg);
+  return msg;
+}
