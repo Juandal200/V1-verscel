@@ -10589,19 +10589,38 @@
     var existing = byId('subModal');
     if (existing) { existing.style.display = 'flex'; return; }
 
+    // Injected here rather than in Styles so the animation ships with the thing
+    // that uses it. Guarded by id so reopening the modal does not stack copies.
+    if (!byId('subModalAnim')) {
+      var _st = document.createElement('style');
+      _st.id = 'subModalAnim';
+      _st.textContent =
+        '@keyframes subGlow{0%,100%{box-shadow:0 0 0 1px rgba(0,212,142,.55),0 0 22px rgba(0,212,142,.18)}' +
+        '50%{box-shadow:0 0 0 1px rgba(0,212,142,.95),0 0 40px rgba(0,212,142,.42)}}' +
+        '@keyframes subSheen{0%{background-position:0% 50%}100%{background-position:200% 50%}}' +
+        '.sub-card-hot{animation:subGlow 2.6s ease-in-out infinite;}' +
+        '.sub-badge-hot{background:linear-gradient(90deg,#00d48e,#5eead4,#00d48e);' +
+          'background-size:200% 100%;animation:subSheen 3s linear infinite;' +
+          'color:#04241a;font-weight:800;}' +
+        // Respect a system preference for less motion: the card keeps its
+        // emphasis, it simply stops pulsing.
+        '@media (prefers-reduced-motion:reduce){.sub-card-hot,.sub-badge-hot{animation:none;}}';
+      document.head.appendChild(_st);
+    }
+
     var overlay = document.createElement('div');
     overlay.id = 'subModal';
     overlay.className = 'sub-modal-overlay';
 
     overlay.innerHTML =
-      '<div class="sub-modal-card" style="max-width:780px;padding:32px 28px 24px;">' +
+      '<div class="sub-modal-card" style="max-width:920px;padding:34px 30px 26px;">' +
         '<button class="panel-close-btn" onclick="closeSubscriptionModal()" style="position:absolute;top:14px;right:16px;">&times;</button>' +
         '<p class="eyebrow" style="text-align:center;margin-bottom:6px;">Aviation English Interactive Campus</p>' +
         '<h2 style="margin:0 0 8px;text-align:center;font-size:1.6rem;">Elige tu plan</h2>' +
         '<p style="margin:0 0 28px;color:#8fa3bb;font-size:0.84rem;line-height:1.6;text-align:center;max-width:480px;margin-left:auto;margin-right:auto;">' +
           'Simulador de entrenamiento ATC con vocabulario especializado de aviaci&oacute;n, diferentes acentos y situaciones rutinarias y de emergencia.' +
         '</p>' +
-        '<div id="subPlanCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;align-items:stretch;">' +
+        '<div id="subPlanCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;align-items:stretch;">' +
           '<p style="color:#8fa3bb;font-size:0.85rem;margin:auto;">Cargando planes…</p>' +
         '</div>' +
         '<div id="subPayStatus" class="sub-pay-status" style="margin-top:16px;text-align:center;"></div>' +
@@ -10655,7 +10674,7 @@
           var cardShadow = popular ? '0 0 0 4px rgba(0,212,142,0.08)' : 'none';
 
           var topBadge = popular
-            ? '<div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:#00d48e;color:#000;font-size:0.75rem;font-weight:800;letter-spacing:0.1em;padding:4px 14px;border-radius:20px;white-space:nowrap;">MÁS POPULAR</div>'
+            ? '<div class="sub-badge-hot" style="position:absolute;top:-13px;left:50%;transform:translateX(-50%);font-size:0.75rem;letter-spacing:0.1em;padding:5px 16px;border-radius:20px;white-space:nowrap;">MÁS POPULAR</div>'
             : '';
 
           var savingsBadge = m.savings
@@ -10691,29 +10710,51 @@
           // numbers that actually differ between the plans lead, and are bold, so
           // the comparison can be made at a glance instead of by reading two
           // paragraphs and subtracting.
-          function _feat(text, strong) {
-            return '<li style="display:flex;gap:8px;align-items:flex-start;text-align:left;' +
-                   'margin-bottom:8px;font-size:0.78rem;line-height:1.45;' +
-                   'color:' + (strong ? '#dde6f0' : '#8fa3bb') + ';">' +
-                     '<span style="color:#00d48e;flex-shrink:0;font-weight:700;">&#10003;</span>' +
+          // An icon per line rather than a column of identical ticks — the eye can
+          // pick out "6 intentos" and the emergency block without reading.
+          function _feat(icon, text, strong) {
+            return '<li style="display:flex;gap:9px;align-items:flex-start;text-align:left;' +
+                   'margin-bottom:9px;font-size:0.82rem;line-height:1.45;' +
+                   'color:' + (strong ? '#e8eef5' : '#8fa3bb') + ';">' +
+                     '<span style="flex-shrink:0;width:18px;text-align:center;font-size:0.95rem;">' +
+                       icon + '</span>' +
                      '<span>' + text + '</span>' +
+                   '</li>';
+          }
+          // A line for what this plan does NOT have, so the difference is visible on
+          // the cheaper card too rather than only implied by the other one.
+          function _missing(icon, text) {
+            return '<li style="display:flex;gap:9px;align-items:flex-start;text-align:left;' +
+                   'margin-bottom:9px;font-size:0.82rem;line-height:1.45;color:#4d6070;">' +
+                     '<span style="flex-shrink:0;width:18px;text-align:center;font-size:0.95rem;' +
+                       'filter:grayscale(1);opacity:.5;">' + icon + '</span>' +
+                     '<span style="text-decoration:line-through;">' + text + '</span>' +
                    '</li>';
           }
 
           var featureList =
             '<ul style="list-style:none;margin:0 0 18px;padding:0;">' +
-              _feat('<strong>' + plan.maxLevel + ' niveles</strong> del simulador ATC', true) +
-              _feat('<strong>' + plan.examAllowance + ' intentos</strong> del examen simulado OACI', true) +
-              _feat('Evaluaci&oacute;n por IA en la escala OACI, con banda por descriptor') +
-              _feat('Rutas completas con situaciones de rutina y emergencia') +
-              _feat('Certificados descargables por nivel') +
-              _feat('Anal&iacute;tica detallada de tu progreso') +
+              _feat('&#127918;', '<strong>' + plan.maxLevel + ' niveles</strong> del simulador ATC', true) +
+              _feat('&#128221;', '<strong>' + plan.examAllowance + ' intentos</strong> del examen simulado OACI', true) +
+              (plan.emergencies
+                ? _feat('&#128680;', '<strong>Simulaci&oacute;n de emergencias</strong>', true) +
+                  _feat('&#128293;', 'Fallas de motor, humo e incendio a bordo') +
+                  _feat('&#127786;', 'Meteorolog&iacute;a severa, cizalladura y turbulencia') +
+                  _feat('&#128295;', 'Fallas t&eacute;cnicas: hidr&aacute;ulica, presurizaci&oacute;n, tren') +
+                  _feat('&#128657;', 'Emergencias m&eacute;dicas y pasajeros disruptivos')
+                : _missing('&#128680;', 'Simulaci&oacute;n de emergencias')) +
+              _feat('&#129302;', 'Evaluaci&oacute;n por IA en la escala OACI, banda por descriptor') +
+              _feat('&#127942;', 'Certificados descargables por nivel') +
+              _feat('&#128202;', 'Anal&iacute;tica detallada de tu progreso') +
               (plan.id === 'full'
-                ? _feat('Niveles operacionales incluidos a medida que se publican', true)
+                ? _feat('&#128640;', 'Niveles operacionales a medida que se publican', true)
                 : '') +
             '</ul>';
 
-          return '<div style="background:' + cardBg + ';border:' + cardBorder + ';border-radius:16px;padding:24px 18px 18px;text-align:center;position:relative;display:flex;flex-direction:column;margin-top:14px;box-shadow:' + cardShadow + ';">' +
+          return '<div class="' + (popular ? 'sub-card-hot' : '') + '" style="background:' + cardBg +
+            ';border:' + cardBorder + ';border-radius:18px;padding:30px 24px 22px;text-align:center;' +
+            'position:relative;display:flex;flex-direction:column;margin-top:16px;' +
+            (popular ? '' : 'box-shadow:' + cardShadow + ';') + '">' +
             topBadge +
             '<div style="flex:1;">' +
               '<p style="margin:0 0 2px;font-size:0.7rem;font-weight:700;letter-spacing:0.12em;color:#8fa3bb;text-transform:uppercase;">' + m.name + '</p>' +

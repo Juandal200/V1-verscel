@@ -202,11 +202,11 @@ function apiVerifyLoginCode(payload) {
  * day four, having shown them nothing.
  * ─────────────────────────────────────────────────────────────────────────── */
 var ACCESS_PLANS_ = {
-  FREE:  { maxLevel: 1,  examAllowance: 1,  label: 'Free' },
-  BASIC: { maxLevel: 10, examAllowance: 3,  label: 'Basic' },
-  FULL:  { maxLevel: 20, examAllowance: 6,  label: 'Full'  },
+  FREE:  { maxLevel: 1,  examAllowance: 1, emergencies: false, label: 'Free'  },
+  BASIC: { maxLevel: 9,  examAllowance: 2, emergencies: false, label: 'Basic' },
+  FULL:  { maxLevel: 20, examAllowance: 6, emergencies: true,  label: 'Full'  },
   // Staff see everything. Not a purchasable plan.
-  STAFF: { maxLevel: 999, examAllowance: 999, label: 'Staff' }
+  STAFF: { maxLevel: 999, examAllowance: 999, emergencies: true, label: 'Staff' }
 };
 
 function _accessFor_(planKey, extra) {
@@ -216,7 +216,11 @@ function _accessFor_(planKey, extra) {
     plan:          planKey,
     planLabel:     plan.label,
     maxLevel:      plan.maxLevel,
-    examAllowance: plan.examAllowance
+    examAllowance: plan.examAllowance,
+    // Emergency scenarios — engine failure, weather, technical — are what Full
+    // adds beyond more levels. Carried here so the gate and the sales copy read
+    // the same field.
+    emergencies:   plan.emergencies === true
   };
   if (extra) Object.keys(extra).forEach(function(k) { out[k] = extra[k]; });
   return out;
@@ -2120,6 +2124,9 @@ function safeTrainingCatalogForClient_(catalog) {
         completedCountries: Number(level.completedCountries || 0),
         completed: level.completed === true || String(level.completed).toUpperCase() === 'TRUE',
         unlocked: level.unlocked === true || String(level.unlocked).toUpperCase() === 'TRUE',
+        // Dropped here, this reads on the client as an ordinary progress lock and
+        // the upgrade is never offered.
+        lockedByPlan: level.lockedByPlan === true,
         locked: level.locked === true || String(level.locked).toUpperCase() === 'TRUE',
         countries: (level.countries || []).map(function(country) {
           return {
@@ -8543,7 +8550,8 @@ function apiGetWompiPlans(sessionToken) {
         days:          p.days,
         cents:         parseInt(props.getProperty(p.prop) || p.defaultCents, 10),
         maxLevel:      ent.maxLevel,
-        examAllowance: ent.examAllowance
+        examAllowance: ent.examAllowance,
+        emergencies:   ent.emergencies === true
       };
     });
     return { ok: true, plans: plans };
