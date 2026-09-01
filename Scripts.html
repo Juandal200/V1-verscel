@@ -8371,12 +8371,24 @@
     }
   }
 
+  // Recomputes the progress gate — finish a level and the next one opens — but it
+  // must not touch the ENTITLEMENT gate. It used to overwrite unlocked/locked from
+  // completion alone, which quietly undid the server's plan cap: complete level 1
+  // on the free tier and level 2 was marked unlocked here, on the client, with no
+  // payment involved.
+  //
+  // Two separate locks. Progress is the client's to recompute as results arrive.
+  // Plan is the server's, and is only ever re-applied here, never lifted.
   function _sweepCatalogUnlocks(catalog) {
     var levels = (catalog && catalog.levels) || [];
     var allPrevDone = true;
     levels.forEach(function(levelItem) {
-      levelItem.unlocked = levelItem.level === 1 || allPrevDone;
-      levelItem.locked = !levelItem.unlocked;
+      var planLocked = levelItem.lockedByPlan === true;
+      var progressOk = levelItem.level === 1 || allPrevDone;
+      levelItem.unlocked = progressOk && !planLocked;
+      levelItem.locked   = !levelItem.unlocked;
+      // Completing a level still counts towards opening the next one even if this
+      // one is beyond the plan, so buying an upgrade does not restart the ladder.
       allPrevDone = allPrevDone && levelItem.completed === true;
     });
   }
@@ -9447,6 +9459,17 @@
       if (Number(levels[i].level) === Number(nextLevel)) { nextData = levels[i]; break; }
     }
     if (nextData) {
+      // This jumped straight into the hub without consulting either gate — the
+      // one route into a level that skipped selectLevel entirely. Finishing level
+      // one and pressing "Continue to Level 2" therefore opened level 2 on a free
+      // account, which is precisely the moment the upgrade should be offered.
+      if (nextData.lockedByPlan === true) {
+        if (typeof openSubscriptionModal === 'function') { openSubscriptionModal(); return; }
+      }
+      if (nextData.locked === true || nextData.unlocked === false) {
+        renderSimulatorPlaceholder();
+        return;
+      }
       AppState.training.selectedLevel = nextLevel;
       AppState.training.selectedLevelData = nextData;
       renderCountryTrainingHub(nextData);
@@ -9510,8 +9533,17 @@
     var nextLevel = level + 1;
     var continueBtn = '';
     if (levelCompleted) {
+      var _nextLocked = false;
+      try {
+        var _lv = ((AppState.training && AppState.training.catalog && AppState.training.catalog.levels) || [])
+          .filter(function(l) { return Number(l.level) === Number(nextLevel); })[0];
+        _nextLocked = !!(_lv && _lv.lockedByPlan);
+      } catch (e) {}
+      // Promising "Continue to Level 2" and then showing a price list is a bait.
+      // Say which it is before the tap.
       continueBtn = '<button class="senior-continue-btn" onclick="_goToNextLevel(' + nextLevel + ')">' +
-        '<span>Continue to Level ' + nextLevel + '</span><span class="senior-continue-arrow">→</span>' +
+        '<span>' + (_nextLocked ? 'Unlock Level ' + nextLevel : 'Continue to Level ' + nextLevel) +
+        '</span><span class="senior-continue-arrow">→</span>' +
       '</button>';
     } else if (nextCountry) {
       continueBtn = '<button class="senior-continue-btn" onclick="startCountryTraining(\'' + safeJs(nextCountry.country) + '\',' + level + ')">' +
