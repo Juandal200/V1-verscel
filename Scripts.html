@@ -4660,6 +4660,21 @@
       if (done) completedCount++;
       if (!foundCurrent && !lk && !done) { currentLevelNum = Number(l.level || 1); foundCurrent = true; }
     });
+
+    // Nothing left that is both open and unfinished. On the free tier that is the
+    // normal state the moment level one is completed — every remaining level is
+    // behind the plan. Point at the first of those and offer to unlock it, rather
+    // than at a level already finished, which reads as "you have nothing to do".
+    var _currentPlanLocked = false;
+    if (!foundCurrent) {
+      for (var _i = 0; _i < trainingLevels.length; _i++) {
+        if (trainingLevels[_i].lockedByPlan === true) {
+          currentLevelNum   = Number(trainingLevels[_i].level || 1);
+          _currentPlanLocked = true;
+          break;
+        }
+      }
+    }
     if (!foundCurrent) {
       for (var _pi = trainingLevels.length - 1; _pi >= 0; _pi--) {
         if (trainingLevels[_pi].unlocked === true || trainingLevels[_pi].locked !== true) {
@@ -4707,8 +4722,16 @@
               '</div>' +
               '<span class="sim-hero-pct">' + overallPct + '%</span>' +
             '</div>' +
-            '<button class="btn ' + (currentVr ? 'primary btn-cta-pulse' : 'primary') + '" onclick="openLevelCountries(' + currentLevelNum + ')">' +
-              (currentVr ? currentVr.icon + ' ' + currentVr.btn : 'Continue Training &rarr;') +
+            // The level a student is "on" can be one their plan does not include —
+            // finish level one on the free tier and this points at level two. It
+            // must offer the upgrade rather than a button that goes nowhere.
+            '<button class="btn ' + (currentVr && !_currentPlanLocked ? 'primary btn-cta-pulse' : 'primary') + '" ' +
+              (_currentPlanLocked
+                ? 'onclick="openSubscriptionModal()"'
+                : 'onclick="openLevelCountries(' + currentLevelNum + ')"') + '>' +
+              (_currentPlanLocked
+                ? 'Unlock Level ' + currentLevelNum + ' &rarr;'
+                : (currentVr ? currentVr.icon + ' ' + currentVr.btn : 'Continue Training &rarr;')) +
             '</button>' +
           '</div>' +
         '</div>' +
@@ -4769,11 +4792,19 @@
           : '';
         var isCurrent = Number(levelItem.level) === currentLevelNum;
         var cardIcon  = locked ? '🔒' : (isCompleted ? '✅' : (vr ? vr.icon : '✈️'));
-        var btnAction = locked ? 'disabled' : 'onclick="openLevelCountries(' + Number(levelItem.level) + ')"';
-        var btnLabel  = locked
-          ? (vr ? vr.icon + ' Unlock to Claim' : 'Access Restricted')
-          : (isCompleted ? (vr ? vr.icon + ' Replay for Bonus' : 'Select Level') : (vr ? vr.btn : 'Select Level'));
-        var btnCls    = locked ? 'secondary' : (vr ? 'primary btn-cta-pulse' : 'primary');
+        // A level locked because you have not finished the previous one has nothing
+        // to offer but patience, so its button stays disabled. A level locked
+        // because of your plan has something to offer, and disabling it turns the
+        // one moment a student is actually interested into a dead end.
+        var btnAction = _planLock
+          ? 'onclick="openSubscriptionModal()"'
+          : (locked ? 'disabled' : 'onclick="openLevelCountries(' + Number(levelItem.level) + ')"');
+        var btnLabel  = _planLock
+          ? 'Unlock Level ' + Number(levelItem.level)
+          : (locked
+              ? (vr ? vr.icon + ' Unlock to Claim' : 'Access Restricted')
+              : (isCompleted ? (vr ? vr.icon + ' Replay for Bonus' : 'Select Level') : (vr ? vr.btn : 'Select Level')));
+        var btnCls    = _planLock ? 'primary' : (locked ? 'secondary' : (vr ? 'primary btn-cta-pulse' : 'primary'));
 
         if (isCompleted) tierCompleted++;
         if (!locked) tierAllLocked = false;
