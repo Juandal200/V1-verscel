@@ -45,7 +45,8 @@ function doPost(e) {
         }
         if (userId) {
           var email = (txn.customer_data && txn.customer_data.email) || '';
-          wompiRecordSubscription_(userId, email, String(txn.id), txn.amount_in_cents || 0, _PLAN_DAYS[plan] || 30);
+          wompiRecordSubscription_(userId, email, String(txn.id), txn.amount_in_cents || 0,
+                                   _PLAN_DAYS[plan] || 30, plan);
         }
       }
       return ContentService.createTextOutput('ok').setMimeType(ContentService.MimeType.TEXT);
@@ -8452,14 +8453,47 @@ function apiAdminDeleteTestimonial(sessionToken, payload) {
 //  WOMPI PAYMENT INTEGRATION
 // ════════════════════════════════════════════════════════════════════
 
-var _PLAN_DAYS = { '15d': 15, '1m': 30, '3m': 90 };
+/* ─── Plans ───────────────────────────────────────────────────────────────────
+ * What is on sale. entitlement points at ACCESS_PLANS_, so what a plan GRANTS is
+ * defined once, next to every gate that reads it, rather than restated here.
+ *
+ * A plan key must not contain a hyphen: the payment reference is
+ * AEROCOMMS-<plan>-<userId>-<timestamp> and the webhook splits it on hyphens.
+ * ─────────────────────────────────────────────────────────────────────────── */
+var _PLAN_CATALOG_ = {
+  basic: { days: 30, entitlement: 'BASIC', label: 'Basic',
+           prop: 'WOMPI_AMOUNT_BASIC_CENTS', defaultCents: '2990000' },
+  full:  { days: 30, entitlement: 'FULL',  label: 'Full',
+           prop: 'WOMPI_AMOUNT_FULL_CENTS',  defaultCents: '4990000' }
+};
+
+// Days per plan key, INCLUDING the retired 15d/1m/3m. A payment started before
+// this change carries the old key in its reference, and the webhook can arrive
+// minutes or hours later — dropping them would take someone's money and grant
+// nothing. They are honoured for settlement but no longer offered for sale.
+var _PLAN_DAYS = {
+  basic: 30, full: 30,
+  '15d': 15, '1m': 30, '3m': 90
+};
+
+// Which entitlement a settled payment confers. Legacy plans were sold as
+// unrestricted access, so they map to FULL.
+var _PLAN_ENTITLEMENT_ = {
+  basic: 'BASIC', full: 'FULL',
+  '15d': 'FULL', '1m': 'FULL', '3m': 'FULL'
+};
+
 var _PLAN_PROPS = {
+  basic: 'WOMPI_AMOUNT_BASIC_CENTS',
+  full:  'WOMPI_AMOUNT_FULL_CENTS',
   '15d': 'WOMPI_AMOUNT_15D_CENTS',
   '1m':  'WOMPI_AMOUNT_1M_CENTS',
   '3m':  'WOMPI_AMOUNT_3M_CENTS'
 };
-var _PLAN_DEFAULTS = { '15d': '1490000', '1m': '2990000', '3m': '7990000' };
-
+var _PLAN_DEFAULTS = {
+  basic: '2990000', full: '4990000',
+  '15d': '1490000', '1m': '2990000', '3m': '7990000'
+};
 
 function apiGetWompiCheckoutData(sessionToken, plan) {
   try {
@@ -8467,7 +8501,9 @@ function apiGetWompiCheckoutData(sessionToken, plan) {
     var props   = PropertiesService.getScriptProperties();
     var pubKey  = props.getProperty('WOMPI_PUB_KEY')          || '';
     var secret  = props.getProperty('WOMPI_INTEGRITY_SECRET') || '';
-    plan = (plan && _PLAN_DAYS[plan]) ? plan : '1m';
+    // Only the catalogue may be bought. A retired key arriving here would be a
+    // stale client, and honouring it would sell something no longer on sale.
+    plan = (plan && _PLAN_CATALOG_[plan]) ? plan : 'basic';
     var cents    = parseInt(props.getProperty(_PLAN_PROPS[plan]) || _PLAN_DEFAULTS[plan], 10);
     var currency  = 'COP';
     var reference = 'AEROCOMMS-' + plan + '-' + user.userId + '-' + Date.now();
@@ -8489,34 +8525,87 @@ function apiGetWompiCheckoutData(sessionToken, plan) {
   }
 }
 
+/**
+ * The plans on sale. Carries what each one GRANTS as well as what it costs, so
+ * the subscription screen states the entitlement from the same source the gates
+ * enforce it from — a card promising twenty levels cannot drift out of step with
+ * the catalogue that only opens ten.
+ */
 function apiGetWompiPlans(sessionToken) {
   try {
     var props = PropertiesService.getScriptProperties();
-    return {
-      ok: true,
-      plans: [
-        { id: '15d', label: '15 días',  days: 15, cents: parseInt(props.getProperty('WOMPI_AMOUNT_15D_CENTS') || '1490000', 10) },
-        { id: '1m',  label: '1 mes',    days: 30, cents: parseInt(props.getProperty('WOMPI_AMOUNT_1M_CENTS')  || '2990000', 10) },
-        { id: '3m',  label: '3 meses',  days: 90, cents: parseInt(props.getProperty('WOMPI_AMOUNT_3M_CENTS')  || '7990000', 10) }
-      ]
-    };
+    var plans = ['basic', 'full'].map(function(key) {
+      var p   = _PLAN_CATALOG_[key];
+      var ent = ACCESS_PLANS_[p.entitlement] || {};
+      return {
+        id:            key,
+        label:         p.label,
+        days:          p.days,
+        cents:         parseInt(props.getProperty(p.prop) || p.defaultCents, 10),
+        maxLevel:      ent.maxLevel,
+        examAllowance: ent.examAllowance
+      };
+    });
+    return { ok: true, plans: plans };
   } catch (e) {
     return { ok: false, error: e.message };
   }
 }
 
+/**
+ * Sets the price of the plans on sale, in COP cents.
+ * Accepts { basic, full }; the old { cents15d, cents1m, cents3m } shape still
+ * works so an admin screen that has not been redeployed does not silently fail.
+ */
 function apiAdminSaveSubscriptionPrices(sessionToken, prices) {
   try {
     AuthService.requireRole(sessionToken, ['ADMIN']);
     var props = PropertiesService.getScriptProperties();
     var p = prices || {};
-    if (p.cents15d) props.setProperty('WOMPI_AMOUNT_15D_CENTS', String(parseInt(p.cents15d, 10)));
-    if (p.cents1m)  props.setProperty('WOMPI_AMOUNT_1M_CENTS',  String(parseInt(p.cents1m,  10)));
-    if (p.cents3m)  props.setProperty('WOMPI_AMOUNT_3M_CENTS',  String(parseInt(p.cents3m,  10)));
-    return { ok: true };
+    var wrote = [];
+
+    ['basic', 'full'].forEach(function(key) {
+      var v = p[key];
+      if (v === undefined || v === null || v === '') return;
+      var cents = parseInt(v, 10);
+      // A price of zero would give the plan away, and a negative one is
+      // meaningless to Wompi. Refuse rather than write it.
+      if (!isFinite(cents) || cents <= 0) throw new Error('Invalid price for ' + key);
+      props.setProperty(_PLAN_CATALOG_[key].prop, String(cents));
+      wrote.push(key);
+    });
+
+    if (p.cents15d) { props.setProperty('WOMPI_AMOUNT_15D_CENTS', String(parseInt(p.cents15d, 10))); wrote.push('15d'); }
+    if (p.cents1m)  { props.setProperty('WOMPI_AMOUNT_1M_CENTS',  String(parseInt(p.cents1m,  10))); wrote.push('1m');  }
+    if (p.cents3m)  { props.setProperty('WOMPI_AMOUNT_3M_CENTS',  String(parseInt(p.cents3m,  10))); wrote.push('3m');  }
+
+    return { ok: true, updated: wrote };
   } catch (e) {
     return { ok: false, error: e.message };
   }
+}
+
+/** Prints what each plan currently costs and grants. Run from Código.gs. */
+function checkSubscriptionPlans() {
+  var props = PropertiesService.getScriptProperties();
+  var out = [];
+  ['basic', 'full'].forEach(function(key) {
+    var p    = _PLAN_CATALOG_[key];
+    var ent  = ACCESS_PLANS_[p.entitlement] || {};
+    var set  = props.getProperty(p.prop);
+    var cents = parseInt(set || p.defaultCents, 10);
+    out.push(p.label + '  (' + key + ')');
+    out.push('   price: $' + (cents / 100).toLocaleString() + ' COP' +
+             (set ? '' : '  [DEFAULT — never set, edit with apiAdminSaveSubscriptionPrices]'));
+    out.push('   grants: levels 1-' + ent.maxLevel + ', ' + ent.examAllowance +
+             ' mock attempts, ' + p.days + ' days');
+  });
+  var free = ACCESS_PLANS_.FREE;
+  out.push('Free  — levels 1-' + free.maxLevel + ', ' + free.examAllowance +
+           ' mock attempt, no expiry');
+  var msg = out.join('\n');
+  Logger.log(msg);
+  return msg;
 }
 
 function debugWompiConfig() {
@@ -8565,6 +8654,9 @@ function wompiGetSubscriptionStatus_(userId) {
           ok: true,
           active: true,
           endDate: data[i][6],
+          // Blank on every row written before plans existed. Those were sold as
+          // unrestricted access, and getUserAccessStatus_ reads a blank as FULL.
+          plan: String(data[i][9] || ''),
           daysLeft: Math.ceil((endDate - now) / 86400000)
         };
       }
@@ -8573,12 +8665,15 @@ function wompiGetSubscriptionStatus_(userId) {
   return { ok: true, active: false };
 }
 
-function wompiRecordSubscription_(userId, email, transactionId, amountCents, days) {
+function wompiRecordSubscription_(userId, email, transactionId, amountCents, days, plan) {
   var msPerDay = 24 * 60 * 60 * 1000;
   var addMs    = (days || 30) * msPerDay;
   var sheet    = wompiGetOrCreateSheet_();
   var data     = sheet.getDataRange().getValues();
   var now      = new Date();
+  // Recorded on the payment, not looked up later. Redefining a plan next month
+  // must not retroactively change what somebody already bought.
+  var ent = _PLAN_ENTITLEMENT_[String(plan || '')] || 'FULL';
 
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][1]) === String(userId) && String(data[i][7]) === 'active') {
@@ -8587,6 +8682,10 @@ function wompiRecordSubscription_(userId, email, transactionId, amountCents, day
       var newEnd = new Date(base.getTime() + addMs);
       sheet.getRange(i + 1, 7).setValue(newEnd.toISOString());
       sheet.getRange(i + 1, 4).setValue(transactionId);
+      // Upgrading mid-period takes effect immediately; renewing the same plan is
+      // unchanged. Never downgrade an active period someone has already paid for.
+      var existing = String(data[i][9] || '').toUpperCase();
+      if (ent === 'FULL' || !existing) sheet.getRange(i + 1, 10).setValue(ent);
       return;
     }
   }
@@ -8595,7 +8694,7 @@ function wompiRecordSubscription_(userId, email, transactionId, amountCents, day
   var subId = 'sub_' + userId + '_' + now.getTime();
   sheet.appendRow([
     subId, userId, email, transactionId, amountCents,
-    now.toISOString(), end.toISOString(), 'active', now.toISOString()
+    now.toISOString(), end.toISOString(), 'active', now.toISOString(), ent
   ]);
 }
 
@@ -8607,7 +8706,14 @@ function wompiGetOrCreateSheet_() {
   if (!sheet) {
     sheet = ss.insertSheet('Subscriptions');
     sheet.appendRow(['subscriptionId','userId','email','transactionId','amountCents',
-                     'startDate','endDate','status','createdAt']);
+                     'startDate','endDate','status','createdAt','plan']);
+  }
+  // The header row is only written when the sheet is created, so a sheet that
+  // already existed never gains a new column. Backfilling here means the plan
+  // lands under a labelled heading rather than an unlabelled tenth column that
+  // nobody editing the sheet can identify.
+  if (sheet.getLastColumn() < 10) {
+    sheet.getRange(1, 10).setValue('plan');
   }
   return sheet;
 }

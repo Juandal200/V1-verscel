@@ -10538,7 +10538,7 @@
         '<p style="margin:0 0 28px;color:#8fa3bb;font-size:0.84rem;line-height:1.6;text-align:center;max-width:480px;margin-left:auto;margin-right:auto;">' +
           'Simulador de entrenamiento ATC con vocabulario especializado de aviaci&oacute;n, diferentes acentos y situaciones rutinarias y de emergencia.' +
         '</p>' +
-        '<div id="subPlanCards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:stretch;">' +
+        '<div id="subPlanCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;align-items:stretch;">' +
           '<p style="color:#8fa3bb;font-size:0.85rem;margin:auto;">Cargando planes…</p>' +
         '</div>' +
         '<div id="subPayStatus" class="sub-pay-status" style="margin-top:16px;text-align:center;"></div>' +
@@ -10555,36 +10555,29 @@
           return;
         }
 
-        // Build lookup by id for savings calc
+        // Two plans, both a month. They differ by what they open, not by how long
+        // they last, so the copy leads with the entitlement rather than a duration
+        // — and the entitlement comes from the server, so a card cannot promise
+        // more levels than the catalogue will actually unlock.
         var byId_ = {};
         res.plans.forEach(function(p) { byId_[p.id] = p; });
-        var sprintCents   = byId_['15d'] ? byId_['15d'].cents : 0;
-        var sprintDayRate = sprintCents / 15;
 
         var meta = {
-          '15d': {
-            name:     'Sprint',
-            duration: '15 D&iacute;as',
-            desc:     'Ideal si tienes tu examen OACI en los pr&oacute;ximos d&iacute;as y necesitas repaso intensivo.',
+          basic: {
+            name:     'Basic',
+            duration: '1 Mes',
+            desc:     'Acceso a los primeros niveles del simulador y tres intentos del examen simulado OACI.',
             savings:  null,
             popular:  false,
-            months:   null
-          },
-          '1m': {
-            name:     'Training',
-            duration: '1 Mes',
-            desc:     'El plan m&aacute;s elegido. Acceso por 30 d&iacute;as para practicar con calma y asegurar tu nivel.',
-            savings:  'AHORRAS ' + Math.round((sprintDayRate * 30 - (byId_['1m'] ? byId_['1m'].cents : 0)) / (sprintDayRate * 30) * 100) + '%',
-            popular:  true,
             months:   1
           },
-          '3m': {
-            name:     'Full Course',
-            duration: '3 Meses',
-            desc:     'Domina el simulador entero. Acceso total por 90 d&iacute;as para un entrenamiento a tu propio ritmo.',
-            savings:  'MEJOR VALOR &middot; AHORRAS ' + Math.round((sprintDayRate * 90 - (byId_['3m'] ? byId_['3m'].cents : 0)) / (sprintDayRate * 90) * 100) + '%',
-            popular:  false,
-            months:   null
+          full: {
+            name:     'Full',
+            duration: '1 Mes',
+            desc:     'Todos los niveles, incluidos los operacionales a medida que se publican, y el doble de intentos del examen.',
+            savings:  'MEJOR VALOR',
+            popular:  true,
+            months:   1
           }
         };
 
@@ -10606,9 +10599,10 @@
             ? '<div style="display:inline-block;background:rgba(0,212,142,0.12);border:1px solid rgba(0,212,142,0.3);color:#00d48e;font-size:0.75rem;font-weight:800;letter-spacing:0.06em;padding:3px 10px;border-radius:20px;margin-bottom:14px;">' + m.savings + '</div>'
             : '<div style="height:22px;margin-bottom:14px;"></div>';
 
-          var subtext = plan.id === '15d' ? 'Acceso total por 15 d&iacute;as'
-                      : plan.id === '1m'  ? 'Facturado en un &uacute;nico pago de COP ' + totalCop
-                      :                     'Acceso total por 90 d&iacute;as';
+          // Straight from the server's entitlement, so the card cannot promise more
+          // than the catalogue opens.
+          var subtext = 'Niveles 1 a ' + plan.maxLevel + ' &middot; ' +
+                        plan.examAllowance + ' intentos del examen';
           var priceBlock = monthlyCop
             ? '<p style="margin:0 0 2px;font-size:2rem;font-weight:900;color:#ffffff;line-height:1;white-space:nowrap;">COP ' + monthlyCop + '</p>' +
               '<p style="margin:0 0 4px;font-size:0.72rem;color:#8fa3bb;letter-spacing:0.04em;white-space:nowrap;">/ mes</p>' +
