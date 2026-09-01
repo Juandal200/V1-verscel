@@ -25119,6 +25119,18 @@
   function _scFinish() {
     _sc.running = false;
     _scClearTimer();
+    // Release the hold as soon as the sitting is over. It would expire on its own
+    // in three quarters of an hour, but a candidate who wants to sit again should
+    // not have to wait out a timer for an exam they already finished.
+    if (_sc.reserved) {
+      _sc.reserved = false;
+      try {
+        google.script.run
+          .withSuccessHandler(function () {})
+          .withFailureHandler(function () {})
+          .apiReleaseIcaoExam(AppState.sessionToken);
+      } catch (e) {}
+    }
     // Tell the grader how many recordings needed a second hearing, so its written
     // justification can reflect it. The band itself is capped in code afterwards
     // rather than trusted to this line being obeyed.
@@ -25132,23 +25144,37 @@
     window._teaStarting = true;
     _unlockAudio();   // synchronous — must stay inside the click to unlock playback
 
-    // Checked here rather than at the finish. Being told after thirty minutes
-    // that the sitting did not count would be indefensible.
+    // Claimed here rather than checked at the finish. Being told after thirty
+    // minutes that the sitting did not count would be indefensible.
     google.script.run
-      .withSuccessHandler(function (al) {
-        if (al && al.ok && al.remaining <= 0) {
+      .withSuccessHandler(function (r) {
+        if (r && r.ok === false) {
           window._teaStarting = false;
-          _scStage(_scNoAttemptsHtml(al));
+          _scStage(r.reason === 'IN_PROGRESS'
+            ? _scInProgressHtml()
+            : _scNoAttemptsHtml(r.allowance || {}));
           return;
         }
-        _sc.allowance = al && al.ok ? al : null;
+        _sc.allowance = (r && r.allowance) || null;
+        _sc.reserved  = true;
         _teaStartScripted(bank);
       })
-      // An allowance we cannot read must not block an exam. Failing open costs us
-      // a sitting; failing closed costs a paying candidate their exam.
+      // A reservation we cannot make must not block an exam. Failing open costs
+      // us a sitting; failing closed costs a paying candidate their exam.
       .withFailureHandler(function () { _sc.allowance = null; _teaStartScripted(bank); })
-      .apiGetIcaoExamAllowance(AppState.sessionToken);
+      .apiReserveIcaoExam(AppState.sessionToken);
   };
+
+  function _scInProgressHtml() {
+    return '<div class="panel" style="margin:16px;text-align:center;">' +
+      '<p class="eyebrow" style="margin:0 0 6px;">Mock test</p>' +
+      '<h3 style="margin:0 0 8px;">An examination is already running</h3>' +
+      '<p style="font-size:.9rem;line-height:1.6;color:var(--muted,#808080);margin:0 0 16px;">' +
+        'You have a sitting open on another device or tab. Finish it, or wait a ' +
+        'few minutes and it will release on its own.</p>' +
+      '<button class="btn secondary" onclick="renderHome()">Back to home</button>' +
+      '</div>';
+  }
 
   function _scNoAttemptsHtml(al) {
     var used = Number((al && al.used) || 0);

@@ -428,9 +428,78 @@ function apiGetIcaoExamAllowance(sessionToken) {
       // The free sitting runs in full and is graded in full. Only the reading of
       // the result is held back, so nothing about the exam itself is a demo.
       resultsVisible: !isFree,
-      isFree: isFree
+      isFree: isFree,
+      inProgress: !!_icaoHeldReservation_(user.userId)
     };
   } catch (err) {
     return apiError_('apiGetIcaoExamAllowance', err);
+  }
+}
+
+/* ─── Sitting reservation ─────────────────────────────────────────────────────
+ * Held while an exam is in progress so two cannot run at once.
+ *
+ * Deliberately NOT the thing that consumes an attempt — the completed row in TEA
+ * Results is. A candidate whose connection dies at minute three has not sat an
+ * exam and must not be charged for one, so the reservation simply expires and
+ * costs nothing.
+ *
+ * Kept in CacheService because it expires by itself. There is no sweeper to
+ * forget to run, and if the cache is evicted early the reservation lapses early —
+ * which lets someone start another exam. That is the right direction to fail: it
+ * gives away a sitting rather than refusing a paying candidate theirs.
+ * ─────────────────────────────────────────────────────────────────────────── */
+var ICAO_RESERVE_SECONDS_ = 45 * 60;   // longer than the exam, short enough to clear
+
+function _icaoReserveKey_(userId) { return 'icao_resv_' + String(userId || ''); }
+
+function _icaoHeldReservation_(userId) {
+  try {
+    return CacheService.getScriptCache().get(_icaoReserveKey_(userId)) || '';
+  } catch (e) { return ''; }
+}
+
+/**
+ * Claims the right to sit an exam now.
+ * Returns ok:false with a reason the client can show, never throws for a normal
+ * refusal — running out of attempts is not an error.
+ */
+function apiReserveIcaoExam(sessionToken) {
+  try {
+    var user = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    var al   = apiGetIcaoExamAllowance(sessionToken);
+    if (!al || !al.ok) return { ok: false, reason: 'ALLOWANCE_UNKNOWN' };
+
+    if (al.remaining <= 0) {
+      return { ok: false, reason: 'NO_ATTEMPTS', allowance: al };
+    }
+
+    var held = _icaoHeldReservation_(user.userId);
+    if (held) {
+      return { ok: false, reason: 'IN_PROGRESS', startedAt: held, allowance: al };
+    }
+
+    try {
+      CacheService.getScriptCache().put(
+        _icaoReserveKey_(user.userId), new Date().toISOString(), ICAO_RESERVE_SECONDS_
+      );
+    } catch (e) {
+      // Could not reserve. Let the exam run rather than block it — the worst case
+      // is two concurrent sittings, which is far better than refusing a valid one.
+    }
+    return { ok: true, allowance: al };
+  } catch (err) {
+    return apiError_('apiReserveIcaoExam', err);
+  }
+}
+
+/** Releases the hold. Called when the exam finishes or is abandoned. */
+function apiReleaseIcaoExam(sessionToken) {
+  try {
+    var user = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    try { CacheService.getScriptCache().remove(_icaoReserveKey_(user.userId)); } catch (e) {}
+    return { ok: true };
+  } catch (err) {
+    return apiError_('apiReleaseIcaoExam', err);
   }
 }
