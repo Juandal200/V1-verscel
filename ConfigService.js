@@ -8,7 +8,12 @@ var CONFIG = {
   PROP_BOOTSTRAP_ADMIN_EMAIL: 'BOOTSTRAP_ADMIN_EMAIL',
 
   DEFAULT_NEW_USER_ROLE: 'STUDENT',
-  DEFAULT_NEW_USER_STATUS: 'PENDING',
+  // Registration is open: a new account is usable immediately. It was PENDING,
+  // which meant every sign-up waited on a human before it could do anything —
+  // fine when the app was invitation-only, wrong now that the free tier is what
+  // sells the subscription. Someone who cannot get in cannot be sold to.
+  // Access is limited by entitlement (free tier vs plan), not by approval.
+  DEFAULT_NEW_USER_STATUS: 'ACTIVE',
 
   SESSION_TTL_SECONDS: 2592000
 };

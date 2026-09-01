@@ -190,32 +190,58 @@ function apiVerifyLoginCode(payload) {
   }
 }
 
-function getUserAccessStatus_(user) {
-  if (!user) return { status: 'expired' };
-  if (user.role === 'ADMIN' || user.role === 'INSTRUCTOR') return { status: 'active' };
+/* ─── Entitlements ────────────────────────────────────────────────────────────
+ * What an account can reach, as data rather than as a series of if-statements
+ * scattered around the app. Every gate reads maxLevel and examAllowance from
+ * here, so changing what a plan includes is one edit in one place.
+ *
+ * FREE is not a trial. It does not expire, because the free tier is the shop
+ * window: a permanent level 1 and one mock test whose result is withheld is a
+ * better argument for subscribing than a countdown that locks someone out on
+ * day four, having shown them nothing.
+ * ─────────────────────────────────────────────────────────────────────────── */
+var ACCESS_PLANS_ = {
+  FREE:  { maxLevel: 1,  examAllowance: 1,  label: 'Free' },
+  BASIC: { maxLevel: 10, examAllowance: 3,  label: 'Basic' },
+  FULL:  { maxLevel: 20, examAllowance: 6,  label: 'Full'  },
+  // Staff see everything. Not a purchasable plan.
+  STAFF: { maxLevel: 999, examAllowance: 999, label: 'Staff' }
+};
 
-  // Active subscription takes priority
+function _accessFor_(planKey, extra) {
+  var plan = ACCESS_PLANS_[planKey] || ACCESS_PLANS_.FREE;
+  var out = {
+    status:        planKey === 'FREE' ? 'free' : 'active',
+    plan:          planKey,
+    planLabel:     plan.label,
+    maxLevel:      plan.maxLevel,
+    examAllowance: plan.examAllowance
+  };
+  if (extra) Object.keys(extra).forEach(function(k) { out[k] = extra[k]; });
+  return out;
+}
+
+function getUserAccessStatus_(user) {
+  if (!user) return _accessFor_('FREE');
+  if (user.role === 'ADMIN' || user.role === 'INSTRUCTOR') return _accessFor_('STAFF');
+
+  // A live subscription decides everything. plan is recorded on the payment row,
+  // so someone who bought Basic keeps Basic even if the plans are redefined later.
   try {
     var sub = wompiGetSubscriptionStatus_(user.userId);
     if (sub && sub.ok && sub.active) {
-      return { status: 'active', endDate: sub.endDate, daysLeft: sub.daysLeft };
+      // Rows written before plans existed carry no plan. They were sold unlimited
+      // access, so they get the larger one until their period ends.
+      var key = String(sub.plan || '').toUpperCase();
+      if (!ACCESS_PLANS_[key] || key === 'FREE' || key === 'STAFF') key = 'FULL';
+      return _accessFor_(key, { endDate: sub.endDate, daysLeft: sub.daysLeft });
     }
   } catch(e) {}
 
-  // Trial window
-  var trialStart = user.trialStartDate ? new Date(user.trialStartDate) : null;
-  if (!trialStart) {
-    // Grandfathered user (registered before trial system) — keep access
-    return { status: 'active' };
-  }
-  var now = new Date();
-  var trialEnd = new Date(trialStart.getTime() + 3 * 24 * 60 * 60 * 1000);
-  if (now < trialEnd) {
-    var hoursLeft = (trialEnd - now) / (1000 * 60 * 60);
-    var daysLeft  = Math.max(1, Math.ceil(hoursLeft / 24));
-    return { status: 'trial', daysLeft: daysLeft, trialEnd: trialEnd.toISOString() };
-  }
-  return { status: 'expired' };
+  // Everyone else. Note there is no 'expired' any more: a lapsed subscriber lands
+  // here, keeps every result and certificate they earned, and can still fly level
+  // one. Locking them out of their own history removed the reason to come back.
+  return _accessFor_('FREE');
 }
 
 // Lightweight no-op — called on page load to warm up the GAS runtime before the user logs in.
@@ -2217,6 +2243,12 @@ function testTrainingCatalogV5HardWithoutSession() {
 
 
 function buildTrainingCatalogV5Hard_(user, maxLevels) {
+  // How far this account's plan reaches. Staff and paid plans set their own;
+  // an unknown or absent user falls back to the free tier rather than to
+  // everything, so a bug here under-serves rather than gives the product away.
+  var _maxLevel = 1;
+  try { _maxLevel = Number(getUserAccessStatus_(user).maxLevel) || 1; } catch (e) {}
+
   user = user || {};
   maxLevels = Number(maxLevels || 50);
 
@@ -2329,13 +2361,24 @@ function buildTrainingCatalogV5Hard_(user, maxLevels) {
         return country.completed;
       }).length;
 
+      // Entitlement gate. A level the account has not paid for is locked here,
+      // on the server, where a curious student cannot reach it — the client only
+      // renders what this says. Progress rules still apply on top: paying for
+      // twenty levels does not skip you past level one.
+      var _lvlNum   = Number(levelItem.level || 1);
+      var _entitled = _lvlNum <= _maxLevel;
+
       return {
-        level: Number(levelItem.level || 1),
+        level: _lvlNum,
         totalCountries: countries.length,
         completedCountries: completedCountries,
         completed: countries.length > 0 && completedCountries >= countries.length,
-        unlocked: levelItem.unlocked === true,
-        locked: levelItem.locked === true,
+        unlocked: _entitled && levelItem.unlocked === true,
+        locked:   !_entitled || levelItem.locked === true,
+        // Tells the client WHY it is locked, so it can offer the right thing:
+        // an upgrade prompt for a level you have not bought, versus "finish the
+        // previous level" for one you have.
+        lockedByPlan: !_entitled,
         countries: countries
       };
     })

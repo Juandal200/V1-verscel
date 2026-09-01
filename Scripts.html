@@ -1268,11 +1268,10 @@
     }
 
     // Access gate — check before rendering anything
-    var _access = AppState.accessStatus;
-    if (_access && _access.status === 'expired') {
-      _renderPaywall();
-      return;
-    }
+    // No 'expired' gate here any more. A lapsed subscriber drops to the free tier
+    // rather than being shut out: they keep every result and certificate they
+    // earned and can still fly level one. What they lose is the paid levels and
+    // the extra mock attempts, which the entitlement already withholds.
 
     // First Flight gate — guide new students through their first scenario
     if (AppState.user && AppState.user.role === 'STUDENT' && !AppState.user.firstFlightDone) {
@@ -1414,12 +1413,12 @@
         '<div style="max-width:480px;width:100%;text-align:center;">' +
           '<div style="font-size:3rem;margin-bottom:16px;">✈</div>' +
           '<p class="eyebrow" style="margin-bottom:8px;">Aviation English Interactive Campus</p>' +
-          '<h2 style="margin:0 0 10px;font-size:1.8rem;">Your free trial has ended</h2>' +
+          '<h2 style="margin:0 0 10px;font-size:1.8rem;">Choose your plan</h2>' +
           '<p class="subtitle" style="margin:0 0 28px;line-height:1.6;">Subscribe to keep practising. Get full access to all simulators, routes, evaluations and certificates.</p>' +
           '<ul style="list-style:none;padding:0;margin:0 0 32px;text-align:left;display:inline-block;">' +
             '<li style="padding:6px 0;color:var(--text);font-size:0.92rem;">&#10003;&nbsp; All ATC radio simulators</li>' +
             '<li style="padding:6px 0;color:var(--text);font-size:0.92rem;">&#10003;&nbsp; Complete training routes</li>' +
-            '<li style="padding:6px 0;color:var(--text);font-size:0.92rem;">&#10003;&nbsp; Official ICAO AI evaluation</li>' +
+            '<li style="padding:6px 0;color:var(--text);font-size:0.92rem;">&#10003;&nbsp; AI evaluation on the ICAO scale</li>' +
             '<li style="padding:6px 0;color:var(--text);font-size:0.92rem;">&#10003;&nbsp; Downloadable level certificates</li>' +
             '<li style="padding:6px 0;color:var(--text);font-size:0.92rem;">&#10003;&nbsp; Detailed performance analytics</li>' +
           '</ul>' +
@@ -1445,15 +1444,18 @@
       .apiGetSubscriptionStatus(AppState.sessionToken);
   }
 
-  function _showTrialBanner(daysLeft) {
+  // Was a countdown on a three-day trial. There is no trial now — the free tier
+  // does not expire — so this says what is actually on the other side of paying
+  // instead of how long until the door shuts.
+  function _showFreeBanner() {
     var existing = byId('trialBanner');
     if (existing) return;
     var bar = document.createElement('div');
     bar.id = 'trialBanner';
     bar.className = 'trial-banner';
     bar.innerHTML =
-      '<span>&#9200; <strong>' + daysLeft + ' day' + (daysLeft !== 1 ? 's' : '') + ' left</strong> in your free trial</span>' +
-      '<button class="trial-banner-btn" onclick="openSubscriptionModal();document.getElementById(\'trialBanner\').remove();">Subscribe now</button>';
+      '<span>You are on the <strong>free plan</strong> \u00b7 Level 1 and one mock test</span>' +
+      '<button class="trial-banner-btn" onclick="openSubscriptionModal();">See plans</button>';
     var content = byId('contentArea');
     if (content && content.parentNode) content.parentNode.insertBefore(bar, content);
   }
@@ -1462,24 +1464,14 @@
     _simStateClear();
     setActiveNav('Home');
 
-    // Access gate
-    if (AppState.accessStatus && AppState.accessStatus.status === 'expired') {
-      _renderPaywall();
-      return;
-    }
-
     var _tok = _navToken;
     var _freshData = (Date.now() - _homeDataFreshAt) < 30000;
 
     function _doRenderHome() {
       if (_navToken !== _tok) return;
 
-      if (AppState.accessStatus && AppState.accessStatus.status === 'expired') {
-        _renderPaywall();
-        return;
-      }
-      if (AppState.accessStatus && AppState.accessStatus.status === 'trial') {
-        _showTrialBanner(AppState.accessStatus.daysLeft);
+      if (AppState.accessStatus && AppState.accessStatus.status === 'free') {
+        _showFreeBanner();
       }
 
       var home    = AppState.home || {};
@@ -1781,10 +1773,6 @@
       // Always refresh in background to catch XP/streak/subscription changes
       refreshMeAndHome(function() {
         if (_navToken !== _tok) return;
-        if (AppState.accessStatus && AppState.accessStatus.status === 'expired') {
-          _renderPaywall();
-          return;
-        }
         var _scrollEl = document.documentElement.scrollTop > 0 ? document.documentElement : document.body;
         var _scrollY = _scrollEl.scrollTop;
         _doRenderHome();
@@ -4757,7 +4745,9 @@
         var totalCountries = (levelItem.countries || []).length || Number(levelItem.totalCountries || 0);
         var progressPct = totalCountries ? Math.round((completedCountries / totalCountries) * 100) : 0;
         var isCompleted = totalCountries > 0 && completedCountries >= totalCountries;
-        var statusText  = isCompleted ? 'Complete' : (locked ? 'Locked' : 'Unlocked');
+        var _planLock   = levelItem.lockedByPlan === true;
+        var statusText  = isCompleted ? 'Complete'
+                        : (_planLock ? 'Upgrade' : (locked ? 'Locked' : 'Unlocked'));
         var statusClass = isCompleted ? 'ACTIVE'   : (locked ? 'BLOCKED' : 'PENDING');
         var regions     = totalCountries;
         var vr          = vrEvents[levelItem.level] || null;
@@ -5007,6 +4997,15 @@
     }
 
     if (selected.locked || selected.unlocked === false) {
+      // Two different locks wearing the same word. One is "you have not finished
+      // the level before this", which is the training design working. The other is
+      // "your plan does not include this", which is a sale — and telling someone
+      // their level is locked, with no way to unlock it, is how you lose it.
+      if (selected.lockedByPlan) {
+        if (typeof openSubscriptionModal === 'function') openSubscriptionModal();
+        else showContentError('This level is not included in your plan.');
+        return;
+      }
       showContentError('This level is locked.');
       return;
     }
@@ -12256,12 +12255,11 @@
   window.renderAdminSubscriptions   = renderAdminSubscriptions;
   window._renderPaywall             = _renderPaywall;
   window._paywallVerify             = _paywallVerify;
-  window._showTrialBanner           = _showTrialBanner;
+  window._showFreeBanner            = _showFreeBanner;
   var _navToTimer = null;
   window._navTo = function(fn) {
     if (_navToTimer) { clearTimeout(_navToTimer); _navToTimer = null; }
     var a = AppState.accessStatus;
-    if (a && a.status === 'expired') { _renderPaywall(); return; }
     if (typeof fn !== 'function') return;
 
     var ca = byId('contentArea');
@@ -25140,6 +25138,45 @@
     window._teaStarting = true;
     _unlockAudio();   // synchronous — must stay inside the click to unlock playback
 
+    // Checked here rather than at the finish. Being told after thirty minutes
+    // that the sitting did not count would be indefensible.
+    google.script.run
+      .withSuccessHandler(function (al) {
+        if (al && al.ok && al.remaining <= 0) {
+          window._teaStarting = false;
+          _scStage(_scNoAttemptsHtml(al));
+          return;
+        }
+        _sc.allowance = al && al.ok ? al : null;
+        _teaStartScripted(bank);
+      })
+      // An allowance we cannot read must not block an exam. Failing open costs us
+      // a sitting; failing closed costs a paying candidate their exam.
+      .withFailureHandler(function () { _sc.allowance = null; _teaStartScripted(bank); })
+      .apiGetIcaoExamAllowance(AppState.sessionToken);
+  };
+
+  function _scNoAttemptsHtml(al) {
+    var used = Number((al && al.used) || 0);
+    return '<div class="panel" style="margin:16px;text-align:center;">' +
+      '<p class="eyebrow" style="margin:0 0 6px;">Mock test</p>' +
+      '<h3 style="margin:0 0 8px;">No attempts left</h3>' +
+      '<p style="font-size:.9rem;line-height:1.6;color:var(--muted,#808080);margin:0 0 16px;">' +
+        (al && al.isFree
+          ? 'The free plan includes one mock test, and you have used it. ' +
+            'Subscribe to sit the full exam and see your results.'
+          : 'You have used all ' + used + ' attempts in this period. ' +
+            'Your allowance refreshes when your plan renews.') +
+      '</p>' +
+      (al && al.isFree
+        ? '<button class="btn primary" onclick="openSubscriptionModal()">See plans</button>'
+        : '<button class="btn secondary" onclick="renderHome()">Back to home</button>') +
+      '</div>';
+  }
+
+  function _teaStartScripted(bank) {
+    window._teaStarting = true;
+
     Array.prototype.slice.call(document.querySelectorAll('.tea-begin-shell button'))
       .forEach(function (b) { b.disabled = true; });
 
@@ -25584,6 +25621,13 @@
     } catch (e) {}
   }
 
+  // Free accounts sit the exam and are graded; they just cannot read the outcome
+  // until they subscribe. Staff and paid plans always see it.
+  function _teaResultsLocked() {
+    var a = window.AppState && AppState.accessStatus;
+    return !!(a && a.status === 'free');
+  }
+
   function _showReportScreen(json) {
     if (_t._gradingLoader && _t._gradingLoader.stop) { try { _t._gradingLoader.stop(); } catch (e) {} }
     if (_t.timerIv) clearInterval(_t.timerIv);
@@ -25595,7 +25639,32 @@
           '<div style="text-align:center;margin-bottom:20px;">' +
             '<div class="tea-part-badge" style="font-size:0.75rem;padding:5px 16px;">ICAO TEST · RESULT</div>' +
           '</div>' +
-          '<div class="tea-score-box">' + _renderScoreJSON(json) + '</div>' +
+          // The free sitting is examined and graded in full — only the reading of
+          // the result is withheld. Blurring rather than hiding is deliberate: the
+          // report is visibly there, finished, and theirs. That is a far better
+          // argument than a price list shown before they had done anything.
+          (_teaResultsLocked()
+            ? '<div style="position:relative;">' +
+                '<div class="tea-score-box" style="filter:blur(7px);pointer-events:none;' +
+                  'user-select:none;" aria-hidden="true">' + _renderScoreJSON(json) + '</div>' +
+                '<div style="position:absolute;inset:0;display:flex;flex-direction:column;' +
+                  'align-items:center;justify-content:center;text-align:center;padding:24px;">' +
+                  '<div style="background:var(--panel,rgba(18,18,18,.97));border-radius:16px;' +
+                    'border:1px solid var(--line,rgba(186,186,186,.12));padding:22px 24px;' +
+                    'max-width:380px;box-shadow:0 12px 40px rgba(0,0,0,.6);">' +
+                    '<p class="eyebrow" style="margin:0 0 8px;">Your result is ready</p>' +
+                    '<h3 style="margin:0 0 10px;font-size:1.15rem;color:var(--white,#fff);">' +
+                      'Unlock your ICAO band</h3>' +
+                    '<p style="margin:0 0 16px;font-size:.85rem;line-height:1.6;' +
+                      'color:var(--muted,#808080);">You completed the full examination and it ' +
+                      'has been marked against all six ICAO descriptors. Subscribe to see your ' +
+                      'bands and the examiner\u2019s feedback.</p>' +
+                    '<button class="btn primary full" onclick="openSubscriptionModal()">' +
+                      'See plans</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>'
+            : '<div class="tea-score-box">' + _renderScoreJSON(json) + '</div>') +
           // An ICAO language proficiency rating is a licence endorsement, issued by
           // an authorised examiner and entered against a licence. This is a practice
           // result produced by software. Showing a band with no qualification invites

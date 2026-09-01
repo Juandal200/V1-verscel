@@ -191,9 +191,9 @@ var UserService = {
         appUrl = '';
       }
 
-      var subject = 'aerocomms — New pilot pending approval';
+      var subject = 'aerocomms — New pilot registered';
       var plainBody =
-        'A new user has registered and is pending approval.\n\n' +
+        'A new user has registered and their account is active.\n\n' +
         'Name: ' + (user.name || '') + '\n' +
         'Email: ' + (user.email || '') + '\n' +
         'Role: ' + (user.role || '') + '\n' +
@@ -210,11 +210,11 @@ var UserService = {
             '</td>' +
             '<td style="vertical-align:middle;">' +
               '<div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#00d48e;margin-bottom:3px;">aerocomms</div>' +
-              '<div style="font-size:18px;font-weight:700;color:#dde6f0;">New pilot pending approval</div>' +
+              '<div style="font-size:18px;font-weight:700;color:#dde6f0;">New pilot registered</div>' +
             '</td>' +
           '</tr>' +
         '</table>' +
-        '<p style="margin:0 0 20px;font-size:14px;color:#8fa3bb;line-height:1.6;">A new user registered and is waiting for admin approval before accessing the simulator.</p>' +
+        '<p style="margin:0 0 20px;font-size:14px;color:#8fa3bb;line-height:1.6;">A new user registered. Their account is active on the free tier — no approval needed.</p>' +
         '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 24px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden;">' +
           '<tr style="border-bottom:1px solid rgba(255,255,255,0.06);">' +
             '<td style="padding:10px 16px;font-size:12px;color:#4a6280;white-space:nowrap;">Name</td>' +
@@ -674,4 +674,59 @@ function mergeObjects_(base, patch) {
   });
 
   return output;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * ONE-OFF — release the accounts stranded by the old approval gate.
+ *
+ * Registration used to create users as PENDING, waiting on an admin. Now it
+ * creates them ACTIVE. That change does nothing for anyone who signed up before
+ * it: they are still PENDING and still cannot log in, and nobody is coming to
+ * approve them. These two functions find and release them.
+ *
+ * Run from the editor — Userservice.gs.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/** Reports who is stranded. Changes nothing. */
+function checkPendingUsers() {
+  var rows = dbReadAll_('Users').filter(function(u) {
+    return String(u.status || '').toUpperCase() === 'PENDING';
+  });
+  if (!rows.length) {
+    Logger.log('No PENDING users — nothing stranded.');
+    return 'No PENDING users.';
+  }
+  var out = [rows.length + ' user(s) stuck on PENDING:'];
+  rows.forEach(function(u) {
+    out.push('  ' + (u.email || '(no email)') + '  ' + (u.name || '') +
+             '  registered ' + (u.createdAt || '?'));
+  });
+  out.push('Run activateAllPendingUsers to release them.');
+  var msg = out.join('\n');
+  Logger.log(msg);
+  return msg;
+}
+
+/**
+ * Sets every PENDING user to ACTIVE. Safe to run twice — a user already ACTIVE
+ * is not matched. BLOCKED users are deliberately untouched: blocking is a
+ * decision someone made, not a queue they are waiting in.
+ */
+function activateAllPendingUsers() {
+  var rows = dbReadAll_('Users').filter(function(u) {
+    return String(u.status || '').toUpperCase() === 'PENDING';
+  });
+  if (!rows.length) {
+    Logger.log('No PENDING users — nothing to do.');
+    return 'Nothing to do.';
+  }
+  var stamp = now_();
+  var done = 0;
+  rows.forEach(function(u) {
+    dbUpdateByRow_('Users', u.__rowNumber, { status: 'ACTIVE', updatedAt: stamp });
+    done++;
+  });
+  var msg = 'Activated ' + done + ' user(s). They can now sign in on the free tier.';
+  Logger.log(msg);
+  return msg;
 }

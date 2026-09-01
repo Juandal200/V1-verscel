@@ -347,3 +347,90 @@ function apiSaveIcaoTranscript(sessionToken, payload) {
     return { ok: false, error: (err && err.message) || 'Save failed' };
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * MOCK TEST ALLOWANCE
+ *
+ * How many sittings this account has left, and whether the result may be shown.
+ *
+ * Counted from the sittings themselves rather than from a counter, because a
+ * counter is a second copy of the truth and the two drift. The exam already
+ * writes a row per completed sitting; that IS the count.
+ *
+ * The free tier gets one sitting ever — not one a month — and its band is
+ * withheld until they subscribe. Someone who has been through the whole exam and
+ * is told their result is ready has a far better reason to pay than someone who
+ * was shown a price list first.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+function _icaoSittingsFor_(email, sinceIso) {
+  var sheet   = _teaGetOrCreateSheet_();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return 0;
+
+  var width = Math.max(sheet.getLastColumn(), TEA_SHEET_HEADERS.length);
+  var rows  = sheet.getRange(2, 1, lastRow - 1, width).getValues();
+  var idx   = {};
+  TEA_SHEET_HEADERS.forEach(function(h, i) { idx[h] = i; });
+
+  var since = sinceIso ? new Date(sinceIso) : null;
+  var want  = String(email || '').trim().toLowerCase();
+  var n = 0;
+  rows.forEach(function(r) {
+    if (String(r[idx['Candidate']] || '').trim().toLowerCase() !== want) return;
+    if (since) {
+      var d = new Date(String(r[idx['Date']] || ''));
+      // An unparseable date counts. Losing a sitting because a cell was odd
+      // charges the candidate for our data problem.
+      if (!isNaN(d.getTime()) && d < since) return;
+    }
+    n++;
+  });
+  return n;
+}
+
+/**
+ * Remaining sittings, and whether results are visible.
+ *
+ * Paid plans count within the current subscription period, so the allowance
+ * refreshes when they renew. The free tier counts for all time.
+ */
+function apiGetIcaoExamAllowance(sessionToken) {
+  try {
+    var user   = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    var access = getUserAccessStatus_(user);
+    var email  = String(user.email || '').trim().toLowerCase();
+
+    var isFree    = access.status === 'free';
+    var allowance = Number(access.examAllowance || 0);
+
+    // A paid allowance is per period. Without a start date, count everything —
+    // which is the cautious direction for us, not for them.
+    var since = null;
+    if (!isFree && access.endDate) {
+      var end = new Date(access.endDate);
+      if (!isNaN(end.getTime())) {
+        since = new Date(end.getTime() - 31 * 24 * 60 * 60 * 1000).toISOString();
+      }
+    }
+
+    var used = 0;
+    try { used = _icaoSittingsFor_(email, since); } catch (e) {}
+    var remaining = Math.max(0, allowance - used);
+
+    return {
+      ok: true,
+      plan:      access.plan,
+      planLabel: access.planLabel,
+      allowance: allowance,
+      used:      used,
+      remaining: remaining,
+      // The free sitting runs in full and is graded in full. Only the reading of
+      // the result is held back, so nothing about the exam itself is a demo.
+      resultsVisible: !isFree,
+      isFree: isFree
+    };
+  } catch (err) {
+    return apiError_('apiGetIcaoExamAllowance', err);
+  }
+}
