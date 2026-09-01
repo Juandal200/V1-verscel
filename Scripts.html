@@ -10647,7 +10647,7 @@
             : 'width:100%;padding:12px;font-size:0.9rem;font-weight:700;background:transparent;color:#dde6f0;border:1px solid rgba(255,255,255,0.2);border-radius:10px;cursor:pointer;transition:background 0.2s,border-color 0.2s;';
 
           var flagsRow =
-            '<p style="margin:0 0 6px;font-size:0.75rem;font-weight:700;letter-spacing:0.1em;color:#4d6070;text-transform:uppercase;">Accents included</p>' +
+            '<p style="margin:0 0 6px;font-size:0.75rem;font-weight:700;letter-spacing:0.1em;color:#4d6070;text-transform:uppercase;">Acentos incluidos</p>' +
             '<div style="display:flex;justify-content:center;gap:6px;margin-bottom:16px;">' +
               '<span title="USA" style="font-size:1.3rem;">&#127482;&#127480;</span>' +
               '<span title="UK"  style="font-size:1.3rem;">&#127468;&#127463;</span>' +
@@ -10656,6 +10656,32 @@
               '<span title="India" style="font-size:1.3rem;">&#127470;&#127475;</span>' +
             '</div>';
 
+          // What you get, as a list rather than buried in a sentence. The two
+          // numbers that actually differ between the plans lead, and are bold, so
+          // the comparison can be made at a glance instead of by reading two
+          // paragraphs and subtracting.
+          function _feat(text, strong) {
+            return '<li style="display:flex;gap:8px;align-items:flex-start;text-align:left;' +
+                   'margin-bottom:8px;font-size:0.78rem;line-height:1.45;' +
+                   'color:' + (strong ? '#dde6f0' : '#8fa3bb') + ';">' +
+                     '<span style="color:#00d48e;flex-shrink:0;font-weight:700;">&#10003;</span>' +
+                     '<span>' + text + '</span>' +
+                   '</li>';
+          }
+
+          var featureList =
+            '<ul style="list-style:none;margin:0 0 18px;padding:0;">' +
+              _feat('<strong>' + plan.maxLevel + ' niveles</strong> del simulador ATC', true) +
+              _feat('<strong>' + plan.examAllowance + ' intentos</strong> del examen simulado OACI', true) +
+              _feat('Evaluaci&oacute;n por IA en la escala OACI, con banda por descriptor') +
+              _feat('Rutas completas con situaciones de rutina y emergencia') +
+              _feat('Certificados descargables por nivel') +
+              _feat('Anal&iacute;tica detallada de tu progreso') +
+              (plan.id === 'full'
+                ? _feat('Niveles operacionales incluidos a medida que se publican', true)
+                : '') +
+            '</ul>';
+
           return '<div style="background:' + cardBg + ';border:' + cardBorder + ';border-radius:16px;padding:24px 18px 18px;text-align:center;position:relative;display:flex;flex-direction:column;margin-top:14px;box-shadow:' + cardShadow + ';">' +
             topBadge +
             '<div style="flex:1;">' +
@@ -10663,8 +10689,8 @@
               '<p style="margin:0 0 12px;font-size:0.78rem;color:#555;">' + m.duration + '</p>' +
               savingsBadge +
               priceBlock +
+              featureList +
               flagsRow +
-              '<p style="margin:0 0 20px;font-size:0.76rem;color:#8fa3bb;line-height:1.5;">' + m.desc + '</p>' +
             '</div>' +
             '<button id="subPayBtn-' + plan.id + '" onclick="wompiOpenCheckout(\'' + plan.id + '\')" style="' + btnStyle + '" ' +
               'onmouseover="this.style.opacity=\'0.85\'" onmouseout="this.style.opacity=\'1\'">Suscribirse</button>' +
