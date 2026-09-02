@@ -3403,27 +3403,7 @@ body.sim-paused #simMediaPauseBtn {
   margin-top: 7px;
 }
 
-/* The climb and descend controls existed but were a 20-pixel tap target — under
-   half the ~44px a thumb can hit reliably, so on a phone the altitude was
-   effectively unflyable and the target unreachable. Same controls, sized for the
-   finger that has to use them. */
-@media (max-width: 768px) {
-  .sim-instr-btns { gap: 8px; margin-top: 10px; }
-  .sim-instr-btn {
-    min-height: 46px;
-    padding: 10px 6px;
-    font-size: 0.82rem;
-    font-weight: 700;
-    border-radius: 12px;
-    /* A repeated tap must not select the label or trigger the double-tap zoom. */
-    -webkit-user-select: none;
-    user-select: none;
-    touch-action: manipulation;
-  }
-  .sim-instr-btn:active {
-    background: rgba(0,212,142,0.18);
-    border-color: rgba(0,212,142,0.45);
-  }
+}
 }
 .sim-instr-btn {
   flex: 1;
@@ -12318,11 +12298,70 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   .sim-instruments-row { flex: 0 0 auto; }
   .sim-priority-side   { display: block; }
 
+  /* Back sits level with the avatar, in the opposite corner, instead of taking a
+     whole row of its own beneath the banner. On a screen where the exercise has
+     to fit, a row spent on one small button is a row the read-back box loses.
+     The wordmark is hidden while it is up so the two do not collide — the avatar
+     on the right and Back on the left is unambiguous without it. */
+  body.sim-focus-mode .global-smart-back,
+  .global-smart-back {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 8px);
+    left: 12px;
+    z-index: 9991;
+    margin: 0;
+    padding: 7px 14px;
+    font-size: 0.82rem;
+    background: rgba(18, 18, 18, 0.92);
+    border: 1px solid var(--line, rgba(186,186,186,0.18));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  body.sim-focus-mode .topnav-brand { display: none !important; }
+
+  /* Nothing shrinks. Both columns were free to be squeezed below their content,
+     and a squeezed flex item does not scroll — its content spills, which is why
+     the header appeared as ghost text behind the cards. The container scrolls
+     instead. Fitting on one screen is the goal; being legible is the requirement. */
+  .sim-left-col,
+  .sim-priority-side { flex: 0 0 auto; }
+
+  /* The climb and descend controls were a 20-pixel tap target — under half the
+     ~44px a thumb can hit, so the altitude was effectively unflyable on a phone.
+     This lives here, at the end of the file, because the base .sim-instr-btn rule
+     sits BELOW the media query it was first written in: same specificity, later
+     wins, and the larger size never applied. */
+  .sim-instr-btns { gap: 8px; margin-top: 10px; }
+  .sim-instr-btn {
+    min-height: 46px;
+    padding: 10px 6px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    border-radius: 12px;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+  .sim-instr-btn:active {
+    background: rgba(0,212,142,0.18);
+    border-color: rgba(0,212,142,0.45);
+  }
+
   /* Trimmed rather than removed: each is small on its own, and together they are
      the difference between fitting and not. */
   .sim-cockpit-header .subtitle { display: none; }
   .sim-video-priority-card      { display: none; }
-  .sim-side-grid                { display: none; }
+
+  /* The Flight profile grid stays. Hiding it left a card with a heading and
+     nothing under it — and on a ground phase, where the altitude row is hidden
+     too, an entirely empty box. Country and scenario are what the heading is
+     promising; one tight row is cheaper than an unexplained blank. */
+  .sim-side-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 6px !important;
+  }
+  .sim-side-item { font-size: 0.72rem; }
   .sim-radio-card,
   .sim-readback-priority-card   { padding: 10px; border-radius: 14px; }
   .sim-section-title            { font-size: 0.68rem; }

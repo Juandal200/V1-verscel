@@ -6945,8 +6945,24 @@
     _ttsClientCache[cacheKey] = 'pending';
     _showVoiceBadge('loading…', false);
 
+    // google.script.run calls neither handler when a request is lost, and this one
+    // has no other route out — so the badge sat on LOADING indefinitely with no
+    // clearance and no error. Twenty seconds, then show the text and let the
+    // exercise continue.
+    var _vSettled = false;
+    var _vGiveUp = setTimeout(function () {
+      if (_vSettled) return;
+      _vSettled = true;
+      delete _ttsClientCache[cacheKey];
+      if (_isStale()) return;
+      AtcReplayGate.increment();
+      _simUnvoiced(atcText, _onAutoplayDone);
+    }, 20000);
+
     google.script.run
       .withSuccessHandler(function (res) {
+        if (_vSettled) return;
+        _vSettled = true; clearTimeout(_vGiveUp);
         if (!byId('simFeedbackBox')) return;
         if (res && res.ok && res.audioBase64) {
           _ttsClientCache[cacheKey] = res;
@@ -6962,6 +6978,8 @@
         _simUnvoiced(atcText, _onAutoplayDone);
       })
       .withFailureHandler(function (err) {
+        if (_vSettled) return;
+        _vSettled = true; clearTimeout(_vGiveUp);
         if (!byId('simFeedbackBox')) return;
         delete _ttsClientCache[cacheKey];
         console.warn('[TTS] network error for scenario ' + scenario.scenarioId + ':', err);
