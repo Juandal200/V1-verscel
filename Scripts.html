@@ -439,20 +439,62 @@
   document.addEventListener('visibilitychange', function() {
     if (document.visibilityState === 'hidden') {
       _lastHiddenAt = Date.now();
-    } else if (document.visibilityState === 'visible' && _lastHiddenAt > 0) {
-      if (Date.now() - _lastHiddenAt > 5 * 60 * 1000) {
-        google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){}).apiPing();
-      }
+      _aeroStopKeepWarm();
+    } else if (document.visibilityState === 'visible') {
+      // Ping on EVERY return, not only after five minutes. Apps Script discards
+      // the instance far sooner than that, and the whole project — twenty-three
+      // thousand lines across twenty-six files — is recompiled before the next
+      // call runs a line of our code. Warming it while the user is still deciding
+      // what to tap costs one trivial request and saves them the wait.
+      _aeroWarmPing();
+      _aeroStartKeepWarm();
       _lastHiddenAt = 0;
     }
   });
+
+  /* ─── Keeping the server awake ────────────────────────────────────────────
+   * The instance is dropped after a few minutes idle and the next call pays to
+   * rebuild it. That is the wait behind "the server took too long" — on desktop
+   * as much as on a phone, since it is the server and not the device.
+   *
+   * A ping every two minutes while the app is on screen keeps it alive. apiPing
+   * returns {ok:true} and touches nothing, so the cost is one request; the cost
+   * of not doing it is a cold start landing on whatever the user pressed.
+   *
+   * Stopped when the page is hidden: warming a server for someone who is not
+   * there is just traffic.
+   * ─────────────────────────────────────────────────────────────────────── */
+  var _aeroWarmTimer = null;
+
+  function _aeroWarmPing() {
+    try {
+      google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){}).apiPing();
+    } catch (e) {}
+  }
+
+  function _aeroStartKeepWarm() {
+    if (_aeroWarmTimer) return;
+    _aeroWarmTimer = setInterval(function() {
+      if (document.visibilityState !== 'visible') return;
+      _aeroWarmPing();
+    }, 120000);
+  }
+
+  function _aeroStopKeepWarm() {
+    if (!_aeroWarmTimer) return;
+    clearInterval(_aeroWarmTimer);
+    _aeroWarmTimer = null;
+  }
 
   window.addEventListener('load', function() {
     bindLoginEnterKeys();
 
     // Warmup ping — fires immediately to wake the GAS runtime before any user action.
     // By the time credentials are entered and submitted, the cold-start penalty is gone.
-    google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){}).apiPing();
+    _aeroWarmPing();
+    // And keep it awake for as long as the app is on screen, or it goes cold again
+    // in the gap between signing in and pressing anything.
+    _aeroStartKeepWarm();
 
     if (AppState.sessionToken) {
       var _startCache = _aeroReadCache();
