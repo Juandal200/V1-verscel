@@ -559,7 +559,11 @@ function checkExamStartSpeed() {
   }
 
   var admin = null;
-  timed('find an admin user', function() {
+  // Named for what it measures: this is the first spreadsheet access of the
+  // execution, so it carries the cost of opening the whole workbook, not just of
+  // reading Users. That is the number that mattered — 11.6 seconds — and it was
+  // being paid by every authenticated request in the app.
+  timed('FIRST sheet access (opens the spreadsheet + reads Users)', function() {
     dbReadAll_('Users').forEach(function(u) {
       if (!admin && String(u.role || '').toUpperCase() === 'ADMIN') admin = u;
     });

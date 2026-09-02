@@ -17,6 +17,7 @@ var UserService = {
         };
 
         dbUpdateByRow_('Users', existingBySub.__rowNumber, patchSub);
+        UserService.clearUserCache(existingBySub.userId);
         return mergeObjects_(existingBySub, patchSub);
       }
 
@@ -29,6 +30,7 @@ var UserService = {
         };
 
         dbUpdateByRow_('Users', existingByEmail.__rowNumber, patchEmail);
+        UserService.clearUserCache(existingByEmail.userId);
         return mergeObjects_(existingByEmail, patchEmail);
       }
 
@@ -160,8 +162,45 @@ var UserService = {
     };
   },
 
+  /* ─── getById ─────────────────────────────────────────────────────────────
+   * Cached, because this is the single most expensive line in the application.
+   *
+   * requireSession caches the session and then calls this, so every authenticated
+   * request — every screen, every button — read the Users sheet. Measured at 11.6
+   * SECONDS for 94 users: most of that is opening the spreadsheet, which has grown
+   * many tabs, and the first sheet access in an execution pays for all of it.
+   * Combined with a cold start that is what pushed ordinary requests past the
+   * proxy's limit and produced "the server took too long" everywhere at once.
+   *
+   * Five minutes. The fields that matter here are role and status, and neither
+   * changes often; an admin blocking someone takes effect within five minutes
+   * rather than instantly, which is the right trade against an app nobody can use.
+   * Every write to a user clears it, so a change made through the app is immediate.
+   * ─────────────────────────────────────────────────────────────────────────── */
+  _userCacheKey_: function(userId) { return 'user_' + String(userId || ''); },
+
+  clearUserCache: function(userId) {
+    try { CacheService.getScriptCache().remove(this._userCacheKey_(userId)); } catch (e) {}
+  },
+
   getById: function(userId) {
-    return dbFindOne_('Users', 'userId', userId);
+    if (!userId) return null;
+    var key = this._userCacheKey_(userId);
+    try {
+      var hit = CacheService.getScriptCache().get(key);
+      if (hit) return JSON.parse(hit);
+    } catch (e) {}
+
+    var user = dbFindOne_('Users', 'userId', userId);
+    if (user) {
+      try {
+        // __rowNumber is deliberately kept: callers that write use it, and a
+        // cached user without it would send them looking the row up again — which
+        // is the read this exists to avoid.
+        CacheService.getScriptCache().put(key, JSON.stringify(user), 300);
+      } catch (e) { /* too large to cache, or cache unavailable — still correct */ }
+    }
+    return user;
   },
 
   touchLastLogin: function(userId) {
@@ -171,6 +210,7 @@ var UserService = {
       return;
     }
 
+    UserService.clearUserCache(userId);
     dbUpdateByRow_('Users', user.__rowNumber, {
       lastLoginAt: now_(),
       updatedAt: now_()
@@ -359,6 +399,7 @@ var UserService = {
       }
 
       dbUpdateByRow_('Users', user.__rowNumber, patch);
+      UserService.clearUserCache(user.userId);
 
       var result = mergeObjects_(user, patch);
 
@@ -852,6 +893,7 @@ function activateAllPendingUsers() {
   var done = 0;
   rows.forEach(function(u) {
     dbUpdateByRow_('Users', u.__rowNumber, { status: 'ACTIVE', updatedAt: stamp });
+    UserService.clearUserCache(u.userId);
     done++;
   });
   var msg = 'Activated ' + done + ' user(s). They can now sign in on the free tier.';
