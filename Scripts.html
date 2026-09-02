@@ -22,8 +22,37 @@
     ["i'll",         'ILS'],         ['aisles',      'ILS'],       ['i l s', 'ILS'],
     ["eighty's",     'ATIS'],        ['eight is',    'ATIS'],
     ['alfa',         'ALPHA'],
-    ['niner',        'NINER'],       ['liner',       'NINER'],     ['diner', 'NINER']
+    ['niner',        'NINER'],       ['liner',       'NINER'],     ['diner', 'NINER'],
+    // Whisper hears "niner" and writes the digit with the tail as a letter.
+    ['9r',           'NINER'],       ['9er',         'NINER'],     ['nine r', 'NINER'],
+    ['tree',         'THREE'],       ['fife',        'FIVE']
   ];
+
+  // Aviation numbers are spoken digit by digit, and the read-back is graded against
+  // words. Speech recognition writes them as figures — "runway two eight left"
+  // comes back "runway 28 left" — so the keywords never match and a correct
+  // read-back is marked wrong. Every digit becomes its spoken word before grading.
+  var _DIGIT_WORDS = ['zero','one','two','three','four','five','six','seven','eight','niner'];
+
+  function _spellDigits(text) {
+    // A frequency is read "one two four decimal four", never "point four" and
+    // never with a full stop. Done first, or the digits either side get spelled
+    // and the separator is left as punctuation between two words.
+    var t = String(text || '')
+      // "niner" comes back as a digit with its tail as a letter. This has to run
+      // BEFORE the digits are spelled, or the 9 becomes "niner" and the stray r is
+      // left stuck to it — "ninerr".
+      .replace(/\b9\s*e?r\b/gi, 'niner')
+      .replace(/(\d)\s*\.\s*(\d)/g, '$1 decimal $2')
+      .replace(/(\d)\s*point\s*(\d)/gi, '$1 decimal $2');
+    // Only runs of digits, so a callsign like "747" is expanded the way it would
+    // actually be said: seven four seven.
+    return t.replace(/\d+/g, function(run) {
+      var out = [];
+      for (var i = 0; i < run.length; i++) out.push(_DIGIT_WORDS[Number(run[i])]);
+      return out.join(' ');
+    });
+  }
 
   function _scenarioFixes(expectedReadback) {
     if (!expectedReadback) return [];
@@ -42,6 +71,9 @@
   function _applyFixes(transcript, extra) {
     // Strip dashes between digits so Whisper's "1-1 0-9" becomes "1 1 0 9"
     var result = transcript.replace(/(\d)-(\d)/g, '$1 $2');
+    // Then spell the figures out, BEFORE the phrase fixes run — those match on
+    // words, and a keyword like "one niner" can never match the string "19".
+    result = _spellDigits(result);
     var all = _BASE_FIXES.concat(extra || []);
     all.sort(function(a, b) { return b[0].length - a[0].length; });
     all.forEach(function(pair) {
