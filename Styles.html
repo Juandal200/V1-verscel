@@ -12298,26 +12298,12 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   .sim-instruments-row { flex: 0 0 auto; }
   .sim-priority-side   { display: block; }
 
-  /* Back sits level with the avatar, in the opposite corner, instead of taking a
-     whole row of its own beneath the banner. On a screen where the exercise has
-     to fit, a row spent on one small button is a row the read-back box loses.
-     The wordmark is hidden while it is up so the two do not collide — the avatar
-     on the right and Back on the left is unambiguous without it. */
-  body.sim-focus-mode .global-smart-back,
-  .global-smart-back {
-    position: fixed;
-    top: calc(env(safe-area-inset-top) + 8px);
-    left: 12px;
-    z-index: 9991;
-    margin: 0;
-    padding: 7px 14px;
-    font-size: 0.82rem;
-    background: rgba(18, 18, 18, 0.92);
-    border: 1px solid var(--line, rgba(186,186,186,0.18));
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-  body.sim-focus-mode .topnav-brand { display: none !important; }
+  /* Back stays in the normal flow.
+     I had floated it level with the avatar, which is what was asked for — but
+     fixed positioning takes it out of the document, and it then sat on top of
+     whatever contentArea rendered next. On an error panel it covered the message.
+     A button that costs a row is better than a button that hides the text telling
+     you what went wrong; worth revisiting once the screen is stable. */
 
   /* Nothing shrinks. Both columns were free to be squeezed below their content,
      and a squeezed flex item does not scroll — its content spills, which is why
