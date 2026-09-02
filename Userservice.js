@@ -68,8 +68,12 @@ var UserService = {
       return newUser;
     });
 
-    if (createdUser && createdUser.status === USER_STATUS.PENDING) {
+    // Was gated on PENDING. Opening registration made every new account ACTIVE,
+    // which silently switched this off — sign-ups stopped being reported at all.
+    // A registration is worth knowing about whatever state it lands in.
+    if (createdUser) {
       this.notifyAdminsOfNewPendingUser_(createdUser);
+      this.sendWelcomeEmail_(createdUser);
     }
 
     return user;
@@ -142,8 +146,12 @@ var UserService = {
       return newUser;
     });
 
-    if (createdUser && createdUser.status === USER_STATUS.PENDING) {
+    // Was gated on PENDING. Opening registration made every new account ACTIVE,
+    // which silently switched this off — sign-ups stopped being reported at all.
+    // A registration is worth knowing about whatever state it lands in.
+    if (createdUser) {
       this.notifyAdminsOfNewPendingUser_(createdUser);
+      this.sendWelcomeEmail_(createdUser);
     }
 
     return {
@@ -378,6 +386,126 @@ var UserService = {
     }
 
     return updated;
+  },
+
+  /* ─── Welcome ──────────────────────────────────────────────────────────────
+   * Sent once, on registration.
+   *
+   * Until now a new account received nothing but a six-digit login code with no
+   * context — someone signed up, typed a number, and arrived with no idea what
+   * they had. That was survivable when every account was approved by hand and a
+   * human was in the loop. Registration is open now and the free tier is the shop
+   * window, so this is the one moment we have their attention outside the app.
+   *
+   * Three jobs, in order of what actually helps them: say what they already have,
+   * get the app onto their phone, and only then mention what the plans add. Led
+   * with the price it would read as an invoice rather than a welcome.
+   *
+   * Never throws. A failed welcome must not fail a registration — the account is
+   * the thing that matters, and an email can be resent.
+   * ───────────────────────────────────────────────────────────────────────── */
+  sendWelcomeEmail_: function(user) {
+    try {
+      if (!user || !user.email) return;
+
+      // The live domain is a Vercel setting and appears nowhere in this repo, so
+      // it is read from a Script Property. Set APP_URL there and a domain change
+      // never needs a deploy. The fallback is only so a fresh install still sends
+      // a working link.
+      var appUrl = '';
+      try {
+        appUrl = String(PropertiesService.getScriptProperties().getProperty('APP_URL') || '').trim();
+      } catch (e) {}
+      if (!appUrl) appUrl = 'https://aerocomms.vercel.app';
+      var installUrl = appUrl.replace(/\/+$/, '') + '/install';
+
+      var firstName = String(user.name || '').trim().split(/\s+/)[0] || '';
+      var greeting  = firstName ? 'Welcome, ' + firstName + '.' : 'Welcome.';
+
+      function row(icon, title, text) {
+        return '<tr><td style="padding:0 0 14px;">' +
+          '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>' +
+            '<td width="26" valign="top" style="font-size:16px;line-height:1.4;">' + icon + '</td>' +
+            '<td valign="top" style="font-size:14px;line-height:1.55;color:#c8d3e0;">' +
+              '<strong style="color:#ffffff;">' + title + '</strong><br>' +
+              '<span style="color:#8fa3bb;">' + text + '</span>' +
+            '</td>' +
+          '</tr></table></td></tr>';
+      }
+
+      var htmlBody = _emailWrap_(
+        '<p style="margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:2.5px;' +
+          'color:#00d48e;text-align:center;">aerocomms</p>' +
+        '<p style="margin:0 0 22px;font-size:12px;color:#7d8ea3;letter-spacing:1px;' +
+          'text-align:center;">Aviation English Interactive Campus</p>' +
+
+        '<h1 style="margin:0 0 10px;font-size:22px;line-height:1.3;color:#ffffff;">' +
+          greeting + '</h1>' +
+        '<p style="margin:0 0 22px;font-size:15px;line-height:1.6;color:#c8d3e0;">' +
+          'Your account is ready — there is nothing to approve and nothing to pay. ' +
+          'Here is what you can do right now:</p>' +
+
+        '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">' +
+          row('✈️', 'Level 1 of the ATC radio simulator',
+              'Real clearances read by real controller voices. You fly the aircraft and work the radio at the same time.') +
+          row('📝', 'One full ICAO mock test',
+              'The complete examination, marked against all six ICAO descriptors.') +
+        '</table>' +
+
+        '<p style="margin:18px 0 22px;font-size:13px;line-height:1.6;color:#8fa3bb;">' +
+          'The free plan does not expire. Take your time.</p>' +
+
+        '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" ' +
+          'style="background:#101d33;border:1px solid #1d2f4d;border-radius:12px;margin:0 0 22px;">' +
+          '<tr><td style="padding:18px 20px;">' +
+            '<p style="margin:0 0 6px;font-size:15px;font-weight:700;color:#ffffff;">' +
+              'Put it on your phone</p>' +
+            '<p style="margin:0 0 14px;font-size:13px;line-height:1.6;color:#8fa3bb;">' +
+              'Opens full screen, works without signal, and remembers you. Two taps.</p>' +
+            '<a href="' + installUrl + '" ' +
+              'style="display:inline-block;background:#00d48e;color:#04241a;text-decoration:none;' +
+              'font-size:14px;font-weight:800;padding:12px 24px;border-radius:10px;">' +
+              'Add aerocomms to my phone</a>' +
+          '</td></tr>' +
+        '</table>' +
+
+        '<p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#8fa3bb;">' +
+          'When you are ready for more, the paid plans open the rest of the levels, ' +
+          'add emergency scenarios and give you more attempts at the mock test. ' +
+          'You will find them inside the app — no rush.</p>' +
+
+        '<p style="margin:22px 0 0;font-size:13px;line-height:1.6;color:#8fa3bb;">' +
+          'Reply to this email if anything is unclear. A person reads it.</p>' +
+
+        '<p style="margin:26px 0 0;text-align:center;">' +
+          '<a href="' + appUrl + '" style="color:#00d48e;text-decoration:none;font-size:14px;' +
+            'font-weight:700;">Open aerocomms →</a></p>'
+      );
+
+      var plainBody =
+        greeting + '\n\n' +
+        'Your account is ready. Nothing to approve, nothing to pay.\n\n' +
+        'On the free plan you get:\n' +
+        '  - Level 1 of the ATC radio simulator\n' +
+        '  - One full ICAO mock test, marked on all six descriptors\n' +
+        'It does not expire.\n\n' +
+        'Put it on your phone: ' + installUrl + '\n\n' +
+        'When you are ready, the paid plans open the rest of the levels, add ' +
+        'emergency scenarios and give you more mock test attempts.\n\n' +
+        'Open aerocomms: ' + appUrl + '\n\n' +
+        'Reply to this email if anything is unclear.';
+
+      MailApp.sendEmail({
+        to:       user.email,
+        subject:  'aerocomms — Welcome aboard',
+        body:     plainBody,
+        htmlBody: htmlBody
+      });
+    } catch (err) {
+      // Logged, never thrown. An account that exists without a welcome is a minor
+      // problem; a registration that fails because an email did is not.
+      Logger.log('[sendWelcomeEmail_] ' + (err && err.message ? err.message : err));
+    }
   },
 
   notifyUserOfActivation_: function(user) {
