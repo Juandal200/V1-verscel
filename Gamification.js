@@ -212,12 +212,12 @@ function sendRequest(sessionToken, friendEmail) {
             '<tr><td>' +
               '<img src="' + getLogoDataUrl() + '" alt="aerocomms" style="width:64px;height:64px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.35);">' +
             '</td></tr>' +
-            '<tr><td style="padding-top:12px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:#00d48e;">aerocomms</td></tr>' +
+            '<tr><td style="padding-top:12px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:#ffffff;">aerocomms</td></tr>' +
             '<tr><td style="padding-top:3px;font-size:12px;color:#4a6280;">Aviation English Interactive Campus</td></tr>' +
           '</table>' +
           '<div style="background:rgba(0,212,142,0.07);border:1px solid rgba(0,212,142,0.18);border-radius:12px;padding:18px 20px;margin:0 0 20px;text-align:center;">' +
             '<div style="font-size:22px;margin-bottom:6px;">&#9992;</div>' +
-            '<div style="font-size:15px;font-weight:700;color:#00d48e;">Squadron Invitation</div>' +
+            '<div style="font-size:15px;font-weight:700;color:#ffffff;">Squadron Invitation</div>' +
           '</div>' +
           '<p style="margin:0 0 12px;font-size:14px;color:#dde6f0;line-height:1.6;">' +
             '<strong style="color:#dde6f0;">' + fromName + '</strong> wants to add you to their squadron on aerocomms.' +

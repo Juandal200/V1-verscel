@@ -841,14 +841,14 @@ var TourService = (function () {
     var statsBlock = '';
     if (stats && stats.totalXp > 0) {
       var rank      = stats.rank;
-      var posColor  = rank === 1 ? '#FFD700' : rank === 2 ? '#C0C0C0' : rank === 3 ? '#CD7F32' : '#00d48e';
+      var posColor  = rank === 1 ? '#FFD700' : rank === 2 ? '#C0C0C0' : rank === 3 ? '#CD7F32' : '#16233a';
       var medal     = rank === 1 ? '#1' : rank === 2 ? '#2' : rank === 3 ? '#3' : '#' + rank;
       statsBlock =
         '<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">' +
           '<tr>' +
             '<td width="48%" align="center" style="background:#111111;border:1px solid #222222;border-radius:10px;padding:16px 10px;">' +
               '<div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#4a6280;text-transform:uppercase;font-family:Arial,Helvetica,sans-serif;margin-bottom:6px;">Experience Points</div>' +
-              '<div style="font-size:34px;font-weight:900;color:#00d48e;font-family:\'Courier New\',Courier,monospace;">' + stats.totalXp + '</div>' +
+              '<div style="font-size:34px;font-weight:900;color:#ffffff;font-family:\'Courier New\',Courier,monospace;">' + stats.totalXp + '</div>' +
               '<div style="font-size:10px;color:#4a6280;font-family:Arial,Helvetica,sans-serif;margin-top:2px;">XP this tour</div>' +
             '</td>' +
             '<td width="4%"></td>' +
@@ -883,7 +883,7 @@ var TourService = (function () {
       '<p style="margin:0 0 6px;font-size:16px;font-weight:700;color:#dde6f0;font-family:Arial,Helvetica,sans-serif;">Hi ' + firstName + ',</p>' +
       '<p style="margin:0 0 20px;font-size:13px;color:#8fa3bb;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">' +
         'Tour <strong style="color:#dde6f0;">' + tour.weekNumber + '</strong> is live. ' +
-        '<strong style="color:#00d48e;">New scenarios are now available.</strong> ' +
+        '<strong style="color:#ffffff;">New scenarios are now available.</strong> ' +
         'Complete levels, earn XP, and climb the rankings before the week ends.' +
       '</p>' +
       dxpBanner +
@@ -900,7 +900,7 @@ var TourService = (function () {
       '</table>' +
       '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">' +
         '<tr><td align="center">' +
-          '<a href="' + appUrl + '" style="display:inline-block;background:#00d48e;color:#000000;font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;padding:14px 36px;border-radius:10px;text-decoration:none;">Launch Simulator &#8594;</a>' +
+          '<a href="' + appUrl + '" style="display:inline-block;background:#101d33;color:#000000;font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;padding:14px 36px;border-radius:10px;text-decoration:none;">Launch Simulator &#8594;</a>' +
         '</td></tr>' +
       '</table>' +
       '<p style="margin:8px 0 0;font-size:11px;color:#2d4a63;text-align:center;font-family:Arial,Helvetica,sans-serif;">Tour ' + tour.weekNumber + ' &nbsp;&middot;&nbsp; 7 days remaining</p>'

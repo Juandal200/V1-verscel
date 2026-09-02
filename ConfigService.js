@@ -739,7 +739,11 @@ function _emailWrap_(bodyHtml) {
   var BG     = '#000000';   // the page behind the card
   var CARD   = '#0b1220';   // navy, barely lifted off black
   var EDGE   = '#16233a';   // navy border, visible without drawing attention
-  var ACCENT = '#00d48e';
+  // White. It was mint green, which is a fourth colour and the loudest thing in
+  // the message. As the only bright mark on a black and navy card it does the same
+  // job — says the email is from a designed product — without importing a palette
+  // the brand does not use.
+  var ACCENT = '#ffffff';
   var MUTED  = '#7d8ea3';
 
   return (

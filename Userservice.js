@@ -217,7 +217,7 @@ var UserService = {
               '<img src="cid:aerocommsLogo" alt="aerocomms" style="width:140px;height:82px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.3);display:block;">' +
             '</td>' +
             '<td style="vertical-align:middle;">' +
-              '<div style="font-size:10px;font-weight:800;letter-spacing:2px;color:#00d48e;margin-bottom:3px;">aerocomms</div>' +
+              '<div style="font-size:10px;font-weight:800;letter-spacing:2px;color:#ffffff;margin-bottom:3px;">aerocomms</div>' +
               '<div style="font-size:18px;font-weight:700;color:#dde6f0;">New pilot registered</div>' +
             '</td>' +
           '</tr>' +
@@ -246,7 +246,7 @@ var UserService = {
           '</tr>' +
         '</table>' +
         (appUrl
-          ? '<table cellpadding="0" cellspacing="0"><tr><td style="background:#00d48e;border-radius:9px;"><a href="' + this.escapeHtml_(appUrl) + '" style="display:inline-block;padding:12px 24px;font-size:13px;font-weight:800;color:#07101e;text-decoration:none;letter-spacing:0.5px;">Open admin panel &#8594;</a></td></tr></table>'
+          ? '<table cellpadding="0" cellspacing="0"><tr><td style="background:#101d33;border-radius:9px;"><a href="' + this.escapeHtml_(appUrl) + '" style="display:inline-block;padding:12px 24px;font-size:13px;font-weight:800;color:#07101e;text-decoration:none;letter-spacing:0.5px;">Open admin panel &#8594;</a></td></tr></table>'
           : '') +
         '<p style="margin:20px 0 0;font-size:12px;color:#2d4a63;">Approve or block this user from Admin &gt; Users.</p>'
       );
@@ -435,7 +435,7 @@ var UserService = {
 
       var htmlBody = _emailWrap_(
         '<p style="margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:2.5px;' +
-          'color:#00d48e;text-align:center;">aerocomms</p>' +
+          'color:#ffffff;text-align:center;">aerocomms</p>' +
         '<p style="margin:0 0 22px;font-size:12px;color:#7d8ea3;letter-spacing:1px;' +
           'text-align:center;">Aviation English Interactive Campus</p>' +
 
@@ -463,7 +463,7 @@ var UserService = {
             '<p style="margin:0 0 14px;font-size:13px;line-height:1.6;color:#8fa3bb;">' +
               'Opens full screen, works without signal, and remembers you. Two taps.</p>' +
             '<a href="' + installUrl + '" ' +
-              'style="display:inline-block;background:#00d48e;color:#04241a;text-decoration:none;' +
+              'style="display:inline-block;background:#ffffff;color:#0b1220;text-decoration:none;' +
               'font-size:14px;font-weight:800;padding:12px 24px;border-radius:10px;">' +
               'Add aerocomms to my phone</a>' +
           '</td></tr>' +
@@ -478,7 +478,7 @@ var UserService = {
           'Reply to this email if anything is unclear. A person reads it.</p>' +
 
         '<p style="margin:26px 0 0;text-align:center;">' +
-          '<a href="' + appUrl + '" style="color:#00d48e;text-decoration:none;font-size:14px;' +
+          '<a href="' + appUrl + '" style="color:#ffffff;text-decoration:none;font-size:14px;' +
             'font-weight:700;">Open aerocomms →</a></p>'
       );
 
@@ -534,17 +534,17 @@ var UserService = {
           '<tr><td>' +
             '<img src="cid:aerocommsLogo" alt="aerocomms" style="width:160px;height:93px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.35);">' +
           '</td></tr>' +
-          '<tr><td style="padding-top:14px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:#00d48e;">aerocomms</td></tr>' +
+          '<tr><td style="padding-top:14px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:#ffffff;">aerocomms</td></tr>' +
           '<tr><td style="padding-top:4px;font-size:12px;color:#4a6280;letter-spacing:1px;">Aviation English Interactive Campus</td></tr>' +
         '</table>' +
         '<div style="background:rgba(0,212,142,0.07);border:1px solid rgba(0,212,142,0.2);border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">' +
           '<div style="font-size:28px;margin-bottom:8px;">&#10003;</div>' +
-          '<div style="font-size:16px;font-weight:700;color:#00d48e;">Account Approved</div>' +
+          '<div style="font-size:16px;font-weight:700;color:#ffffff;">Account Approved</div>' +
         '</div>' +
         '<p style="margin:0 0 8px;font-size:15px;color:#dde6f0;">Hello, <strong>' + this.escapeHtml_(user.name || user.email) + '</strong></p>' +
         '<p style="margin:0 0 24px;font-size:14px;color:#8fa3bb;line-height:1.7;">Your account has been approved by an administrator. You can now log in and start practising your ATC phraseology on the ICAO Simulator.</p>' +
         (appUrl
-          ? '<table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;"><tr><td style="background:#00d48e;border-radius:9px;"><a href="' + this.escapeHtml_(appUrl) + '" style="display:inline-block;padding:13px 28px;font-size:13px;font-weight:800;color:#07101e;text-decoration:none;letter-spacing:0.5px;">Open ICAO Trainer &#8594;</a></td></tr></table>'
+          ? '<table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;"><tr><td style="background:#101d33;border-radius:9px;"><a href="' + this.escapeHtml_(appUrl) + '" style="display:inline-block;padding:13px 28px;font-size:13px;font-weight:800;color:#07101e;text-decoration:none;letter-spacing:0.5px;">Open ICAO Trainer &#8594;</a></td></tr></table>'
           : '') +
         '<p style="margin:0;font-size:12px;color:#2d4a63;text-align:center;">If you did not register for this service, you can safely ignore this email.</p>'
       );
@@ -750,12 +750,12 @@ function bulkInviteUsers() {
           '<tr><td>' +
             '<img src="cid:aerocommsLogo" alt="aerocomms" style="width:160px;height:93px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.35);">' +
           '</td></tr>' +
-          '<tr><td style="padding-top:14px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:#00d48e;">aerocomms</td></tr>' +
+          '<tr><td style="padding-top:14px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:#ffffff;">aerocomms</td></tr>' +
           '<tr><td style="padding-top:4px;font-size:12px;color:#4a6280;letter-spacing:1px;">Aviation English Interactive Campus</td></tr>' +
         '</table>' +
         '<div style="background:rgba(0,212,142,0.07);border:1px solid rgba(0,212,142,0.2);border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">' +
           '<div style="font-size:28px;margin-bottom:8px;">&#9992;</div>' +
-          '<div style="font-size:16px;font-weight:700;color:#00d48e;">You\'ve been invited</div>' +
+          '<div style="font-size:16px;font-weight:700;color:#ffffff;">You\'ve been invited</div>' +
         '</div>' +
         '<p style="margin:0 0 8px;font-size:15px;color:#dde6f0;">Hello, <strong>' + UserService.escapeHtml_(name) + '</strong></p>' +
         '<p style="margin:0 0 24px;font-size:14px;color:#8fa3bb;line-height:1.7;">' +
@@ -763,7 +763,7 @@ function bulkInviteUsers() {
           'Sign in with your Google account (<strong>' + UserService.escapeHtml_(email) + '</strong>) to get started.' +
         '</p>' +
         (appUrl
-          ? '<table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;"><tr><td style="background:#00d48e;border-radius:9px;">' +
+          ? '<table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;"><tr><td style="background:#101d33;border-radius:9px;">' +
               '<a href="' + UserService.escapeHtml_(appUrl) + '" style="display:inline-block;padding:13px 28px;font-size:13px;font-weight:800;color:#07101e;text-decoration:none;letter-spacing:0.5px;">Open ' + CONFIG.APP_NAME + ' &#8594;</a>' +
             '</td></tr></table>'
           : '') +

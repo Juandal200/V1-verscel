@@ -137,11 +137,11 @@ var AuthService = {
       to: email,
       subject: 'aerocomms — Your login code',
       htmlBody: _emailWrap_(
-        '<p style="margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:2.5px;color:#00d48e;text-align:center;">aerocomms</p>' +
+        '<p style="margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:2.5px;color:#ffffff;text-align:center;">aerocomms</p>' +
         '<p style="margin:0 0 20px;font-size:12px;color:#4a6280;letter-spacing:1px;text-align:center;">Aviation English Interactive Campus</p>' +
         '<p style="margin:0 0 6px;font-size:13px;color:#8fa3bb;text-align:center;letter-spacing:0.5px;">YOUR LOGIN CODE</p>' +
         '<div style="background:rgba(0,212,142,0.07);border:1px solid rgba(0,212,142,0.22);border-radius:14px;padding:22px 16px;margin:12px 0 24px;text-align:center;">' +
-          '<span style="font-size:44px;font-weight:900;letter-spacing:14px;color:#00d48e;font-family:\'Courier New\',monospace;">' + code + '</span>' +
+          '<span style="font-size:44px;font-weight:900;letter-spacing:14px;color:#ffffff;font-family:\'Courier New\',monospace;">' + code + '</span>' +
         '</div>' +
         '<p style="margin:0 0 8px;font-size:14px;color:#8fa3bb;text-align:center;">This code expires in <span style="color:#dde6f0;font-weight:700;">10 minutes</span>.</p>' +
         '<p style="margin:0;font-size:12px;color:#4a6280;text-align:center;">If you did not request this code, you can safely ignore this email.</p>'
