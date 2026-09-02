@@ -1277,3 +1277,140 @@ function applyIcaoTestItemTidy() {
   Logger.log(msg);
   return msg;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * NEW CONTENT FOR VERSIONS B AND C
+ *
+ * B and C were clones of A: same twelve recordings, same five questions, only the
+ * accent differed. A candidate on six attempts could sit the same paper repeatedly
+ * and watch their band climb on familiarity rather than English.
+ *
+ * These are written to A's shape, not merely to be different: six short single
+ * messages in 2A, three longer narratives in 2B, three in 2C chosen because they
+ * invite a question and a piece of advice — which is what 2C actually asks for.
+ * Each transcript is the shortened ground truth the grader marks comprehension
+ * against, so it carries every fact a candidate could be expected to report back.
+ *
+ * Pictures are NOT included. Part 3 needs real photographs, and all three versions
+ * still share the same two.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+var ICAO_CONTENT_ = {
+  VERSION_B: {
+    interview_1: 'Let us begin. Describe a typical working day for you, from arriving at the airport to the end of your duty.',
+    interview_2: 'What part of your training did you find most difficult, and how did you get past it?',
+    interview_3: 'Tell me about a time when communication with air traffic control did not go smoothly. What happened?',
+    interview_4: 'Some people believe automation has made flying safer. Others say it has made pilots less skilled. What is your view?',
+    interview_5: 'How does weather affect your operation, and what do you do to prepare for it?',
+
+    part_2a_1: ['Tower, Lufthansa two three six, we have an unsafe gear indication on the nose gear. Request a low pass over the field for a visual inspection before we commit to landing.',
+                'Lufthansa two three six, unsafe nose gear indication, requesting a low pass for visual inspection before landing.'],
+    part_2a_2: ['Emirates four one two, hold position, hold position. Vehicle crossing runway two seven left ahead of you. I will call you back for line up.',
+                'Emirates four one two, hold position, vehicle crossing runway two seven left, will be called back for line up.'],
+    part_2a_3: ['Mayday mayday mayday, Air Canada eight six one, bird strike on takeoff, engine two is rolling back, returning to the field, one hundred and ninety souls on board.',
+                'Mayday, Air Canada eight six one, bird strike on takeoff, engine two rolling back, returning to field, one hundred ninety souls on board.'],
+    part_2a_4: ['All stations, Colombo control. We have lost communication with Sri Lankan three one nine. Last known position one two zero miles west of the field, aircraft squawking seven six zero zero.',
+                'Colombo control has lost communication with Sri Lankan three one nine, last position one hundred twenty miles west, squawking seven six zero zero.'],
+    part_2a_5: ['Pan pan, pan pan, pan pan, Cathay eight eight, we have a cargo smoke warning in the forward hold. Suppression discharged. Request descent and the nearest suitable airfield.',
+                'Pan pan, Cathay eight eight, cargo smoke warning forward hold, suppression discharged, requesting descent and nearest suitable airfield.'],
+    part_2a_6: ['Wizz four four two, caution wake turbulence, heavy Boeing triple seven departing ahead of you. Wind two four zero degrees at one five knots. Runway two four, cleared for takeoff.',
+                'Wizz four four two, caution wake turbulence from a heavy departing ahead, wind two four zero at one five, cleared for takeoff runway two four.'],
+
+    part_2b_1: ['Bangkok control, Thai eight seven three, we have had a rapid decompression at flight level three seven zero. We are commencing an emergency descent to one zero thousand feet and passenger oxygen masks are deployed. Two cabin crew are reporting ear injuries. Request direct routing to the nearest suitable airfield and priority handling on arrival.',
+                'Thai eight seven three, rapid decompression at flight level three seven zero, emergency descent to ten thousand feet, oxygen masks deployed, two cabin crew with ear injuries, requesting direct routing to nearest suitable airfield and priority handling.'],
+    part_2b_2: ['Doha approach, Qatar seven one four, we are experiencing repeated compressor stalls on engine one with a fluctuating fuel flow. We suspect fuel contamination. The engine has been shut down as a precaution and we are able to maintain flight level two eight zero on the remaining engine. We are not declaring an emergency at this time, but we request priority vectors and a straight-in approach.',
+                'Qatar seven one four, repeated compressor stalls on engine one with fluctuating fuel flow, suspected fuel contamination, engine shut down as a precaution, maintaining flight level two eight zero on one engine, no emergency declared, requesting priority vectors and a straight-in approach.'],
+    part_2b_3: ['Jakarta control, Garuda six two five, we have entered an area of suspected volcanic ash. We have Saint Elmo\'s fire on the windshield, a sulphur odour in the cabin and rising exhaust gas temperature on both engines. We are turning one eight zero degrees to exit and descending to flight level two four zero. Request a weather deviation and any information you have on the extent of the ash cloud.',
+                'Garuda six two five, entered suspected volcanic ash, Saint Elmo\'s fire, sulphur odour in cabin, rising EGT on both engines, turning one eighty to exit and descending flight level two four zero, requesting weather deviation and information on the ash cloud extent.'],
+
+    part_2c_1: ['Frankfurt radar, Turkish nine three one, we have a passenger in cardiac arrest and a doctor on board performing resuscitation. My captain is assisting in the cabin and I am handling the radios alone. Request immediate descent, priority landing and an ambulance at the gate. I may be slow to answer your instructions.',
+                'Turkish nine three one, passenger in cardiac arrest with a doctor performing resuscitation, captain assisting in the cabin, first officer alone on the radios, requesting immediate descent, priority landing and an ambulance at the gate, may be slow to respond.'],
+    part_2c_2: ['Approach, Aer Lingus two two five, unable to accept that descent. We have severe icing reported at that level and our anti-ice system is degraded. Request to maintain our present level, or descend to flight level one four zero instead. Advise if that conflicts with your traffic.',
+                'Aer Lingus two two five unable to accept the descent due to severe icing reported at that level and a degraded anti-ice system, requesting to maintain present level or descend to flight level one four zero, asking if that conflicts with traffic.'],
+    part_2c_3: ['Tower, Norwegian eight one four, we have just vacated runway zero one. Braking action was poor, I say again poor, in the last third of the runway. That does not match the medium you reported. Recommend you advise the following traffic and consider a runway inspection.',
+                'Norwegian eight one four vacated runway zero one reporting braking action poor in the last third, which does not match the reported medium, recommending following traffic be advised and a runway inspection considered.']
+  },
+
+  VERSION_C: {
+    interview_1: 'To start, tell me about the aircraft you fly and what you enjoy most about operating it.',
+    interview_2: 'Describe the route or the airport you find most demanding, and explain why.',
+    interview_3: 'Tell me about a decision you had to make quickly, in the air or on the ground. What did you consider?',
+    interview_4: 'In your opinion, how well does standard phraseology work when something unexpected happens? Can you give an example?',
+    interview_5: 'What advice would you give to a pilot who is about to take their language proficiency test for the first time?',
+
+    part_2a_1: ['Tower, Iberia three four two, we have a hydraulic low pressure warning on system B. Request to hold our present position while we run the checklist.',
+                'Iberia three four two, hydraulic low pressure warning on system B, requesting to hold present position to run the checklist.'],
+    part_2a_2: ['Air France one six eight, expedite through flight level one niner zero. Traffic converging from your right. Turn left heading two seven zero immediately.',
+                'Air France one six eight, expedite through flight level one nine zero, traffic converging from the right, turn left heading two seven zero immediately.'],
+    part_2a_3: ['Pan pan, pan pan, pan pan, KLM eight two four, we have a passenger with a suspected stroke on board. Request a priority approach and medical assistance on stand.',
+                'Pan pan, KLM eight two four, passenger with a suspected stroke, requesting priority approach and medical assistance on stand.'],
+    part_2a_4: ['Mayday mayday mayday, TAP one one nine, fuel emergency. We have less than one zero minutes of usable fuel remaining. Request an immediate landing, any runway.',
+                'Mayday, TAP one one nine, fuel emergency, less than ten minutes of usable fuel, requesting immediate landing on any runway.'],
+    part_2a_5: ['Ethiopian five three two, be advised, a thunderstorm cell is over the field moving north east at two zero knots. Wind shear was reported on final by preceding traffic. Hold at your present position and advise your intentions.',
+                'Ethiopian five three two advised of a thunderstorm cell over the field moving north east at twenty knots, wind shear reported on final by preceding traffic, instructed to hold and advise intentions.'],
+    part_2a_6: ['Ground, Vueling seven seven six, we have a brake overheat indication after landing. Request the fire service to inspect before we continue to stand.',
+                'Vueling seven seven six, brake overheat indication after landing, requesting fire service inspection before continuing to stand.'],
+
+    part_2b_1: ['Madrid control, Avianca zero one four, we have a fire in the rear galley. The cabin crew are fighting it with extinguishers but smoke is entering the cabin and we are descending. Declaring an emergency. Two hundred and six souls on board, four hours of fuel. Request the nearest airport with full emergency services and a long runway.',
+                'Avianca zero one four, fire in the rear galley, cabin crew fighting it with extinguishers, smoke entering the cabin, descending, declaring an emergency, two hundred six souls on board, four hours of fuel, requesting nearest airport with full emergency services and a long runway.'],
+    part_2b_2: ['Rome approach, Alitalia six two nine, we have a jammed rudder and are unable to hold an accurate heading in the turn. We have reverted to manual control and expect to need a wide, shallow approach. There are no injuries on board. We are not declaring an emergency yet, but request vectors well clear of terrain and a long final.',
+                'Alitalia six two nine, jammed rudder, unable to hold accurate heading in the turn, reverted to manual control, expecting to need a wide shallow approach, no injuries, no emergency declared yet, requesting vectors clear of terrain and a long final.'],
+    part_2b_3: ['Lisbon control, Azores four five three, we have lost both generators and are on battery power. Many systems are unavailable, including our weather radar and one navigation system. We estimate three zero minutes of battery remaining. Request immediate vectors to the nearest suitable airfield in visual conditions, and continuous position information.',
+                'Azores four five three, both generators lost, on battery power, weather radar and one navigation system unavailable, thirty minutes of battery estimated, requesting immediate vectors to the nearest suitable airfield in visual conditions and continuous position information.'],
+
+    part_2c_1: ['Centre, Swiss two eight one, my captain has become incapacitated and is unresponsive. I am the only pilot flying. I have secured him in his seat and a doctor from the cabin is attending to him. I would like a straight-in approach and as few instructions as possible.',
+                'Swiss two eight one, captain incapacitated and unresponsive, single pilot flying, captain secured in his seat with a doctor attending, requesting a straight-in approach and as few instructions as possible.'],
+    part_2c_2: ['Tower, Ryanair three three one, we are receiving a resolution advisory and we are climbing. Unable to follow your descent instruction. The traffic appears to be at our twelve o\'clock, one thousand feet below.',
+                'Ryanair three three one, responding to a resolution advisory by climbing, unable to follow the descent instruction, traffic at twelve o\'clock one thousand feet below.'],
+    part_2c_3: ['Ground, easyJet nine zero four, we have just seen a baggage vehicle drive behind an aircraft with its engines running on stand four two. Recommend you check on that immediately. We are holding short of the taxiway until it is clear.',
+                'easyJet nine zero four reports a baggage vehicle driving behind an aircraft with engines running on stand four two, recommending an immediate check, and is holding short of the taxiway until clear.']
+  }
+};
+
+function _icaoApplyContent_(bank) {
+  var content = ICAO_CONTENT_[String(bank).toUpperCase()];
+  if (!content) throw new Error('No content defined for ' + bank);
+
+  var rows  = _icaoRowsOfBank_(dbReadAll_(ICAO_ITEMS_SHEET_), bank);
+  var stamp = new Date().toISOString();
+  var done = 0, skipped = 0;
+
+  rows.forEach(function(r) {
+    var id = String(r.itemId || '').trim();
+    var c  = content[id];
+    if (!c) return;
+
+    var script     = Array.isArray(c) ? c[0] : c;
+    var transcript = Array.isArray(c) ? c[1] : '';
+
+    if (String(r.script || '').trim() === String(script).trim()) { skipped++; return; }
+
+    var patch = { script: script, updatedAt: stamp, audioFileId: '' };
+    // A recording without its shortened ground truth is graded against nothing.
+    if (transcript) patch.transcript = transcript;
+    dbUpdateByRow_(ICAO_ITEMS_SHEET_, r.__rowNumber, patch);
+    done++;
+  });
+
+  return { changed: done, alreadyCurrent: skipped };
+}
+
+/** Writes VERSION_B's own scenarios and questions. Then run renderIcaoTestAudio. */
+function applyIcaoContentB() {
+  var r = _icaoApplyContent_('VERSION_B');
+  var msg = 'VERSION_B: ' + r.changed + ' row(s) rewritten, ' + r.alreadyCurrent +
+            ' already current.\nTheir recordings were cleared — run renderIcaoTestAudio next.\n' +
+            'Part 3 still shares A\'s two pictures; those need real photographs.';
+  Logger.log(msg);
+  return msg;
+}
+
+/** Writes VERSION_C's own scenarios and questions. Then run renderIcaoTestAudio. */
+function applyIcaoContentC() {
+  var r = _icaoApplyContent_('VERSION_C');
+  var msg = 'VERSION_C: ' + r.changed + ' row(s) rewritten, ' + r.alreadyCurrent +
+            ' already current.\nTheir recordings were cleared — run renderIcaoTestAudio next.\n' +
+            'Part 3 still shares A\'s two pictures; those need real photographs.';
+  Logger.log(msg);
+  return msg;
+}
