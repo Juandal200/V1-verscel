@@ -1105,3 +1105,67 @@ function dumpIcaoVersions() {
   Logger.log(msg);
   return msg;
 }
+
+// Which accent a version is in, worked out from the rows themselves rather than
+// from the bank's name. A bank called VERSION_B tells you nothing; the lang its
+// recordings carry tells you everything, and it cannot drift out of step with
+// what the candidate will actually hear.
+var ICAO_ACCENT_LABELS_ = {
+  'en-US': { label: 'American',   flag: '🇺🇸' },
+  'en-GB': { label: 'British',    flag: '🇬🇧' },
+  'en-AU': { label: 'Australian', flag: '🇦🇺' },
+  'en-IN': { label: 'Indian',     flag: '🇮🇳' },
+  'en-CA': { label: 'Canadian',   flag: '🇨🇦' }
+};
+
+/**
+ * The versions a candidate may choose between, each with the accent it is spoken
+ * in and whether every line has been recorded.
+ */
+function apiGetIcaoTestVersions(sessionToken) {
+  try {
+    AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+
+    var rows;
+    try { rows = dbReadAll_(ICAO_ITEMS_SHEET_); }
+    catch (e) { return { ok: false, error: 'Item sheet not set up.' }; }
+
+    var usable = _icaoUsableBanks_(rows);
+    if (!usable.length) return { ok: false, error: 'No usable version in the item bank.' };
+
+    var byBank = {};
+    rows.forEach(function(r) {
+      if (String(r.isActive).toUpperCase() === 'FALSE') return;
+      var b = String(r.bank || ICAO_ITEMS_BANK_).trim().toUpperCase();
+      if (usable.indexOf(b) === -1) return;
+      var e = byBank[b] || (byBank[b] = { langs: {}, recordings: 0, unrendered: 0 });
+      var lang = String(r.lang || '').trim();
+      if (lang) e.langs[lang] = (e.langs[lang] || 0) + 1;
+      if (String(r.itemType || '').toUpperCase() === 'AUDIO') e.recordings++;
+      if (String(r.script || '').trim() && !String(r.audioFileId || '').trim()) e.unrendered++;
+    });
+
+    var out = usable.sort().map(function(b) {
+      var e = byBank[b] || { langs: {}, recordings: 0, unrendered: 0 };
+      // The most common lang in the bank. A version whose rows disagree is still
+      // described by its majority rather than refused — the candidate should get a
+      // best guess, not an error.
+      var lang = '', best = 0;
+      Object.keys(e.langs).forEach(function(k) { if (e.langs[k] > best) { best = e.langs[k]; lang = k; } });
+      var a = ICAO_ACCENT_LABELS_[lang] || { label: 'Mixed accents', flag: '🌐' };
+      return {
+        bank:       b,
+        // VERSION_A reads as a database key. "Version A" is what a candidate sees.
+        name:       b.replace(/^VERSION[_\s-]*/i, 'Version '),
+        accent:     a.label,
+        flag:       a.flag,
+        recordings: e.recordings,
+        ready:      e.unrendered === 0
+      };
+    });
+
+    return { ok: true, versions: out };
+  } catch (err) {
+    return apiError_('apiGetIcaoTestVersions', err);
+  }
+}

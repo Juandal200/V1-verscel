@@ -25297,6 +25297,64 @@
     _finishExam();
   }
 
+  // Which paper the candidate chose. Empty means "surprise me", which is also the
+  // default — a version has to be picked deliberately, so someone who just wants
+  // to sit an exam is not made to make a decision they have no basis for.
+  window._teaPickedVersion = '';
+
+  window._teaSelectVersion = function (bank) {
+    window._teaPickedVersion = String(bank || '');
+    Array.prototype.slice.call(document.querySelectorAll('.tea-ver-opt')).forEach(function (el) {
+      var on = el.getAttribute('data-bank') === window._teaPickedVersion;
+      el.style.borderColor = on ? '#00d48e' : 'rgba(255,255,255,0.12)';
+      el.style.background  = on ? 'rgba(0,212,142,0.10)' : 'rgba(255,255,255,0.02)';
+      el.style.color       = on ? '#dde6f0' : '#8fa3bb';
+    });
+  };
+
+  function _teaRenderVersionPicker() {
+    var host = document.getElementById('teaVersionPicker');
+    if (!host) return;
+    google.script.run
+      .withSuccessHandler(function (res) {
+        var host2 = document.getElementById('teaVersionPicker');
+        if (!host2) return;
+        // One version, or none listed, is not a choice worth presenting.
+        if (!res || !res.ok || !res.versions || res.versions.length < 2) { host2.innerHTML = ''; return; }
+
+        function opt(bank, flag, title, sub, ready) {
+          return '<button class="tea-ver-opt" data-bank="' + _esc(bank) + '" ' +
+            (ready ? 'onclick="window._teaSelectVersion(\'' + _esc(bank) + '\')"' : 'disabled') + ' ' +
+            'style="flex:1;min-width:104px;padding:10px 8px;border-radius:12px;cursor:' +
+              (ready ? 'pointer' : 'not-allowed') + ';font-family:inherit;' +
+            'border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.02);' +
+            'color:' + (ready ? '#8fa3bb' : '#3d4d5c') + ';text-align:center;">' +
+              '<div style="font-size:1.15rem;line-height:1.2;">' + flag + '</div>' +
+              '<div style="font-size:0.78rem;font-weight:700;margin-top:3px;">' + _esc(title) + '</div>' +
+              '<div style="font-size:0.68rem;opacity:.75;">' + _esc(sub) + '</div>' +
+            '</button>';
+        }
+
+        host2.innerHTML =
+          '<p style="margin:0 0 8px;font-size:0.72rem;font-weight:700;letter-spacing:0.12em;' +
+            'text-transform:uppercase;color:#4a6280;text-align:center;">Choose your paper</p>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">' +
+            opt('', '🎲', 'Any', 'Random', true) +
+            res.versions.map(function (v) {
+              return opt(v.bank, v.flag, v.name, v.accent + (v.ready ? '' : ' · not ready'), v.ready);
+            }).join('') +
+          '</div>';
+        window._teaSelectVersion(window._teaPickedVersion || '');
+      })
+      // No picker is a working exam; a broken picker is not. Stay quiet and let
+      // the random draw happen.
+      .withFailureHandler(function () {
+        var h = document.getElementById('teaVersionPicker');
+        if (h) h.innerHTML = '';
+      })
+      .apiGetIcaoTestVersions(AppState.sessionToken);
+  }
+
   window._teaBeginScripted = function (bank) {
     if (window._teaStarting) return;
     window._teaStarting = true;
@@ -26349,7 +26407,8 @@
         // Scripted is the primary route now: every line pre-recorded, one version
         // drawn at random per sitting. The conversational exam is kept alongside
         // while the scripted one is proven, and reads as the secondary option.
-        '<button id="teaBeginBtn" onclick="window._teaBeginScripted()" ' +
+        '<div id="teaVersionPicker" style="width:100%;max-width:460px;"></div>' +
+        '<button id="teaBeginBtn" onclick="window._teaBeginScripted(window._teaPickedVersion || \'\')" ' +
           'style="padding:14px 40px;background:#00d48e;color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:8px;">' +
           'Begin Exam' +
         '</button>' +
@@ -26365,6 +26424,7 @@
     // The intro screen is read for several seconds — warm the examiner voice now so
     // the exam's first line is already cached rather than synthesised live.
     setTimeout(_teaPrewarmVoice, 200);
+    _teaRenderVersionPicker();
   }
 
   function _startExam() {
