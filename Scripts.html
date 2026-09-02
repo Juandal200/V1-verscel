@@ -7674,11 +7674,17 @@
     // a narrow window on a desktop is served just as badly by an iframe it has no
     // room for.
     var _narrow = (window.innerWidth || 1024) <= 768;
+    // Hide the whole card, not just the host. The host is the card's body, so
+    // hiding it alone leaves a "SIM VISUAL / LIVE" heading sitting above nothing —
+    // which reads as something that failed to load rather than something
+    // deliberately left out.
+    var _card = host.closest ? host.closest('.sim-video-priority-card') : null;
     if (videoUrl && _narrow && !_isImageUrl(videoUrl)) {
       host.innerHTML = '';
-      host.style.display = 'none';
+      (_card || host).style.display = 'none';
       return;
     }
+    if (_card && _card.style.display === 'none') _card.style.display = '';
     if (host.style.display === 'none') host.style.display = '';
 
     if (videoUrl) {
