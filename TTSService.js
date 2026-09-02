@@ -935,3 +935,64 @@ function diagnoseScenarioTts() {
   }
   return issues;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * SCENARIO AUDIO — PHASE 0: measure before building
+ *
+ * The simulator synthesises every ATC line at the moment it is needed, waits six
+ * seconds, and hands the line to the phone's own voice if it has not arrived. The
+ * server cache that would prevent that is CacheService with a six-hour life, so
+ * nothing is ever permanently fast — a line that played instantly this morning is
+ * a cold synthesis tonight.
+ *
+ * Pre-rendering to Drive fixes it the way it fixed the ICAO test. But how big that
+ * job is depends entirely on how many distinct lines there are, and nobody knows.
+ * This counts them, and changes nothing.
+ *
+ * Run from the editor — TTSService.gs.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+function checkScenarioAudioSize() {
+  var rows = dbReadAll_('Scenarios');
+  var active = rows.filter(function(s) {
+    return String(s.isActive).toUpperCase() !== 'FALSE' && String(s.atcText || '').trim();
+  });
+
+  // Distinct TEXT, not distinct scenario. The same clearance appears across
+  // countries and levels, and an identical line in the same voice is one file —
+  // which is the difference between a manageable render and an unmanageable one.
+  var byCountry = {}, uniqText = {}, uniqPair = {}, chars = 0;
+  active.forEach(function(s) {
+    var text    = String(s.atcText || '').trim();
+    var country = String(s.country || 'USA').trim().toUpperCase();
+    byCountry[country] = (byCountry[country] || 0) + 1;
+    uniqText[text] = true;
+    uniqPair[country + '|' + text] = true;
+    chars += text.length;
+  });
+
+  var pairs = Object.keys(uniqPair).length;
+  var out = [];
+  out.push('SCENARIOS: ' + rows.length + ' rows, ' + active.length + ' active with ATC text');
+  out.push('DISTINCT LINES: ' + Object.keys(uniqText).length);
+  out.push('DISTINCT line+country PAIRS: ' + pairs + '  ← this is what gets rendered');
+  out.push('');
+  out.push('By country:');
+  Object.keys(byCountry).sort().forEach(function(c) {
+    out.push('   ' + c + ': ' + byCountry[c]);
+  });
+  out.push('');
+  // The ICAO render managed roughly one clip every 2.5 seconds including the Drive
+  // write, and Apps Script stops at six minutes — so this is really "how many runs".
+  var perVariant = Math.ceil(pairs * 2.5 / 60);
+  out.push('ESTIMATE, one voice per line:');
+  out.push('   ~' + pairs + ' files, ~' + perVariant + ' min of synthesis' +
+           '  (~' + Math.ceil(perVariant / 5) + ' run(s) of renderScenarioAudio)');
+  out.push('   ~' + Math.round(chars / 1000) + 'k characters of TTS billing, once');
+  out.push('   ~' + Math.round(pairs * 35 / 1024) + ' MB on Drive');
+  out.push('');
+  out.push('With 3 voices per line, multiply all three by three.');
+
+  var msg = out.join('\n');
+  Logger.log(msg);
+  return msg;
+}
