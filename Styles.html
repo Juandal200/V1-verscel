@@ -12249,9 +12249,20 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
     grid-template-columns: minmax(0, 1fr);
     column-gap: 0;
     row-gap: 8px;
-    /* Minus the bottom nav and its safe area. */
-    height: calc(100dvh - 72px - env(safe-area-inset-bottom));
-    overflow: hidden;
+    /* Minus the top bar, the bottom nav, and the safe areas at both ends.
+       Installed, this is the whole screen: standalone has no URL bar and no Safari
+       toolbar, which is roughly 110px more than a tab gets. Since installing is
+       what we ask students to do, the app is being sized for the place it will
+       actually be used, and a browser tab simply gets a little less room.
+       dvh, not vh, so it tracks the toolbars as they collapse instead of assuming
+       they are not there. */
+    max-height: calc(100dvh - 128px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    /* auto, not hidden. If the arithmetic is wrong on some device I have not seen,
+       the page gives up a little scroll — it does NOT clip the send button off the
+       bottom, which would end the exercise. Fitting is the goal; reachable is the
+       requirement. */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .sim-left-col {
