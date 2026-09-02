@@ -7674,12 +7674,19 @@
     // a narrow window on a desktop is served just as badly by an iframe it has no
     // room for.
     var _narrow = (window.innerWidth || 1024) <= 768;
+    // No scenery at all on a phone — not video, not a still either.
+    //
+    // The image was cheap, so it looked like a free consolation. It is not free in
+    // the currency that matters here: it is the largest block on a screen the whole
+    // exercise has to fit inside, and it pushes the read-back box and the altitude
+    // controls below the fold. Nothing in the exercise is graded on it. Removing it
+    // buys the vertical space that makes the rest usable without scrolling.
+    //
     // Hide the whole card, not just the host. The host is the card's body, so
-    // hiding it alone leaves a "SIM VISUAL / LIVE" heading sitting above nothing —
-    // which reads as something that failed to load rather than something
-    // deliberately left out.
+    // hiding it alone leaves a "SIM VISUAL / LIVE" heading above nothing, which
+    // reads as something that failed rather than something left out.
     var _card = host.closest ? host.closest('.sim-video-priority-card') : null;
-    if (videoUrl && _narrow && !_isImageUrl(videoUrl)) {
+    if (_narrow) {
       host.innerHTML = '';
       (_card || host).style.display = 'none';
       return;

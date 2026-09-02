@@ -12226,3 +12226,76 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 }
 
 </style>
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SIMULATOR ON A PHONE — one screen, no scrolling
+   ═══════════════════════════════════════════════════════════════════════════
+   The cockpit is a two-column grid whose right column has a 360px minimum. On a
+   390px iPhone that could never fit, so the whole exercise stacked into a long
+   scroll: hear the clearance at the top, scroll to the altitude, scroll again to
+   the read-back box, scroll back to check what was said. Every one of those
+   scrolls happens under time pressure while a controller is waiting.
+
+   Everything the exercise needs is now on screen at once. The scenario media is
+   removed in JS before this runs, which is what makes the room; what is left is
+   the clearance, the altitude, and the read-back.
+
+   dvh rather than vh: Safari's toolbars are part of vh, so 100vh is taller than
+   the visible page and pushes the read-back box under the browser chrome — which
+   is precisely the control that must never be hidden.
+═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .sim-cockpit {
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 0;
+    row-gap: 8px;
+    /* Minus the bottom nav and its safe area. */
+    height: calc(100dvh - 72px - env(safe-area-inset-bottom));
+    overflow: hidden;
+  }
+
+  .sim-left-col {
+    height: 100%;
+    min-height: 0;          /* or the flex children refuse to shrink */
+    gap: 6px;
+  }
+
+  /* The clearance is the only part that can be long, so it is the only part that
+     scrolls. Everything else keeps its place. */
+  .sim-radio-card {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .sim-radio-text {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* The read-back must never move or be pushed off. */
+  .sim-readback-priority-card { flex: 0 0 auto; }
+  .sim-readback-priority-input {
+    min-height: 56px;
+    max-height: 84px;
+    /* 16px or iOS zooms the whole page when the field takes focus, and the
+       layout that just fitted no longer does. */
+    font-size: 16px;
+  }
+
+  /* Instruments stay put and stay reachable. */
+  .sim-instruments-row { flex: 0 0 auto; }
+  .sim-priority-side   { display: block; }
+
+  /* Trimmed rather than removed: each is small on its own, and together they are
+     the difference between fitting and not. */
+  .sim-cockpit-header .subtitle { display: none; }
+  .sim-video-priority-card      { display: none; }
+  .sim-side-grid                { display: none; }
+  .sim-radio-card,
+  .sim-readback-priority-card   { padding: 10px; border-radius: 14px; }
+  .sim-section-title            { font-size: 0.68rem; }
+}
