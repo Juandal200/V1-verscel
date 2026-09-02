@@ -23485,6 +23485,9 @@
   }
 
   function _resetState() {
+    // Cleared here, or a scripted sitting followed by a conversational one in the
+    // same session would render the shell and then start nothing at all.
+    _t._scripted = false;
     _t.history=[]; _t.audioIdx=0; _t.imageIdx=0; _t.audioCache={}; _t.busy=false;
     _t.listens={};
     setTimeout(function(){ _teaSetPart('1'); }, 0);
@@ -25457,7 +25460,12 @@
         _sc.running = true;
         TEA_BANK    = _sc.bank;
         _t.scope    = 'FULL';
-        _teaOpenExam();
+        // Renders the exam shell only — _startExam returns early on this flag
+        // rather than opening a conversation with the model.
+        _t._scripted = true;
+        _t._started  = false;   // the Begin screen may have set it
+        _startExam();
+        _setEnabled(false);     // the mic is opened per step, not by the shell
         _scNextStep();
       })
       .withFailureHandler(function (e) {
@@ -26505,6 +26513,12 @@
     // Nothing about that line needs the model. It is fixed, it is already recorded,
     // and the app knows which one to play. Saying it here removes the robot, removes
     // the silence, and removes a round trip.
+    // A scripted sitting wants the shell and nothing else. Everything below starts
+    // the CONVERSATIONAL exam — _teaOpenExam speaks the opening and then hands the
+    // floor to the model, and _prefetchAudio walks the old TEA_ORDER queue. Running
+    // both at once is what put an examiner's voice behind a stuck loader.
+    if (_t._scripted) return;
+
     _teaOpenExam(_opening);
 
     // Part 1 runs five or six minutes with the network otherwise idle. Use it to
@@ -26516,6 +26530,7 @@
   }
 
   window._teaBegin = function(scope) {
+    _t._scripted = false;   // this IS the conversational exam
     // Only the main Begin button was disabled on click; the six section buttons
     // were not, so a second click started a second exam on top of the first.
     if (window._teaStarting) return;
