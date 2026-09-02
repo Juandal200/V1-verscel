@@ -214,6 +214,33 @@ var TTSService = {
                      voices[Math.floor(Math.random() * voices.length)] ||
                      voices[0] || '';
 
+    // A pre-rendered recording beats everything else, so it is tried first.
+    //
+    // CacheService below it lives six hours: every line goes cold overnight, the
+    // first student of the day waits through a synthesis, and the client gives up
+    // after six seconds and speaks in the phone's own voice. A Drive file was
+    // rendered once and is fast forever, so it is the answer whenever it exists.
+    //
+    // The voice is chosen from what was actually rendered rather than from the
+    // profile, so a random pick can never ask for a variant that does not exist.
+    // The client may still name one, and if it was rendered it is honoured.
+    var pre = _scenPickRendered_(textToRead, country, payload.voice);
+    if (pre) {
+      return {
+        ok: true,
+        audioBase64:  pre.audioBase64,
+        mimeType:     'audio/mp3',
+        voiceProfile: profile.label,
+        voiceName:    pre.voice,
+        languageCode: profile.languageCode,
+        speakingRate: pre.speakingRate || speakingRate,
+        pitch:        profile.pitch,
+        text:         textToRead,
+        cached:       true,
+        prerendered:  true
+      };
+    }
+
     // Serve from CacheService when available — avoids the TTS API round-trip
     var cacheKey = this.buildTtsCacheKey_(textToRead, profile, speakingRate, voiceToUse);
     var cached = this.getTtsFromCache_(cacheKey);
@@ -1176,4 +1203,72 @@ function checkScenarioAudio() {
   var msg = out.join('\n');
   Logger.log(msg);
   return msg;
+}
+
+/* ─── PHASE 2: serve what was rendered ────────────────────────────────────────
+ * Finds a recording for a line and returns it, choosing at random between the
+ * voices that exist so the same clearance is not always the same controller.
+ *
+ * Returns null rather than throwing when a line has no recording: a half-rendered
+ * library is the normal state during a render, and the caller falls through to
+ * live synthesis exactly as before.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+// The sheet is read once per execution and held. A route asks for eight or nine
+// lines in a few minutes, and reading the whole sheet for each of them is most of
+// the latency this phase exists to remove.
+var _SCEN_AUDIO_INDEX_ = null;
+
+function _scenAudioIndex_() {
+  if (_SCEN_AUDIO_INDEX_) return _SCEN_AUDIO_INDEX_;
+  var idx = {};
+  try {
+    dbReadAll_(SCENARIO_AUDIO_SHEET_).forEach(function(r) {
+      var fileId = String(r.fileId || '').trim();
+      if (!fileId) return;
+      var k = String(r.textHash) + '|' + String(r.country || '').toUpperCase();
+      (idx[k] = idx[k] || []).push({
+        voice: String(r.voice || ''), fileId: fileId,
+        speakingRate: Number(r.speakingRate || 0) || null
+      });
+    });
+  } catch (e) { /* sheet not created yet — every line falls through to synthesis */ }
+  _SCEN_AUDIO_INDEX_ = idx;
+  return idx;
+}
+
+function _scenPickRendered_(text, country, preferredVoice) {
+  var key  = _scenTextHash_(text) + '|' + String(country || 'USA').trim().toUpperCase();
+  var list = _scenAudioIndex_()[key];
+  if (!list || !list.length) return null;
+
+  var pick = null;
+  var want = String(preferredVoice || '').trim();
+  if (want) {
+    for (var i = 0; i < list.length; i++) if (list[i].voice === want) { pick = list[i]; break; }
+  }
+  // Random among what exists, which is the point of rendering more than one.
+  if (!pick) pick = list[Math.floor(Math.random() * list.length)];
+
+  // The bytes are cached separately from the index. Reading a Drive file is the
+  // slow part, and the six-hour life is fine here because losing it costs a Drive
+  // read rather than a synthesis.
+  var cacheKey = 'scenaud_' + pick.fileId;
+  try {
+    var hit = CacheService.getScriptCache().get(cacheKey);
+    if (hit) return { audioBase64: hit, voice: pick.voice, speakingRate: pick.speakingRate };
+  } catch (e) {}
+
+  try {
+    var b64 = Utilities.base64Encode(DriveApp.getFileById(pick.fileId).getBlob().getBytes());
+    try {
+      if (b64.length < 95000) CacheService.getScriptCache().put(cacheKey, b64, 21600);
+    } catch (e) {}
+    return { audioBase64: b64, voice: pick.voice, speakingRate: pick.speakingRate };
+  } catch (e) {
+    // The row points at a file that is gone. Fall through to synthesis rather
+    // than fail the line, and say so, because it means the sheet is stale.
+    Logger.log('[scenario audio] missing Drive file ' + pick.fileId + ': ' + e.message);
+    return null;
+  }
 }
