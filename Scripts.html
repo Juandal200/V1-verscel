@@ -1415,6 +1415,22 @@
 
   window.setViewAs = setViewAs;
 
+  /* refreshMeAndHome runs in the BACKGROUND.
+   *
+   * renderHome paints from cached data and then calls this to catch up XP, streak
+   * and subscription changes. Its failure handler was handleServerError, which
+   * replaces the whole of contentArea with an error panel — so a background
+   * refresh that timed out destroyed whatever screen the user had since navigated
+   * to. Tap Mock Test, the exam begins loading, and forty-five seconds later a
+   * refresh you never asked for wipes it and reports that the server was slow.
+   *
+   * That is why it looked as though the mock test could not start: often it was
+   * starting, and something behind it tore the screen away.
+   *
+   * A background refresh that fails should cost nothing. The screen keeps the data
+   * it already had, and the failure is logged rather than shown. Foreground calls
+   * still report their own errors, as they should.
+   */
   function refreshMeAndHome(callback) {
     if (!AppState.sessionToken) {
       showScreen('loginScreen');
@@ -1447,7 +1463,13 @@
         if (res.mergedXp) _renderTopbarRank(res.mergedXp, res.streakDays || 0);
         if (typeof callback === 'function') callback();
       })
-      .withFailureHandler(handleServerError)
+      .withFailureHandler(function(err) {
+        if (window.console && console.warn) {
+          console.warn('[bootstrap] background refresh failed:', err && err.message ? err.message : err);
+        }
+        // Deliberately silent on screen. The user is looking at something else and
+        // did not ask for this.
+      })
       .apiGetAppBootstrap(AppState.sessionToken);
   }
 
