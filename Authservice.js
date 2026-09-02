@@ -371,3 +371,49 @@ var AuthService = {
     } catch(e) { /* non-fatal */ }
   }
 };
+
+/**
+ * How big the login tables have grown, and how slow the login path now is.
+ * Reads only — changes nothing. Run from Authservice.gs.
+ */
+function checkLoginPerformance() {
+  var out = [];
+
+  function timed(label, fn) {
+    var t = Date.now();
+    var n = null;
+    try { n = fn(); } catch (e) { out.push(label + ': ERROR ' + e.message); return; }
+    out.push(label + ': ' + (Date.now() - t) + ' ms' + (n === null ? '' : '  (' + n + ' rows)'));
+  }
+
+  timed('read LoginCodes', function() { return dbReadAll_('LoginCodes').length; });
+  timed('read Users',      function() { return dbReadAll_('Users').length; });
+  timed('read Sessions',   function() { return dbReadAll_('Sessions').length; });
+
+  // The subscription check runs on every access decision, and it reads the whole
+  // sheet rather than a range.
+  timed('subscription status', function() {
+    try { wompiGetSubscriptionStatus_('nobody'); } catch (e) {}
+    return null;
+  });
+
+  // How much of LoginCodes is spent — every code ever issued stays for ever, and
+  // verifying reads and filters all of them under a script lock.
+  try {
+    var rows = dbReadAll_('LoginCodes');
+    var used = rows.filter(function(r) { return String(r.status || '').toUpperCase() !== 'PENDING'; }).length;
+    var old  = 0, cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    rows.forEach(function(r) {
+      var d = new Date(String(r.createdAt || ''));
+      if (!isNaN(d.getTime()) && d.getTime() < cutoff) old++;
+    });
+    out.push('');
+    out.push('LoginCodes: ' + rows.length + ' total, ' + used + ' already used, ' +
+             old + ' older than a day');
+    out.push('Every one of those is read and filtered on every verify, inside a script lock.');
+  } catch (e) {}
+
+  var msg = out.join('\n');
+  Logger.log(msg);
+  return msg;
+}
