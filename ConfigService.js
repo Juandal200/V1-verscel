@@ -170,6 +170,22 @@ var DB_SCHEMA = {
   // The ICAO test item bank. These were hardcoded constants in the client, so
   // every candidate sat the identical 12 recordings in the identical order and
   // changing a word meant a code deploy. bank + isActive allow several sets.
+  // Pre-rendered ATC audio for the simulator. Keyed on the LINE rather than the
+  // scenario: the same clearance can recur across levels, and an identical line in
+  // the same voice is one file. Several rows per line is the point — a variant is
+  // a different controller saying the same thing.
+  ScenarioAudio: [
+    'audioId',
+    'textHash',      // fingerprint of the spoken text — an edited line re-renders
+    'country',
+    'voice',
+    'speakingRate',
+    'fileId',        // Drive
+    'chars',
+    'sample',        // first 60 characters, so the sheet is readable by a human
+    'createdAt'
+  ],
+
   IcaoTestItems: [
     'itemId',
     'bank',

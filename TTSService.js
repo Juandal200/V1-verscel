@@ -996,3 +996,184 @@ function checkScenarioAudioSize() {
   Logger.log(msg);
   return msg;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * SCENARIO AUDIO — PHASE 1: render every ATC line to Drive, permanently
+ *
+ * Phase 0 counted 80 distinct lines. Three voices each is 240 files and about
+ * 9 MB, which makes variants affordable rather than a luxury — so they are built
+ * in from the start rather than bolted on later.
+ *
+ * Why Drive and not the cache: CacheService lives six hours, so every line goes
+ * cold overnight and the first student of the day waits through a synthesis. A
+ * Drive file is rendered once and is fast forever.
+ *
+ * Resumable on purpose. Apps Script stops at six minutes, so this renders until it
+ * is nearly out of time, writes what it has, and says how much is left. Running it
+ * again continues; running it after everything is done is a no-op.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+var SCENARIO_AUDIO_SHEET_  = 'ScenarioAudio';
+var SCENARIO_AUDIO_FOLDER_ = 'aerocomms Simulator ATC Audio';
+var SCENARIO_AUDIO_VOICES_ = 3;      // variants per line
+var SCENARIO_RENDER_BUDGET_MS_ = 4.5 * 60 * 1000;   // stop before the 6-minute wall
+
+function _scenAudioSheet_() {
+  var ss = SpreadsheetApp.openById(
+    PropertiesService.getScriptProperties().getProperty(CONFIG.PROP_DB_SPREADSHEET_ID));
+  var sheet = ss.getSheetByName(SCENARIO_AUDIO_SHEET_);
+  if (!sheet) {
+    sheet = ss.insertSheet(SCENARIO_AUDIO_SHEET_);
+    sheet.appendRow(DB_SCHEMA[SCENARIO_AUDIO_SHEET_]);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function _scenAudioFolder_() {
+  var it = DriveApp.getFoldersByName(SCENARIO_AUDIO_FOLDER_);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(SCENARIO_AUDIO_FOLDER_);
+}
+
+// Short, stable, and dependent on the text. Edit a clearance and its fingerprint
+// changes, so the old clip stops matching and is re-rendered rather than being
+// served under wording nobody wrote.
+function _scenTextHash_(text) {
+  var raw = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5,
+                                    String(text || '').trim(), Utilities.Charset.UTF_8);
+  return raw.map(function(b) { return ('0' + (b & 0xff).toString(16)).slice(-2); })
+            .join('').substring(0, 12);
+}
+
+/**
+ * Renders every active scenario's ATC line, in several voices, to Drive.
+ * Safe to run repeatedly — it skips what exists and resumes where it stopped.
+ * Run from the editor — TTSService.gs.
+ */
+function renderScenarioAudio() {
+  var started = Date.now();
+  var sheet   = _scenAudioSheet_();
+  var folder  = _scenAudioFolder_();
+
+  // What is already rendered, keyed the way it will be looked up.
+  var have = {};
+  var existing = dbReadAll_(SCENARIO_AUDIO_SHEET_);
+  existing.forEach(function(r) {
+    have[String(r.textHash) + '|' + String(r.country) + '|' + String(r.voice)] = true;
+  });
+
+  // One entry per distinct line+country. The same clearance in two levels is one
+  // render, not two.
+  var wanted = {};
+  dbReadAll_('Scenarios').forEach(function(s) {
+    if (String(s.isActive).toUpperCase() === 'FALSE') return;
+    var text = String(s.atcText || '').trim();
+    if (!text) return;
+    var country = String(s.country || 'USA').trim().toUpperCase();
+    wanted[_scenTextHash_(text) + '|' + country] = { text: text, country: country };
+  });
+
+  var todo = [];
+  Object.keys(wanted).forEach(function(k) {
+    var w       = wanted[k];
+    var profile = TTSService.getProfileByCountry_(w.country);
+    var voices  = (profile.voiceNames || []).slice(0, SCENARIO_AUDIO_VOICES_);
+    voices.forEach(function(v) {
+      if (!have[k + '|' + v]) todo.push({ key: k, text: w.text, country: w.country,
+                                          voice: v, profile: profile });
+    });
+  });
+
+  if (!todo.length) {
+    var doneMsg = 'Nothing to render — every line has ' + SCENARIO_AUDIO_VOICES_ +
+                  ' voice(s). ' + existing.length + ' file(s) on record.';
+    Logger.log(doneMsg);
+    return doneMsg;
+  }
+
+  var done = 0, failed = 0, stopped = false;
+  for (var i = 0; i < todo.length; i++) {
+    if (Date.now() - started > SCENARIO_RENDER_BUDGET_MS_) { stopped = true; break; }
+    var t = todo[i];
+    try {
+      var rate   = Number(t.profile.speakingRate || 0.95);
+      var ssml   = TTSService.buildAtcSsml_(t.text, t.profile, rate, t.voice);
+      var result = TTSService.callGoogleTtsWithFallbackVoices_(
+        ssml, { languageCode: t.profile.languageCode, pitch: t.profile.pitch,
+                effectsProfileId: t.profile.effectsProfileId, voiceNames: [t.voice] }, rate);
+      if (!result || !result.audioBase64) throw new Error('no audio returned');
+
+      var parts = t.key.split('|');
+      var blob  = Utilities.newBlob(Utilities.base64Decode(result.audioBase64), 'audio/mpeg',
+                                    parts[0] + '__' + parts[1] + '__' + t.voice + '.mp3');
+      var file  = folder.createFile(blob);
+
+      dbAppend_(SCENARIO_AUDIO_SHEET_, {
+        audioId:      'sa_' + parts[0] + '_' + t.voice,
+        textHash:     parts[0],
+        country:      t.country,
+        voice:        t.voice,
+        speakingRate: rate,
+        fileId:       file.getId(),
+        chars:        t.text.length,
+        sample:       t.text.substring(0, 60),
+        createdAt:    new Date().toISOString()
+      });
+      done++;
+    } catch (e) {
+      Logger.log('FAILED ' + t.country + ' ' + t.voice + ': ' + e.message);
+      failed++;
+    }
+  }
+
+  var left = todo.length - done - failed;
+  var msg = 'Rendered ' + done + ', failed ' + failed + ', remaining ' + left +
+            (stopped ? '\nStopped before the six-minute limit — run renderScenarioAudio again.'
+                     : (left ? '' : '\nComplete.'));
+  Logger.log(msg);
+  return msg;
+}
+
+/** Reports coverage: which lines have audio, in how many voices, and which have none. */
+function checkScenarioAudio() {
+  var rendered = {};
+  try {
+    dbReadAll_(SCENARIO_AUDIO_SHEET_).forEach(function(r) {
+      var k = String(r.textHash) + '|' + String(r.country);
+      (rendered[k] = rendered[k] || []).push(String(r.voice));
+    });
+  } catch (e) {
+    Logger.log('No ' + SCENARIO_AUDIO_SHEET_ + ' sheet yet — run renderScenarioAudio.');
+    return 'Not set up.';
+  }
+
+  var lines = {}, missing = [];
+  dbReadAll_('Scenarios').forEach(function(s) {
+    if (String(s.isActive).toUpperCase() === 'FALSE') return;
+    var text = String(s.atcText || '').trim();
+    if (!text) return;
+    var k = _scenTextHash_(text) + '|' + String(s.country || 'USA').trim().toUpperCase();
+    lines[k] = true;
+    if (!rendered[k]) missing.push(String(s.scenarioId || '?') + ' (' + text.substring(0, 40) + '…)');
+  });
+
+  var total = Object.keys(lines).length;
+  var withAudio = Object.keys(lines).filter(function(k) { return !!rendered[k]; }).length;
+  var full = Object.keys(lines).filter(function(k) {
+    return (rendered[k] || []).length >= SCENARIO_AUDIO_VOICES_;
+  }).length;
+
+  var out = [];
+  out.push(total + ' distinct line+country pair(s)');
+  out.push('   ' + withAudio + ' have at least one recording');
+  out.push('   ' + full + ' have all ' + SCENARIO_AUDIO_VOICES_ + ' voices');
+  out.push('   ' + (total - withAudio) + ' have none — these still synthesise live');
+  if (missing.length) {
+    out.push('');
+    out.push('Without audio:');
+    missing.slice(0, 15).forEach(function(m) { out.push('   ' + m); });
+    if (missing.length > 15) out.push('   … and ' + (missing.length - 15) + ' more');
+  }
+  var msg = out.join('\n');
+  Logger.log(msg);
+  return msg;
+}
