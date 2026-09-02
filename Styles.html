@@ -12254,9 +12254,15 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 ═══════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
   .sim-cockpit {
-    grid-template-columns: minmax(0, 1fr);
-    column-gap: 0;
-    row-gap: 8px;
+    /* Flex, not a single-column grid.
+       .sim-left-col below needs to fill the remaining height so the clearance can
+       be the only thing that scrolls. Given height:100% inside a grid it took the
+       full container height rather than its row's share, overflowed, and was drawn
+       underneath the next row — which is why the header appeared as ghost text
+       behind the cards. Flex gives it the leftover space instead of all of it. */
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
     /* Minus the top bar, the bottom nav, and the safe areas at both ends.
        Installed, this is the whole screen: standalone has no URL bar and no Safari
        toolbar, which is roughly 110px more than a tab gets. Since installing is
@@ -12274,10 +12280,13 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   }
 
   .sim-left-col {
-    height: 100%;
+    flex: 1 1 auto;
     min-height: 0;          /* or the flex children refuse to shrink */
     gap: 6px;
   }
+
+  /* The header keeps its own height and never competes for the space. */
+  .sim-cockpit-header { flex: 0 0 auto; }
 
   /* The clearance is the only part that can be long, so it is the only part that
      scrolls. Everything else keeps its place. */
