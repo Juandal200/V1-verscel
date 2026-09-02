@@ -1169,3 +1169,111 @@ function apiGetIcaoTestVersions(sessionToken) {
     return apiError_('apiGetIcaoTestVersions', err);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * TIDY-UP
+ *
+ * Three things in the sheet that are not wrong but mislead anyone reading it:
+ *
+ *   DEFAULT still holds 16 examiner lines. It can never be drawn — a bank needs
+ *   recordings to be selectable — but it is sixteen rows of dead weight that make
+ *   every audit noisier and every reader wonder which bank is real.
+ *
+ *   The LINE orderIndex values collide: line_open_full and line_p3_similar are
+ *   both 10. Nothing sorts on that number any more, so this breaks nothing, but a
+ *   number that means nothing is worse than no number at all — the next person to
+ *   edit the sheet will assume it matters.
+ *
+ *   IMAGE rows carry a voice and a lang. They have no script, so they never speak
+ *   and those fields do nothing.
+ *
+ * Run tidyIcaoTestItems first to see what would change; applyIcaoTestItemTidy to
+ * do it. Neither touches a script, a transcript, an image URL or a recording.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+function _icaoTidyPlan_() {
+  var rows  = dbReadAll_(ICAO_ITEMS_SHEET_);
+  var moves = [];
+
+  // Retire DEFAULT — only if its lines are genuinely duplicated elsewhere, so a
+  // bank that is somebody's only copy of something is never switched off.
+  var liveBanks = {};
+  rows.forEach(function(r) {
+    var b = String(r.bank || ICAO_ITEMS_BANK_).trim().toUpperCase();
+    if (b !== 'DEFAULT') liveBanks[b + '|' + String(r.itemId || '')] = true;
+  });
+
+  rows.forEach(function(r) {
+    var bank = String(r.bank || ICAO_ITEMS_BANK_).trim().toUpperCase();
+    var type = String(r.itemType || '').toUpperCase();
+    var id   = String(r.itemId || '').trim();
+    var patch = {};
+
+    if (bank === 'DEFAULT' && String(r.isActive).toUpperCase() !== 'FALSE') {
+      var copiedElsewhere = Object.keys(liveBanks).some(function(k) {
+        return k.split('|')[1] === id;
+      });
+      if (copiedElsewhere) patch.isActive = 'FALSE';
+    }
+
+    // A voice on a row that never speaks.
+    if (type === 'IMAGE') {
+      if (String(r.voice || '').trim()) patch.voice = '';
+      if (String(r.lang  || '').trim()) patch.lang  = '';
+    }
+
+    if (Object.keys(patch).length) {
+      moves.push({ row: r.__rowNumber, bank: bank, id: id, type: type, patch: patch });
+    }
+  });
+
+  // Renumber LINE rows per bank, in the order the exam actually says them, so the
+  // column finally agrees with what happens.
+  var SAY_ORDER = ['line_open_full','line_part1_close','line_open_p2','line_2a_question',
+                   'line_ack_next','line_section_close','line_2b_intro','line_2b_question',
+                   'line_2c_q1','line_2c_q2','line_open_p3','line_p3_describe',
+                   'line_ack_next_picture','line_p3_similar','line_p3_different',
+                   'line_exam_end'];
+  rows.forEach(function(r) {
+    if (String(r.itemType || '').toUpperCase() !== 'LINE') return;
+    var id  = String(r.itemId || '').trim();
+    var idx = SAY_ORDER.indexOf(id);
+    if (idx === -1) return;                       // an id we do not know: leave it
+    var want = idx + 1;
+    if (Number(r.orderIndex) === want) return;
+    moves.push({ row: r.__rowNumber, bank: String(r.bank || '').toUpperCase(), id: id,
+                 type: 'LINE', patch: { orderIndex: want } });
+  });
+
+  return moves;
+}
+
+/** Dry run. Prints what would change and changes nothing. */
+function tidyIcaoTestItems() {
+  var moves = _icaoTidyPlan_();
+  if (!moves.length) { Logger.log('Nothing to tidy.'); return 'Nothing to tidy.'; }
+  var out = [moves.length + ' change(s) proposed — nothing written:'];
+  moves.forEach(function(m) {
+    out.push('  row ' + m.row + '  ' + m.bank + '/' + m.id +
+             '  ' + JSON.stringify(m.patch));
+  });
+  out.push('Run applyIcaoTestItemTidy to apply.');
+  var msg = out.join('\n');
+  Logger.log(msg);
+  return msg;
+}
+
+/** Applies the tidy-up. Safe to run twice — a row already correct is not matched. */
+function applyIcaoTestItemTidy() {
+  var moves = _icaoTidyPlan_();
+  if (!moves.length) { Logger.log('Nothing to tidy.'); return 'Nothing to tidy.'; }
+  var stamp = new Date().toISOString();
+  moves.forEach(function(m) {
+    m.patch.updatedAt = stamp;
+    dbUpdateByRow_(ICAO_ITEMS_SHEET_, m.row, m.patch);
+  });
+  var msg = 'Applied ' + moves.length + ' change(s). Run checkIcaoTestVersions to confirm ' +
+            'A, B and C are still complete.';
+  Logger.log(msg);
+  return msg;
+}
