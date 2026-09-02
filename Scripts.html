@@ -489,6 +489,35 @@
   window.addEventListener('load', function() {
     bindLoginEnterKeys();
 
+    // Unlock audio on the FIRST tap anywhere in the app.
+    //
+    // It used to be bound when the simulator screen mounted, which is one screen
+    // too late: the clearance plays automatically on arrival — the hint on that
+    // screen says so — and the tap that navigated there happened before the
+    // listener existed. So no gesture had occurred since binding, the element was
+    // never primed, and iOS refused play() with "the request is not allowed by the
+    // user agent". The recording had downloaded fine; the browser simply would not
+    // sound it.
+    //
+    // Bound here, any tap on the way in — signing in, choosing a level, pressing
+    // start — does the unlocking, long before a clearance needs to play.
+    (function () {
+      var prime = function () {
+        try { if (typeof _simAudioEl === 'function') {
+          var el = _simAudioEl();
+          if (el._simPrimed) return;
+          el._simPrimed = true;
+          el.src = (typeof _SIM_SILENT_ !== 'undefined') ? _SIM_SILENT_ :
+            'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+          var p = el.play();
+          if (p && p.catch) p.catch(function () {});
+        } } catch (e) {}
+      };
+      ['pointerdown', 'touchstart', 'keydown'].forEach(function (ev) {
+        document.addEventListener(ev, prime, { passive: true, once: true });
+      });
+    })();
+
     // Warmup ping — fires immediately to wake the GAS runtime before any user action.
     // By the time credentials are entered and submitted, the cold-start penalty is gone.
     _aeroWarmPing();
