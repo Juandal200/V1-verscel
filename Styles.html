@@ -3402,6 +3402,29 @@ body.sim-paused #simMediaPauseBtn {
   gap: 4px;
   margin-top: 7px;
 }
+
+/* The climb and descend controls existed but were a 20-pixel tap target — under
+   half the ~44px a thumb can hit reliably, so on a phone the altitude was
+   effectively unflyable and the target unreachable. Same controls, sized for the
+   finger that has to use them. */
+@media (max-width: 768px) {
+  .sim-instr-btns { gap: 8px; margin-top: 10px; }
+  .sim-instr-btn {
+    min-height: 46px;
+    padding: 10px 6px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    border-radius: 12px;
+    /* A repeated tap must not select the label or trigger the double-tap zoom. */
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
+  .sim-instr-btn:active {
+    background: rgba(0,212,142,0.18);
+    border-color: rgba(0,212,142,0.45);
+  }
+}
 .sim-instr-btn {
   flex: 1;
   padding: 4px 2px;

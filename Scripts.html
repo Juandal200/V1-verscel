@@ -7659,6 +7659,28 @@
     _simBindAutoplayUnlock();
 
     var videoUrl = String(scenario.videoUrl || '').trim();
+
+    // No video on a phone.
+    //
+    // Each phase with a video embeds a whole YouTube or Drive player — its own
+    // scripts, its own network, a stream — and there are eight or nine phases in a
+    // route. On mobile data that is by far the most expensive thing in the app,
+    // and it is scenery: the exercise is radio communication, and nothing about it
+    // is graded on what is behind the panel. A still image costs a fraction of it
+    // and reads the same at that size.
+    //
+    // Judged on width rather than user agent, because what matters is how much
+    // screen the video would occupy and how the connection is likely to behave —
+    // a narrow window on a desktop is served just as badly by an iframe it has no
+    // room for.
+    var _narrow = (window.innerWidth || 1024) <= 768;
+    if (videoUrl && _narrow && !_isImageUrl(videoUrl)) {
+      host.innerHTML = '';
+      host.style.display = 'none';
+      return;
+    }
+    if (host.style.display === 'none') host.style.display = '';
+
     if (videoUrl) {
       // If the "video" URL is actually a static image, render it as an image
       if (_isImageUrl(videoUrl)) {
