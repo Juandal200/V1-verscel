@@ -25142,7 +25142,20 @@
 
   function _scStage(html) {
     var cards = _scEl('teaCards');
-    if (cards) cards.innerHTML = html;
+    if (cards) { cards.innerHTML = html; return; }
+    // The exam shell is not up yet — which is exactly when the refusals are shown,
+    // since they happen before the sitting starts. Writing into teaCards there put
+    // the message nowhere at all: the loader stopped, nothing replaced it, and the
+    // candidate was left looking at the Begin screen as though the button had done
+    // nothing.
+    var host = _scEl('contentArea');
+    if (host) {
+      host.innerHTML =
+        '<div style="min-height:calc(100vh - 60px);background:#080c10;padding:26px 16px;">' +
+          '<div style="max-width:560px;margin:0 auto;">' + html + '</div>' +
+        '</div>';
+      try { window.scrollTo(0, 0); } catch (e) {}
+    }
   }
 
   // Every step resolves through here exactly once, whatever happened, so a failed
@@ -25496,11 +25509,23 @@
       '<p class="eyebrow" style="margin:0 0 6px;">Mock test</p>' +
       '<h3 style="margin:0 0 8px;">An examination is already running</h3>' +
       '<p style="font-size:.9rem;line-height:1.6;color:var(--muted,#808080);margin:0 0 16px;">' +
-        'You have a sitting open on another device or tab. Finish it, or wait a ' +
-        'few minutes and it will release on its own.</p>' +
+        'You have a sitting open on another device or tab. Finish it, or release it ' +
+        'here and start again.</p>' +
+      // A hold left behind by an exam that crashed expires on its own, but making
+      // someone wait three quarters of an hour for a sitting they never finished
+      // is not a reasonable answer.
+      '<button class="btn primary" onclick="window._teaReleaseAndRetry()" ' +
+        'style="margin-right:8px;">Release and start</button>' +
       '<button class="btn secondary" onclick="renderHome()">Back to home</button>' +
       '</div>';
   }
+
+  window._teaReleaseAndRetry = function () {
+    google.script.run
+      .withSuccessHandler(function () { window._teaStarting = false; window.renderTeaExam(); })
+      .withFailureHandler(function () { window._teaStarting = false; window.renderTeaExam(); })
+      .apiReleaseIcaoExam(AppState.sessionToken);
+  };
 
   function _scNoAttemptsHtml(al) {
     var used = Number((al && al.used) || 0);
