@@ -6822,7 +6822,7 @@ function _sendInviteEmail_(user) {
   var htmlBody = _emailWrap_(
     '<table width="100%" cellpadding="0" cellspacing="0" style="text-align:center;margin-bottom:28px;">' +
       '<tr><td><img src="cid:aerocommsLogo" alt="aerocomms" style="width:160px;height:93px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.35);"></td></tr>' +
-      '<tr><td style="padding-top:14px;font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#00d48e;">aerocomms</td></tr>' +
+      '<tr><td style="padding-top:14px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:#00d48e;">aerocomms</td></tr>' +
       '<tr><td style="padding-top:4px;font-size:12px;color:#4a6280;letter-spacing:1px;">Aviation English Interactive Campus</td></tr>' +
     '</table>' +
     '<div style="background:rgba(0,212,142,0.07);border:1px solid rgba(0,212,142,0.2);border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">' +
@@ -7344,7 +7344,7 @@ function apiAdminSendProgressReport(sessionToken, payload) {
                 '<img src="cid:aerocommsLogo" alt="aerocomms" style="width:56px;height:56px;border-radius:10px;object-fit:contain;background:#111;border:2px solid rgba(0,212,142,0.4);display:block;">' +
               '</td>' +
               '<td style="vertical-align:middle;">' +
-                '<p style="margin:0 0 4px;font-size:0.68rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.5);">aerocomms &mdash; Aviation English Training</p>' +
+                '<p style="margin:0 0 4px;font-size:0.68rem;font-weight:700;letter-spacing:0.14em;color:rgba(255,255,255,0.5);">aerocomms &mdash; Aviation English Training</p>' +
                 '<h1 style="margin:0 0 6px;color:#fff;font-size:1.35rem;font-weight:700;line-height:1.2;">' + _he(studentName) + '</h1>' +
                 '<p style="margin:0;color:rgba(255,255,255,0.65);font-size:0.85rem;">' + _he(studentEmail) +
                   (levelLabel ? ' &nbsp;&bull;&nbsp; ' + _he(levelLabel) : '') +
