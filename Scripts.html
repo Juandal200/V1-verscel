@@ -25498,11 +25498,47 @@
     window._teaStarting = true;
     _unlockAudio();   // synchronous — must stay inside the click to unlock playback
 
+    // The loader goes up FIRST, before anything is asked of the server.
+    //
+    // The reservation ran with nothing on screen, so pressing Begin appeared to do
+    // nothing at all for as long as the call took — and Apps Script cold-starts.
+    // A wait you can see is a wait; a wait you cannot see is a broken button.
+    var _startLoader = window.renderRadarLoader
+      ? window.renderRadarLoader('ICAO TEST', [
+          'Checking your attempts\u2026',
+          'Reserving your sitting\u2026',
+          'Selecting your paper\u2026',
+          'Preparing the recordings\u2026'
+        ], 'This can take a few seconds')
+      : { stop: function () {} };
+    _sc.startLoader = _startLoader;
+
+    // Neither handler fires if the call is lost, and this one gates the whole
+    // exam. Without a guard, Begin simply hangs — which is what a five-minute
+    // wait actually was.
+    var _settled = false;
+    var _giveUp = setTimeout(function () {
+      if (_settled) return;
+      _settled = true;
+      _startLoader.stop();
+      window._teaStarting = false;
+      _scStage('<div class="panel" style="margin:16px;text-align:center;">' +
+        '<p class="eyebrow" style="margin:0 0 6px;">Mock test</p>' +
+        '<h3 style="margin:0 0 8px;">The server did not respond</h3>' +
+        '<p style="font-size:.9rem;line-height:1.6;color:var(--muted,#808080);margin:0 0 16px;">' +
+          'Nothing was started and no attempt was used. Please try again.</p>' +
+        '<button class="btn primary" onclick="window.renderTeaExam()">Try again</button>' +
+        '</div>');
+    }, 30000);
+
     // Claimed here rather than checked at the finish. Being told after thirty
     // minutes that the sitting did not count would be indefensible.
     google.script.run
       .withSuccessHandler(function (r) {
+        if (_settled) return;
+        _settled = true; clearTimeout(_giveUp);
         if (r && r.ok === false) {
+          _startLoader.stop();
           window._teaStarting = false;
           _scStage(r.reason === 'IN_PROGRESS'
             ? _scInProgressHtml()
@@ -25515,7 +25551,12 @@
       })
       // A reservation we cannot make must not block an exam. Failing open costs
       // us a sitting; failing closed costs a paying candidate their exam.
-      .withFailureHandler(function () { _sc.allowance = null; _teaStartScripted(bank); })
+      .withFailureHandler(function () {
+        if (_settled) return;
+        _settled = true; clearTimeout(_giveUp);
+        _sc.allowance = null;
+        _teaStartScripted(bank);
+      })
       .apiReserveIcaoExam(AppState.sessionToken);
   };
 
@@ -25566,16 +25607,47 @@
     Array.prototype.slice.call(document.querySelectorAll('.tea-begin-shell button'))
       .forEach(function (b) { b.disabled = true; });
 
-    var loader = window.renderRadarLoader
+    // Reuse the loader the caller already raised. Starting a second one here tore
+    // the first off the screen and rebuilt it, which read as a flash of nothing
+    // half way through the wait.
+    var loader = _sc.startLoader || (window.renderRadarLoader
       ? window.renderRadarLoader('ICAO TEST', [
           'Loading your examination…',
           'Selecting a version…',
           'Preparing the recordings…'
         ], 'Connecting to training server')
-      : { stop: function () {} };
+      : { stop: function () {} });
+    _sc.startLoader = null;
+
+    // Same guard as the reservation. This call reads the whole item sheet and can
+    // be the slow one, and a lost response here leaves the loader spinning for
+    // ever with a reservation already held against the candidate.
+    var _sSettled = false;
+    var _sGiveUp = setTimeout(function () {
+      if (_sSettled) return;
+      _sSettled = true;
+      loader.stop();
+      window._teaStarting = false;
+      // Give the hold back: it was taken for a sitting that never began.
+      try {
+        google.script.run.withSuccessHandler(function () {})
+          .withFailureHandler(function () {})
+          .apiReleaseIcaoExam(AppState.sessionToken);
+      } catch (e) {}
+      _sc.reserved = false;
+      _scStage('<div class="panel" style="margin:16px;text-align:center;">' +
+        '<p class="eyebrow" style="margin:0 0 6px;">Mock test</p>' +
+        '<h3 style="margin:0 0 8px;">Could not load the examination</h3>' +
+        '<p style="font-size:.9rem;line-height:1.6;color:var(--muted,#808080);margin:0 0 16px;">' +
+          'The server did not respond in time. No attempt was used.</p>' +
+        '<button class="btn primary" onclick="window.renderTeaExam()">Try again</button>' +
+        '</div>');
+    }, 45000);
 
     google.script.run
       .withSuccessHandler(function (res) {
+        if (_sSettled) return;
+        _sSettled = true; clearTimeout(_sGiveUp);
         loader.stop();
         window._teaStarting = false;
         if (!res || !res.ok) {
@@ -25616,6 +25688,8 @@
         _scNextStep();
       })
       .withFailureHandler(function (e) {
+        if (_sSettled) return;
+        _sSettled = true; clearTimeout(_sGiveUp);
         loader.stop();
         window._teaStarting = false;
         // The client ships through Vercel and the server through clasp, so there is
