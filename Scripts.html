@@ -4665,6 +4665,23 @@
     // normal state the moment level one is completed — every remaining level is
     // behind the plan. Point at the first of those and offer to unlock it, rather
     // than at a level already finished, which reads as "you have nothing to do".
+    // The first level the plan withholds that progress would otherwise allow.
+    var _firstPlanLockedLevel = 0;
+    (function () {
+      var prevDone = true;
+      for (var _j = 0; _j < trainingLevels.length; _j++) {
+        var _l  = trainingLevels[_j];
+        var _n  = Number(_l.level || 1);
+        var _cc = (_l.countries || []).filter(function(c) {
+          return c.completed === true || c.completed === 1 || String(c.completed).toUpperCase() === 'TRUE';
+        }).length;
+        var _tc = (_l.countries || []).length;
+        var _done = _tc > 0 && _cc >= _tc;
+        if (_l.lockedByPlan === true && (_n === 1 || prevDone)) { _firstPlanLockedLevel = _n; break; }
+        prevDone = prevDone && _done;
+      }
+    })();
+
     var _currentPlanLocked = false;
     if (!foundCurrent) {
       for (var _i = 0; _i < trainingLevels.length; _i++) {
@@ -4768,9 +4785,18 @@
         var totalCountries = (levelItem.countries || []).length || Number(levelItem.totalCountries || 0);
         var progressPct = totalCountries ? Math.round((completedCountries / totalCountries) * 100) : 0;
         var isCompleted = totalCountries > 0 && completedCountries >= totalCountries;
-        var _planLock   = levelItem.lockedByPlan === true;
+        // Locked by plan AND next in the ladder. Every level past the plan carries
+        // lockedByPlan, so offering "Unlock" on all of them put seven identical
+        // buttons on the map and implied level 5 was one payment away. It is not:
+        // paying lifts the plan lock, and the progress lock still requires every
+        // level before it. Only the next one you could actually play is for sale.
+        var _planLock   = levelItem.lockedByPlan === true &&
+                          Number(levelItem.level) === _firstPlanLockedLevel;
         var statusText  = isCompleted ? 'Complete'
                         : (_planLock ? 'Upgrade' : (locked ? 'Locked' : 'Unlocked'));
+        // Note _planLock is now "next up and behind the plan", so a level further
+        // down the ladder reads Locked — which is accurate, because upgrading
+        // alone would not open it.
         var statusClass = isCompleted ? 'ACTIVE'   : (locked ? 'BLOCKED' : 'PENDING');
         var regions     = totalCountries;
         var vr          = vrEvents[levelItem.level] || null;
@@ -4802,7 +4828,9 @@
         var btnLabel  = _planLock
           ? 'Unlock Level ' + Number(levelItem.level)
           : (locked
-              ? (vr ? vr.icon + ' Unlock to Claim' : 'Access Restricted')
+              ? (levelItem.lockedByPlan === true
+                  ? 'Completa el nivel anterior'
+                  : (vr ? vr.icon + ' Unlock to Claim' : 'Access Restricted'))
               : (isCompleted ? (vr ? vr.icon + ' Replay for Bonus' : 'Select Level') : (vr ? vr.btn : 'Select Level')));
         var btnCls    = _planLock ? 'primary' : (locked ? 'secondary' : (vr ? 'primary btn-cta-pulse' : 'primary'));
 
