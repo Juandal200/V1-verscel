@@ -459,17 +459,30 @@ function apiGenerateIcaoTestVoiceInternal_(text, voice, lang) {
  * URL: the exam feeds this audio into a Web Audio analyser for the level meter,
  * and Drive serves no CORS headers, so a direct URL would fail to load.
  */
-function apiGetIcaoTestAudio(sessionToken, itemId) {
+function apiGetIcaoTestAudio(sessionToken, itemId, bank) {
   try {
     AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
     var id = String(itemId || '').trim();
     if (!id) return { ok: false, error: 'No itemId' };
 
+    // Matched on itemId AND bank.
+    //
+    // It used to match on itemId alone, and every version carries the same ids —
+    // line_open_full exists in A, B and C. The scan kept the last match, so a
+    // candidate who chose the Indian paper got its text with another version's
+    // voice: the right words in the wrong accent, which is the one thing a
+    // listening test cannot survive.
+    var want = String(bank || '').trim().toUpperCase();
     var row = null;
     dbReadAll_(ICAO_ITEMS_SHEET_).forEach(function(r) {
-      if (String(r.itemId || '').trim() === id) row = r;
+      if (String(r.itemId || '').trim() !== id) return;
+      if (String(r.isActive).toUpperCase() === 'FALSE') return;
+      var rb = String(r.bank || ICAO_ITEMS_BANK_).trim().toUpperCase();
+      if (want) { if (rb === want) row = r; }
+      // No bank named: first active match, so an older client still gets audio.
+      else if (!row) row = r;
     });
-    if (!row) return { ok: false, error: 'Unknown item ' + id };
+    if (!row) return { ok: false, error: 'Unknown item ' + id + (want ? ' in ' + want : '') };
 
     var fileId = String(row.audioFileId || '').trim();
     if (fileId) {

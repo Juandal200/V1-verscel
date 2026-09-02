@@ -8467,6 +8467,15 @@ button, .btn, .nav-item, input, textarea, select {
 /* ── Safe-area insets — iPhone Dynamic Island / notch ────────── */
 @supports (padding: max(0px)) {
   @media (max-width: 900px) {
+    /* The top bar sits under the status bar without this.
+       viewport-fit=cover plus black-translucent puts the page behind the clock and
+       battery by design, and only the sidebar was ever given the inset — so on a
+       phone the time overlapped the logo and the XP counter. Installed it is worse,
+       because there is no browser chrome above it to absorb the collision. */
+    .app-topnav {
+      padding-top: max(10px, env(safe-area-inset-top)) !important;
+    }
+
     .sidebar {
       padding-top:   max(8px, env(safe-area-inset-top))    !important;
       padding-left:  max(14px, env(safe-area-inset-left))  !important;

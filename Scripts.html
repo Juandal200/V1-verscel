@@ -25170,21 +25170,36 @@
     if (!step.text) { done(); return; }
     _setStatus('Examiner speaking…', 'speaking');
 
+    // A fetch that never comes back froze the exam.
+    //
+    // google.script.run calls neither handler if the call is lost, and every step
+    // waits on this one resolving — so the sitting stopped dead with the examiner
+    // apparently still speaking, and no way forward. The candidate had answered a
+    // question and the exam simply ended. Nothing recovered it because nothing was
+    // watching.
+    var _guard = setTimeout(function () {
+      _teaExaminerUnvoiced(step.text, done);
+    }, 25000);
+    var _resolve = function () { clearTimeout(_guard); done(); };
+
     google.script.run
       .withSuccessHandler(function (res) {
+        clearTimeout(_guard);
         if (!res || !res.ok || !res.audioBase64) { _teaExaminerUnvoiced(step.text, done); return; }
         var el = _teaAudioEl();
         _teaClearUnvoiced();
         try { el.pause(); } catch (e) {}
-        el.onended = done;
+        el.onended = _resolve;
         el.onerror = function () { _teaExaminerUnvoiced(step.text, done); };
         el.src = 'data:audio/mp3;base64,' + res.audioBase64;
         var p = el.play();
         if (p && p.catch) p.catch(function () { _teaVizStop(); _teaExaminerUnvoiced(step.text, done); });
         _teaVizSpeak(el);
       })
-      .withFailureHandler(function () { _teaExaminerUnvoiced(step.text, done); })
-      .apiGetIcaoTestAudio(AppState.sessionToken, step.id);
+      .withFailureHandler(function () { clearTimeout(_guard); _teaExaminerUnvoiced(step.text, done); })
+      // The bank travels with the request: every version shares these itemIds, and
+      // without it the server cannot tell which paper's recording is wanted.
+      .apiGetIcaoTestAudio(AppState.sessionToken, step.id, _sc.bank || '');
   }
 
   function _scClearTimer() {
@@ -26572,7 +26587,12 @@
     _t._started = true;
     var content = document.getElementById('contentArea'); if(!content) return;
     content.innerHTML =
-      '<div class="tea-exam-shell" style="display:flex;flex-direction:column;height:calc(100vh - 60px);background:#080c10;">' +
+      // dvh, not vh: Safari counts its toolbars in vh, so the shell was taller than the
+      // visible page and its lower half — the mic and the answer box — sat under the
+      // browser chrome. 60px also under-counted the top bar once the safe-area inset
+      // was added, which is what pushed the header into the status bar.
+      '<div class="tea-exam-shell" style="display:flex;flex-direction:column;' +
+        'height:calc(100dvh - 60px - env(safe-area-inset-top));background:#080c10;">' +
         '<div class="tea-header">' +
           '<div><div class="tea-part-badge">ICAO TEST</div>' +
           '<div class="tea-header-title">ICAO Language Proficiency Test</div></div>' +
