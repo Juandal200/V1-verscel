@@ -368,18 +368,26 @@ function _icaoSittingsFor_(email, sinceIso) {
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) return 0;
 
-  var width = Math.max(sheet.getLastColumn(), TEA_SHEET_HEADERS.length);
-  var rows  = sheet.getRange(2, 1, lastRow - 1, width).getValues();
-  var idx   = {};
-  TEA_SHEET_HEADERS.forEach(function(h, i) { idx[h] = i; });
+  // Only the two columns this actually needs.
+  //
+  // It used to pull every column of every row — thirteen wide, including the Drive
+  // report link — to count how many rows carry one email. Reading a range is the
+  // expensive part of Apps Script, and this call sits directly in front of the
+  // Begin button, so the whole sheet was being fetched before an exam could start.
+  var dateCol = TEA_SHEET_HEADERS.indexOf('Date') + 1;
+  var candCol = TEA_SHEET_HEADERS.indexOf('Candidate') + 1;
+  var lo = Math.min(dateCol, candCol);
+  var hi = Math.max(dateCol, candCol);
+  var rows = sheet.getRange(2, lo, lastRow - 1, hi - lo + 1).getValues();
+  var dIdx = dateCol - lo, cIdx = candCol - lo;
 
   var since = sinceIso ? new Date(sinceIso) : null;
   var want  = String(email || '').trim().toLowerCase();
   var n = 0;
   rows.forEach(function(r) {
-    if (String(r[idx['Candidate']] || '').trim().toLowerCase() !== want) return;
+    if (String(r[cIdx] || '').trim().toLowerCase() !== want) return;
     if (since) {
-      var d = new Date(String(r[idx['Date']] || ''));
+      var d = new Date(String(r[dIdx] || ''));
       // An unparseable date counts. Losing a sitting because a cell was odd
       // charges the candidate for our data problem.
       if (!isNaN(d.getTime()) && d < since) return;
@@ -395,11 +403,28 @@ function _icaoSittingsFor_(email, sinceIso) {
  * Paid plans count within the current subscription period, so the allowance
  * refreshes when they renew. The free tier counts for all time.
  */
+function _icaoAllowanceCacheKey_(email) { return 'icao_allow_' + String(email || ''); }
+
 function apiGetIcaoExamAllowance(sessionToken) {
   try {
     var user   = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
-    var access = getUserAccessStatus_(user);
     var email  = String(user.email || '').trim().toLowerCase();
+
+    // Cached for two minutes. Two sheet reads — the subscription row and the
+    // sittings count — sit directly in front of the Begin button, and neither
+    // changes between one press and the next. Cleared when a sitting is released,
+    // so a candidate who finishes and starts again sees a current count rather
+    // than a stale one.
+    try {
+      var hit = CacheService.getScriptCache().get(_icaoAllowanceCacheKey_(email));
+      if (hit) {
+        var cached = JSON.parse(hit);
+        cached.inProgress = !!_icaoHeldReservation_(user.userId);
+        return cached;
+      }
+    } catch (e) {}
+
+    var access = getUserAccessStatus_(user);
 
     var isFree    = access.status === 'free';
     var allowance = Number(access.examAllowance || 0);
@@ -418,7 +443,7 @@ function apiGetIcaoExamAllowance(sessionToken) {
     try { used = _icaoSittingsFor_(email, since); } catch (e) {}
     var remaining = Math.max(0, allowance - used);
 
-    return {
+    var out = {
       ok: true,
       plan:      access.plan,
       planLabel: access.planLabel,
@@ -431,6 +456,16 @@ function apiGetIcaoExamAllowance(sessionToken) {
       isFree: isFree,
       inProgress: !!_icaoHeldReservation_(user.userId)
     };
+
+    try {
+      // inProgress is deliberately not cached — it changes the moment an exam
+      // starts or ends, and is re-read above on every cache hit.
+      var toStore = {};
+      Object.keys(out).forEach(function(k) { if (k !== 'inProgress') toStore[k] = out[k]; });
+      CacheService.getScriptCache().put(_icaoAllowanceCacheKey_(email), JSON.stringify(toStore), 120);
+    } catch (e) {}
+
+    return out;
   } catch (err) {
     return apiError_('apiGetIcaoExamAllowance', err);
   }
@@ -498,8 +533,65 @@ function apiReleaseIcaoExam(sessionToken) {
   try {
     var user = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
     try { CacheService.getScriptCache().remove(_icaoReserveKey_(user.userId)); } catch (e) {}
+    // A sitting just ended, so the count is now wrong. Drop it rather than let a
+    // candidate be told they have an attempt they have already spent.
+    try {
+      CacheService.getScriptCache()
+        .remove(_icaoAllowanceCacheKey_(String(user.email || '').trim().toLowerCase()));
+    } catch (e) {}
     return { ok: true };
   } catch (err) {
     return apiError_('apiReleaseIcaoExam', err);
   }
+}
+
+/**
+ * Times every step of starting an exam, so a slow Begin can be attributed rather
+ * than guessed at. Reads only — takes no reservation and uses no attempt.
+ * Run from the editor — TEAService.gs.
+ */
+function checkExamStartSpeed() {
+  var out = [];
+  function timed(label, fn) {
+    var t = Date.now(), extra = '';
+    try { extra = fn() || ''; } catch (e) { extra = 'ERROR ' + e.message; }
+    out.push(('' + (Date.now() - t)).padStart(6) + ' ms  ' + label + (extra ? '  — ' + extra : ''));
+  }
+
+  var admin = null;
+  timed('find an admin user', function() {
+    dbReadAll_('Users').forEach(function(u) {
+      if (!admin && String(u.role || '').toUpperCase() === 'ADMIN') admin = u;
+    });
+    return admin ? admin.email : 'none found';
+  });
+  if (!admin) { Logger.log(out.join('\n')); return out.join('\n'); }
+
+  timed('access status (subscription sheet)', function() {
+    var a = getUserAccessStatus_(admin);
+    return a.plan + ', ' + a.examAllowance + ' attempts';
+  });
+
+  timed('open TEA Results', function() {
+    var sh = _teaGetOrCreateSheet_();
+    return sh.getLastRow() + ' rows, ' + sh.getLastColumn() + ' cols';
+  });
+
+  timed('count sittings (2 columns)', function() {
+    return _icaoSittingsFor_(String(admin.email || '').toLowerCase(), null) + ' found';
+  });
+
+  timed('read the whole item sheet', function() {
+    return dbReadAll_(ICAO_ITEMS_SHEET_).length + ' rows';
+  });
+
+  timed('build the script for one bank', function() {
+    var rows = dbReadAll_(ICAO_ITEMS_SHEET_);
+    return _icaoUsableBanks_(rows).join(', ');
+  });
+
+  var msg = out.join('\n') + '\n\nAnything over a few hundred ms here is the ' +
+            'reason Begin Exam is slow.';
+  Logger.log(msg);
+  return msg;
 }
