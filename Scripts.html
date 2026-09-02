@@ -6731,7 +6731,9 @@
     AtcRadioEngine.cancel();
 
     try {
-      var a = new Audio('data:audio/mp3;base64,' + res.audioBase64);
+      var a = _simAudioEl();
+      try { a.pause(); } catch (e) {}
+      a.src = 'data:audio/mp3;base64,' + res.audioBase64;
       a.volume = 1;
       a.playbackRate = _atcPlaybackRate(0);
       SimMedia.atcAudio = a;
@@ -6745,9 +6747,13 @@
       // the ICAO exam from Part 2 onwards. The filter is worth having; it is not
       // worth playing nothing.
       var _ctx = SimMedia.bgCtx && SimMedia.bgCtx.state === 'running' ? SimMedia.bgCtx : null;
-      if (_ctx) {
+      // createMediaElementSource may be called ONCE per element, and the element
+      // is now reused for every clearance — a second call throws and would take the
+      // whole line down. The node is built once and kept on the element.
+      if (_ctx && !a._simSrcNode) {
         try {
           var _src = _ctx.createMediaElementSource(a);
+          a._simSrcNode = _src;
           var _hp  = _ctx.createBiquadFilter();
           _hp.type = 'highpass'; _hp.frequency.value = 300; _hp.Q.value = 0.7;
           var _lp  = _ctx.createBiquadFilter();
@@ -6780,12 +6786,12 @@
         a.removeEventListener('ended', _done);
         a.removeEventListener('error', _done);
         if (SimMedia.atcAudio === a) SimMedia.atcAudio = null;
-        AtcRadioEngine.speak(atcText, country, andThen);
+        _simUnvoiced(atcText, andThen);
       });
     } catch (e) {
       if (_atcAudioGen !== myGen) return;
       AtcReplayGate.increment();
-      AtcRadioEngine.speak(atcText, country, andThen);
+      _simUnvoiced(atcText, andThen);
     }
   }
 
@@ -6878,15 +6884,17 @@
             _playAtcAudio(c, atcText, scenario.country, _onAutoplayDone);
           } else {
             AtcReplayGate.increment();
-            _showVoiceBadge('browser TTS', false);
-            AtcRadioEngine.speak(atcText, scenario.country, _onAutoplayDone);
+            _simUnvoiced(atcText, _onAutoplayDone);
           }
-        } else if (Date.now() - _waitStart > 6000) {
+        // Was six seconds, then the phone's own voice. Six seconds was always too
+        // short for a cold Apps Script on mobile data, and giving up early is what
+        // produced the robot. Every line is now a pre-rendered file, so a wait this
+        // long means something is genuinely wrong rather than merely slow.
+        } else if (Date.now() - _waitStart > 20000) {
           clearInterval(_waitPoll);
           delete _ttsClientCache[cacheKey];
           AtcReplayGate.increment();
-          _showVoiceBadge('browser TTS', false);
-          AtcRadioEngine.speak(atcText, scenario.country, _onAutoplayDone);
+          _simUnvoiced(atcText, _onAutoplayDone);
         }
       }, 100);
       return;
@@ -6906,26 +6914,53 @@
           return;
         }
         delete _ttsClientCache[cacheKey];
-        console.warn('[TTS] Google TTS failed for scenario ' + scenario.scenarioId + ':', res && res.message);
+        console.warn('[TTS] no audio for scenario ' + scenario.scenarioId + ':', res && res.message);
         if (_isStale()) return;
         AtcReplayGate.increment();
-        _showVoiceBadge('browser TTS', false);
-        AtcRadioEngine.speak(atcText, scenario.country, _onAutoplayDone);
+        _simUnvoiced(atcText, _onAutoplayDone);
       })
       .withFailureHandler(function (err) {
         if (!byId('simFeedbackBox')) return;
         delete _ttsClientCache[cacheKey];
-        console.warn('[TTS] Google TTS network error for scenario ' + scenario.scenarioId + ':', err);
+        console.warn('[TTS] network error for scenario ' + scenario.scenarioId + ':', err);
         if (_isStale()) return;
         AtcReplayGate.increment();
-        _showVoiceBadge('browser TTS', false);
-        AtcRadioEngine.speak(atcText, scenario.country, _onAutoplayDone);
+        _simUnvoiced(atcText, _onAutoplayDone);
       })
       .apiGenerateScenarioVoice(AppState.sessionToken, { scenarioId: scenario.scenarioId, text: atcText, voice: _voice, speakingRate: _rate });
   }
 
+  // What happens when a clearance cannot be voiced.
+  //
+  // It used to be the browser's own speech, which is why the badge sometimes read
+  // "BROWSER TTS": the app waited six seconds for a synthesis and then said the
+  // line in the phone's voice. That is worse than a pause. The exercise is
+  // listening to a controller, and a different voice is a different exercise —
+  // the student practises against something they will never hear on a radio.
+  //
+  // Every line now has three recordings in Drive, so this is genuinely rare: a
+  // network failure, or a clearance edited since the last render. Show the text and
+  // let them read it, which costs the listening but keeps the read-back honest.
+  function _simUnvoiced(text, onDone) {
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
+    var host = byId('atcTranscriptBox') || byId('simFeedbackBox');
+    if (host) {
+      host.innerHTML =
+        '<div style="padding:12px 14px;border-radius:12px;text-align:left;' +
+          'background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.35);">' +
+          '<p style="margin:0 0 6px;font-size:.66rem;font-weight:800;letter-spacing:.14em;' +
+            'text-transform:uppercase;color:#eab308;">ATC \u00b7 audio unavailable</p>' +
+          '<p style="margin:0;font-size:.92rem;line-height:1.55;color:#cacaca;">' +
+            safeText(String(text || '')) + '</p>' +
+        '</div>';
+    }
+    _showVoiceBadge('text only', false);
+    if (window.console && console.warn) console.warn('[ATC] could not voice a clearance, shown as text');
+    if (onDone) setTimeout(onDone, Math.min(12000, 2500 + String(text || '').split(/\s+/).length * 320));
+  }
+
   function simMediaBrowserSpeak(text, country) {
-    AtcRadioEngine.speak(text, country);
+    _simUnvoiced(text);
   }
 
   function renderScenarioStageImmersive() {
@@ -7635,9 +7670,46 @@
   // Safety net: if the very first autoplay was refused anyway, the student's next
   // tap ANYWHERE silently starts it, so they never sit looking at a dead frame.
   // Bound once, cheap, and skipped while the sim is deliberately paused.
+  // ONE audio element for the whole route.
+  //
+  // Mobile browsers grant playback to an element, not to the page, so an element
+  // built later — after a network round trip, outside any tap — starts locked
+  // again. _playAtcAudio used to construct a fresh Audio() per clearance, so
+  // play() was rejected and the catch handler spoke the line in the phone's own
+  // voice. That is the "BROWSER TTS" badge, and it is a mobile-only fault: desktop
+  // does not enforce this.
+  //
+  // The video unlock below never helped, because it primes the video and there is
+  // no video on a phone any more.
+  var _SIM_SILENT_ = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+
+  function _simAudioEl() {
+    if (!window._simAtcEl) {
+      window._simAtcEl = new Audio();
+      window._simAtcEl.preload = 'auto';
+    }
+    return window._simAtcEl;
+  }
+
   function _simBindAutoplayUnlock() {
     if (window._simAutoplayUnlockBound) return;
     window._simAutoplayUnlockBound = true;
+    // Priming the ATC element must happen on ANY first gesture, whether or not
+    // there is a video to start, so it sits outside the checks below.
+    var primeAudio = function() {
+      try {
+        var el = _simAudioEl();
+        if (el._simPrimed) return;
+        el._simPrimed = true;
+        el.src = _SIM_SILENT_;
+        var p = el.play();
+        if (p && p.catch) p.catch(function() {});
+      } catch (e) {}
+    };
+    ['pointerdown', 'touchstart', 'keydown'].forEach(function(ev) {
+      document.addEventListener(ev, primeAudio, { passive: true, once: true });
+    });
+
     var unlock = function() {
       if (SimMedia && SimMedia.isPaused) return;
       var h = document.getElementById('simVisualHost');
