@@ -20,17 +20,51 @@ export default async function handler(req, res) {
     // fail as structured JSON the UI can actually render.
     const looksLikeHtml = (t) => /^\s*(<!doctype|<html)/i.test(t || '');
 
+    // Every server call in the app comes through here, and this function had no
+    // maxDuration in vercel.json — so it ran on Vercel's 10-second default while
+    // Apps Script routinely takes longer, especially cold after a deploy. The
+    // function was killed mid-flight and the browser got nothing back, which is
+    // why login, starting an exam and fetching a clearance all failed together and
+    // looked like three separate faults. vercel.json now allows 60s.
+    //
+    // The abort below is deliberately shorter than that: a clean, explainable
+    // failure beats being killed by the platform with no response at all.
     async function callGas() {
-      const r = await fetch(GAS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: body,
-        redirect: 'follow'
-      });
-      return { status: r.status, text: await r.text() };
+      const ac = new AbortController();
+      const t  = setTimeout(() => ac.abort(), 45000);
+      try {
+        const r = await fetch(GAS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: body,
+          redirect: 'follow',
+          signal: ac.signal
+        });
+        return { status: r.status, text: await r.text() };
+      } finally {
+        clearTimeout(t);
+      }
     }
 
-    let out = await callGas();
+    let out;
+    try {
+      out = await callGas();
+    } catch (e) {
+      // Aborted or the network failed. Say so plainly rather than letting the
+      // browser sit on a request that will never answer.
+      const timedOut = e && e.name === 'AbortError';
+      console.warn('[GAS PROXY] ' + (timedOut ? 'timed out after 45s' : 'fetch failed: ' + e.message));
+      res.status(200).json({
+        ok: false,
+        error: timedOut
+          ? 'The training server took too long to answer. Please try again.'
+          : 'Could not reach the training server. Please try again.',
+        message: timedOut
+          ? 'The training server took too long to answer. Please try again.'
+          : 'Could not reach the training server. Please try again.'
+      });
+      return;
+    }
     if (looksLikeHtml(out.text)) {
       // Almost always transient — a second attempt usually succeeds.
       console.warn('[GAS PROXY] HTML response, retrying once. status=' + out.status);

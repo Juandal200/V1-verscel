@@ -4,7 +4,9 @@
   "framework": null,
   "functions": {
     "api/tea.mjs":          { "maxDuration": 120 },
-    "api/tea-pipeline.mjs": { "maxDuration": 300 }
+    "api/tea-pipeline.mjs": { "maxDuration": 300 },
+    "api/gas.mjs":          { "maxDuration": 60 },
+    "api/whisper.mjs":      { "maxDuration": 60 }
   },
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
