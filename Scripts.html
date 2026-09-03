@@ -6823,8 +6823,93 @@
     }
   }
 
-  // Keyed by "atcText||voice||rate"; value is 'pending' or the full TTS response object.
+  // Keyed by "atcText||voice||rate"; still used by the mock-test path below.
   var _ttsClientCache = {};
+
+  // The simulator's audio cache is keyed by the LINE, not by the voice asked for.
+  //
+  // It used to be keyed on "atcText||voice||rate" where the voice was drawn at
+  // random from the six or seven in the country pool. Only three per country are
+  // ever rendered (SCENARIO_AUDIO_VOICES_ on the server), so four times out of
+  // seven the request named a voice that does not exist; the server substituted one
+  // that does, and the reply was filed under the name that had been ASKED FOR
+  // rather than the one actually in the file. One line therefore occupied up to
+  // seven slots pointing at three recordings, and a fresh random pick missed about
+  // six times in seven — every miss a server round-trip and a Drive read, on the
+  // path where the student is sitting waiting to hear a clearance.
+  //
+  // _pickRate carries a comment about exactly this failure and was made
+  // deterministic to stop it. The voice was left random, so only half that fix was
+  // applied. This is the other half.
+  //
+  // Variety is kept, but it now comes from picking among the variants already in
+  // hand, which is free, instead of from requesting a random voice that usually
+  // has to be fetched.
+  var _ttsVariants = {};        // baseKey -> { voiceName: response }
+  var _ttsPending  = {};        // baseKey -> true while a request is in flight
+  var _ttsWaiters  = {};        // baseKey -> [callback]
+  var _TTS_VARIANT_TARGET = 3;  // matches SCENARIO_AUDIO_VOICES_ on the server
+
+  function _ttsBaseKey(text, rate) {
+    return String(text) + '||' + Math.round(Number(rate) * 1000);
+  }
+
+  function _ttsVariantList(baseKey) {
+    var m = _ttsVariants[baseKey];
+    if (!m) return [];
+    return Object.keys(m).map(function (v) { return m[v]; })
+      .filter(function (r) { return r && r.audioBase64; });
+  }
+
+  function _ttsRemember(baseKey, res, skipPersist) {
+    if (!res || !res.audioBase64) return;
+    // voiceName is what the server actually used. Trusting it is the whole point.
+    var v = String(res.voiceName || res.voice || 'unknown');
+    _ttsVariants[baseKey] = _ttsVariants[baseKey] || {};
+    _ttsVariants[baseKey][v] = res;
+    // One entry per line in localStorage rather than one per variant: a guaranteed
+    // instant start next session is worth more than carrying every variant across a
+    // reload, and the store only holds fifteen.
+    if (!skipPersist) _ttsLsSet(baseKey, res);
+  }
+
+  function _ttsPickVariant(baseKey) {
+    var list = _ttsVariantList(baseKey);
+    if (!list.length) return null;
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  // One request per line at a time. Anyone else who wants it waits on the same
+  // reply instead of asking for a second copy of what is already coming.
+  function _ttsFetchVariant(scenarioId, atcText, rate, onDone) {
+    var baseKey = _ttsBaseKey(atcText, rate);
+    if (onDone) {
+      _ttsWaiters[baseKey] = _ttsWaiters[baseKey] || [];
+      _ttsWaiters[baseKey].push(onDone);
+    }
+    if (_ttsPending[baseKey]) return;
+    _ttsPending[baseKey] = true;
+
+    var settle = function (res) {
+      delete _ttsPending[baseKey];
+      var out = (res && res.ok && res.audioBase64) ? res : null;
+      if (out) _ttsRemember(baseKey, out);
+      var ws = _ttsWaiters[baseKey] || [];
+      delete _ttsWaiters[baseKey];
+      ws.forEach(function (fn) { try { fn(out); } catch (e) {} });
+    };
+
+    google.script.run
+      .withSuccessHandler(settle)
+      .withFailureHandler(function () { settle(null); })
+      .apiGenerateScenarioVoice(AppState.sessionToken, {
+        scenarioId: scenarioId,
+        text: atcText,
+        // No voice named. The server then picks at random from the recordings that
+        // actually exist, which is the only list that cannot miss.
+        speakingRate: rate
+      });
+  }
 
   // --- localStorage TTS cache so audio survives page reloads ---
   var _TTS_LS_PREFIX = 'aero_tts_v1_';
@@ -6865,37 +6950,19 @@
     var atcText = getScenarioAtcTextSafe(sc);
     if (!atcText) return;
 
-    AppState.training._prefetchedVoice = AppState.training._prefetchedVoice || {};
-    if (!AppState.training._prefetchedVoice[targetIndex]) {
-      AppState.training._prefetchedVoice[targetIndex] = {
-        voice: _pickVoice(sc.country),
-        rate:  _pickRate(sc.country)
-      };
+    var rate    = _pickRate(sc.country);
+    var baseKey = _ttsBaseKey(atcText, rate);
+
+    // Carry over what the last session left behind before deciding anything.
+    if (!_ttsVariantList(baseKey).length) {
+      var lsCached = _ttsLsGet(baseKey);
+      if (lsCached && lsCached.audioBase64) _ttsRemember(baseKey, lsCached, true);
     }
-    var pv = AppState.training._prefetchedVoice[targetIndex];
-    var cacheKey = atcText + '||' + pv.voice + '||' + Math.round(pv.rate * 1000);
 
-    if (_ttsClientCache[cacheKey]) return;
+    // Enough variants of this line already; another buys nothing.
+    if (_ttsVariantList(baseKey).length >= _TTS_VARIANT_TARGET) return;
 
-    // Warm in-memory cache from localStorage (survives page reload)
-    var lsCached = _ttsLsGet(cacheKey);
-    if (lsCached && lsCached.audioBase64) { _ttsClientCache[cacheKey] = lsCached; return; }
-
-    _ttsClientCache[cacheKey] = 'pending';
-    google.script.run
-      .withSuccessHandler(function(res) {
-        if (res && res.ok && res.audioBase64) {
-          _ttsClientCache[cacheKey] = res;
-          _ttsLsSet(cacheKey, res);
-        } else { delete _ttsClientCache[cacheKey]; }
-      })
-      .withFailureHandler(function() { delete _ttsClientCache[cacheKey]; })
-      .apiGenerateScenarioVoice(AppState.sessionToken, {
-        scenarioId: sc.scenarioId,
-        text: atcText,
-        voice: pv.voice,
-        speakingRate: pv.rate
-      });
+    _ttsFetchVariant(sc.scenarioId, atcText, rate, null);
   }
 
   // Called during training — looks 2 ahead of current index.
@@ -7064,57 +7131,26 @@
       prefetchNextScenarioAudio();
     }
 
-    // Use prefetched voice+rate if available so the cache key matches; otherwise pick fresh.
-    var _pv    = (AppState.training._prefetchedVoice || {})[expectedIndex];
-    var _voice = _pv ? _pv.voice : _pickVoice(scenario.country);
-    var _rate  = _pv ? _pv.rate  : _pickRate(scenario.country);
+    var _rate   = _pickRate(scenario.country);
+    var baseKey = _ttsBaseKey(atcText, _rate);
 
-    // Client cache keyed by text+voice+rate — serves instant replay of the same combination.
-    var cacheKey = atcText + '||' + _voice + '||' + Math.round(_rate * 1000);
-
-    // Warm in-memory cache from localStorage if not already there
-    if (!_ttsClientCache[cacheKey]) {
-      var _lsHit = _ttsLsGet(cacheKey);
-      if (_lsHit && _lsHit.audioBase64) { _ttsClientCache[cacheKey] = _lsHit; }
+    if (!_ttsVariantList(baseKey).length) {
+      var _lsHit = _ttsLsGet(baseKey);
+      if (_lsHit && _lsHit.audioBase64) _ttsRemember(baseKey, _lsHit, true);
     }
 
-    var cached = _ttsClientCache[cacheKey];
-    if (cached && cached !== 'pending' && cached.audioBase64) {
+    var cached = _ttsPickVariant(baseKey);
+    if (cached) {
       if (_isStale()) return;
+      // Widen the pool for the next replay in the background. Nobody waits on it —
+      // they are already listening to a variant we had.
+      if (_ttsVariantList(baseKey).length < _TTS_VARIANT_TARGET) {
+        try { _ttsFetchVariant(scenario.scenarioId, atcText, _rate, null); } catch (e) {}
+      }
       _playAtcAudio(cached, atcText, scenario.country, _onAutoplayDone);
       return;
     }
 
-    // If prefetch is already in flight, wait for it (up to 6 s) instead of duplicating the request.
-    if (cached === 'pending') {
-      _showVoiceBadge('loading…', false);
-      var _waitStart = Date.now();
-      var _waitPoll = setInterval(function() {
-        if (!byId('simFeedbackBox') || _isStale()) { clearInterval(_waitPoll); return; }
-        var c = _ttsClientCache[cacheKey];
-        if (c && c !== 'pending') {
-          clearInterval(_waitPoll);
-          if (c.audioBase64) {
-            _playAtcAudio(c, atcText, scenario.country, _onAutoplayDone);
-          } else {
-            AtcReplayGate.increment();
-            _simUnvoiced(atcText, _onAutoplayDone);
-          }
-        // Was six seconds, then the phone's own voice. Six seconds was always too
-        // short for a cold Apps Script on mobile data, and giving up early is what
-        // produced the robot. Every line is now a pre-rendered file, so a wait this
-        // long means something is genuinely wrong rather than merely slow.
-        } else if (Date.now() - _waitStart > 20000) {
-          clearInterval(_waitPoll);
-          delete _ttsClientCache[cacheKey];
-          AtcReplayGate.increment();
-          _simUnvoiced(atcText, _onAutoplayDone);
-        }
-      }, 100);
-      return;
-    }
-
-    _ttsClientCache[cacheKey] = 'pending';
     _showVoiceBadge('loading…', false);
 
     // google.script.run calls neither handler when a request is lost, and this one
@@ -7125,41 +7161,25 @@
     var _vGiveUp = setTimeout(function () {
       if (_vSettled) return;
       _vSettled = true;
-      delete _ttsClientCache[cacheKey];
       if (_isStale()) return;
       AtcReplayGate.increment();
       _simUnvoiced(atcText, _onAutoplayDone);
     }, 20000);
 
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (_vSettled) return;
-        _vSettled = true; clearTimeout(_vGiveUp);
-        if (!byId('simFeedbackBox')) return;
-        if (res && res.ok && res.audioBase64) {
-          _ttsClientCache[cacheKey] = res;
-          _ttsLsSet(cacheKey, res);
-          if (_isStale()) return;
-          _playAtcAudio(res, atcText, scenario.country, _onAutoplayDone);
-          return;
-        }
-        delete _ttsClientCache[cacheKey];
-        console.warn('[TTS] no audio for scenario ' + scenario.scenarioId + ':', res && res.message);
+    _ttsFetchVariant(scenario.scenarioId, atcText, _rate, function (res) {
+      if (_vSettled) return;
+      _vSettled = true; clearTimeout(_vGiveUp);
+      if (!byId('simFeedbackBox')) return;
+      if (res && res.audioBase64) {
         if (_isStale()) return;
-        AtcReplayGate.increment();
-        _simUnvoiced(atcText, _onAutoplayDone);
-      })
-      .withFailureHandler(function (err) {
-        if (_vSettled) return;
-        _vSettled = true; clearTimeout(_vGiveUp);
-        if (!byId('simFeedbackBox')) return;
-        delete _ttsClientCache[cacheKey];
-        console.warn('[TTS] network error for scenario ' + scenario.scenarioId + ':', err);
-        if (_isStale()) return;
-        AtcReplayGate.increment();
-        _simUnvoiced(atcText, _onAutoplayDone);
-      })
-      .apiGenerateScenarioVoice(AppState.sessionToken, { scenarioId: scenario.scenarioId, text: atcText, voice: _voice, speakingRate: _rate });
+        _playAtcAudio(res, atcText, scenario.country, _onAutoplayDone);
+        return;
+      }
+      console.warn('[TTS] no audio for scenario ' + scenario.scenarioId);
+      if (_isStale()) return;
+      AtcReplayGate.increment();
+      _simUnvoiced(atcText, _onAutoplayDone);
+    });
   }
 
   // What happens when a clearance cannot be voiced.
@@ -8221,28 +8241,46 @@
 
   function generateScenarioVoiceFromServer(scenario, playButton) {
     var ttsText = getScenarioAtcTextSafe(scenario);
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (playButton) { playButton.disabled = false; playButton.innerHTML = '&#8635; Replay ATC'; }
+    var rate    = _pickRate(scenario.country);
+    var baseKey = _ttsBaseKey(ttsText, rate);
 
-        if (res && res.ok && res.audioBase64) {
-          AtcReplayGate.increment();
-          playBase64Audio(res.audioBase64);
-          setImmersiveFeedback('ATC transmission playing.', 'success');
-          return;
-        }
+    var restore = function () {
+      if (playButton) { playButton.disabled = false; playButton.innerHTML = '&#8635; Replay ATC'; }
+    };
 
-        AtcReplayGate.increment();
-        AtcRadioEngine.speak(ttsText, scenario.country);
-        setImmersiveFeedback('Transmission playing.', 'warning');
-      })
-      .withFailureHandler(function () {
-        if (playButton) { playButton.disabled = false; playButton.innerHTML = '&#8635; Replay ATC'; }
-        AtcReplayGate.increment();
-        AtcRadioEngine.speak(ttsText, scenario.country);
-        setImmersiveFeedback('Transmission playing.', 'warning');
-      })
-      .apiGenerateScenarioVoice(AppState.sessionToken, { scenarioId: scenario.scenarioId, text: ttsText, voice: _pickVoice(scenario.country), speakingRate: _pickRate(scenario.country) });
+    // Replay is the most-pressed button in the simulator and had no cache at all.
+    // Every press named a fresh random voice and waited on a full round-trip for a
+    // recording that was very often already on the device — which is a large part
+    // of why the voices felt slow. It shares the variant cache now, so a replay is
+    // instant and still lands on a different voice once more than one is held.
+    if (!_ttsVariantList(baseKey).length) {
+      var lsHit = _ttsLsGet(baseKey);
+      if (lsHit && lsHit.audioBase64) _ttsRemember(baseKey, lsHit, true);
+    }
+
+    var have = _ttsPickVariant(baseKey);
+    if (have) {
+      restore();
+      AtcReplayGate.increment();
+      playBase64Audio(have.audioBase64);
+      setImmersiveFeedback('ATC transmission playing.', 'success');
+      if (_ttsVariantList(baseKey).length < _TTS_VARIANT_TARGET) {
+        try { _ttsFetchVariant(scenario.scenarioId, ttsText, rate, null); } catch (e) {}
+      }
+      return;
+    }
+
+    _ttsFetchVariant(scenario.scenarioId, ttsText, rate, function (res) {
+      restore();
+      AtcReplayGate.increment();
+      if (res && res.audioBase64) {
+        playBase64Audio(res.audioBase64);
+        setImmersiveFeedback('ATC transmission playing.', 'success');
+        return;
+      }
+      AtcRadioEngine.speak(ttsText, scenario.country);
+      setImmersiveFeedback('Transmission playing.', 'warning');
+    });
   }
 
   function _atcPlaybackRate(replayNum) {
