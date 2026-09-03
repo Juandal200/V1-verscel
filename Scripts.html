@@ -794,22 +794,32 @@
       return;
     }
 
-    // Twenty-five call sites share this handler, and most are admin screens where
-    // replacing the page IS the right answer. But any one of them firing while a
-    // route or an exam is running would tear that screen away mid-exercise — which
-    // is what happened: the simulator kept playing behind an error panel that had
-    // replaced it. Guarding here covers all twenty-five without auditing each.
-    if (_isMidActivity()) {
-      if (typeof window._gToast === 'function') window._gToast(message, 'err');
-      return;
-    }
-
+    // The mid-activity guard now lives in showContentError, so every caller gets
+    // it rather than only the twenty-five that come through here.
     showContentError(message);
   }
 
   function showContentError(message) {
     var contentArea = byId('contentArea');
     if (!contentArea) return;
+
+    // The guard belongs HERE, not in handleServerError.
+    //
+    // I put it there first, and it covered exactly one of the forty-three routes
+    // to this function — every other caller reaches showContentError directly and
+    // walked straight past it. So a slow request anywhere still erased whatever
+    // the candidate was doing: the examiner carried on speaking from a screen that
+    // had been replaced by an error about a request they never made.
+    //
+    // Replacing the screen is right when the user asked for that screen and it
+    // failed. It is never right while an examination or a route is running: the
+    // activity does not stop, so all that is destroyed is the ability to continue
+    // it. One change here covers every caller, including any added later.
+    if (_isMidActivity()) {
+      if (typeof window._gToast === 'function') window._gToast(message, 'err');
+      else if (window.console) console.error('[suppressed during activity]', message);
+      return;
+    }
 
     contentArea.innerHTML =
       '<div class="panel">' +
