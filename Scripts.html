@@ -25817,12 +25817,22 @@
         loader.stop();
         window._teaStarting = false;
         if (!res || !res.ok) {
-          // Bank not set up yet — the conversational exam still works off the
-          // built-in constants, so use it rather than leaving no exam at all.
+          // Bank genuinely not set up — the conversational exam works off the
+          // built-in constants, so use it rather than leaving no exam at all. This
+          // one is a real fallback, not a timeout in disguise, because the server
+          // answered and said so.
           if (window.console && console.warn) {
             console.warn('[ICAO test] no scripted bank:', (res && res.error) || 'unknown');
           }
-          if (typeof window._teaBegin === 'function') { window._teaBegin(bank); return; }
+          if (typeof window._teaBegin === 'function') {
+            try {
+              if (typeof window._gToast === 'function') {
+                window._gToast('Using the standard examination for this sitting.', 'err');
+              }
+            } catch (e2) {}
+            window._teaBegin(bank);
+            return;
+          }
           _scStage('<div class="panel" style="margin:16px;"><h3>Could not start</h3><p>' +
             _esc((res && res.error) || 'The item bank is unavailable.') + '</p></div>');
           return;
@@ -25858,18 +25868,45 @@
         _sSettled = true; clearTimeout(_sGiveUp);
         loader.stop();
         window._teaStarting = false;
-        // The client ships through Vercel and the server through clasp, so there is
-        // always a window where this build is live and apiGetIcaoTestScript is not
-        // yet deployed. Dead-ending there would take the exam down for everyone
-        // over a deploy ordering detail. Fall through to the conversational exam,
-        // which needs nothing new server-side.
-        if (window.console && console.warn) {
-          console.warn('[ICAO test] scripted start failed, using the conversational exam:',
-                       (e && e.message) || e);
+
+        // The fallback to the conversational exam exists for ONE case: the client
+        // ships through Vercel and the server through clasp, so there is a window
+        // where this build is live and apiGetIcaoTestScript is not yet deployed.
+        // Dead-ending there would take the exam down over a deploy ordering detail.
+        //
+        // It must not fire on a timeout. A missing function and a slow server look
+        // identical to this handler — both simply fail — so a slow server was
+        // silently dropping candidates into a different examination: no
+        // pre-rendered audio, the chosen version ignored, and the design we
+        // replaced precisely because it was unreliable. Nobody was told.
+        var _msg = String((e && e.message) || e || '');
+        var _missing = /is not a function|not found|no function named|unknown function/i.test(_msg);
+
+        if (_missing && typeof window._teaBegin === 'function') {
+          if (window.console && console.warn) {
+            console.warn('[ICAO test] scripted endpoint missing, using the conversational exam:', _msg);
+          }
+          // Say so. Switching someone to a different exam without telling them is
+          // worse than the failure it is working around.
+          try {
+            if (typeof window._gToast === 'function') {
+              window._gToast('Using the standard examination for this sitting.', 'err');
+            }
+          } catch (e2) {}
+          window._teaBegin(bank);
+          return;
         }
-        if (typeof window._teaBegin === 'function') { window._teaBegin(bank); return; }
-        _scStage('<div class="panel" style="margin:16px;"><h3>Could not start</h3><p>' +
-          _esc((e && e.message) || 'The training server did not respond.') + '</p></div>');
+
+        if (window.console && console.warn) {
+          console.warn('[ICAO test] scripted start failed:', _msg);
+        }
+        _scStage('<div class="panel" style="margin:16px;text-align:center;">' +
+          '<p class="eyebrow" style="margin:0 0 6px;">Mock test</p>' +
+          '<h3 style="margin:0 0 8px;">The server took too long</h3>' +
+          '<p style="font-size:.9rem;line-height:1.6;color:var(--muted,#808080);margin:0 0 16px;">' +
+            'Nothing was started and no attempt was used. Please try again.</p>' +
+          '<button class="btn primary" onclick="window.renderTeaExam()">Try again</button>' +
+          '</div>');
       })
       .apiGetIcaoTestScript(AppState.sessionToken, String(bank || ''));
   };
