@@ -6849,6 +6849,7 @@
   var _ttsPending  = {};        // baseKey -> true while a request is in flight
   var _ttsWaiters  = {};        // baseKey -> [callback]
   var _TTS_VARIANT_TARGET = 3;  // matches SCENARIO_AUDIO_VOICES_ on the server
+  var _TTS_FETCH_TIMEOUT_MS = 20000;
 
   function _ttsBaseKey(text, rate) {
     return String(text) + '||' + Math.round(Number(rate) * 1000);
@@ -6890,7 +6891,11 @@
     if (_ttsPending[baseKey]) return;
     _ttsPending[baseKey] = true;
 
+    var settled = false;
     var settle = function (res) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(giveUp);
       delete _ttsPending[baseKey];
       var out = (res && res.ok && res.audioBase64) ? res : null;
       if (out) _ttsRemember(baseKey, out);
@@ -6898,6 +6903,14 @@
       delete _ttsWaiters[baseKey];
       ws.forEach(function (fn) { try { fn(out); } catch (e) {} });
     };
+
+    // google.script.run calls NEITHER handler when a request is lost. Without a
+    // timer here the line stays flagged as in flight for the rest of the session:
+    // every later request returns early at the pending check, and every waiter sits
+    // on a list nobody drains, so that clearance can never be voiced again. The
+    // caller used to clear this itself, but the state it cleared no longer lives
+    // there — recovery has to sit next to the state it repairs.
+    var giveUp = setTimeout(function () { settle(null); }, _TTS_FETCH_TIMEOUT_MS);
 
     google.script.run
       .withSuccessHandler(settle)
@@ -7157,18 +7170,13 @@
     // has no other route out — so the badge sat on LOADING indefinitely with no
     // clearance and no error. Twenty seconds, then show the text and let the
     // exercise continue.
+    // No timer here any more. _ttsFetchVariant guarantees this callback runs — with
+    // audio, or with null once it gives up — so a second deadline in the caller
+    // would only race the first and report a different outcome.
     var _vSettled = false;
-    var _vGiveUp = setTimeout(function () {
-      if (_vSettled) return;
-      _vSettled = true;
-      if (_isStale()) return;
-      AtcReplayGate.increment();
-      _simUnvoiced(atcText, _onAutoplayDone);
-    }, 20000);
-
     _ttsFetchVariant(scenario.scenarioId, atcText, _rate, function (res) {
       if (_vSettled) return;
-      _vSettled = true; clearTimeout(_vGiveUp);
+      _vSettled = true;
       if (!byId('simFeedbackBox')) return;
       if (res && res.audioBase64) {
         if (_isStale()) return;
