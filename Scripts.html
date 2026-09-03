@@ -663,8 +663,26 @@
 
   function setActiveNav(label) {
     if (label !== _navLabel) {
+      var _leavingSim = (_navLabel === 'Simulator' && label !== 'Simulator');
       _navToken++; _navLabel = label; window._navToken = _navToken; window._navLabel = label;
       if (label !== 'Simulator' && typeof window.stopFlightDrift === 'function') window.stopFlightDrift();
+
+      // Leaving the simulator has to tear it down, not just stop the drift.
+      //
+      // The engine and the radio static are separate audio elements that nothing
+      // was stopping, so they carried on into whatever came next — including the
+      // mock test, where they would sit under the examiner and inside the
+      // candidate's own recording. A listening exam graded over engine noise from
+      // an exercise they left five minutes ago.
+      //
+      // Focus mode had the same problem. It stays on the body, so the top bar
+      // remains fixed on unrelated screens, and _isMidActivity keeps reporting an
+      // exercise in progress — which would turn a real error into a toast on a
+      // screen that has none.
+      if (_leavingSim) {
+        try { if (typeof simMediaStopAll === 'function') simMediaStopAll(); } catch (e) {}
+        try { if (typeof disableSimulatorFocusMode === 'function') disableSimulatorFocusMode(); } catch (e) {}
+      }
     }
     Array.prototype.slice.call(document.querySelectorAll('.nav-item')).forEach(function(btn) {
       btn.classList.remove('active');
