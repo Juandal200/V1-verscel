@@ -12,6 +12,13 @@ export default async function handler(req, res) {
   try {
     const body = JSON.stringify(req.body);
 
+    // Which call this is. Every log line below used to say only that something
+    // timed out, so a 45-second failure told us nothing about what was slow and
+    // the same message could come from any of a hundred endpoints. The name costs
+    // nothing and is the difference between a report and a mystery.
+    const action  = (req.body && req.body.action) || 'unknown';
+    const started = Date.now();
+
     // Apps Script does not always answer with JSON. Under load, on a cold start, or
     // when a call runs long it can return an HTML error or a Google sign-in page
     // instead. This proxy used to forward that HTML verbatim with a 200, so the
@@ -53,7 +60,8 @@ export default async function handler(req, res) {
       // Aborted or the network failed. Say so plainly rather than letting the
       // browser sit on a request that will never answer.
       const timedOut = e && e.name === 'AbortError';
-      console.warn('[GAS PROXY] ' + (timedOut ? 'timed out after 45s' : 'fetch failed: ' + e.message));
+      console.warn('[GAS PROXY] ' + action + ' ' +
+        (timedOut ? 'timed out after 45s' : 'fetch failed: ' + e.message));
       res.status(200).json({
         ok: false,
         error: timedOut
@@ -67,12 +75,15 @@ export default async function handler(req, res) {
     }
     if (looksLikeHtml(out.text)) {
       // Almost always transient — a second attempt usually succeeds.
-      console.warn('[GAS PROXY] HTML response, retrying once. status=' + out.status);
+      console.warn('[GAS PROXY] ' + action + ' returned HTML, retrying once. status=' + out.status);
       await new Promise((r) => setTimeout(r, 700));
       out = await callGas();
     }
 
-    console.log('[GAS PROXY] status=' + out.status + ' body=' + out.text.substring(0, 300));
+    // The elapsed time turns 'Apps Script is slow' from an impression into a
+    // number, and names the endpoints worth optimising first.
+    console.log('[GAS PROXY] ' + action + ' ' + (Date.now() - started) + 'ms status=' +
+      out.status + ' body=' + out.text.substring(0, 300));
 
     try {
       res.status(200).json(JSON.parse(out.text));

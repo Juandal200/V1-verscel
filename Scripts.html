@@ -1586,7 +1586,16 @@
    * it already had, and the failure is logged rather than shown. Foreground calls
    * still report their own errors, as they should.
    */
-  function refreshMeAndHome(callback) {
+  // silent: this is a background top-up behind a screen that already works, so a
+  // failure costs the student nothing and must not be announced. The call that runs
+  // with nothing on screen is not silent — there the user is waiting for this exact
+  // data and an empty page with no explanation is worse than an error.
+  //
+  // I made the FAILURE handler quiet this morning and thought that settled it. It
+  // did not: google.script.run is shimmed onto /api/gas here, and a proxy timeout
+  // comes back as a perfectly successful HTTP 200 carrying ok:false — so it lands
+  // in the SUCCESS handler below and walked straight past the thing I had silenced.
+  function refreshMeAndHome(callback, silent) {
     if (!AppState.sessionToken) {
       showScreen('loginScreen');
       return;
@@ -1599,6 +1608,13 @@
           if (isAuthError) {
             _clearSession();
             _showSessionExpiredOverlay();
+          } else if (silent) {
+            // Nothing is lost: this only tops up XP, streak and plan state, and the
+            // next refresh will carry it. The student may well be mid-exercise on
+            // another screen by now — a 45-second timeout outlives the screen that
+            // started it.
+            if (window.console) console.warn('[home] background refresh failed, will retry later:',
+              (res && res.message) || 'unknown');
           } else {
             showContentError(res && res.message ? res.message : 'Could not load dashboard. Refresh to try again.');
           }
@@ -2025,7 +2041,7 @@
         var _scrollY = _scrollEl.scrollTop;
         _doRenderHome();
         _scrollEl.scrollTop = _scrollY;
-      });
+      }, true);
     } else {
       // First-ever load with absolutely no data — show spinner once
       showGasLoadingSkeleton('LOADING', 'Getting your dashboard ready...');
