@@ -7063,7 +7063,7 @@
       try { a.pause(); } catch (e) {}
       a.src = 'data:audio/mp3;base64,' + res.audioBase64;
       a.volume = 1;
-      a.playbackRate = _atcPlaybackRate(0);
+      a.playbackRate = _atcPlaybackRate(0) * _atcLevelFactor(res.speakingRate);
       SimMedia.atcAudio = a;
       AtcReplayGate.increment();
 
@@ -8304,7 +8304,7 @@
     if (have) {
       restore();
       AtcReplayGate.increment();
-      playBase64Audio(have.audioBase64);
+      playBase64Audio(have.audioBase64, have.speakingRate);
       setImmersiveFeedback('ATC transmission playing.', 'success');
       if (_ttsVariantList(baseKey).length < _TTS_VARIANT_TARGET) {
         try { _ttsFetchVariant(scenario.scenarioId, ttsText, rate, null); } catch (e) {}
@@ -8316,13 +8316,34 @@
       restore();
       AtcReplayGate.increment();
       if (res && res.audioBase64) {
-        playBase64Audio(res.audioBase64);
+        playBase64Audio(res.audioBase64, res.speakingRate);
         setImmersiveFeedback('ATC transmission playing.', 'success');
         return;
       }
       AtcRadioEngine.speak(ttsText, scenario.country);
       setImmersiveFeedback('Transmission playing.', 'warning');
     });
+  }
+
+  // How much faster the clip must play to reach the speed this level asks for.
+  //
+  // _pickRate scales the controller's speed with the level — 0.94 at level 1, about
+  // 1.11 at level 9 — and used to be the rate the line was SYNTHESISED at. Once
+  // every line became a pre-rendered recording the server started returning the rate
+  // the file was made at (the country profile default, ~0.91) and ignored the one
+  // asked for, so the ramp stopped reaching the audio entirely: level 1 and level 9
+  // sounded the same. Nothing failed, the difficulty just quietly flattened.
+  //
+  // The recordings are not going to be re-rendered per level — that is the whole
+  // point of rendering them once. So the ramp is applied where it costs nothing:
+  // playbackRate. Dividing by the rate the file was actually made at makes the
+  // result independent of how it was rendered.
+  function _atcLevelFactor(renderedRate) {
+    var made = Number(renderedRate) || 0.91;
+    var want = _pickRate();
+    var f = want / made;
+    // A stale or wrong rate on a row must not produce an unusable clip.
+    return Math.max(0.75, Math.min(1.45, f));
   }
 
   function _atcPlaybackRate(replayNum) {
@@ -8338,7 +8359,7 @@
     return 1.0 + Math.random() * 0.3;
   }
 
-  function playBase64Audio(audioBase64) {
+  function playBase64Audio(audioBase64, renderedRate) {
     if (!audioBase64) {
       setImmersiveFeedback('Audio content is empty.', 'danger');
       return;
@@ -8353,7 +8374,8 @@
     try {
       var audio = new Audio('data:audio/mp3;base64,' + audioBase64);
       audio.volume = 1;
-      audio.playbackRate = _atcPlaybackRate(Math.max(0, AtcReplayGate.getCount() - 1));
+      audio.playbackRate = _atcPlaybackRate(Math.max(0, AtcReplayGate.getCount() - 1)) *
+                           _atcLevelFactor(renderedRate);
       SimMedia.atcAudio = audio;
       audio.addEventListener('ended', function() {
         if (SimMedia.atcAudio === audio) SimMedia.atcAudio = null;
@@ -25482,6 +25504,62 @@
     return function () { if (used) return; used = true; try { fn(); } catch (e) {} };
   }
 
+  // Recordings already fetched during this sitting, keyed by paper and item.
+  //
+  // There was no cache at all. Every replay re-downloaded the whole MP3 through
+  // Apps Script and a Drive read — on the one screen where the candidate is under a
+  // clock, and replays are a normal part of a listening test rather than an
+  // exception. The audio is identical every time: same paper, same item, same
+  // rendered file. Fetching it again buys nothing and costs the candidate seconds
+  // of their answer time.
+  //
+  // Keyed on bank and itemId, both fixed for the sitting, so unlike the simulator
+  // there is no question of a wrong voice being served — the accent is baked into
+  // the file the row points at.
+  var _scAudio   = {};   // "BANK|itemId" -> response
+  var _scAudioIn = {};   // "BANK|itemId" -> [callback] while a fetch is in flight
+
+  function _scAudioKey(step) {
+    return String(_sc.bank || '') + '|' + String((step && step.id) || '');
+  }
+
+  // Held only for the sitting. A finished paper's audio is dead weight.
+  function _scAudioReset() { _scAudio = {}; _scAudioIn = {}; }
+
+  function _scFetchAudio(step, onDone) {
+    var key = _scAudioKey(step);
+    if (_scAudio[key]) { onDone(_scAudio[key]); return; }
+    if (_scAudioIn[key]) { _scAudioIn[key].push(onDone); return; }
+    _scAudioIn[key] = [onDone];
+
+    var settled = false;
+    var settle = function (res) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(guard);
+      var out = (res && res.ok && res.audioBase64) ? res : null;
+      if (out) _scAudio[key] = out;
+      var ws = _scAudioIn[key] || [];
+      delete _scAudioIn[key];
+      ws.forEach(function (fn) { try { fn(out); } catch (e) {} });
+    };
+
+    // google.script.run calls neither handler if the call is lost, and every step
+    // waits on this one resolving — so the sitting stopped dead with the examiner
+    // apparently still speaking, and no way forward. The candidate had answered a
+    // question and the exam simply ended. Nothing recovered it because nothing was
+    // watching. The waiters must be released even then, or a replay leaves the key
+    // marked in flight and the item can never be voiced again.
+    var guard = setTimeout(function () { settle(null); }, 25000);
+
+    google.script.run
+      .withSuccessHandler(settle)
+      .withFailureHandler(function () { settle(null); })
+      // The bank travels with the request: every version shares these itemIds, and
+      // without it the server cannot tell which paper's recording is wanted.
+      .apiGetIcaoTestAudio(AppState.sessionToken, step.id, _sc.bank || '');
+  }
+
   function _scSpeak(step, done) {
     done = _scOnce(done);
     if (!step.text) { done(); return; }
@@ -25494,29 +25572,18 @@
     // apparently still speaking, and no way forward. The candidate had answered a
     // question and the exam simply ended. Nothing recovered it because nothing was
     // watching.
-    var _guard = setTimeout(function () {
-      _teaExaminerUnvoiced(step.text, done);
-    }, 25000);
-    var _resolve = function () { clearTimeout(_guard); done(); };
-
-    google.script.run
-      .withSuccessHandler(function (res) {
-        clearTimeout(_guard);
-        if (!res || !res.ok || !res.audioBase64) { _teaExaminerUnvoiced(step.text, done); return; }
-        var el = _teaAudioEl();
-        _teaClearUnvoiced();
-        try { el.pause(); } catch (e) {}
-        el.onended = _resolve;
-        el.onerror = function () { _teaExaminerUnvoiced(step.text, done); };
-        el.src = 'data:audio/mp3;base64,' + res.audioBase64;
-        var p = el.play();
-        if (p && p.catch) p.catch(function () { _teaVizStop(); _teaExaminerUnvoiced(step.text, done); });
-        _teaVizSpeak(el);
-      })
-      .withFailureHandler(function () { clearTimeout(_guard); _teaExaminerUnvoiced(step.text, done); })
-      // The bank travels with the request: every version shares these itemIds, and
-      // without it the server cannot tell which paper's recording is wanted.
-      .apiGetIcaoTestAudio(AppState.sessionToken, step.id, _sc.bank || '');
+    _scFetchAudio(step, function (res) {
+      if (!res) { _teaExaminerUnvoiced(step.text, done); return; }
+      var el = _teaAudioEl();
+      _teaClearUnvoiced();
+      try { el.pause(); } catch (e) {}
+      el.onended = done;
+      el.onerror = function () { _teaExaminerUnvoiced(step.text, done); };
+      el.src = 'data:audio/mp3;base64,' + res.audioBase64;
+      var p = el.play();
+      if (p && p.catch) p.catch(function () { _teaVizStop(); _teaExaminerUnvoiced(step.text, done); });
+      _teaVizSpeak(el);
+    });
   }
 
   function _scClearTimer() {
@@ -26055,6 +26122,7 @@
         _sc.steps   = res.steps || [];
         _sc.i       = 0;
         _sc.bank    = res.bank || '';
+        _scAudioReset();   // a new paper must not serve the previous one's recordings
         _sc.running = true;
         TEA_BANK    = _sc.bank;
         _t.scope    = 'FULL';
