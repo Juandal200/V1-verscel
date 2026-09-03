@@ -25774,8 +25774,18 @@
       .withSuccessHandler(function (res) {
         var host2 = document.getElementById('teaVersionPicker');
         if (!host2) return;
-        // One version, or none listed, is not a choice worth presenting.
-        if (!res || !res.ok || !res.versions || res.versions.length < 2) { host2.innerHTML = ''; return; }
+        // An empty element is indistinguishable from a page that never offered a
+        // choice. When the list cannot be read the candidate must be told that a
+        // paper will be drawn for them, because otherwise they believe they chose
+        // one — which is exactly how an Indian paper was sat in an American accent
+        // with nothing on screen to contradict it.
+        if (!res || !res.ok || !res.versions || res.versions.length < 2) {
+          host2.innerHTML = (res && res.ok && res.versions && res.versions.length === 1)
+            ? ''
+            : _teaPickerNote('The list of papers could not be loaded. One will be drawn at random.');
+          return;
+        }
+        window._teaVersions = res.versions;
 
         function opt(bank, flag, title, sub, ready) {
           return '<button class="tea-ver-opt" data-bank="' + _esc(bank) + '" ' +
@@ -25801,13 +25811,55 @@
           '</div>';
         window._teaSelectVersion(window._teaPickedVersion || '');
       })
-      // No picker is a working exam; a broken picker is not. Stay quiet and let
-      // the random draw happen.
+      // Silence here reads as "there was never a choice", and the candidate begins
+      // believing they picked a paper they never picked.
       .withFailureHandler(function () {
         var h = document.getElementById('teaVersionPicker');
-        if (h) h.innerHTML = '';
+        if (h) h.innerHTML = _teaPickerNote('The list of papers could not be loaded. One will be drawn at random.');
       })
       .apiGetIcaoTestVersions(AppState.sessionToken);
+
+    // google.script.run calls neither handler when a request is lost, which is how
+    // this element spent the day empty on a slow connection.
+    setTimeout(function () {
+      var h = document.getElementById('teaVersionPicker');
+      if (h && !h.innerHTML) h.innerHTML = _teaPickerNote('Still loading the list of papers. Beginning now draws one at random.');
+    }, 12000);
+  }
+
+  function _teaPickerNote(msg) {
+    return '<p style="margin:0;padding:8px 10px;border-radius:10px;text-align:center;' +
+      'font-size:0.72rem;line-height:1.45;color:#8fa3bb;' +
+      'background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.10);">' +
+      _esc(msg) + '</p>';
+  }
+
+  // Which paper is actually being sat, shown for the whole sitting.
+  //
+  // Nothing displayed this. A version was chosen, or drawn, and the candidate had
+  // no way to see which — so a random draw that did not match the choice looked
+  // exactly like the choice being honoured.
+  function _teaShowVersionBadge(bank, requested) {
+    var cards = _scEl('teaCards');
+    if (!cards || !cards.parentNode) return;
+    var old = document.getElementById('teaVersionBadge');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+
+    var meta = null;
+    (window._teaVersions || []).forEach(function (v) {
+      if (String(v.bank || '').toUpperCase() === String(bank || '').toUpperCase()) meta = v;
+    });
+    var drawn = !String(requested || '').trim();
+    var name  = meta ? (meta.flag + ' ' + meta.name + ' \u00b7 ' + meta.accent)
+                     : String(bank || 'unknown');
+
+    var el = document.createElement('div');
+    el.id = 'teaVersionBadge';
+    el.style.cssText = 'margin:0 16px 10px;padding:7px 12px;border-radius:10px;' +
+      'font-size:0.72rem;letter-spacing:0.04em;color:#8fa3bb;text-align:center;' +
+      'background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.10);';
+    el.innerHTML = 'Sitting ' + _esc(name) + (drawn ? ' \u00b7 drawn at random' : '');
+    cards.parentNode.insertBefore(el, cards);
   }
 
   window._teaBeginScripted = function (bank) {
@@ -26012,6 +26064,7 @@
         _t._started  = false;   // the Begin screen may have set it
         _startExam();
         _setEnabled(false);     // the mic is opened per step, not by the shell
+        _teaShowVersionBadge(_sc.bank, bank);
         _scNextStep();
       })
       .withFailureHandler(function (e) {
