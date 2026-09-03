@@ -186,6 +186,27 @@ var DB_SCHEMA = {
     'createdAt'
   ],
 
+  /* Sessions were never persisted.
+   *
+   * createSession writes to CacheService and then to this sheet as a "fallback
+   * that survives cache eviction". That write has never once succeeded: the sheet
+   * had no schema entry, so dbAppend_ threw on every login, and the throw was
+   * swallowed by a try/catch that assumed the cache was enough.
+   *
+   * It is not. CacheService caps a TTL at six hours, so the thirty-day session
+   * token was backed by at most six hours of storage — and less whenever the cache
+   * was evicted, which a cache is entitled to do at any time. That is why signing
+   * in did not last: not a slow server, not the home cache, the session itself.
+   */
+  Sessions: [
+    'token',
+    'userId',
+    'email',
+    'role',
+    'createdAt',
+    'expiresAt'
+  ],
+
   IcaoTestItems: [
     'itemId',
     'bank',

@@ -417,3 +417,52 @@ function checkLoginPerformance() {
   Logger.log(msg);
   return msg;
 }
+
+/**
+ * Creates the Sessions sheet and reports whether sessions can now persist.
+ *
+ * createSession has always tried to write there and always failed silently — the
+ * sheet had no schema entry, dbAppend_ threw, and a try/catch discarded it on the
+ * assumption the cache was sufficient. It was not: CacheService caps a TTL at six
+ * hours, so a thirty-day token was backed by six hours of storage at best. That is
+ * why signing in did not last.
+ *
+ * Run once from the editor — Authservice.gs. Safe to run again.
+ */
+function setupSessionsSheet() {
+  var ss = SpreadsheetApp.openById(
+    PropertiesService.getScriptProperties().getProperty(CONFIG.PROP_DB_SPREADSHEET_ID));
+
+  var sheet = ss.getSheetByName('Sessions');
+  var created = false;
+  if (!sheet) {
+    sheet = ss.insertSheet('Sessions');
+    sheet.appendRow(DB_SCHEMA.Sessions);
+    sheet.setFrozenRows(1);
+    created = true;
+  } else if (sheet.getLastRow() === 0) {
+    sheet.appendRow(DB_SCHEMA.Sessions);
+    sheet.setFrozenRows(1);
+  }
+
+  // Prove it end to end rather than assume: write a row, read it back, remove it.
+  var ok = false, err = '';
+  try {
+    var probe = 'probe_' + Utilities.getUuid();
+    dbAppend_('Sessions', {
+      token: probe, userId: 'PROBE', email: 'probe@local', role: 'STUDENT',
+      createdAt: new Date().toISOString(), expiresAt: new Date().toISOString()
+    });
+    var found = dbReadAll_('Sessions').filter(function(r) { return String(r.token) === probe; });
+    ok = found.length === 1;
+    if (found.length) sheet.deleteRow(found[0].__rowNumber);
+  } catch (e) { err = e.message; }
+
+  var msg = (created ? 'Created the Sessions sheet.' : 'Sessions sheet already existed.') + '\n' +
+            (ok ? 'Write and read verified — sessions now persist for '
+                  + Math.round(CONFIG.SESSION_TTL_SECONDS / 86400) + ' days.'
+                : 'STILL FAILING: ' + (err || 'row did not read back')) + '\n' +
+            'Existing sessions are unaffected; new logins will persist from now on.';
+  Logger.log(msg);
+  return msg;
+}
