@@ -379,6 +379,40 @@
     INDIA:     ['en-IN-Chirp3-HD-Enceladus','en-IN-Chirp3-HD-Sadachbia','en-IN-Chirp3-HD-Algieba','en-IN-Chirp3-HD-Erinome','en-IN-Chirp3-HD-Laomedeia','en-IN-Chirp3-HD-Achernar']
   };
 
+  function _icaoCountryForLang(lang) {
+    var l = String(lang || '').trim();
+    return l.indexOf('en-GB') === 0 ? 'UK'
+         : l.indexOf('en-AU') === 0 ? 'AUSTRALIA'
+         : l.indexOf('en-IN') === 0 ? 'INDIA'
+         : l.indexOf('en-CA') === 0 ? 'CANADA'
+         : 'USA';
+  }
+
+  // What voice a test item should be spoken in.
+  //
+  // This used to be a random draw from a pool chosen by step.country — a field the
+  // server never sent. Undefined matched nothing, _pickTestVoice quietly returned
+  // the American pool for it, and all three versions spoke with the same accent
+  // while the sheet held an Indian voice for B and a British one for C.
+  //
+  // The row's own voice wins now. A random pick is the fallback for a row that
+  // leaves the column blank, and it says so instead of sounding confident.
+  function _icaoVoiceFor(step) {
+    var authored = String((step && step.voice) || '').trim();
+    var lang     = String((step && step.lang)  || '').trim();
+    var country  = _icaoCountryForLang(lang);
+    if (!authored && window.console) {
+      console.warn('[ICAO] item ' + ((step && step.id) || '?') +
+                   ' carries no voice; falling back to a random ' + country + ' one');
+    }
+    return {
+      voice:   authored || _pickTestVoice(country),
+      rate:    _pickRate(country),
+      lang:    lang,
+      country: country
+    };
+  }
+
   function _pickTestVoice(country) {
     var k    = String(country || 'USA').trim().toUpperCase();
     var pool = ICAO_TEST_VOICE_POOL[k] || ICAO_TEST_VOICE_POOL.USA;
@@ -9262,7 +9296,7 @@
     var sc  = t.scenarios[t.currentIndex];
     var num = t.currentIndex + 1;
     var total = t.scenarios.length;
-    var country = sc.country || 'USA';
+    var country = sc.country || _icaoCountryForLang(sc.lang);
     var countryMeta = getCountryUi(country);
 
     t.replays[t.currentIndex] = t.replays[t.currentIndex] || 0;
@@ -9308,7 +9342,7 @@
     var t   = AppState.icaoTest;
     var sc  = t.scenarios[t.currentIndex];
     var idx = t.currentIndex;
-    var country = sc.country || 'USA';
+    var country = sc.country || _icaoCountryForLang(sc.lang);
 
     // Count replay (first play is index 0, second is 1, etc.)
     var plays = (t.replays[idx] || 0);
@@ -9333,7 +9367,7 @@
     var myGen = _icaoTestGen;
 
     // Use prefetched voice+rate if available
-    var pv    = (t._prefetchedVoice || {})[idx] || { voice: _pickTestVoice(country), rate: _pickRate(country) };
+    var pv    = (t._prefetchedVoice || {})[idx] || _icaoVoiceFor(sc);
     var cacheKey = sc.atcText + '||' + pv.voice + '||' + Math.round(pv.rate * 1000);
     var cached = _ttsClientCache[cacheKey];
 
@@ -9374,7 +9408,8 @@
         text:         sc.atcText,
         voice:        pv.voice,
         speakingRate: pv.rate,
-        country:      sc.country
+        lang:         pv.lang,
+        country:      pv.country
       });
   }
 
@@ -9385,7 +9420,7 @@
     var next = t.scenarios[nextIdx];
     t._prefetchedVoice = t._prefetchedVoice || {};
     if (!t._prefetchedVoice[nextIdx]) {
-      t._prefetchedVoice[nextIdx] = { voice: _pickTestVoice(next.country), rate: _pickRate(next.country) };
+      t._prefetchedVoice[nextIdx] = _icaoVoiceFor(next);
     }
     var pv = t._prefetchedVoice[nextIdx];
     var cacheKey = next.atcText + '||' + pv.voice + '||' + Math.round(pv.rate * 1000);
@@ -9398,7 +9433,11 @@
       })
       .withFailureHandler(function() { delete _ttsClientCache[cacheKey]; })
       .apiGenerateIcaoTestVoice(AppState.sessionToken, {
-        text: next.atcText, voice: pv.voice, speakingRate: pv.rate, country: next.country
+        // Same accent the play path will ask for. Without lang here the prefetch
+        // synthesised an American reading, cached it, and the play path served that
+        // instead of the accent it had just correctly worked out.
+        text: next.atcText, voice: pv.voice, speakingRate: pv.rate,
+        lang: pv.lang, country: pv.country
       });
   }
 

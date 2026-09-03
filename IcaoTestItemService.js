@@ -435,10 +435,21 @@ function _icaoScriptStamp_(script, voice) {
   return bytes.map(function(b) { return ('0' + (b & 0xFF).toString(16)).slice(-2); }).join('').slice(0, 10);
 }
 
+// The accent a version is meant to have lives in the row's lang column. Deriving it
+// in one place stops a blank or unfamiliar value from becoming American in one
+// caller and something else in another — which is how every version came to sound
+// American while three different accents were sitting in the sheet.
+function _icaoCountryForLang_(lang) {
+  var l = String(lang || '').trim();
+  return l.indexOf('en-GB') === 0 ? 'UK'
+       : l.indexOf('en-AU') === 0 ? 'AUSTRALIA'
+       : l.indexOf('en-IN') === 0 ? 'INDIA'
+       : l.indexOf('en-CA') === 0 ? 'CANADA'
+       : 'USA';
+}
+
 function apiGenerateIcaoTestVoiceInternal_(text, voice, lang) {
-  var country = (lang || '').indexOf('en-GB') === 0 ? 'UK'
-              : (lang || '').indexOf('en-AU') === 0 ? 'AUSTRALIA'
-              : (lang || '').indexOf('en-IN') === 0 ? 'INDIA' : 'USA';
+  var country = _icaoCountryForLang_(lang);
   var profile = TTSService.getProfileByCountry_(country);
   var rate    = 0.93;
   var voices  = profile.voiceNames || [];
@@ -785,6 +796,12 @@ function apiGetIcaoTestScript(sessionToken, bank) {
         // else entirely and Part 3 would measure nothing. Sent the same way the
         // Part 2 recordings send their transcript.
         imageDesc: opts.imageDesc !== undefined ? opts.imageDesc : String(r.description || '').trim(),
+        // The authored accent. Both of these used to be dropped here, so the
+        // client had nothing to go on and fell back to a random American voice for
+        // EVERY version: B was not Indian and C was not British, which is the only
+        // thing that made them different sittings rather than the same one twice.
+        voice:    String(r.voice || '').trim(),
+        lang:     String(r.lang  || '').trim(),
         hasAudio: !!String(r.audioFileId || '').trim(),
         // The sheet wins wherever a row states a time; opts is only the structural
         // default for a line whose answerSeconds is blank. Without this every

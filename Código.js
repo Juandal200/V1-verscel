@@ -4575,7 +4575,11 @@ function apiGenerateIcaoTestVoice(sessionToken, payload) {
     AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
     payload = payload || {};
     var text    = String(payload.text    || '').trim();
-    var country = String(payload.country || 'USA').trim().toUpperCase();
+    // lang comes straight from the item row and is authoritative; country is only
+    // the older, weaker signal kept for callers that still send one.
+    var lang    = String(payload.lang    || '').trim();
+    var country = lang ? _icaoCountryForLang_(lang)
+                       : String(payload.country || 'USA').trim().toUpperCase();
     var voice   = String(payload.voice   || '').trim();
     if (!text) throw new Error('No text provided.');
     var profile = TTSService.getProfileByCountry_(country);
