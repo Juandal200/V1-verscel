@@ -750,7 +750,18 @@ function apiGetIcaoTestScript(sessionToken, bank) {
     // No bank named means "any version": one is drawn per sitting, so a candidate
     // cannot predict which paper they will get and a retake is unlikely to repeat.
     var wanted = String(bank || '').trim().toUpperCase();
-    if (!wanted || usable.indexOf(wanted) === -1) {
+
+    // Asking for a version that is not available is NOT the same as asking for any
+    // version, and this branch used to treat them identically. A candidate who
+    // chose the Indian paper and whose choice could not be honoured was handed a
+    // different version at random — in practice the American one — while the screen
+    // still showed the version they picked. A listening test sat in the wrong
+    // accent is not a degraded sitting, it is a different exam.
+    if (wanted && usable.indexOf(wanted) === -1) {
+      return { ok: false,
+               error: 'Version ' + wanted + ' is not available. Ready: ' + usable.join(', ') };
+    }
+    if (!wanted) {
       wanted = usable[Math.floor(Math.random() * usable.length)];
     }
 
