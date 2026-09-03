@@ -813,6 +813,10 @@ function apiGetIcaoTestScript(sessionToken, bank) {
         // thing that made them different sittings rather than the same one twice.
         voice:    String(r.voice || '').trim(),
         lang:     String(r.lang  || '').trim(),
+        // A comparison question, so the client shows BOTH photographs. Stated here
+        // rather than left for the client to guess from an item id, which would
+        // break the moment a version renamed its rows.
+        compare: opts.compare === true,
         hasAudio: !!String(r.audioFileId || '').trim(),
         // The sheet wins wherever a row states a time; opts is only the structural
         // default for a line whose answerSeconds is blank. Without this every
@@ -876,8 +880,8 @@ function apiGetIcaoTestScript(sessionToken, bank) {
         var both = pics.map(function(p, i) {
           return 'Image ' + (i + 1) + ': ' + String(p.description || '').trim();
         }).join('  ');
-        say('line_p3_similar',   { section: '3', answerSeconds: 120, imageUrl: last, imageDesc: both });
-        say('line_p3_different', { section: '3', answerSeconds: 120, imageUrl: last, imageDesc: both });
+        say('line_p3_similar',   { section: '3', answerSeconds: 120, imageUrl: last, imageDesc: both, compare: true });
+        say('line_p3_different', { section: '3', answerSeconds: 120, imageUrl: last, imageDesc: both, compare: true });
       }
     }
     say('line_exam_end');

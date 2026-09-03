@@ -7070,7 +7070,14 @@
     el.title = cached ? 'Served from cache' : 'Live from Google TTS';
   }
 
-  function _playAtcAudio(res, atcText, country, andThen) {
+  // opts.levelRamp === false for anything that is not a training scenario.
+  //
+  // The per-level speed ramp reads AppState.training.selectedLevel, which belongs to
+  // the SIMULATOR. This function is shared with the ICAO exam, so a candidate whose
+  // last simulator level was 9 sat a listening test playing about twenty per cent
+  // faster than one who had only opened level 1 — an examination that changes
+  // difficulty according to unrelated progress is not a standardised test.
+  function _playAtcAudio(res, atcText, country, andThen, opts) {
     console.log('[ATC] voice | ' + (res.voiceName || '?') + ' | rate=' + (res.speakingRate || '?') + ' | cached=' + !!res.cached);
     _showVoiceBadge(res.voiceName, res.cached);
     var myGen = ++_atcAudioGen;
@@ -7087,7 +7094,8 @@
       try { a.pause(); } catch (e) {}
       a.src = 'data:audio/mp3;base64,' + res.audioBase64;
       a.volume = 1;
-      a.playbackRate = _atcPlaybackRate(0) * _atcLevelFactor(res.speakingRate);
+      a.playbackRate = _atcPlaybackRate(0) *
+        ((opts && opts.levelRamp === false) ? 1 : _atcLevelFactor(res.speakingRate));
       SimMedia.atcAudio = a;
       AtcReplayGate.increment();
 
@@ -9432,7 +9440,9 @@
         _ttsClientCache[cacheKey] = res;
         var badge = byId('icaoVoiceBadge');
         if (badge) badge.textContent = (res.cached ? '⚡ ' : '') + (res.voiceName || '');
-        _playAtcAudio(res, sc.atcText, country, _onDone);
+        // An exam is sat at the speed it was recorded at, whatever the candidate's
+        // simulator level happens to be.
+        _playAtcAudio(res, sc.atcText, country, _onDone, { levelRamp: false });
       } else {
         AtcRadioEngine.speak(sc.atcText, country, _onDone);
       }
@@ -25651,12 +25661,36 @@
   // screen, where it can be explained, rather than three questions in.
   function _scPrimeMic() {
     _sc.micDenied = false;
-    if (!navigator.mediaDevices || !window.MediaRecorder) { _sc.micDenied = true; return; }
+    _sc.micPromise = null;
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+      _sc.micDenied = true; _teaShowMicNotice(); return;
+    }
     try {
-      navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-        .then(function (stream) { _sc.micStream = stream; })
-        .catch(function () { _sc.micDenied = true; });
-    } catch (e) { _sc.micDenied = true; }
+      // The PROMISE is kept, not just its result. A candidate still reading the
+      // permission dialog when the first question arrives would otherwise be asked
+      // for the microphone a second time — the very interruption this avoids.
+      _sc.micPromise = navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+        .then(function (stream) { _sc.micStream = stream; return stream; })
+        .catch(function (e) { _sc.micDenied = true; _teaShowMicNotice(); throw e; });
+    } catch (e) { _sc.micDenied = true; _teaShowMicNotice(); }
+  }
+
+  // Said as soon as it is known, not discovered at the first question. A sitting
+  // that will be typed is a different experience and the candidate is entitled to
+  // know before the examiner starts speaking.
+  function _teaShowMicNotice() {
+    if (!_sc.micDenied) return;
+    var cards = _scEl('teaCards');
+    var host  = (cards && cards.parentNode) || null;
+    if (!host || document.getElementById('teaMicNotice')) return;
+    var el = document.createElement('div');
+    el.id = 'teaMicNotice';
+    el.style.cssText = 'margin:0 16px 10px;padding:9px 12px;border-radius:10px;font-size:0.74rem;' +
+      'line-height:1.45;color:#eab308;background:rgba(234,179,8,.08);' +
+      'border:1px solid rgba(234,179,8,.30);';
+    el.textContent = 'No microphone access, so this sitting will be typed. ' +
+      'Your answers are still marked, and recorded as written rather than spoken.';
+    host.insertBefore(el, cards);
   }
 
   function _scReleaseMic() {
@@ -25670,6 +25704,9 @@
   // asks again, and then only once.
   function _scMicStream() {
     if (_sc.micStream && _sc.micStream.active) return Promise.resolve(_sc.micStream);
+    // Still waiting on the dialog opened at Begin — wait with it rather than
+    // opening a second one.
+    if (_sc.micPromise) return _sc.micPromise;
     if (!navigator.mediaDevices || !window.MediaRecorder) return Promise.reject(new Error('no recorder'));
     return navigator.mediaDevices.getUserMedia({ audio: true, video: false })
       .then(function (s) { _sc.micStream = s; return s; });
@@ -25785,9 +25822,16 @@
   // What the candidate can see while answering. In Part 3 that is every picture
   // shown so far, side by side once there are two, because the questions ask them
   // to be compared.
+  // Both pictures for a comparison, one for a description.
+  //
+  // Showing both throughout was the literal request, but it makes "describe this
+  // picture" ambiguous when two are on screen and only one is meant — the candidate
+  // can describe the wrong photograph and be marked as though they misunderstood.
+  // The comparison steps say so themselves rather than the client inferring it from
+  // an item id.
   function _scImagesFor(step) {
     var urls = [];
-    if (String(step.section || '') === '3' && (_sc.p3Images || []).length) {
+    if (step.compare && (_sc.p3Images || []).length > 1) {
       urls = _sc.p3Images.slice();
     } else if (step.imageUrl) {
       urls = [step.imageUrl];
@@ -25835,6 +25879,34 @@
       '</div>';
   }
 
+  // While something is played back, the candidate's microphone is deaf and their
+  // clock is stopped.
+  //
+  // The recorder is started by _scAsk and runs for the whole answer, so a replay
+  // went out of the speaker straight into an open microphone: the examiner's words
+  // were captured, transcribed, and marked as though the candidate had said them.
+  // Repetition was unreachable until today, so this became live the moment it
+  // started working.
+  //
+  // The track is disabled rather than the recorder stopped — the answer keeps one
+  // continuous recording with a silent gap, instead of being cut into pieces the
+  // transcriber would have to be taught to reassemble. And an examiner repeating
+  // themselves must not eat the time given to answer, so the deadline moves by
+  // exactly as long as the playback took.
+  function _scHoldForPlayback(on) {
+    try {
+      if (_sc.micStream) {
+        _sc.micStream.getAudioTracks().forEach(function (t) { t.enabled = !on; });
+      }
+    } catch (e) {}
+    if (on) {
+      _sc.holdAt = Date.now();
+    } else if (_sc.holdAt) {
+      _sc.deadline += (Date.now() - _sc.holdAt);
+      _sc.holdAt = 0;
+    }
+  }
+
   function _scAsk(step, done) {
     done = _scOnce(done);
     // Two per question. Enough for a missed word or a passing aircraft, not enough
@@ -25851,7 +25923,11 @@
       if (_sc.promptReplaysLeft <= 0) { rpt.disabled = true; return; }
       _sc.promptReplaysLeft--;
       rpt.disabled = true;
-      _scSpeak(step, function () { rpt.disabled = _sc.promptReplaysLeft <= 0; });
+      _scHoldForPlayback(true);
+      _scSpeak(step, function () {
+        _scHoldForPlayback(false);
+        rpt.disabled = _sc.promptReplaysLeft <= 0;
+      });
     };
 
     var rep = _scEl('scReplay');
@@ -25863,7 +25939,11 @@
       var rid = (_sc.lastRecording && _sc.lastRecording.id) || step.id;
       _t.listens[rid] = Number(_t.listens[rid] || 1) + 1;
       rep.disabled = true;
-      _scSpeak(_sc.lastRecording || step, function () { rep.disabled = _sc.recReplaysLeft <= 0; });
+      _scHoldForPlayback(true);
+      _scSpeak(_sc.lastRecording || step, function () {
+        _scHoldForPlayback(false);
+        rep.disabled = _sc.recReplaysLeft <= 0;
+      });
     };
 
     _scRecord(step, function (transcript) {
@@ -26028,15 +26108,14 @@
       .withSuccessHandler(function (res) {
         var host2 = document.getElementById('teaVersionPicker');
         if (!host2) return;
-        // An empty element is indistinguishable from a page that never offered a
-        // choice. When the list cannot be read the candidate must be told that a
-        // paper will be drawn for them, because otherwise they believe they chose
-        // one — which is exactly how an Indian paper was sat in an American accent
-        // with nothing on screen to contradict it.
-        if (!res || !res.ok || !res.versions || res.versions.length < 2) {
-          host2.innerHTML = (res && res.ok && res.versions && res.versions.length === 1)
-            ? ''
-            : _teaPickerNote('The list of papers could not be loaded. One will be drawn at random.');
+        // Requiring a deliberate choice and rendering no tiles is a locked door.
+        // With one paper ready this drew nothing and Begin could never enable; with
+        // a failed list it promised a random draw that Begin then refused to make.
+        // Both left the candidate unable to sit an exam that was working.
+        if (!res || !res.ok || !res.versions || !res.versions.length) {
+          host2.innerHTML = _teaPickerNote('The list of papers could not be loaded.') +
+            '<div style="text-align:center;margin-top:8px;">' +
+            '<button class="btn secondary" onclick="window._teaRetryVersions()">Try again</button></div>';
           return;
         }
         window._teaVersions = res.versions;
@@ -26070,6 +26149,12 @@
           '</div>';
         window._teaVersionMeta = {};
         res.versions.forEach(function (v) { window._teaVersionMeta[v.bank] = v; });
+
+        // One paper is not a choice. Presenting it as one and then refusing to start
+        // until it is tapped is ceremony, not consent — take it and name it.
+        var ready = res.versions.filter(function (v) { return v.ready; });
+        if (ready.length === 1) { window._teaSelectVersion(ready[0].bank); return; }
+
         // Re-assert whatever was already chosen; if nothing was, Begin stays shut.
         window._teaSelectVersion(window._teaPickedVersion || '');
       })
@@ -26077,7 +26162,9 @@
       // believing they picked a paper they never picked.
       .withFailureHandler(function () {
         var h = document.getElementById('teaVersionPicker');
-        if (h) h.innerHTML = _teaPickerNote('The list of papers could not be loaded. One will be drawn at random.');
+        if (h) h.innerHTML = _teaPickerNote('The list of papers could not be loaded.') +
+          '<div style="text-align:center;margin-top:8px;">' +
+          '<button class="btn secondary" onclick="window._teaRetryVersions()">Try again</button></div>';
       })
       .apiGetIcaoTestVersions(AppState.sessionToken);
 
@@ -26085,9 +26172,17 @@
     // this element spent the day empty on a slow connection.
     setTimeout(function () {
       var h = document.getElementById('teaVersionPicker');
-      if (h && !h.innerHTML) h.innerHTML = _teaPickerNote('Still loading the list of papers. Beginning now draws one at random.');
+      if (h && !h.innerHTML) h.innerHTML = _teaPickerNote('Still loading the list of papers\u2026') +
+        '<div style="text-align:center;margin-top:8px;">' +
+        '<button class="btn secondary" onclick="window._teaRetryVersions()">Try again</button></div>';
     }, 12000);
   }
+
+  window._teaRetryVersions = function () {
+    var h = document.getElementById('teaVersionPicker');
+    if (h) h.innerHTML = _teaPickerNote('Loading\u2026');
+    _teaRenderVersionPicker();
+  };
 
   function _teaPickerNote(msg) {
     return '<p style="margin:0;padding:8px 10px;border-radius:10px;text-align:center;' +
@@ -26330,6 +26425,7 @@
         _startExam();
         _setEnabled(false);     // the mic is opened per step, not by the shell
         _teaShowVersionBadge(_sc.bank, bank);
+        _teaShowMicNotice();
         _scNextStep();
       })
       .withFailureHandler(function (e) {
