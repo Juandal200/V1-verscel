@@ -716,16 +716,39 @@
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
   }
 
+  // True while the user is in the middle of something that must not be destroyed:
+  // flying a route, or sitting an examination. Both keep running when the screen is
+  // replaced — the engine noise carries on behind the error panel — so wiping the
+  // DOM does not stop the activity, it only takes away the ability to continue it.
+  function _isMidActivity() {
+    try {
+      if (document.body && document.body.classList.contains('sim-focus-mode')) return true;
+      if (byId('teaCards') || byId('pilotReadback')) return true;
+    } catch (e) {}
+    return false;
+  }
+
   function handleServerError(err) {
     console.error(err);
     var message = err && err.message ? err.message : 'Server error.';
     var appScreen = byId('appScreen');
 
-    if (appScreen && appScreen.classList.contains('active')) {
-      showContentError(message);
-    } else {
+    if (!appScreen || !appScreen.classList.contains('active')) {
       setLoginMessage(message);
+      return;
     }
+
+    // Twenty-five call sites share this handler, and most are admin screens where
+    // replacing the page IS the right answer. But any one of them firing while a
+    // route or an exam is running would tear that screen away mid-exercise — which
+    // is what happened: the simulator kept playing behind an error panel that had
+    // replaced it. Guarding here covers all twenty-five without auditing each.
+    if (_isMidActivity()) {
+      if (typeof window._gToast === 'function') window._gToast(message, 'err');
+      return;
+    }
+
+    showContentError(message);
   }
 
   function showContentError(message) {
