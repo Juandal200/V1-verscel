@@ -27119,7 +27119,21 @@ var _dcAudio              = null;
 var _dcAudioCache         = {}; // keyed by challengeId_itemOrder — avoids re-fetching TTS on replay
 // ── Home state cache (stale-while-revalidate) ─────────────────────────────
 var _HOME_CACHE_KEY = '_aero_home_v2';
-var _HOME_CACHE_TTL = 60 * 60 * 1000; // 60 minutes
+/* Matches the session, not an hour.
+ *
+ * The session token is good for thirty days, but this cache expired after sixty
+ * minutes — so closing the app and coming back the next morning left nothing to
+ * paint from. The app then had to wait on the server before it could show
+ * anything, which is where a slow cold start turns into a login screen or a
+ * timeout on someone who never signed out.
+ *
+ * What is cached is only what the home screen draws: XP, streak, the module list.
+ * A background bootstrap fires immediately on restore and corrects all of it, so
+ * the worst case is a day-old XP figure visible for a second or two. That is a
+ * far better failure than being asked to sign in again. And the token check below
+ * still applies, so a cache from a different session is never used.
+ */
+var _HOME_CACHE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days — same as the session
 var _homeDataFreshAt = 0; // ms timestamp — set when fresh data arrives from server
 // Initialise so renderHome never reads undefined before GAS first responds
 window._lmsStreakDays    = 0;
