@@ -598,25 +598,57 @@
         // user and the app — and it had no timeout at all. A slow Apps Script cold
         // start left "Restoring session..." on screen indefinitely with no way
         // forward and no indication anything was wrong.
-        var _bootDone = false;
-        var _bootTimer = setTimeout(function() {
-          if (_bootDone) return;
-          _bootDone = true;
-          setLoginMessage('The server is taking longer than usual. Close this tab and open the app again.');
-        }, 25000);
+        // A valid token means the user IS signed in. A slow server is not a reason
+        // to ask them to sign in again — the session has not ended, we simply could
+        // not reach the thing that would confirm it. So this retries rather than
+        // giving up, and the login form is never the answer to a timeout.
+        //
+        // Only the server saying the session is finished sends someone back to the
+        // form, and it says so explicitly.
+        var _bootDone    = false;
+        var _bootAttempt = 0;
 
-        google.script.run
-          .withSuccessHandler(function(res) {
+        function _bootstrapAttempt() {
+          _bootAttempt++;
+          _bootDone = false;
+          setLoginMessage(_bootAttempt === 1
+            ? 'Restoring session\u2026'
+            : 'Still connecting\u2026 (attempt ' + _bootAttempt + ')');
+
+          var _bootTimer = setTimeout(function() {
             if (_bootDone) return;
-            _bootDone = true; clearTimeout(_bootTimer);
-            handleBootstrapResponse(res);
-          })
-          .withFailureHandler(function(err) {
-            if (_bootDone) return;
-            _bootDone = true; clearTimeout(_bootTimer);
-            handleServerError(err);
-          })
-          .apiGetAppBootstrap(AppState.sessionToken);
+            _bootDone = true;
+            // Back off, but keep trying. Apps Script cold starts are slow, not
+            // permanent, and every retry lands on a warmer instance.
+            if (_bootAttempt < 4) { _bootstrapAttempt(); return; }
+            setLoginMessage('The server is not responding. Your session is still ' +
+                            'valid — tap Send access code to retry, or try again shortly.');
+          }, _bootAttempt === 1 ? 20000 : 30000);
+
+          google.script.run
+            .withSuccessHandler(function(res) {
+              if (_bootDone) return;
+              _bootDone = true; clearTimeout(_bootTimer);
+              handleBootstrapResponse(res);
+            })
+            .withFailureHandler(function(err) {
+              if (_bootDone) return;
+              _bootDone = true; clearTimeout(_bootTimer);
+              var m = String((err && err.message) || '');
+              // An expired or unknown session is the one case that genuinely needs
+              // the form. Everything else is the server being slow.
+              if (/session expired|sign in again|user not found|not active/i.test(m)) {
+                handleServerError(err);
+                return;
+              }
+              if (_bootAttempt < 4) { _bootstrapAttempt(); return; }
+              setLoginMessage('The server is not responding. Your session is still ' +
+                              'valid — please try again shortly.');
+            })
+            .apiGetAppBootstrap(AppState.sessionToken);
+        }
+
+        _bootstrapAttempt();
       }
     }
   });

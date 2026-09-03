@@ -1,4 +1,4 @@
-var CACHE = 'aerocomms-v5'; // bump version
+var CACHE = 'aerocomms-v6'; // bump version
 
 // install: pre-cache the shell
 self.addEventListener('install', function(e) {
@@ -31,7 +31,18 @@ self.addEventListener('activate', function(e) {
 //
 // Correctness of grading outweighs a few hundred ms of startup, so always try the
 // network first and fall back to cache only when genuinely offline or slow.
-var NAV_TIMEOUT_MS = 6000;
+// Six seconds was too short on mobile data, and the consequence is worse than a
+// slow load: every reopen on a poor connection served the PREVIOUS build, so fixes
+// that were deployed hours earlier never reached the device. Several times today a
+// change appeared not to work when it had simply not arrived.
+//
+// The fetch continues after the timeout and still updates the cache, so a second
+// reopen would eventually get the new version — but "eventually, if you open it
+// twice" is not an update mechanism.
+//
+// Twelve seconds. Long enough for a cold Apps Script behind a mobile connection,
+// short enough that a genuinely offline device is not left staring at nothing.
+var NAV_TIMEOUT_MS = 12000;
 
 self.addEventListener('fetch', function(e) {
   if (e.request.method !== 'GET') return;
