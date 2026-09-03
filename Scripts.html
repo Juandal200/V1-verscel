@@ -683,6 +683,12 @@
         try { if (typeof simMediaStopAll === 'function') simMediaStopAll(); } catch (e) {}
         try { if (typeof disableSimulatorFocusMode === 'function') disableSimulatorFocusMode(); } catch (e) {}
       }
+
+      // The exam needs the same treatment, and for the same reason: the examiner
+      // carried on speaking from a screen the candidate had already left.
+      if (label !== 'ICAO Test') {
+        try { if (typeof window._teaStopAll === 'function') window._teaStopAll(); } catch (e) {}
+      }
     }
     Array.prototype.slice.call(document.querySelectorAll('.nav-item')).forEach(function(btn) {
       btn.classList.remove('active');
@@ -26502,9 +26508,41 @@
     try { window.scrollTo(0, 0); host.scrollTop = 0; } catch (e) {}
   }
 
-  window._teaExitToHome = function() {
-    try { if (_t.audioEl) _t.audioEl.pause(); } catch (e) {}
+  /* Everything the examination owns, stopped in one place.
+   *
+   * Leaving the exam only ever tore down the screen. The examiner kept speaking
+   * from another tab of the app, the countdown kept counting, the recorder kept
+   * recording, and the reservation stayed held against the candidate for
+   * forty-five minutes. Pressing Back looked like leaving; nothing actually left.
+   *
+   * Called both by the exit button and by setActiveNav when navigating away, so it
+   * does not depend on the candidate using the button we provided.
+   */
+  window._teaStopAll = function() {
+    try { if (_t.audioEl) { _t.audioEl.pause(); _t.audioEl.removeAttribute('src'); } } catch (e) {}
     try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
+    try { _teaVizStop(); } catch (e) {}
+    try { if (_t.timerIv) { clearInterval(_t.timerIv); _t.timerIv = null; } } catch (e) {}
+    try { _scClearTimer(); } catch (e) {}
+    _sc.running = false;
+    try {
+      if (_sc.rec && _sc.rec.state === 'recording') _sc.rec.stop();
+    } catch (e) {}
+    // Give the sitting back. It was reserved for an exam that is not happening,
+    // and leaving it held would refuse the candidate their next attempt for
+    // three quarters of an hour.
+    if (_sc.reserved) {
+      _sc.reserved = false;
+      try {
+        google.script.run.withSuccessHandler(function () {})
+          .withFailureHandler(function () {})
+          .apiReleaseIcaoExam(AppState.sessionToken);
+      } catch (e) {}
+    }
+  };
+
+  window._teaExitToHome = function() {
+    window._teaStopAll();
     if (typeof window.renderHome === 'function') window.renderHome();
     else window.location.reload();
   };
