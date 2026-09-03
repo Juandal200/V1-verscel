@@ -5924,8 +5924,16 @@
     document.body.classList.add('sim-focus-mode');
   }
 
+  // Leaving the simulator stops the simulator. Both of those belong together, and
+  // keeping them apart is what let the engine loop, the ambience and the altitude
+  // alert carry on over the top of another screen.
+  //
+  // This is the fourth exit route found for the same fault. Rather than add a fifth
+  // call to simMediaStopAll somewhere else, every way out of focus mode now goes
+  // through here, so a route added later cannot forget.
   function disableSimulatorFocusMode() {
     document.body.classList.remove('sim-focus-mode');
+    try { if (typeof simMediaStopAll === 'function') simMediaStopAll(); } catch (e) {}
   }
 
   function getScenarioAtcTextSafe(scenario) {
@@ -17127,7 +17135,9 @@
     var text = content ? String(content.innerText || '') : '';
 
     if (document.body.classList.contains('sim-focus-mode')) {
-      document.body.classList.remove('sim-focus-mode');
+      // Not classList.remove: the audio has to stop too, and this was the exit
+      // that did not.
+      disableSimulatorFocusMode();
 
       if (window.AppState && AppState.training && AppState.training.selectedLevelData && typeof window.renderCountryTrainingHub === 'function') {
         window.renderCountryTrainingHub(AppState.training.selectedLevelData);

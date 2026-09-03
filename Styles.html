@@ -3402,9 +3402,6 @@ body.sim-paused #simMediaPauseBtn {
   gap: 4px;
   margin-top: 7px;
 }
-
-}
-}
 .sim-instr-btn {
   flex: 1;
   padding: 4px 2px;
@@ -12332,6 +12329,47 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
     background: rgba(0,212,142,0.18);
     border-color: rgba(0,212,142,0.45);
   }
+
+    /* iOS gives a <button> its own chrome — a pale fill and system-blue label —
+       whenever our own background and colour do not reach it. That is exactly how
+       Climb and Descend came to look like two white pills with blue text in the
+       middle of a dark cockpit. Say so explicitly rather than relying on a rule
+       further up the file surviving every future edit. */
+    .sim-instr-btn {
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255,255,255,0.05);
+      color: #c8d0e0;
+      border: 1px solid rgba(148,148,148,0.28);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* The simulator is meant to sit on one screen. These are what pushed it off.
+
+       The plan banner is a sales message: worth showing on the dashboard, not over
+       a cockpit while someone is flying. It costs about 90px at the top of every
+       exercise.
+
+       The locked-transcript panel stacked its 56px icon ABOVE its two lines of text
+       on narrow screens, so a placeholder for text nobody can read yet was taller
+       than the read-back box. Put the icon back beside the words. */
+    body.sim-focus-mode .trial-banner { display: none !important; }
+
+    .atc-hidden-mask {
+      grid-template-columns: auto 1fr !important;
+      min-height: 0 !important;
+      padding: 12px !important;
+      gap: 12px !important;
+      border-radius: 16px !important;
+      align-items: center;
+    }
+    .atc-hidden-icon {
+      width: 38px !important;
+      height: 38px !important;
+      border-radius: 12px !important;
+      font-size: 1.15rem !important;
+    }
+    .atc-hidden-copy span { font-size: 0.78rem !important; line-height: 1.35 !important; }
 
   /* Trimmed rather than removed: each is small on its own, and together they are
      the difference between fitting and not. */
