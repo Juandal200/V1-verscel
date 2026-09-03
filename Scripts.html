@@ -25501,7 +25501,9 @@
      shape the pipeline already expects and then calls _finishExam, so the report,
      the saving and the fallbacks all behave as they do today.
   ═══════════════════════════════════════════════════════════════════════════ */
-  var _sc = { steps: [], i: 0, bank: '', running: false, timer: null, deadline: 0 };
+  var _sc = { steps: [], i: 0, bank: '', running: false, timer: null, deadline: 0,
+              recReplaysLeft: 0,      // Part 2 recording — counted against the band
+              promptReplaysLeft: 0 }; // the examiner's own words — never counted
 
   function _scEl(id) { return document.getElementById(id); }
 
@@ -25637,6 +25639,42 @@
   // Record one answer. Resolves with the transcript (possibly empty) either way —
   // a candidate who says nothing has still answered, and the grader is entitled to
   // see that rather than have the exam stall waiting for sound.
+  // The microphone is asked for ONCE, in the Begin tap, and held for the sitting.
+  //
+  // It used to be requested per answer. On iOS a permission prompt interrupts the
+  // page's audio session, so the request made to record your answer silenced the
+  // examiner: play() rejected, and the fallback printed the script you were meant
+  // to be listening to. In a listening test that does not degrade the item, it
+  // removes it — the words were on screen.
+  //
+  // Asking inside the gesture also means a refusal is discovered on the Begin
+  // screen, where it can be explained, rather than three questions in.
+  function _scPrimeMic() {
+    _sc.micDenied = false;
+    if (!navigator.mediaDevices || !window.MediaRecorder) { _sc.micDenied = true; return; }
+    try {
+      navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+        .then(function (stream) { _sc.micStream = stream; })
+        .catch(function () { _sc.micDenied = true; });
+    } catch (e) { _sc.micDenied = true; }
+  }
+
+  function _scReleaseMic() {
+    try {
+      if (_sc.micStream) _sc.micStream.getTracks().forEach(function (t) { t.stop(); });
+    } catch (e) {}
+    _sc.micStream = null;
+  }
+
+  // Resolves with the stream taken at Begin. Only a sitting that never got one
+  // asks again, and then only once.
+  function _scMicStream() {
+    if (_sc.micStream && _sc.micStream.active) return Promise.resolve(_sc.micStream);
+    if (!navigator.mediaDevices || !window.MediaRecorder) return Promise.reject(new Error('no recorder'));
+    return navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      .then(function (s) { _sc.micStream = s; return s; });
+  }
+
   function _scRecord(step, done) {
     done = _scOnce(done);
     var stopped = false;
@@ -25648,7 +25686,7 @@
       return;
     }
 
-    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+    _scMicStream()
       .then(function (stream) {
         var chunks = [];
         var mime = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/ogg']
@@ -25662,7 +25700,9 @@
         rec.onstop = function () {
           stopped = true;
           _teaVizStop();
-          stream.getTracks().forEach(function (t) { t.stop(); });
+          // Deliberately NOT stopping the tracks: the stream is held for the whole
+        // sitting, and tearing it down here would make the next answer ask for the
+        // microphone again — the interruption this change exists to prevent.
           _setStatus('Saving your answer…', 'thinking');
 
           var type = rec.mimeType || 'audio/webm';
@@ -25729,17 +25769,55 @@
     _sc.stop = function () { var v = _scEl('scType'); done(v ? String(v.value || '') : ''); };
   }
 
+  // Hearing something again, twice over.
+  //
+  // The old button was drawn only when step.replayable was true, and stepOf sets
+  // that on AUDIO rows alone — which never reach this screen, because a recording
+  // plays and advances on its own. So the control could never appear for anything,
+  // and there was no way to hear a Part 2 recording, an interview question or a
+  // picture prompt a second time.
+  //
+  // These are not the same allowance and must not share a counter. Re-hearing the
+  // RECORDING is part of what Part 2 measures — it feeds _t.listens and caps the
+  // comprehension band. Re-hearing the EXAMINER'S QUESTION measures nothing; a
+  // candidate who missed a word of "describe this picture" has not shown less
+  // comprehension, and penalising it would mark the room's noise rather than them.
+  // What the candidate can see while answering. In Part 3 that is every picture
+  // shown so far, side by side once there are two, because the questions ask them
+  // to be compared.
+  function _scImagesFor(step) {
+    var urls = [];
+    if (String(step.section || '') === '3' && (_sc.p3Images || []).length) {
+      urls = _sc.p3Images.slice();
+    } else if (step.imageUrl) {
+      urls = [step.imageUrl];
+    }
+    if (!urls.length) return '';
+    var many = urls.length > 1;
+    return '<div style="display:grid;gap:8px;margin-bottom:14px;' +
+      (many ? 'grid-template-columns:1fr 1fr;' : '') + '">' +
+      urls.map(function (u, i) {
+        return '<figure style="margin:0;">' +
+          (many ? '<figcaption style="margin:0 0 4px;font-size:.66rem;font-weight:700;' +
+                  'letter-spacing:.1em;text-transform:uppercase;color:#4a6280;">Image ' + (i + 1) + '</figcaption>' : '') +
+          '<img src="' + _esc(u) + '" alt="' + _esc(step.label || ('Image ' + (i + 1))) + '" ' +
+          'style="width:100%;max-height:' + (many ? '30vh' : '46vh') + ';object-fit:contain;border-radius:14px;">' +
+        '</figure>';
+      }).join('') +
+    '</div>';
+  }
+
   function _scAnswerUI(step) {
     var secs = Number(step.answerSeconds || 0);
-    var replay = step.replayable
-      ? '<button class="btn secondary" id="scReplay" style="margin-right:8px;">↻ Replay recording</button>'
-      : '';
+    var canRec = _sc.lastRecording && _sc.recReplaysLeft > 0 &&
+                 String(step.section || '').indexOf('2') === 0;
+    var canAsk = step.text && _sc.promptReplaysLeft > 0;
+    var replay =
+      (canRec ? '<button class="btn secondary" id="scReplay" style="margin-right:8px;">\u21bb Replay recording</button>' : '') +
+      (canAsk ? '<button class="btn secondary" id="scRepeat" style="margin-right:8px;">\u21bb Repeat question</button>' : '');
     return '' +
       '<div style="padding:16px;">' +
-        (step.imageUrl
-          ? '<img src="' + _esc(step.imageUrl) + '" alt="' + _esc(step.label || '') + '" ' +
-            'style="width:100%;max-height:46vh;object-fit:contain;border-radius:14px;margin-bottom:14px;">'
-          : '') +
+        _scImagesFor(step) +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">' +
           '<p class="eyebrow" style="margin:0;">' + _esc(step.section || 'Your answer') + '</p>' +
           '<span id="scClock" style="font-variant-numeric:tabular-nums;font-weight:800;' +
@@ -25759,21 +25837,33 @@
 
   function _scAsk(step, done) {
     done = _scOnce(done);
+    // Two per question. Enough for a missed word or a passing aircraft, not enough
+    // to transcribe it slowly.
+    _sc.promptReplaysLeft = 2;
     _scStage(_scAnswerUI(step));
 
     var next = _scEl('scNext');
     if (next) next.onclick = function () { next.disabled = true; if (_sc.stop) _sc.stop(); };
 
+    // Repeating the question costs the candidate nothing and is not reported.
+    var rpt = _scEl('scRepeat');
+    if (rpt) rpt.onclick = function () {
+      if (_sc.promptReplaysLeft <= 0) { rpt.disabled = true; return; }
+      _sc.promptReplaysLeft--;
+      rpt.disabled = true;
+      _scSpeak(step, function () { rpt.disabled = _sc.promptReplaysLeft <= 0; });
+    };
+
     var rep = _scEl('scReplay');
     if (rep) rep.onclick = function () {
-      if (_sc.replaysLeft <= 0) { rep.disabled = true; return; }
-      _sc.replaysLeft--;
+      if (_sc.recReplaysLeft <= 0) { rep.disabled = true; return; }
+      _sc.recReplaysLeft--;
       // Counted the way the existing grader counts it: listens per recording, so
       // _teaComprehensionCap still sees "how many items were heard twice".
       var rid = (_sc.lastRecording && _sc.lastRecording.id) || step.id;
       _t.listens[rid] = Number(_t.listens[rid] || 1) + 1;
       rep.disabled = true;
-      _scSpeak(_sc.lastRecording || step, function () { rep.disabled = _sc.replaysLeft <= 0; });
+      _scSpeak(_sc.lastRecording || step, function () { rep.disabled = _sc.recReplaysLeft <= 0; });
     };
 
     _scRecord(step, function (transcript) {
@@ -25786,17 +25876,59 @@
     if (secs > 0) _scCountdown(secs, function () { if (_sc.stop) _sc.stop(); });
   }
 
+  // Fetched ahead so the next picture is already in the browser's cache.
+  var _scImgCache = {};
+
+  function _scPreloadImage(url) {
+    var u = String(url || '').trim();
+    if (!u || _scImgCache[u]) return;
+    var im = new Image();
+    _scImgCache[u] = im;
+    im.src = u;
+  }
+
+  // Runs the callback once the picture is usable, or after a short wait if it is
+  // not. Three seconds: long enough for a photograph on a phone connection, short
+  // enough that a broken URL does not look like the exam has frozen.
+  function _scWhenImageReady(url, go) {
+    var u = String(url || '').trim();
+    if (!u) { go(); return; }
+    var done = false;
+    var fire = function () { if (done) return; done = true; go(); };
+    var im = _scImgCache[u];
+    if (im && im.complete && im.naturalWidth > 0) { fire(); return; }
+    if (!im) { im = new Image(); _scImgCache[u] = im; im.src = u; }
+    if (im.complete && im.naturalWidth > 0) { fire(); return; }
+    im.addEventListener('load',  fire, { once: true });
+    im.addEventListener('error', fire, { once: true });
+    setTimeout(fire, 3000);
+  }
+
   function _scNextStep() {
     if (!_sc.running) return;
     if (_sc.i >= _sc.steps.length) { _scFinish(); return; }
 
     var step = _sc.steps[_sc.i++];
 
+    // Start fetching the next picture now, while this step plays out.
+    var _peek = _sc.steps[_sc.i];
+    if (_peek && _peek.imageUrl) _scPreloadImage(_peek.imageUrl);
+
+    // Part 3 compares two photographs, so both stay on screen once the second has
+    // been shown. "How is the first image different to the second?" was asked with
+    // NEITHER visible: those rows are LINE items carrying no picture of their own,
+    // and the answer UI only draws what the step itself holds. A comparison you
+    // cannot see is not a language test.
+    if (String(step.section || '') === '3' && step.imageUrl) {
+      _sc.p3Images = _sc.p3Images || [];
+      if (_sc.p3Images.indexOf(step.imageUrl) === -1) _sc.p3Images.push(step.imageUrl);
+    }
+
     // A recording is the material, not a prompt: it plays, it may be replayed once,
     // and the question about it arrives as its own step.
     if (step.kind === 'AUDIO') {
       _sc.lastRecording = step;
-      _sc.replaysLeft = 1;
+      _sc.recReplaysLeft = 1;
       _t.listens[step.id] = 1;
       _setStatus('Listening · do not respond yet', 'speaking');
       _scStage('<div style="padding:28px 16px;text-align:center;">' +
@@ -25815,16 +25947,27 @@
     }
     if (step.text) _t.history.push({ role: 'assistant', content: step.text });
 
-    // Speak the line, then open the mic if this row asks for an answer.
-    _scSpeak(step, function () {
-      if (Number(step.answerSeconds || 0) > 0 || step.imageUrl) _scAsk(step, _scNextStep);
-      else _scNextStep();
+    // The picture is on screen BEFORE it is spoken about.
+    //
+    // The examiner used to say "describe this picture" and only then did _scAsk run,
+    // which is where the <img> is created — so the download began after the prompt
+    // had finished and the candidate spent the first seconds of their answer time
+    // looking at nothing. Waiting for the image costs a moment; asking about a
+    // picture that is not there costs the item.
+    //
+    // The wait is capped. A picture that will not load must not hold the exam.
+    _scWhenImageReady(step.imageUrl, function () {
+      _scSpeak(step, function () {
+        if (Number(step.answerSeconds || 0) > 0 || step.imageUrl) _scAsk(step, _scNextStep);
+        else _scNextStep();
+      });
     });
   }
 
   function _scFinish() {
     _sc.running = false;
     _scClearTimer();
+    _scReleaseMic();
     // Release the hold as soon as the sitting is over. It would expire on its own
     // in three quarters of an hour, but a candidate who wants to sit again should
     // not have to wait out a timer for an exam they already finished.
@@ -25850,6 +25993,23 @@
   // to sit an exam is not made to make a decision they have no basis for.
   window._teaPickedVersion = '';
 
+  // Begin is not a button you can press until you have said which paper you want.
+  // The label carries the answer so the last thing seen before the exam starts is
+  // the accent about to be sat.
+  function _teaSyncBeginBtn() {
+    var btn = document.getElementById('teaBeginBtn');
+    if (!btn) return;
+    var bank = window._teaPickedVersion || '';
+    var meta = (window._teaVersionMeta || {})[bank];
+    var ready = !!bank;
+    btn.disabled = !ready;
+    btn.style.opacity = ready ? '1' : '0.45';
+    btn.style.cursor  = ready ? 'pointer' : 'not-allowed';
+    btn.innerHTML = ready
+      ? 'Begin Exam \u00b7 ' + (meta ? (meta.flag + ' ' + _esc(meta.name)) : _esc(bank))
+      : 'Choose a paper above';
+  }
+
   window._teaSelectVersion = function (bank) {
     window._teaPickedVersion = String(bank || '');
     Array.prototype.slice.call(document.querySelectorAll('.tea-ver-opt')).forEach(function (el) {
@@ -25858,6 +26018,7 @@
       el.style.background  = on ? 'rgba(0,212,142,0.10)' : 'rgba(255,255,255,0.02)';
       el.style.color       = on ? '#dde6f0' : '#8fa3bb';
     });
+    _teaSyncBeginBtn();
   };
 
   function _teaRenderVersionPicker() {
@@ -25893,15 +26054,23 @@
             '</button>';
         }
 
+        // No "Any" tile any more, and no default.
+        //
+        // A random draw is a reasonable thing for an exam board to do and a
+        // terrible thing to do silently: the accent IS the test in Part 2, and a
+        // candidate who believed they had chosen the Indian paper sat the American
+        // one without a word on screen. Every paper is now a deliberate tap.
         host2.innerHTML =
           '<p style="margin:0 0 8px;font-size:0.72rem;font-weight:700;letter-spacing:0.12em;' +
             'text-transform:uppercase;color:#4a6280;text-align:center;">Choose your paper</p>' +
           '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">' +
-            opt('', '🎲', 'Any', 'Random', true) +
             res.versions.map(function (v) {
               return opt(v.bank, v.flag, v.name, v.accent + (v.ready ? '' : ' · not ready'), v.ready);
             }).join('') +
           '</div>';
+        window._teaVersionMeta = {};
+        res.versions.forEach(function (v) { window._teaVersionMeta[v.bank] = v; });
+        // Re-assert whatever was already chosen; if nothing was, Begin stays shut.
         window._teaSelectVersion(window._teaPickedVersion || '');
       })
       // Silence here reads as "there was never a choice", and the candidate begins
@@ -25959,6 +26128,7 @@
     if (window._teaStarting) return;
     window._teaStarting = true;
     _unlockAudio();   // synchronous — must stay inside the click to unlock playback
+    _scPrimeMic();    // same gesture: one prompt, before the examiner starts speaking
 
     // The loader goes up FIRST, before anything is asked of the server.
     //
@@ -26148,6 +26318,7 @@
         _sc.steps   = res.steps || [];
         _sc.i       = 0;
         _sc.bank    = res.bank || '';
+        _sc.p3Images = [];
         _scAudioReset();   // a new paper must not serve the previous one's recordings
         _sc.running = true;
         TEA_BANK    = _sc.bank;
@@ -26793,6 +26964,10 @@
    * does not depend on the candidate using the button we provided.
    */
   window._teaStopAll = function() {
+    // The sitting now holds the microphone for its whole length, so abandoning the
+    // exam has to hand it back. Leaving without releasing would keep the recording
+    // indicator lit on the candidate's phone long after they had gone.
+    try { _scReleaseMic(); } catch (e) {}
     try { if (_t.audioEl) { _t.audioEl.pause(); _t.audioEl.removeAttribute('src'); } } catch (e) {}
     try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
     try { _teaVizStop(); } catch (e) {}
@@ -27170,9 +27345,9 @@
         // drawn at random per sitting. The conversational exam is kept alongside
         // while the scripted one is proven, and reads as the secondary option.
         '<div id="teaVersionPicker" style="width:100%;max-width:460px;"></div>' +
-        '<button id="teaBeginBtn" onclick="window._teaBeginScripted(window._teaPickedVersion || \'\')" ' +
+        '<button id="teaBeginBtn" disabled onclick="window._teaPickedVersion && window._teaBeginScripted(window._teaPickedVersion)" ' +
           'style="padding:14px 40px;background:#00d48e;color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:8px;">' +
-          'Begin Exam' +
+          'Choose a paper above' +
         '</button>' +
         '<button onclick="window._teaBegin()" ' +
           'style="padding:8px 18px;background:transparent;border:1px solid #2a3a4a;' +
@@ -27186,6 +27361,8 @@
     // The intro screen is read for several seconds — warm the examiner voice now so
     // the exam's first line is already cached rather than synthesised live.
     setTimeout(_teaPrewarmVoice, 200);
+    window._teaPickedVersion = '';
+    _teaSyncBeginBtn();
     _teaRenderVersionPicker();
   }
 
