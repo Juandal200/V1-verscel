@@ -25431,6 +25431,48 @@
   }
 
   // Called by the Finish button — uses pipeline if audio was recorded, else falls back to Gemini live grading
+  // How much of the sitting actually arrived.
+  //
+  // The replay report is a user turn too, and counting it as an answer would let a
+  // sitting containing nothing look as though it held one.
+  function _teaAnsweredCount() {
+    var answered = 0, asked = 0;
+    (_t.history || []).forEach(function (m) {
+      if (!m || m.role !== 'user') return;
+      var c = String(m.content || '').trim();
+      if (!c) return;
+      if (/^\[replay report\]/i.test(c) || /replays? (were )?used/i.test(c)) return;
+      asked++;
+      if (c !== '(no answer given)') answered++;
+    });
+    return { answered: answered, asked: asked };
+  }
+
+  function _teaShowUnheard(count) {
+    _t._finishing = false;
+    try { if (window._teaStopAll) window._teaStopAll(); } catch (e) {}
+    var host = document.getElementById('teaCards') || document.getElementById('contentArea');
+    if (!host) return;
+    host.innerHTML =
+      '<div class="panel" style="margin:16px;padding:24px;text-align:left;">' +
+        '<p class="eyebrow" style="margin:0 0 10px;">ICAO TEST \u00b7 NOT MARKED</p>' +
+        '<h3 style="margin:0 0 12px;font-size:1.15rem;color:var(--white,#fff);">' +
+          'Your examination could not be heard</h3>' +
+        '<p style="margin:0 0 10px;font-size:.9rem;line-height:1.6;color:var(--text,#cacaca);">' +
+          'Of ' + count.asked + ' questions, ' + (count.asked - count.answered) +
+          ' recorded no answer. That is a fault on our side and not a reflection of how ' +
+          'you spoke, so no band has been awarded and this sitting has not been counted ' +
+          'against your attempts.' +
+        '</p>' +
+        '<p style="margin:0 0 16px;font-size:.82rem;line-height:1.6;color:var(--muted,#808080);">' +
+          'The usual cause is microphone access. Allow the microphone for this site in your ' +
+          'browser settings, then sit the examination again.' +
+        '</p>' +
+        '<button class="btn primary" onclick="if(window.renderTeaExam)window.renderTeaExam()">' +
+          'Back to the examination</button>' +
+      '</div>';
+  }
+
   function _finishExam() {
     if (_t._finishing) return;
     _t._finishing = true;
@@ -25452,6 +25494,27 @@
           examDate: new Date().toISOString()
         });
     } catch (e) {}
+
+    // An examination that heard nothing does not get to award a band.
+    //
+    // A sitting was marked 1 after the candidate answered every question aloud. The
+    // grading was not wrong: no recording reached the server, twenty-four of
+    // twenty-six answers were filed as "(no answer given)", and a candidate who says
+    // nothing to everything IS a band 1. The fault is that the exam agreed to mark a
+    // sitting it had not heard.
+    //
+    // A 1 is not a neutral outcome. It reads as a judgement on someone's English and
+    // it is the number an employer would be shown, and here it measured a microphone
+    // permission. Refusing costs a retake; awarding it costs the credibility of every
+    // band the system has ever issued.
+    //
+    // Nothing is saved on this path, so the attempt is not spent on a sitting that
+    // never happened.
+    var _heard = _teaAnsweredCount();
+    if (_heard.answered === 0 || (_t.segments.length === 0 && _heard.answered < _heard.asked / 2)) {
+      _teaShowUnheard(_heard);
+      return;
+    }
 
     if (_t.segments.length > 0) {
       // Grading runs Whisper over every spoken answer and then scores six
