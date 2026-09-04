@@ -11,9 +11,9 @@ const T  = fs.readFileSync(__dirname + '/../TEAService.js', 'utf8');
 let fails = 0; const ok=(n,c)=>{if(!c)fails++;console.log((c?'  PASS  ':'  FAIL  ')+n);};
 
 const counter = T.slice(T.indexOf('function _icaoSittingsFor_'),
-                        T.indexOf('function _icaoSittingsFor_') + 2200);
+                        T.indexOf('function apiGetIcaoExamAllowance'));
 const results = T.slice(T.indexOf('function apiGetMyIcaoResults'),
-                        T.indexOf('function apiGetMyIcaoResults') + 3000);
+                        T.indexOf('function apiSaveIcaoTranscript'));
 
 console.log('--- attempts are counted from results, not rows ---');
 ok('the band column is read',            /bandCol = TEA_SHEET_HEADERS\.indexOf\('Overall Band'\)/.test(counter));
@@ -28,8 +28,8 @@ ok('and that runs before the row is built',
    results.indexOf("Number(r[idx['Overall Band']]) > 0") < results.indexOf('results.push('));
 
 console.log('--- the paywall still applies to what remains ---');
-ok('locked rows still carry no band',    /band:\s*null/.test(results));
-ok('locked rows still carry no scores',  /scores:\s*null/.test(results));
+ok('locked rows still carry no real band',   /band:\s*0,/.test(results));
+ok('locked rows still carry no real scores', /pronunciation: 0, structure: 0, vocabulary: 0/.test(results));
 
 /* Drive the real filter over rows shaped like the sheet. */
 const rows = [

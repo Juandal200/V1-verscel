@@ -11,13 +11,21 @@ const T  = fs.readFileSync(__dirname + '/../TEAService.js', 'utf8');
 let fails = 0; const ok=(n,c)=>{if(!c)fails++;console.log((c?'  PASS  ':'  FAIL  ')+n);};
 
 console.log('--- the numbers never leave the server ---');
-const api = T.slice(T.indexOf('function apiGetMyIcaoResults'), T.indexOf('function apiGetMyIcaoResults') + 2600);
+// Bounded by the next function, not a character count. A fixed-length slice has
+// silently truncated three of these tests today and reported the code as broken when
+// only the window was.
+const api = T.slice(T.indexOf('function apiGetMyIcaoResults'),
+                    T.indexOf('function apiSaveIcaoTranscript'));
 ok('the endpoint asks whether this plan may read',  /getUserAccessStatus_\(user\)\.status/.test(api));
-ok('a locked row carries a null band',              /band:\s*null/.test(api));
-ok('and no descriptor scores at all',               /scores:\s*null/.test(api));
+// Zeros rather than nulls: a null crashed every client that had not yet received the
+// guard for it, and Apps Script deploys hours before the browser does. What matters
+// is that no REAL measurement leaves the server, not which empty value stands in.
+ok('a locked row carries no real band',             /band:\s*0,/.test(api));
+ok('and every descriptor is zeroed',                /pronunciation: 0, structure: 0, vocabulary: 0/.test(api));
+ok('nothing null is sent to an older client',       !/band:\s*null/.test(api) && !/scores:\s*null/.test(api));
 ok('it still says the sitting happened',            /date:\s*String\(r\[idx\['Date'\]\]/.test(api));
 ok('the locked branch returns before the real one',
-   api.indexOf('band:   null') < api.indexOf("band:    Number(r[idx['Overall Band']])"));
+   api.indexOf('band:    0,') < api.indexOf("band:    Number(r[idx['Overall Band']])"));
 
 console.log('--- the history draws a lock, not a zero ---');
 ok('the chip takes the locked flag',      /function bandChip\(b, locked\)/.test(S));
