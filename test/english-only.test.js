@@ -11,7 +11,9 @@ const fs = require('fs');
 const S  = fs.readFileSync(__dirname + '/../Scripts.html', 'utf8');
 let fails = 0; const ok=(n,c)=>{if(!c)fails++;console.log((c?'  PASS  ':'  FAIL  ')+n);};
 
-const SPANISH = /[áéíóúñ¿¡]|\b(nivel|niveles|completa|acceso|intentos|examen|d[ií]as|simulaci[oó]n|emergencias|fallas|pago|transmisi[oó]n|autorizaci[oó]n|activado|mes|meses|todos los|primeros|a medida|descargables|generando|verificando|s[ií]ntesis)\b/i;
+/* Bare uppercase phrases with no accents slipped through the first sweep — "MEJOR
+ * VALOR" sat on the Full plan badge for a day after everything else was translated. */
+const SPANISH = /\b(mejor|valor|gratis|ahora|comprar|elegir|m[aá]s|nuevo|oferta|plan(es)?\s+(m[aá]s|de))\b|[áéíóúñ¿¡]|\b(nivel|niveles|completa|acceso|intentos|examen|d[ií]as|simulaci[oó]n|emergencias|fallas|pago|transmisi[oó]n|autorizaci[oó]n|activado|mes|meses|todos los|primeros|a medida|descargables|generando|verificando|s[ií]ntesis)\b/i;
 
 /* A placeholder name is an example, not a sentence. */
 const NOT_COPY = /placeholder="e\.g\./i;
@@ -37,7 +39,13 @@ const near = (needle, span) => {
 ok('the level map lock is in English',
    /Complete the previous level/.test(S) && !/Completa el nivel/.test(S));
 ok('the plan cards are in English',
-   /Every level, including Operational levels/.test(S) && !/Todos los niveles/.test(S));
+   /Every level, including Operational as it is published/.test(S) && !/Todos los niveles/.test(S));
+ok('the value badge is in English',
+   /BEST VALUE/.test(S) && !/MEJOR VALOR/.test(S));
+// The prose used to state attempt counts that disagreed with the gate — "three
+// attempts" on a plan granting two, "twice the attempts" on one granting three times.
+ok('the plan prose states no counts of its own',
+   !/three attempts at the ICAO mock test/.test(S) && !/twice the exam attempts/.test(S));
 ok('the plan features are in English',
    /Engine failure, smoke and fire on board/.test(S) && !/Fallas de motor/.test(S));
 ok('payment feedback is in English',

@@ -11405,7 +11405,11 @@
           basic: {
             name:     'Basic',
             duration: '1 Month',
-            desc:     'The first simulator levels and three attempts at the ICAO mock test.',
+            // No counts in the prose. The feature list below prints the real
+            // maxLevel and examAllowance from the server, and this line used to say
+            // "three attempts" while Basic grants two — copy quietly disagreeing with
+            // the gate it describes.
+            desc:     'The foundation levels of the ATC simulator, with mock test attempts to check where you stand.',
             savings:  null,
             popular:  false,
             months:   1
@@ -11413,8 +11417,12 @@
           full: {
             name:     'Full',
             duration: '1 Month',
-            desc:     'Every level, including Operational levels as they are published, and twice the exam attempts.',
-            savings:  'MEJOR VALOR',
+            // "Twice the attempts" was wrong too — Full grants three times as many.
+            // It also now means something it did not before: Basic reaches the
+            // foundation levels, Full reaches Operational as well, so the two are
+            // genuinely different products rather than the same one at two prices.
+            desc:     'Every level, including Operational as it is published, plus emergency scenarios and more mock test attempts.',
+            savings:  'BEST VALUE',
             popular:  true,
             months:   1
           }

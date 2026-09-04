@@ -181,3 +181,114 @@ function checkLevelCaps() {
   Logger.log(msg);
   return msg;
 }
+
+/**
+ * Prove the dispenser without writing content.
+ *
+ * Everything says a level is now data: its scenarios, its name, its grouping, its plan
+ * reach, its place in the progress bar. That has been verified by reading the code,
+ * which is not the same as being true. This creates a throwaway level 11 — two phases,
+ * placeholder text — so the claim can be tested in a few minutes rather than
+ * discovered to be wrong after somebody writes eight real scenarios for it.
+ *
+ * Run createTestLevel11() from LevelService.gs, look at the app, then run
+ * deleteTestLevel11() to remove every trace.
+ */
+function createTestLevel11() {
+  var now = new Date().toISOString();
+  var made = { scenarios: 0, level: 0 };
+
+  var existing = {};
+  try {
+    readSheetObjectsV5Hard_('Scenarios').forEach(function(r) {
+      existing[String(r.scenarioId || '')] = true;
+    });
+  } catch (e) {}
+
+  // Two phases is enough to prove a level exists, unlocks and can be entered. The text
+  // is deliberately obvious so nobody mistakes it for content.
+  var phases = [
+    { code: 'STARTUP', name: 'Startup',
+      atc: 'Test one one alpha, startup approved, information charlie, QNH one zero one three.',
+      exp: 'Startup approved, information charlie, QNH one zero one three, test one one alpha.',
+      kw:  'STARTUP APPROVED|CHARLIE|QNH|1013' },
+    { code: 'TAXI', name: 'Taxi',
+      atc: 'Test one one alpha, taxi to holding point alpha, runway two seven, via taxiway bravo.',
+      exp: 'Taxi to holding point alpha, runway two seven, via bravo, test one one alpha.',
+      kw:  'TAXI|HOLDING POINT ALPHA|RUNWAY 27|BRAVO' }
+  ];
+
+  phases.forEach(function(p, i) {
+    var id = 'TESTL11_' + p.code;
+    if (existing[id]) return;
+    dbAppend_('Scenarios', {
+      scenarioId: id, scenarioOrder: i + 1, level: 11, country: 'USA',
+      flightScenarioId: 'TESTL11', flightScenarioName: 'Dispenser test',
+      phaseCode: p.code, phaseName: p.name, phaseOrder: i + 1,
+      scenarioType: 'NORMAL', emergencyType: '',
+      context: 'A throwaway phase created by createTestLevel11. Safe to delete.',
+      atcText: p.atc, expectedReadback: p.exp, keywords: p.kw,
+      imageFileId: '', videoUrl: '', audioUrl: '', isActive: 'TRUE',
+      version: '1', createdBy: 'createTestLevel11', createdAt: now, updatedAt: now,
+      phaseLabel: p.name
+    });
+    made.scenarios++;
+  });
+
+  var haveLevel = false;
+  try {
+    dbReadAll_(LEVELS_SHEET_).forEach(function(r) { if (Number(r.level) === 11) haveLevel = true; });
+  } catch (e) {}
+  if (!haveLevel) {
+    dbAppend_(LEVELS_SHEET_, {
+      level: 11, name: 'Dispenser Test', icon: '🧪', tag: 'Test',
+      description: 'A throwaway level proving a level can be added from the sheets alone.',
+      accent: '', groupKey: 'OPERATIONAL', groupName: 'Operational',
+      phases: 'Startup, Taxi', isActive: 'TRUE', createdAt: now, updatedAt: now
+    });
+    made.level = 1;
+  }
+
+  var msg = 'CREATED TEST LEVEL 11\n' +
+    '  scenarios added : ' + made.scenarios + '\n' +
+    '  Levels row added: ' + made.level + '\n\n' +
+    'Now, WITHOUT deploying anything:\n' +
+    '  1. run renderScenarioAudio in TTSService.gs\n' +
+    '  2. reload the app twice on wifi\n' +
+    '  3. the Operational card should now open a MENU with two levels in it\n' +
+    '  4. "Dispenser Test" should be named, described and enterable\n' +
+    '  5. the progress bar should count out of 11\n\n' +
+    'Then run deleteTestLevel11() to remove every trace.';
+  Logger.log(msg);
+  return msg;
+}
+
+/** Removes everything createTestLevel11 made. Leaves no trace. */
+function deleteTestLevel11() {
+  var removed = { scenarios: 0, level: 0, attempts: 0, progress: 0 };
+
+  function purge(sheet, matches, counter) {
+    var rows;
+    try { rows = dbReadAll_(sheet); } catch (e) { return; }
+    // Bottom-up: deleting a row shifts everything below it.
+    rows.slice().reverse().forEach(function(r) {
+      if (!matches(r)) return;
+      try { dbDeleteByRow_(sheet, r.__rowNumber); removed[counter]++; } catch (e) {}
+    });
+  }
+
+  purge('Scenarios', function(r) { return String(r.scenarioId || '').indexOf('TESTL11_') === 0; }, 'scenarios');
+  purge(LEVELS_SHEET_, function(r) { return Number(r.level) === 11; }, 'level');
+  purge('Attempts',  function(r) { return String(r.scenarioId || '').indexOf('TESTL11_') === 0; }, 'attempts');
+  purge('Progress',  function(r) { return Number(r.level) === 11; }, 'progress');
+
+  var msg = 'REMOVED TEST LEVEL 11\n' +
+    '  scenarios : ' + removed.scenarios + '\n' +
+    '  Levels row: ' + removed.level + '\n' +
+    '  attempts  : ' + removed.attempts + '\n' +
+    '  progress  : ' + removed.progress + '\n\n' +
+    'Rendered audio for those two lines stays in Drive and is harmless; ' +
+    'checkScenarioAudio will list it if you want it gone.';
+  Logger.log(msg);
+  return msg;
+}
