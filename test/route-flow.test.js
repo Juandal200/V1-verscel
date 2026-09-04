@@ -40,7 +40,14 @@ ok('the request goes through it',      /_gMicReuse\(\)\s*\n\s*\.then\(function\(
 ok('the promise is kept, not just the stream', /if \(_gMicPromise\) return _gMicPromise;/.test(S));
 ok('an answer no longer stops the tracks',
    !/_gMicActive = false;\s*\n\s*stream\.getTracks\(\)\.forEach\(function\(t\) \{ t\.stop\(\); \}\);/.test(S));
-ok('leaving the simulator releases it', /function simMediaStopAll\(\) \{[\s\S]{0,300}_gMicRelease/.test(S));
+// Scoped to the function rather than to a character count. The guarantee is that
+// leaving releases the microphone, not that the call sits within 300 characters of
+// the opening brace — a comment added above it should not read as a regression.
+const teardown = S.slice(S.indexOf('function simMediaStopAll'),
+                         S.indexOf('function simMediaStopAll') + 2500);
+ok('leaving the simulator releases it', /_gMicRelease/.test(teardown));
+ok('and clears the keyboard offset it set',
+   /setProperty\('--kb', '0px'\)/.test(teardown));
 ok('releasing clears both the stream and the promise',
    /_gMicStream = null; _gMicPromise = null;/.test(S));
 
