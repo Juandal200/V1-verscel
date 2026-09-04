@@ -138,25 +138,39 @@ function _hcScenarioAudio_() {
 /**
  * A level the student can reach must be a level the app can name.
  *
- * The Scenarios sheet carries ten levels. The client names nine — LEVEL_THEMES in
- * Scripts.html — and falls back to a grey card reading "Training Level" with no
- * description and no phase list for anything beyond. It renders, so nothing breaks
- * and nothing complains; the tenth level simply looks like a mistake to whoever
- * reaches it.
+ * This used to compare against a number copied from the client, because a level's
+ * identity lived in LEVEL_THEMES and there was nothing else to read. Now it reads the
+ * Levels sheet, which is where names actually are — so a level with scenarios and no
+ * row is the finding, and naming one in the sheet clears it without touching code.
  *
- * This number is deliberately duplicated from the client so that the two disagreeing
- * is itself the finding. Raise it here when a level is named there.
+ * The client still falls back to its built-in nine, so this reports a level that will
+ * render as an anonymous "Training Level" rather than one that fails.
  */
-var _HC_CLIENT_NAMED_LEVELS_ = 9;
-
 function _hcLevelIdentity_(levels) {
-  var issues = [];
+  var issues = [], named = {};
+  var haveSheet = true;
+  try {
+    dbReadAll_(LEVELS_SHEET_).forEach(function(r) {
+      if (String(r.isActive).toUpperCase() === 'FALSE') return;
+      if (String(r.name || '').trim()) named[Number(r.level)] = String(r.name).trim();
+    });
+  } catch (e) { haveSheet = false; }
+
+  if (!haveSheet) {
+    issues.push(_hcIssue_('Levels', '-',
+      'no Levels sheet — run setupLevelsSheet, or every level past the ninth stays unnamed'));
+    return { issues: issues };
+  }
+
   Object.keys(levels).forEach(function(l) {
     var n = Number(l);
-    if (n > _HC_CLIENT_NAMED_LEVELS_)
-      issues.push(_hcIssue_('Levels', 'L' + n,
-        levels[l] + ' scenarios, but no name, icon or description in the client — ' +
-        'it renders as an unnamed "Training Level"'));
+    if (!named[n]) issues.push(_hcIssue_('Levels', 'L' + n,
+      levels[l] + ' scenarios, but no row in the Levels sheet — it renders as "Training Level"'));
+  });
+  // A name with no content behind it is the same fault the other way round.
+  Object.keys(named).forEach(function(l) {
+    if (!levels[Number(l)]) issues.push(_hcIssue_('Levels', 'L' + l,
+      'named "' + named[l] + '" but has no scenarios'));
   });
   return { issues: issues };
 }
@@ -170,16 +184,20 @@ function _hcPlans_() {
       if (String(r.isActive).toUpperCase() === 'FALSE') return;
       maxLevel = Math.max(maxLevel, Number(r.level || 0));
     });
-    Object.keys(ACCESS_PLANS_).forEach(function(k) {
-      var p = ACCESS_PLANS_[k];
-      if (k !== 'STAFF' && p.maxLevel > maxLevel)
-        issues.push(_hcIssue_('Plans', k,
-          'sold as ' + p.maxLevel + ' levels, but only ' + maxLevel + ' exist'));
-    });
-    var basic = ACCESS_PLANS_.BASIC, full = ACCESS_PLANS_.FULL;
-    if (basic && full && Math.min(basic.maxLevel, maxLevel) === Math.min(full.maxLevel, maxLevel))
+    // What a tier REACHES, which is computed from the content, not the ceiling written
+    // beside it. The ceiling is deliberately generous so a new level needs no edit;
+    // reading it here reported Full as promising ninety-nine levels, which is the
+    // check looking at the number the fix stopped using.
+    var caps = levelCapsFromContent_();
+    if (caps.full > maxLevel)
+      issues.push(_hcIssue_('Plans', 'FULL',
+        'reaches level ' + caps.full + ', but only ' + maxLevel + ' have scenarios'));
+    if (caps.basic > maxLevel)
+      issues.push(_hcIssue_('Plans', 'BASIC',
+        'reaches level ' + caps.basic + ', but only ' + maxLevel + ' have scenarios'));
+    if (caps.basic === caps.full)
       issues.push(_hcIssue_('Plans', 'BASIC vs FULL',
-        'both open every level that exists — the tiers are the same product'));
+        'both reach level ' + caps.full + ' — the tiers are the same product at two prices'));
   } catch (e) {
     issues.push(_hcIssue_('Plans', '-', e.message));
   }
