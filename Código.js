@@ -2205,8 +2205,19 @@ function apiError_(source, err) {
     Logger.log(source + ' ERROR: ' + message);
     Logger.log(stack);
 
+    // Third argument is userId, not the stack.
+    //
+    // LogService.error(source, err, userId) writes its third parameter into the userId
+    // column, and this passed the stack trace. Two thousand error rows carry a stack
+    // where a person should be, which is why a sweep for rows belonging to deleted
+    // users reported 365 of them — 365 distinct stack traces, not 365 people. The
+    // error object already carries its stack and LogService stores it separately;
+    // passing it again only put it somewhere it could mislead.
+    //
+    // Nothing here knows who was signed in — apiError_ is given a source and an error
+    // — so blank is the honest value rather than an invented one.
     if (typeof LogService !== 'undefined' && LogService.error) {
-      LogService.error(source, err, stack);
+      LogService.error(source, err, '');
     }
   } catch (logErr) {
     Logger.log('Could not write LogService error: ' + logErr);

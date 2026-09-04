@@ -205,6 +205,12 @@ function _hcOrphans_() {
   try {
     Object.keys(DB_SCHEMA).forEach(function(name) {
       if (name === 'Users') return;
+    // ErrorLogs is not a record of people. apiError_ wrote stack traces into its
+    // userId column for a long time, so every distinct stack reads as a missing
+    // user — 365 of them, drowning the three real ones. Excluded rather than
+    // special-cased, because a diagnostic that has to be mentally filtered is a
+    // diagnostic nobody reads.
+    if (name === 'ErrorLogs') return;
       if ((DB_SCHEMA[name] || []).indexOf('userId') !== -1) sheets.push(name);
     });
   } catch (e) {}
