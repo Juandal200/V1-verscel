@@ -2526,19 +2526,19 @@
     { phase: 'STARTUP',    label: 'Pre-flight / Startup',    order: 1,
       atcText:         CABINA_CALLSIGN + ' START UP APPROVED TEMPERATURE MINUS 2',
       expectedReadback:'START UP APPROVED ' + CABINA_CALLSIGN,
-      context: 'Solicite autorización de arranque de motores antes del pushback.' },
+      context: 'Request engine start clearance before pushback.' },
     { phase: 'TAXI_OUT',   label: 'Taxi Out',                order: 2,
       atcText:         CABINA_CALLSIGN + ' TAXI TO HOLDING POINT RUNWAY ' + CABINA_RUNWAY + ' VIA ' + CABINA_TAXI,
       expectedReadback:'TAXI TO HOLDING POINT RUNWAY ' + CABINA_RUNWAY + ' VIA ' + CABINA_TAXI + ' ' + CABINA_CALLSIGN,
-      context: 'Rodaje hacia el punto de espera. Siga las instrucciones de ruta.' },
+      context: 'Taxi to the holding point. Follow the routing instructions.' },
     { phase: 'TAKEOFF',    label: 'Takeoff',                 order: 3,
       atcText:         CABINA_CALLSIGN + ' WIND 260 DEGREES 8 KNOTS RUNWAY ' + CABINA_RUNWAY + ' CLEARED FOR TAKEOFF',
       expectedReadback:'RUNWAY ' + CABINA_RUNWAY + ' CLEARED FOR TAKEOFF ' + CABINA_CALLSIGN,
-      context: 'Autorización de despegue. Confirme pista y autorización.' },
+      context: 'Take-off clearance. Confirm the runway and the clearance.' },
     { phase: 'DEPARTURE',  label: 'Departure / Climb',       order: 4,
       atcText:         CABINA_CALLSIGN + ' CLIMB FLIGHT LEVEL 120 CONTACT DEPARTURE 119 DECIMAL 7',
       expectedReadback:'CLIMB FLIGHT LEVEL 120 CONTACT DEPARTURE 119 DECIMAL 7 ' + CABINA_CALLSIGN,
-      context: 'Instrucción de ascenso y cambio de frecuencia a control de salida.' },
+      context: 'Climb instruction and frequency change to departure control.' },
     { phase: 'CRUISE',     label: 'Enroute / Cruise',        order: 5,
       atcText:         CABINA_CALLSIGN + ' CONTACT CONTROL 129 DECIMAL 1',
       expectedReadback:'CONTACT CONTROL 129 DECIMAL 1 ' + CABINA_CALLSIGN,
@@ -2546,15 +2546,15 @@
     { phase: 'APPROACH',   label: 'Descent / Approach',      order: 6,
       atcText:         CABINA_CALLSIGN + ' DESCEND TO 3000 FEET CLEARED ILS APPROACH RUNWAY ' + CABINA_RUNWAY,
       expectedReadback:'DESCEND TO 3000 FEET CLEARED ILS APPROACH RUNWAY ' + CABINA_RUNWAY + ' ' + CABINA_CALLSIGN,
-      context: 'Autorización ILS. Confirme descenso y pista de aproximación.' },
+      context: 'ILS clearance. Confirm the descent and the approach runway.' },
     { phase: 'LANDING',    label: 'Landing',                 order: 7,
       atcText:         CABINA_CALLSIGN + ' WIND 270 DEGREES 6 KNOTS RUNWAY ' + CABINA_RUNWAY + ' CLEARED TO LAND',
       expectedReadback:'RUNWAY ' + CABINA_RUNWAY + ' CLEARED TO LAND ' + CABINA_CALLSIGN,
-      context: 'Autorización de aterrizaje. Confirme pista y autorización.' },
+      context: 'Landing clearance. Confirm the runway and the clearance.' },
     { phase: 'TAXI_IN',    label: 'Taxi In / Shutdown',      order: 8,
       atcText:         CABINA_CALLSIGN + ' TAXI TO STAND ' + CABINA_STAND + ' VIA BRAVO AND CHARLIE',
       expectedReadback:'TAXI TO STAND ' + CABINA_STAND + ' VIA BRAVO AND CHARLIE ' + CABINA_CALLSIGN,
-      context: 'Rodaje al puesto de estacionamiento tras el aterrizaje.' }
+      context: 'Taxi to the stand after landing.' }
   ];
 
   var _cabinaSelectedIndex = 0;
@@ -2648,7 +2648,7 @@
     var playerStatus = byId('cabinaPlayerStatus');
     if (playerStatus) {
       playerStatus.className = 'cabina-player-status';
-      playerStatus.textContent = 'Fase seleccionada: ' + scenario.label;
+      playerStatus.textContent = 'Phase selected: ' + scenario.label;
     }
 
     Array.prototype.slice.call(document.querySelectorAll('.cabina-phase-item')).forEach(function(el, i) {
@@ -2665,7 +2665,7 @@
     var statusEl = byId('cabinaPlayerStatus');
 
     if (!window.speechSynthesis) {
-      if (statusEl) { statusEl.className = 'cabina-player-status warn'; statusEl.textContent = 'Síntesis de voz no disponible en este navegador.'; }
+      if (statusEl) { statusEl.className = 'cabina-player-status warn'; statusEl.textContent = 'Speech synthesis is not available in this browser.'; }
       return;
     }
 
@@ -2686,13 +2686,13 @@
       if (preferred) utter.voice = preferred;
 
       utter.onstart = function() {
-        if (statusEl) { statusEl.className = 'cabina-player-status ok'; statusEl.textContent = '▶ Transmisión ATC activa...'; }
+        if (statusEl) { statusEl.className = 'cabina-player-status ok'; statusEl.textContent = '\u25b6 ATC transmission playing\u2026'; }
       };
       utter.onend = function() {
-        if (statusEl) { statusEl.className = 'cabina-player-status'; statusEl.textContent = 'Transmisión completada.'; }
+        if (statusEl) { statusEl.className = 'cabina-player-status'; statusEl.textContent = 'Transmission complete.'; }
       };
       utter.onerror = function() {
-        if (statusEl) { statusEl.className = 'cabina-player-status warn'; statusEl.textContent = 'Error al reproducir transmisión.'; }
+        if (statusEl) { statusEl.className = 'cabina-player-status warn'; statusEl.textContent = 'The transmission could not be played.'; }
       };
 
       window.speechSynthesis.speak(utter);
@@ -2736,7 +2736,7 @@
       return '<div class="cabina-phase-item' + (i === 0 ? ' active' : '') + '" onclick="cabinaSelectPhase(' + i + ')" id="cabina-phase-' + i + '">' +
         '<div class="cabina-phase-header">' +
           '<span class="cabina-phase-name">' + safeText(s.label) + '</span>' +
-          '<span class="cabina-phase-badge">FASE ' + s.order + '</span>' +
+          '<span class="cabina-phase-badge">PHASE ' + s.order + '</span>' +
         '</div>' +
         '<div class="cabina-atc-block">' +
           '<div class="cabina-block-label">ATC</div>' +
@@ -2758,7 +2758,7 @@
         '<header class="cabina-header">' +
           '<div class="cabina-title">' +
             '<span class="cabina-title-plane">&#9992;</span>' +
-            '<span>PRUEBA&nbsp;CABINA &nbsp;&bull;&nbsp; NIVEL&nbsp;1 &nbsp;&bull;&nbsp; USA</span>' +
+            '<span>COCKPIT&nbsp;DEMO &nbsp;&bull;&nbsp; LEVEL&nbsp;1 &nbsp;&bull;&nbsp; USA</span>' +
             '<span class="cabina-led cyan"></span>' +
           '</div>' +
 
@@ -2789,7 +2789,7 @@
                 '<span class="cabina-led amber"></span>' +
               '</div>' +
               '<div class="cabina-radio-display">' +
-                '<div class="cabina-block-label">Transmisión activa</div>' +
+                '<div class="cabina-block-label">Live transmission</div>' +
                 '<div class="cabina-radio-text" id="cabinaAtcDisplay">' + safeText(selected.atcText) + '</div>' +
               '</div>' +
               '<div class="cabina-gauges-row">' +
@@ -2822,7 +2822,7 @@
 
           '<div class="cabina-card">' +
             '<div class="cabina-card-header">' +
-              '<span class="cabina-card-label">&#127381; Respuestas &bull; Nivel 1 &bull; USA</span>' +
+              '<span class="cabina-card-label">&#127381; Answers &bull; Level 1 &bull; USA</span>' +
               '<span style="font-size:0.75rem; color:var(--muted);">8 FASES</span>' +
             '</div>' +
             '<div class="cabina-readbacks" id="cabinaReadbackList">' +
@@ -5172,7 +5172,7 @@
           ? 'Unlock Level ' + Number(levelItem.level)
           : (locked
               ? (levelItem.lockedByPlan === true
-                  ? 'Completa el nivel anterior'
+                  ? 'Complete the previous level'
                   : (vr ? vr.icon + ' Unlock to Claim' : 'Access Restricted'))
               : (isCompleted ? (vr ? vr.icon + ' Replay for Bonus' : 'Select Level') : (vr ? vr.btn : 'Select Level')));
         var btnCls    = _planLock ? 'primary' : (locked ? 'secondary' : (vr ? 'primary btn-cta-pulse' : 'primary'));
@@ -11310,16 +11310,16 @@
         var meta = {
           basic: {
             name:     'Basic',
-            duration: '1 Mes',
-            desc:     'Acceso a los primeros niveles del simulador y tres intentos del examen simulado OACI.',
+            duration: '1 Month',
+            desc:     'The first simulator levels and three attempts at the ICAO mock test.',
             savings:  null,
             popular:  false,
             months:   1
           },
           full: {
             name:     'Full',
-            duration: '1 Mes',
-            desc:     'Todos los niveles, incluidos los operacionales a medida que se publican, y el doble de intentos del examen.',
+            duration: '1 Month',
+            desc:     'Every level, including Operational levels as they are published, and twice the exam attempts.',
             savings:  'MEJOR VALOR',
             popular:  true,
             months:   1
@@ -11346,11 +11346,11 @@
 
           // Straight from the server's entitlement, so the card cannot promise more
           // than the catalogue opens.
-          var subtext = 'Niveles 1 a ' + plan.maxLevel + ' &middot; ' +
-                        plan.examAllowance + ' intentos del examen';
+          var subtext = 'Levels 1 to ' + plan.maxLevel + ' &middot; ' +
+                        plan.examAllowance + ' exam attempts';
           var priceBlock = monthlyCop
             ? '<p style="margin:0 0 2px;font-size:2rem;font-weight:900;color:var(--text);line-height:1;white-space:nowrap;">COP ' + monthlyCop + '</p>' +
-              '<p style="margin:0 0 4px;font-size:0.72rem;color:var(--muted);letter-spacing:0.04em;white-space:nowrap;">/ mes</p>' +
+              '<p style="margin:0 0 4px;font-size:0.72rem;color:var(--muted);letter-spacing:0.04em;white-space:nowrap;">/ month</p>' +
               '<p style="margin:0 0 16px;font-size:0.72rem;color:var(--muted);">' + subtext + '</p>'
             : '<p style="margin:0 0 2px;font-size:2rem;font-weight:900;color:var(--text);line-height:1;white-space:nowrap;">COP ' + totalCop + '</p>' +
               '<p style="margin:0 0 16px;font-size:0.72rem;color:var(--muted);">' + subtext + '</p>';
@@ -11397,20 +11397,20 @@
 
           var featureList =
             '<ul style="list-style:none;margin:0 0 18px;padding:0;">' +
-              _feat('&#127918;', '<strong>' + plan.maxLevel + ' niveles</strong> del simulador ATC', true) +
-              _feat('&#128221;', '<strong>' + plan.examAllowance + ' intentos</strong> del examen simulado OACI', true) +
+              _feat('&#127918;', '<strong>' + plan.maxLevel + ' levels</strong> of the ATC simulator', true) +
+              _feat('&#128221;', '<strong>' + plan.examAllowance + ' attempts</strong> at the ICAO mock test', true) +
               (plan.emergencies
-                ? _feat('&#128680;', '<strong>Simulaci&oacute;n de emergencias</strong>', true) +
-                  _feat('&#128293;', 'Fallas de motor, humo e incendio a bordo') +
-                  _feat('&#127786;', 'Meteorolog&iacute;a severa, cizalladura y turbulencia') +
-                  _feat('&#128295;', 'Fallas t&eacute;cnicas: hidr&aacute;ulica, presurizaci&oacute;n, tren') +
-                  _feat('&#128657;', 'Emergencias m&eacute;dicas y pasajeros disruptivos')
-                : _missing('&#128680;', 'Simulaci&oacute;n de emergencias')) +
+                ? _feat('&#128680;', '<strong>Emergency simulation</strong>', true) +
+                  _feat('&#128293;', 'Engine failure, smoke and fire on board') +
+                  _feat('&#127786;', 'Severe weather, wind shear and turbulence') +
+                  _feat('&#128295;', 'Technical failures: hydraulics, pressurisation, landing gear') +
+                  _feat('&#128657;', 'Medical emergencies and disruptive passengers')
+                : _missing('&#128680;', 'Emergency simulation')) +
               _feat('&#129302;', 'Evaluaci&oacute;n por IA en la escala OACI, banda por descriptor') +
-              _feat('&#127942;', 'Certificados descargables por nivel') +
+              _feat('&#127942;', 'Downloadable certificate for each level') +
               _feat('&#128202;', 'Anal&iacute;tica detallada de tu progreso') +
               (plan.id === 'full'
-                ? _feat('&#128640;', 'Niveles operacionales a medida que se publican', true)
+                ? _feat('&#128640;', 'Operational levels as they are published', true)
                 : '') +
             '</ul>';
 
@@ -11449,7 +11449,7 @@
     var btn    = byId('subPayBtn-' + plan);
     var status = byId('subPayStatus');
     if (btn) btn.disabled = true;
-    if (status) status.textContent = 'Generando enlace de pago…';
+    if (status) status.textContent = 'Creating your payment link\u2026';
 
     // Open the window immediately (direct user gesture) to avoid popup blockers.
     // We'll navigate it to the real URL once GAS responds.
@@ -11480,30 +11480,30 @@
       .withFailureHandler(function(err) {
         if (payWin) payWin.close();
         if (btn) btn.disabled = false;
-        if (status) status.textContent = 'Error: ' + (err && err.message ? err.message : 'Inténtalo de nuevo.');
+        if (status) status.textContent = 'Error: ' + (err && err.message ? err.message : 'Please try again.');
       })
       .apiGetWompiCheckoutData(AppState.sessionToken, plan);
   }
 
   function verifySubscriptionNow() {
     var status = byId('subPayStatus');
-    if (status) status.textContent = 'Verificando pago…';
+    if (status) status.textContent = 'Checking your payment\u2026';
 
     google.script.run
       .withSuccessHandler(function(res) {
         if (res && res.ok && res.active) {
           if (status) status.innerHTML =
-            '<span style="color:var(--green);font-weight:700">&#10003; ¡Plan activado! ' +
-            res.daysLeft + ' días disponibles.</span>';
+            '<span style="color:var(--green);font-weight:700">&#10003; Plan activated! ' +
+            res.daysLeft + ' days available.</span>';
           hydrateSubscriptionStatus();
           setTimeout(closeSubscriptionModal, 2200);
         } else {
           if (status) status.innerHTML =
-            '<span style="color:var(--red)">Pago no encontrado aún. Espera unos segundos y vuelve a intentar.</span>';
+            '<span style="color:var(--red)">Payment not found yet. Wait a few seconds and try again. Espera unos segundos y vuelve a intentar.</span>';
         }
       })
       .withFailureHandler(function() {
-        if (status) status.textContent = 'Error verificando. Inténtalo de nuevo.';
+        if (status) status.textContent = 'Could not verify. Please try again.';
       })
       .apiGetSubscriptionStatus(AppState.sessionToken);
   }
@@ -11671,13 +11671,13 @@
             // honoured for settling payments begun before the change; they are not on
             // sale, so they are not edited here.
             '<div>' +
-              '<label style="display:block;font-size:0.75rem;color:var(--muted);margin-bottom:6px;">Basic \u00b7 30 días</label>' +
+              '<label style="display:block;font-size:0.75rem;color:var(--muted);margin-bottom:6px;">Basic \u00b7 30 days</label>' +
               '<input id="subPriceBasic" type="number" min="0" step="100" ' +
                 'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);padding:9px 12px;width:130px;" ' +
                 'placeholder="29900">' +
             '</div>' +
             '<div>' +
-              '<label style="display:block;font-size:0.75rem;color:var(--muted);margin-bottom:6px;">Full \u00b7 30 días</label>' +
+              '<label style="display:block;font-size:0.75rem;color:var(--muted);margin-bottom:6px;">Full \u00b7 30 days</label>' +
               '<input id="subPriceFull" type="number" min="0" step="100" ' +
                 'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);padding:9px 12px;width:130px;" ' +
                 'placeholder="49900">' +
