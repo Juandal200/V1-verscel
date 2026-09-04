@@ -6465,7 +6465,10 @@ function apiUpdateUserTrainingContext(sessionToken, payload) {
     var userNameMap = {};
     users.forEach(function(u) {
       var uid = String(u.userId || '');
-      if (uid) userNameMap[uid] = String(u.name || u.email || uid);
+      // Never the raw id. An account with no name and no email fell through to its
+      // internal identifier, so the leaderboard showed other students a string like
+      // USR_b9d1c8fd — meaningless to everyone and a small leak of something private.
+      if (uid) userNameMap[uid] = String(u.name || u.email || '').trim() || 'Pilot';
     });
 
     // Recent attempts (last 20) for the Business tab activity log

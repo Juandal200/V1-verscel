@@ -4977,6 +4977,78 @@
     };
   }
 
+  // The Operational levels, listed so one can be chosen.
+  //
+  // Operational was a single card that opened level 10's countries directly, because
+  // for a while Operational WAS level 10. It is a group now — 10 through 20 as they
+  // are published — so tapping it has to offer a choice rather than assume one. The
+  // list is built from the Levels sheet, so a level published tomorrow appears here
+  // without an edit.
+  window.openOperationalLevels = function () {
+    var data = AppState.training.catalog;
+    if (!data) { setActiveNav('Simulator'); return; }
+    var byNum = {};
+    (data.levels || []).forEach(function (l) { byNum[Number(l.level || 0)] = l; });
+
+    var nums = [];
+    Object.keys(_levelMeta || {}).forEach(function (k) {
+      var m = _levelMeta[k];
+      if (m && m.groupKey === 'OPERATIONAL' && byNum[Number(k)]) nums.push(Number(k));
+    });
+    nums.sort(function (a, b) { return a - b; });
+
+    var host = byId('contentArea');
+    if (!host) return;
+
+    host.innerHTML =
+      '<div style="padding:18px 14px 70px;">' +
+        '<div style="margin-bottom:14px;">' +
+          '<button class="btn secondary" onclick="renderLevelMap(AppState.training.catalog)">\u2190 Back to levels</button>' +
+        '</div>' +
+        '<p class="eyebrow" style="margin:0 0 6px;">Operational clearance</p>' +
+        '<h2 style="margin:0 0 4px;font-size:1.3rem;color:var(--text);">Operational levels</h2>' +
+        '<p style="margin:0 0 18px;font-size:.86rem;line-height:1.55;color:var(--muted);">' +
+          'Heavier vocabulary and non-routine situations. Choose a level to begin.</p>' +
+        (nums.length ? nums.map(function (n) {
+          var m  = _levelMeta[n] || {};
+          var lv = byNum[n] || {};
+          var locked = lv.locked === true || lv.unlocked === false || lv.lockedByPlan === true;
+          var total  = (lv.countries || []).length;
+          var done   = (lv.countries || []).filter(function (c) {
+            return c.completed === true || c.completed === 1 ||
+                   String(c.completed).toUpperCase() === 'TRUE';
+          }).length;
+          return '<article class="tea-score-box" style="margin-bottom:10px;padding:16px;' +
+              (locked ? 'opacity:.62;' : '') + '">' +
+            '<div style="display:flex;gap:14px;align-items:center;">' +
+              '<div style="font-size:1.7rem;line-height:1;">' + (locked ? '\uD83D\uDD12' : (m.icon || '\uD83C\uDF96')) + '</div>' +
+              '<div style="flex:1;min-width:0;">' +
+                '<p class="eyebrow" style="margin:0 0 3px;">Level ' + n + '</p>' +
+                '<div style="font-size:1rem;font-weight:800;color:var(--text);">' +
+                  safeText(m.name || ('Operational ' + (n - 9))) + '</div>' +
+                (m.description
+                  ? '<div style="font-size:.78rem;line-height:1.5;color:var(--muted);margin-top:3px;">' +
+                      safeText(m.description) + '</div>' : '') +
+                (total ? '<div style="font-size:.72rem;color:var(--muted);margin-top:5px;">' +
+                    done + ' of ' + total + ' regions complete</div>' : '') +
+              '</div>' +
+            '</div>' +
+            '<div style="margin-top:12px;">' +
+              (locked
+                ? '<button class="btn secondary" disabled style="width:100%;">' +
+                    (lv.lockedByPlan === true ? 'Not included in your plan' : 'Pass the previous exam to unlock') +
+                  '</button>'
+                : '<button class="btn primary" style="width:100%;" onclick="openLevelCountries(' + n + ')">' +
+                    'Select level</button>') +
+            '</div>' +
+          '</article>';
+        }).join('')
+        : '<div class="panel" style="padding:20px;">' +
+            '<p style="margin:0;font-size:.88rem;color:var(--muted);">' +
+              'No operational levels are published yet.</p></div>') +
+      '</div>';
+  };
+
   function renderLevelMap(data) {
     simMediaStopAll();
 
@@ -5259,7 +5331,19 @@
     // levelByNum[10] and TIERS only covers 1-9, so there is no room for the several
     // harder levels this is meant to become. Flip to false once a fourth tier
     // actually exists; everything below already reads this flag.
-    var OPS_COMING_SOON = true;
+    // Open as soon as an Operational level actually exists.
+    //
+    // This was a constant reading true, with a note beside it to flip it "once a
+    // fourth tier actually exists". It does now: the Levels sheet says which levels
+    // are OPERATIONAL, so the card asks rather than being told. Publish level 11 and
+    // the card covers it the same day, with no edit here.
+    var _opsLevels = [];
+    Object.keys(_levelMeta || {}).forEach(function (k) {
+      var m = _levelMeta[k];
+      if (m && m.groupKey === 'OPERATIONAL' && levelByNum[Number(k)]) _opsLevels.push(Number(k));
+    });
+    _opsLevels.sort(function (a, b) { return a - b; });
+    var OPS_COMING_SOON = _opsLevels.length === 0;
 
     var opsLevel = levelByNum[10];
     if (opsLevel) {
@@ -5293,12 +5377,20 @@
         : '';
       var olIcon   = OPS_COMING_SOON ? '\uD83D\uDD12'
                    : olLocked ? '\uD83D\uDD12' : (olDone ? '\u2705' : (olVr ? olVr.icon : '\uD83C\uDFAF'));
-      var olAction = olLocked ? 'disabled' : 'onclick="openLevelCountries(10)"';
+      // Opens the GROUP, not a level. It went straight into level 10's country picker,
+      // which was right while Operational was level 10 and wrong the moment there
+      // were several. A student picks the level first, as they do above.
+      var olAction = olLocked ? 'disabled'
+                   : (_opsLevels.length === 1
+                        ? 'onclick="openLevelCountries(' + _opsLevels[0] + ')"'
+                        : 'onclick="openOperationalLevels()"');
       var olLabel  = OPS_COMING_SOON
         ? 'Coming soon'
         : olLocked
           ? (olVr ? olVr.icon + ' Unlock to Claim' : 'Access Restricted')
-          : (olDone ? (olVr ? olVr.icon + ' Replay for Bonus' : 'Enter Operations') : (olVr ? olVr.btn : 'Enter Operations'));
+          : (_opsLevels.length > 1 ? 'Choose an operational level'
+           : olDone ? (olVr ? olVr.icon + ' Replay for Bonus' : 'Enter Operations')
+           : (olVr ? olVr.btn : 'Enter Operations'));
 
       heroCard =
         '<article class="level-card-pro level-card-ops ' + (olLocked ? 'is-locked' : 'is-open') + olVrCls + '">' +
@@ -5310,8 +5402,10 @@
                 '<h2 class="ops-lvl-title">Operational Level</h2>' +
                 '<p class="subtitle">' + (OPS_COMING_SOON
                   ? 'Advanced operational scenarios across every ATC environment'
-                  : 'Regions: ' + safeText(opsLevel.countries ? opsLevel.countries.length : 0) +
-                    ' &middot; Completed: ' + safeText(olCC)) + '</p>' +
+                  : (_opsLevels.length > 1
+                      ? safeText(_opsLevels.length) + ' operational levels &middot; heavier vocabulary and non-routine situations'
+                      : 'Regions: ' + safeText(opsLevel.countries ? opsLevel.countries.length : 0) +
+                        ' &middot; Completed: ' + safeText(olCC))) + '</p>' +
                 olVrBanner +
               '</div>' +
             '</div>' +
