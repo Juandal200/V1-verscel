@@ -7048,13 +7048,16 @@
     var btn = byId('simMediaPauseBtn');
     if (!btn) return;
     if (isPaused) {
-      btn.textContent = '▶ Resume';
-      btn.classList.remove('secondary');
-      btn.classList.add('primary');
-    } else {
-      btn.textContent = '⏸ Pause all';
-      btn.classList.remove('primary');
-      btn.classList.add('secondary');
+      // innerHTML, not textContent: the label lives in a span so a narrow screen can
+      // drop the words and keep the glyph, and setting textContent would delete that
+      // span the first time anybody paused.
+      btn.innerHTML = '\u25b6<span class="btn-label"> Resume</span>';
+        btn.classList.remove('secondary');
+        btn.classList.add('primary');
+      } else {
+        btn.innerHTML = '\u23f8<span class="btn-label"> Pause all</span>';
+        btn.classList.remove('primary');
+        btn.classList.add('secondary');
     }
   }
 
@@ -7240,11 +7243,22 @@
 
   var _atcAudioGen = 0;  // incremented each call; lets _done detect if it was superseded
 
-  function _showVoiceBadge(voiceName, cached) {
+  // What the student is listening to, in words they know.
+  //
+  // This printed Google's internal voice identifier — EN-IN-CHIRP3-HD-ALGIEBA — with a
+  // lightning bolt meaning "served from cache". Both are notes to a developer, on the
+  // screen of somebody trying to fly an aeroplane. The accent is the only part of it
+  // that is theirs to know.
+  function _showVoiceBadge(voiceName, cached, country) {
     var el = byId('atcVoiceBadge');
     if (!el) return;
-    el.textContent = (cached ? '⚡ ' : '') + (voiceName || 'browser TTS');
-    el.title = cached ? 'Served from cache' : 'Live from Google TTS';
+    var meta = null;
+    try { if (country) meta = getCountryUi(country); } catch (e) {}
+    el.textContent = (meta && meta.accent) ? meta.accent
+                   : (voiceName === 'text only' ? 'Text only'
+                   : (voiceName ? 'ATC' : 'Loading\u2026'));
+    // Kept for us, out of the student's way.
+    el.title = String(voiceName || '') + (cached ? ' (cached)' : '');
   }
 
   // opts.levelRamp === false for anything that is not a training scenario.
@@ -7256,7 +7270,7 @@
   // difficulty according to unrelated progress is not a standardised test.
   function _playAtcAudio(res, atcText, country, andThen, opts) {
     console.log('[ATC] voice | ' + (res.voiceName || '?') + ' | rate=' + (res.speakingRate || '?') + ' | cached=' + !!res.cached);
-    _showVoiceBadge(res.voiceName, res.cached);
+    _showVoiceBadge(res.voiceName, res.cached, country);
     var myGen = ++_atcAudioGen;
 
     // Stop any segment still playing before starting the new one.
@@ -7407,7 +7421,7 @@
       return;
     }
 
-    _showVoiceBadge('loading…', false);
+    _showVoiceBadge('', false, scenario && scenario.country);
 
     // google.script.run calls neither handler when a request is lost, and this one
     // has no other route out — so the badge sat on LOADING indefinitely with no
@@ -7503,8 +7517,13 @@
             '<span class="sim-chip">' + safeText(countryMeta.accent) + '</span>' +
             '<span class="sim-chip">' + safeText(scenarioType) + '</span>' +
             (emergencyType ? '<span class="sim-chip warning">' + safeText(emergencyType.replace(/_/g, ' ')) + '</span>' : '') +
-            '<button class="btn secondary" id="simMediaPauseBtn" onclick="simMediaTogglePause()">&#9208; Pause all</button>' +
-            '<button class="btn secondary" onclick="disableSimulatorFocusMode()">&#9776; Menu</button>' +
+            '<button class="btn secondary" id="simMediaPauseBtn" onclick="simMediaTogglePause()">' +
+              // The label is wrapped so a narrow screen can drop the words and keep
+              // the glyph. Both buttons were taking a full row each for a word that
+              // the symbol already says.
+              '&#9208;<span class="btn-label"> Pause all</span></button>' +
+            '<button class="btn secondary" onclick="disableSimulatorFocusMode()">' +
+              '&#9776;<span class="btn-label"> Menu</span></button>' +
           '</div>' +
         '</div>' +
         '<canvas id="flight-progress-canvas" class="flight-progress-canvas pro"></canvas>' +
