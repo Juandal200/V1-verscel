@@ -2323,15 +2323,15 @@
         '</div>' +
 
         '<div class="panel" style="background:#0e0f11;border:1px solid #28303a;margin-top:0;">' +
-          '<h4 style="margin:0 0 12px;color:#dde2e6;">Create new group</h4>' +
+          '<h4 style="margin:0 0 12px;color:var(--text);">Create new group</h4>' +
           '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">' +
             '<div>' +
               '<label style="display:block;font-size:11px;color:#8a929c;margin-bottom:4px;">Group name *</label>' +
-              '<input id="newGroupName" type="text" placeholder="e.g. Batch 2025-A" style="background:#1c2228;border:1px solid #363c42;color:#dde2e6;border-radius:8px;padding:8px 12px;font-size:14px;width:220px;">' +
+              '<input id="newGroupName" type="text" placeholder="e.g. Batch 2025-A" style="background:var(--panel-soft);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 12px;font-size:14px;width:220px;">' +
             '</div>' +
             '<div>' +
               '<label style="display:block;font-size:11px;color:#8a929c;margin-bottom:4px;">Instructor</label>' +
-              '<select id="newGroupInstructor" style="background:#1c2228;border:1px solid #363c42;color:#dde2e6;border-radius:8px;padding:8px 12px;font-size:14px;">' + instructorOpts + '</select>' +
+              '<select id="newGroupInstructor" style="background:var(--panel-soft);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 12px;font-size:14px;">' + instructorOpts + '</select>' +
             '</div>' +
             '<button class="btn primary" onclick="adminCreateGroup()">Create group</button>' +
           '</div>' +
@@ -2442,7 +2442,7 @@
           '<div style="margin-bottom:10px;">' +
             '<input id="studentSearch" type="text" placeholder="Search by name or email..." ' +
               'oninput="filterAvailableStudents()" ' +
-              'style="width:100%;max-width:340px;background:#1c2228;border:1px solid #363c42;color:#dde2e6;border-radius:8px;padding:8px 12px;font-size:14px;">' +
+              'style="width:100%;max-width:340px;background:var(--panel-soft);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 12px;font-size:14px;">' +
           '</div>' +
           '<div class="table-wrap">' +
             '<table>' +
@@ -2984,7 +2984,7 @@
             '</button>';
         }).join('');
         if (out) out.innerHTML =
-          '<p style="margin:0 0 8px;color:#dde6f0;"><strong>' + voices.length + ' voices found for ' + langCode + '</strong></p>' +
+          '<p style="margin:0 0 8px;color:var(--text);"><strong>' + voices.length + ' voices found for ' + langCode + '</strong></p>' +
           '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + btns + '</div>';
       })
       .withFailureHandler(function(err) {
@@ -10709,10 +10709,10 @@
             ? hrs + 'h remaining'
             : (t.daysRemaining || 0) + ' day(s) remaining';
           info.innerHTML =
-            '<strong style="color:#dde6f0;">Tour ' + safeText(t.weekNumber || '') + '</strong>' +
+            '<strong style="color:var(--text);">Tour ' + safeText(t.weekNumber || '') + '</strong>' +
             ' &nbsp;|&nbsp; Started: ' + safeText(String(t.startDate || '').substring(0, 10)) +
             '<br style="margin:4px 0;">' +
-            '<span style="font-size:1rem;">⏱ Resets: <strong style="color:#dde6f0;">' + safeText(endLocal) + '</strong>' +
+            '<span style="font-size:1rem;">⏱ Resets: <strong style="color:var(--text);">' + safeText(endLocal) + '</strong>' +
             ' &nbsp;— <span style="color:' + countdownColor + ';font-weight:700;">' + safeText(countdown) + '</span></span>';
         } else {
           info.innerHTML = '<span style="color:#f59e0b;">⚠ Could not load tour info — buttons still work.</span>';
@@ -10745,10 +10745,10 @@
             var endIso2   = String(t.endDate || '');
             var endLocal2 = endIso2 ? new Date(endIso2).toLocaleString() : '—';
             info.innerHTML =
-              '<strong style="color:#dde6f0;">Tour ' + safeText(t.weekNumber || '') + '</strong>' +
+              '<strong style="color:var(--text);">Tour ' + safeText(t.weekNumber || '') + '</strong>' +
               ' &nbsp;|&nbsp; Started: ' + safeText(String(t.startDate || '').substring(0, 10)) +
               '<br style="margin:4px 0;">' +
-              '<span style="font-size:1rem;">⏱ Resets: <strong style="color:#dde6f0;">' + safeText(endLocal2) + '</strong>' +
+              '<span style="font-size:1rem;">⏱ Resets: <strong style="color:var(--text);">' + safeText(endLocal2) + '</strong>' +
               ' &nbsp;— <span style="color:var(--accent);font-weight:700;">7 days remaining</span></span>';
           }
         } else {
@@ -10859,7 +10859,7 @@
           html +=
             '<tr style="border-bottom:1px solid #0e1e2e;">' +
               '<td style="padding:6px 10px;">' + safeText(ts) + '</td>' +
-              '<td style="padding:6px 10px;color:#dde6f0;">' + safeText(r.recipientName || '') + '</td>' +
+              '<td style="padding:6px 10px;color:var(--text);">' + safeText(r.recipientName || '') + '</td>' +
               '<td style="padding:6px 10px;">' + safeText(r.recipientEmail || '') + '</td>' +
               '<td style="padding:6px 10px;">' + safeText(r.weekNumber || '') + '</td>' +
               '<td style="padding:6px 10px;color:' + typeColor + ';text-transform:uppercase;font-size:0.7rem;font-weight:700;">' + safeText(r.type || '') + '</td>' +
@@ -11238,7 +11238,7 @@
 
           var btnStyle = popular
             ? 'width:100%;padding:12px;font-size:0.9rem;font-weight:700;background:var(--accent);color:var(--accent-ink);border:none;border-radius:10px;cursor:pointer;transition:opacity 0.2s;'
-            : 'width:100%;padding:12px;font-size:0.9rem;font-weight:700;background:transparent;color:#dde6f0;border:1px solid rgba(255,255,255,0.2);border-radius:10px;cursor:pointer;transition:background 0.2s,border-color 0.2s;';
+            : 'width:100%;padding:12px;font-size:0.9rem;font-weight:700;background:transparent;color:var(--text);border:1px solid rgba(255,255,255,0.2);border-radius:10px;cursor:pointer;transition:background 0.2s,border-color 0.2s;';
 
           var flagsRow =
             '<p style="margin:0 0 6px;font-size:0.75rem;font-weight:700;letter-spacing:0.1em;color:#4d6070;text-transform:uppercase;">Acentos incluidos</p>' +
@@ -11402,7 +11402,7 @@
         '<h2 style="margin:0 0 6px;">Send Invites</h2>' +
         '<p class="subtitle" style="margin:0 0 20px;">One user per line. Format: <code>email, Full Name</code> — name is optional (email only also works).</p>' +
 
-        '<textarea id="inviteListInput" style="width:100%;height:200px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#dde6f0;font-size:0.85rem;font-family:\'Courier New\',monospace;padding:12px;resize:vertical;outline:none;line-height:1.6;" placeholder="juan@example.com, Juan Pérez&#10;maria@example.com&#10;carlos@airline.com, Carlos Ruiz"></textarea>' +
+        '<textarea id="inviteListInput" style="width:100%;height:200px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:\'Courier New\',monospace;padding:12px;resize:vertical;outline:none;line-height:1.6;" placeholder="juan@example.com, Juan Pérez&#10;maria@example.com&#10;carlos@airline.com, Carlos Ruiz"></textarea>' +
 
         '<div id="inviteParsePreview" style="margin-top:12px;"></div>' +
 
@@ -11444,7 +11444,7 @@
     var rows = users.map(function(u, i) {
       return '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">' +
         '<td style="padding:6px 10px;color:#64748b;font-size:0.78rem;">' + (i + 1) + '</td>' +
-        '<td style="padding:6px 10px;color:#dde6f0;font-size:0.83rem;">' + safeText(u.email) + '</td>' +
+        '<td style="padding:6px 10px;color:var(--text);font-size:0.83rem;">' + safeText(u.email) + '</td>' +
         '<td style="padding:6px 10px;color:#8fa3bb;font-size:0.83rem;">' + safeText(u.name) + '</td>' +
       '</tr>';
     }).join('');
@@ -11554,13 +11554,13 @@
             '<div>' +
               '<label style="display:block;font-size:0.75rem;color:#8fa3bb;margin-bottom:6px;">Basic \u00b7 30 días</label>' +
               '<input id="subPriceBasic" type="number" min="0" step="100" ' +
-                'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#dde6f0;padding:9px 12px;width:130px;" ' +
+                'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);padding:9px 12px;width:130px;" ' +
                 'placeholder="29900">' +
             '</div>' +
             '<div>' +
               '<label style="display:block;font-size:0.75rem;color:#8fa3bb;margin-bottom:6px;">Full \u00b7 30 días</label>' +
               '<input id="subPriceFull" type="number" min="0" step="100" ' +
-                'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#dde6f0;padding:9px 12px;width:130px;" ' +
+                'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);padding:9px 12px;width:130px;" ' +
                 'placeholder="49900">' +
             '</div>' +
             '<button class="btn primary" onclick="adminSubSavePrices()">Save Prices</button>' +
@@ -11575,13 +11575,13 @@
             '<div>' +
               '<label style="display:block;font-size:0.75rem;color:#8fa3bb;margin-bottom:6px;">User email</label>' +
               '<input id="subGrantEmail" type="email" ' +
-                'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#dde6f0;font-size:0.88rem;padding:8px 12px;width:240px;outline:none;" ' +
+                'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);font-size:0.88rem;padding:8px 12px;width:240px;outline:none;" ' +
                 'placeholder="student@example.com">' +
             '</div>' +
             '<div>' +
               '<label style="display:block;font-size:0.75rem;color:#8fa3bb;margin-bottom:6px;">Days</label>' +
               '<input id="subGrantDays" type="number" min="1" max="365" value="30" ' +
-                'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#dde6f0;font-size:0.88rem;padding:8px 12px;width:90px;outline:none;">' +
+                'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);font-size:0.88rem;padding:8px 12px;width:90px;outline:none;">' +
             '</div>' +
             '<button class="btn primary" onclick="adminSubGrant()">Grant Access</button>' +
           '</div>' +
@@ -11625,7 +11625,7 @@
           var endStr  = end ? end.toLocaleDateString('en-GB') : '—';
           var cop     = s.amountCents ? 'COP ' + Number(s.amountCents / 100).toLocaleString('es-CO') : '—';
           return '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">' +
-            '<td style="padding:8px 10px;font-size:0.82rem;color:#dde6f0;">' + safeText(s.email || '') + '</td>' +
+            '<td style="padding:8px 10px;font-size:0.82rem;color:var(--text);">' + safeText(s.email || '') + '</td>' +
             '<td style="padding:8px 10px;font-size:0.82rem;color:#8fa3bb;">' + cop + '</td>' +
             '<td style="padding:8px 10px;font-size:0.82rem;color:#8fa3bb;">' + endStr + '</td>' +
             '<td style="padding:8px 10px;">' + badge + '</td>' +
@@ -11799,7 +11799,7 @@
       ? pins.map(function(p, i) {
           var expired = p.until && p.until < new Date().toISOString().slice(0,10);
           return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(255,255,255,0.04);border-radius:8px;margin-bottom:6px;' + (expired ? 'opacity:0.45;' : '') + '">' +
-            '<span style="min-width:70px;font-weight:700;color:#dde6f0;">Level ' + safeText(p.level) + '</span>' +
+            '<span style="min-width:70px;font-weight:700;color:var(--text);">Level ' + safeText(p.level) + '</span>' +
             '<span style="flex:1;font-size:0.8rem;">' + safeText(eventLabels[p.type] || p.type) + '</span>' +
             '<span style="font-size:0.75rem;color:#64748b;font-family:monospace;">' + (p.until ? 'until ' + safeText(p.until) : 'permanent') + (expired ? ' · EXPIRED' : '') + '</span>' +
             '<button class="btn secondary" style="padding:4px 10px;font-size:0.72rem;" onclick="adminVrRemovePin(' + i + ')">Remove</button>' +
@@ -11815,7 +11815,7 @@
           '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#64748b;margin-bottom:10px;">System</div>' +
           '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;">' +
             '<input type="checkbox" id="vrEnabled"' + (cfg.enabled ? ' checked' : '') + ' style="width:18px;height:18px;cursor:pointer;">' +
-            '<span style="font-size:0.9rem;color:#dde6f0;font-weight:600;">VR Program Enabled</span>' +
+            '<span style="font-size:0.9rem;color:var(--text);font-weight:600;">VR Program Enabled</span>' +
           '</label>' +
         '</div>' +
 
@@ -11834,9 +11834,9 @@
         '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;">' +
           '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#64748b;margin-bottom:10px;">Slot Window</div>' +
           '<div style="display:flex;gap:8px;align-items:center;">' +
-            '<input type="number" id="vrSlotMin" value="' + (cfg.slotMin || 22) + '" min="5" max="120" style="width:60px;background:#0d1520;border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:5px 8px;color:#dde6f0;font-size:0.85rem;">' +
+            '<input type="number" id="vrSlotMin" value="' + (cfg.slotMin || 22) + '" min="5" max="120" style="width:60px;background:var(--panel-soft);border:1px solid var(--line);border-radius:6px;padding:5px 8px;color:var(--text);font-size:0.85rem;">' +
             '<span style="color:#64748b;">–</span>' +
-            '<input type="number" id="vrSlotMax" value="' + (cfg.slotMax || 56) + '" min="5" max="180" style="width:60px;background:#0d1520;border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:5px 8px;color:#dde6f0;font-size:0.85rem;">' +
+            '<input type="number" id="vrSlotMax" value="' + (cfg.slotMax || 56) + '" min="5" max="180" style="width:60px;background:var(--panel-soft);border:1px solid var(--line);border-radius:6px;padding:5px 8px;color:var(--text);font-size:0.85rem;">' +
             '<span style="color:#64748b;font-size:0.75rem;">min</span>' +
           '</div>' +
           '<div style="font-size:0.68rem;color:#64748b;margin-top:6px;">Range for "CLOSES HHMMZ" countdown</div>' +
@@ -11853,7 +11853,7 @@
             return '<div>' +
               '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
                 '<span style="font-size:0.78rem;color:' + colors[k] + ';font-weight:700;">' + safeText(eventLabels[k]) + '</span>' +
-                '<span id="vrW_' + k + 'Val" style="font-size:0.78rem;color:#dde6f0;font-family:monospace;">' + (w[k] || 0) + '%</span>' +
+                '<span id="vrW_' + k + 'Val" style="font-size:0.78rem;color:var(--text);font-family:monospace;">' + (w[k] || 0) + '%</span>' +
               '</div>' +
               '<input type="range" id="vrW_' + k + '" min="0" max="100" value="' + (w[k] || 0) + '" style="width:100%;accent-color:' + colors[k] + ';" oninput="byId(\'vrW_' + k + 'Val\').textContent=this.value+\'%\';_vrWeightSum()">' +
             '</div>';
@@ -11869,19 +11869,19 @@
         '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">' +
           '<div>' +
             '<div style="font-size:0.72rem;color:#64748b;margin-bottom:4px;">Level</div>' +
-            '<select id="vrPinLevel" style="background:#0d1520;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:7px 10px;color:#dde6f0;font-size:0.85rem;">' +
+            '<select id="vrPinLevel" style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:7px 10px;color:var(--text);font-size:0.85rem;">' +
               [1,2,3,4,5,6,7,8,9,10].map(function(n){ return '<option value="' + n + '">Level ' + n + '</option>'; }).join('') +
             '</select>' +
           '</div>' +
           '<div>' +
             '<div style="font-size:0.72rem;color:#64748b;margin-bottom:4px;">Event Type</div>' +
-            '<select id="vrPinType" style="background:#0d1520;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:7px 10px;color:#dde6f0;font-size:0.85rem;">' +
+            '<select id="vrPinType" style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:7px 10px;color:var(--text);font-size:0.85rem;">' +
               Object.keys(eventLabels).map(function(k){ return '<option value="' + k + '">' + eventLabels[k] + '</option>'; }).join('') +
             '</select>' +
           '</div>' +
           '<div>' +
             '<div style="font-size:0.72rem;color:#64748b;margin-bottom:4px;">Expires (optional)</div>' +
-            '<input type="date" id="vrPinUntil" style="background:#0d1520;border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:7px 10px;color:#dde6f0;font-size:0.85rem;">' +
+            '<input type="date" id="vrPinUntil" style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:7px 10px;color:var(--text);font-size:0.85rem;">' +
           '</div>' +
           '<button class="btn primary" onclick="adminVrAddPin()" style="padding:8px 18px;">Pin Event</button>' +
         '</div>' +
@@ -12345,7 +12345,7 @@
       t.id = 'simToast';
       t.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);' +
         'background:#1a2a3a;border:1px solid rgba(255,255,255,0.08);border-radius:10px;' +
-        'padding:12px 22px;font-size:13px;color:#dde6f0;box-shadow:0 8px 32px rgba(0,0,0,0.4);' +
+        'padding:12px 22px;font-size:13px;color:var(--text);box-shadow:0 8px 32px rgba(0,0,0,0.4);' +
         'transition:transform 0.28s cubic-bezier(.22,1,.36,1),opacity 0.28s;opacity:0;z-index:9999;white-space:nowrap;';
       document.body.appendChild(t);
     }
@@ -12377,7 +12377,7 @@
         'ondrop="_nrDrop(event,\'' + z.id + '\')">' +
         '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">' +
           '<div style="width:34px;height:34px;border-radius:9px;background:' + z.color + '18;display:flex;align-items:center;justify-content:center;font-size:17px;">' + z.icon + '</div>' +
-          '<div><div style="font-size:14px;font-weight:700;color:#f0f6ff;">' + z.id + '</div>' +
+          '<div><div style="font-size:14px;font-weight:700;color:var(--text);">' + z.id + '</div>' +
                '<div style="font-size:11px;color:var(--muted,#6b8aad);">' + z.sub + '</div></div>' +
         '</div>' +
         '<div style="height:1px;background:rgba(255,255,255,0.07);margin:0 -16px 12px;"></div>' +
@@ -21327,7 +21327,7 @@
     return (
       '<div style="text-align:center;padding:8px 0 4px;">' +
         '<div style="font-size:44px;margin-bottom:14px;">✈</div>' +
-        '<h2 style="margin:0 0 10px;color:#dde2e6;font-size:1.45rem;">Welcome to ICAO Trainer</h2>' +
+        '<h2 style="margin:0 0 10px;color:var(--text);font-size:1.45rem;">Welcome to ICAO Trainer</h2>' +
         '<p style="color:#8a929c;margin:0 0 6px;line-height:1.6;">Practice real ATC radio communications with authentic voices and professional phraseology.</p>' +
         '<p style="color:#4a5058;font-size:0.82rem;margin:0 0 24px;">This 60-second walkthrough shows you exactly how a training session works.</p>' +
         '<button class="btn primary" onclick="window._demoNext()" style="width:100%;padding:13px;margin-bottom:10px;">Show me how it works &rarr;</button>' +
@@ -21339,7 +21339,7 @@
   function _s1() {
     var ready = _audioReady;
     return (
-      '<h3 style="margin:0 0 6px;color:#dde2e6;">Step 1 &mdash; The ATC speaks</h3>' +
+      '<h3 style="margin:0 0 6px;color:var(--text);">Step 1 &mdash; The ATC speaks</h3>' +
       '<p style="color:#8a929c;margin:0 0 12px;font-size:0.86rem;">In every session the controller transmits first. Listen before reading — just like real radio.</p>' +
       '<div class="demo-callout">Press play to hear the ATC transmission</div>' +
       '<div class="demo-atc-box">' +
@@ -21360,7 +21360,7 @@
 
   function _s2() {
     return (
-      '<h3 style="margin:0 0 6px;color:#dde2e6;">Step 2 &mdash; Read the transmission</h3>' +
+      '<h3 style="margin:0 0 6px;color:var(--text);">Step 2 &mdash; Read the transmission</h3>' +
       '<p style="color:#8a929c;margin:0 0 12px;font-size:0.86rem;">After listening, you can reveal the text. In practice, always try audio first.</p>' +
       '<div class="demo-atc-box">' +
         '<p style="margin:0 0 8px;font-size:0.7rem;color:#4a5058;font-weight:700;letter-spacing:1px;">ATC SAID:</p>' +
@@ -21376,7 +21376,7 @@
 
   function _s3() {
     return (
-      '<h3 style="margin:0 0 6px;color:#dde2e6;">Step 3 &mdash; Type your readback</h3>' +
+      '<h3 style="margin:0 0 6px;color:var(--text);">Step 3 &mdash; Type your readback</h3>' +
       '<p style="color:#8a929c;margin:0 0 12px;font-size:0.86rem;">Read back the key elements to confirm you understood. Callsign goes at the end.</p>' +
       '<div class="demo-callout">Include: the clearance &plus; QNH value &plus; your callsign</div>' +
       '<div style="margin:12px 0 4px;">' +
@@ -21401,7 +21401,7 @@
       return '<span class="demo-kw ' + (k.ok ? 'ok' : 'missing') + '">' + (k.ok ? '✓' : '✗') + ' ' + _esc(k.label) + '</span>';
     }).join(' ');
     return (
-      '<h3 style="margin:0 0 6px;color:#dde2e6;">Step 4 &mdash; Instant feedback</h3>' +
+      '<h3 style="margin:0 0 6px;color:var(--text);">Step 4 &mdash; Instant feedback</h3>' +
       '<p style="color:#8a929c;margin:0 0 12px;font-size:0.86rem;">Every keyword is checked. Green = found in your readback. Red = missing.</p>' +
       '<div class="demo-atc-box">' +
         '<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">' +
@@ -21428,12 +21428,12 @@
     return (
       '<div style="text-align:center;padding:8px 0 4px;">' +
         '<div style="font-size:44px;margin-bottom:14px;">&#127919;</div>' +
-        '<h2 style="margin:0 0 10px;color:#dde2e6;font-size:1.4rem;">You&apos;ve got it!</h2>' +
-        '<p style="color:#8a929c;margin:0 0 20px;line-height:1.6;">ICAO Trainer works in 4 steps: <strong style="color:#dde2e6;">listen &rarr; read &rarr; respond &rarr; improve</strong>. Every route uses real ATC voices with authentic regional accents.</p>' +
-        '<div style="background:#1c2228;border-radius:12px;padding:16px 18px;text-align:left;margin-bottom:22px;">' +
+        '<h2 style="margin:0 0 10px;color:var(--text);font-size:1.4rem;">You&apos;ve got it!</h2>' +
+        '<p style="color:#8a929c;margin:0 0 20px;line-height:1.6;">ICAO Trainer works in 4 steps: <strong style="color:var(--text);">listen &rarr; read &rarr; respond &rarr; improve</strong>. Every route uses real ATC voices with authentic regional accents.</p>' +
+        '<div style="background:var(--panel-soft);border-radius:12px;padding:16px 18px;text-align:left;margin-bottom:22px;">' +
           '<p style="margin:0 0 8px;font-size:0.7rem;color:#a0abb5;font-weight:700;letter-spacing:1px;">WHAT&apos;S NEXT</p>' +
           '<ul style="margin:0;padding-left:18px;color:#8a929c;font-size:0.84rem;line-height:1.9;">' +
-            '<li>Pick a country and level from the <strong style="color:#dde2e6;">Simulator</strong></li>' +
+            '<li>Pick a country and level from the <strong style="color:var(--text);">Simulator</strong></li>' +
             '<li>Complete all phases of a route to unlock the next level</li>' +
             '<li>Earn certificates as you progress through levels</li>' +
           '</ul>' +
@@ -27623,7 +27623,7 @@
     content.innerHTML =
       '<div class="tea-begin-shell" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 60px);background:#080c10;gap:24px;">' +
         '<div class="tea-part-badge" style="font-size:0.9rem;padding:6px 18px;">ICAO TEST</div>' +
-        '<div style="font-size:1.4rem;font-weight:700;color:#dde2e6;">ICAO Language Proficiency Test</div>' +
+        '<div style="font-size:1.4rem;font-weight:700;color:var(--text);">ICAO Language Proficiency Test</div>' +
         '<div style="font-size:0.85rem;color:#4a6280;text-align:center;max-width:320px;line-height:1.6;">' +
           'This is a full ICAO aviation English proficiency exam.<br>The examiner will speak. Respond via microphone.' +
         '</div>' +
@@ -27830,7 +27830,7 @@
       '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;' +
       'height:calc(100vh - 60px);background:#080c10;gap:16px;">' +
         '<div class="tea-part-badge">PIPELINE TEST</div>' +
-        '<div style="font-size:1rem;color:#dde2e6;">Running full pipeline…</div>' +
+        '<div style="font-size:1rem;color:var(--text);">Running full pipeline…</div>' +
         '<div id="teaTestStatus" style="font-size:0.82rem;color:#4a6280;">Sending mock transcript to /api/tea-pipeline</div>' +
       '</div>';
 
@@ -28594,7 +28594,7 @@ function _aeroShowInstallBar(mode) {
     body =
       '<p style="margin:0 0 4px;font-weight:700;font-size:0.9rem;">Add aerocomms to your home screen</p>' +
       '<p style="margin:0;font-size:0.78rem;line-height:1.5;color:#b9b9b9;">' +
-        'Tap ' + shareGlyph + ' below, then <strong style="color:#e6e6e6;">Add to Home Screen</strong>. ' +
+        'Tap ' + shareGlyph + ' below, then <strong style="color:var(--text);">Add to Home Screen</strong>. ' +
         'Keeps you signed in and turns on your streak reminders.</p>';
     action =
       '<button class="btn secondary" style="padding:7px 14px;font-size:0.78rem;white-space:nowrap;" ' +
