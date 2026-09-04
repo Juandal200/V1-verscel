@@ -25471,7 +25471,13 @@
       return;
     }
 
-    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+    // Through the same held stream as the scripted sitting.
+    //
+    // This was the fourth copy of "ask for the microphone, use it, throw it away" in
+    // the file, and the one nobody reported — the legacy conversational exam. Desktop
+    // and Android remember the grant so it looked fine; an installed iOS web app asks
+    // again every time, exactly as the simulator did at taxi and take-off.
+    _scMicStream()
       .then(function(stream) {
         var chunks = [];
         _teaRecActive = true;
@@ -25491,7 +25497,8 @@
 
         _teaRecorder.onstop = function() {
           _teaRecActive = false; _teaMicState(false); _teaVizStop();
-          stream.getTracks().forEach(function(t) { t.stop(); });
+          // Deliberately NOT stopped: the stream is held for the sitting and released
+          // by _teaStopAll, which runs on every way out of the exam.
 
           if (btn) { btn.classList.remove('listening'); btn.innerHTML = '&#8987;'; btn.disabled = true; }
 
