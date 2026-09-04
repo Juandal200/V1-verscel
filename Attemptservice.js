@@ -67,8 +67,13 @@ var AttemptService = {
       phaseCode: String(scenario.phaseCode || ''),
       // Identifies one run of a route, so a retry can be scored as a whole
       // session rather than blended into the running per-scenario bests.
-      sessionId: String(payload.sessionId || '')
-    };
+      sessionId: String(payload.sessionId || ''),
+      // Whether the pilot flew what they read back. Zero is a real value — it means
+      // the aircraft never left the tolerance — so these are stored as given rather
+      // than treated as missing.
+      altDeviationFt: Number(payload.altDeviationFt) || 0,
+      altSecondsOff:  Number(payload.altSecondsOff)  || 0
+      };
 
     dbWithScriptLock_(function() {
       dbAppend_('Attempts', attempt);
@@ -947,4 +952,48 @@ function apiFinalizeRoute(sessionToken, payload) {
   } catch (err) {
     return apiError_('apiFinalizeRoute', err);
   }
+}
+
+/**
+ * Add columns the schema has grown to a sheet that already exists.
+ *
+ * dbAppend_ writes by column index, so a schema with more fields than the sheet has
+ * headers writes past the end and the extra values land nowhere. New fields are always
+ * appended to the end of a schema for that reason, and this puts the matching headers
+ * on the sheet.
+ *
+ * Safe to run more than once: it only adds what is missing and never reorders or
+ * removes anything.
+ *
+ * Run addMissingSheetColumns() from Attemptservice.gs.
+ */
+function addMissingSheetColumns() {
+  var ss = SpreadsheetApp.openById(
+    PropertiesService.getScriptProperties().getProperty(CONFIG.PROP_DB_SPREADSHEET_ID));
+  var out = [], touched = 0;
+
+  Object.keys(DB_SCHEMA).forEach(function(name) {
+    var sh = ss.getSheetByName(name);
+    if (!sh) return;                                   // a sheet that does not exist yet
+    var want = DB_SCHEMA[name] || [];
+    if (!want.length) return;
+
+    var lastCol = Math.max(sh.getLastColumn(), 1);
+    var have = sh.getRange(1, 1, 1, lastCol).getValues()[0]
+                 .map(function(h) { return String(h || '').trim(); });
+
+    var missing = want.filter(function(h) { return have.indexOf(h) === -1; });
+    if (!missing.length) return;
+
+    // Appended in schema order, so the sheet ends up in the order dbAppend_ writes.
+    sh.getRange(1, have.length + 1, 1, missing.length).setValues([missing]);
+    out.push('  ' + name + ': added ' + missing.join(', '));
+    touched++;
+  });
+
+  var msg = touched
+    ? 'ADDED MISSING COLUMNS\n' + out.join('\n')
+    : 'Every sheet already has every column its schema declares.';
+  Logger.log(msg);
+  return msg;
 }

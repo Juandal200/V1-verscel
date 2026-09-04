@@ -7578,6 +7578,9 @@
   var _targetAltitude   = 0;
   var _targetHeading    = 360;
   var _altWarning       = false;
+  var _altWorstDev      = 0;      // worst feet off the cleared altitude this phase
+  var _altSecondsOff    = 0;      // seconds spent outside the tolerance this phase
+  var _altLastTick      = 0;
   var _hdgWarning       = false;
   var _pauseStartedAt   = 0;
   var _warnAltStartTime = 0;
@@ -7732,14 +7735,34 @@
       if (altSub) altSub.textContent = _targetAltitude.toLocaleString() + ' ft target';
       if (altArrow) {
         var altDiff = currentAltitude - _targetAltitude;
-        altArrow.textContent = Math.abs(altDiff) <= 100 ? '✓' : (altDiff > 0 ? '↓' : '↑');
+        altArrow.textContent = Math.abs(altDiff) <= 200 ? '✓' : (altDiff > 0 ? '↓' : '↑');
       }
     } else {
       if (altSub)   altSub.textContent   = '';
       if (altArrow) altArrow.textContent = '';
     }
 
-    var altOff = _hasAtcTargetAlt && Math.abs(currentAltitude - _targetAltitude) > 100;
+    // Two hundred feet, not one hundred.
+    //
+    // A tap is a hundred feet and the drift moves in similar steps, so the old
+    // tolerance was exactly one tap wide: the beep meant "you are one tap out" rather
+    // than "you have stopped paying attention". Two hundred leaves room to be
+    // momentarily off while speaking, which is the point of doing both at once.
+    var altOff = _hasAtcTargetAlt && Math.abs(currentAltitude - _targetAltitude) > 200;
+
+    // What the drift alarm already knew and threw away.
+    //
+    // It measured the deviation to decide whether to beep, then discarded it. Whether
+    // a pilot acts on a clearance is part of what an ICAO test measures, so it is kept
+    // and sent with the answer — the worst the aircraft got, and how long it stayed
+    // out. Reset when the phase changes.
+    if (_hasAtcTargetAlt) {
+      var _dev = Math.abs(currentAltitude - _targetAltitude);
+      if (_dev > _altWorstDev) _altWorstDev = _dev;
+      var _tick = Date.now();
+      if (altOff && _altLastTick) _altSecondsOff += (_tick - _altLastTick) / 1000;
+      _altLastTick = _tick;
+    }
     var nowMs  = Date.now();
 
     if (altOff && !_altWarning) {
@@ -7951,6 +7974,22 @@
           }
           if (parsed.heading !== null) { _targetHeading = parsed.heading; _hasAtcTargetHdg = true; }
         }
+        // Start ON the target, then drift off it.
+        //
+        // currentAltitude came from startAltitude and _targetAltitude was set to match
+        // it — the aircraft began exactly where it should be, which is the whole
+        // design. Then the scenario's stated target overwrote the target and left the
+        // aircraft where it was, so a clearance to nine thousand from a start of four
+        // began five thousand feet out. At a hundred feet per tap that is fifty taps
+        // to silence a beep, for a number nothing scores.
+        //
+        // The exercise is holding an altitude while you talk, not climbing to one. So
+        // the aircraft is placed on whichever target won, and the drift timer becomes
+        // the only reason to touch the controls.
+        _altWorstDev = 0; _altSecondsOff = 0; _altLastTick = 0;
+        if (_hasAtcTargetAlt) currentAltitude = _targetAltitude;
+        if (_hasAtcTargetHdg) currentHeading  = _targetHeading;
+
         _updateFlightDisplays();
         _bindCommsKeyHandler();
         // Show "locked on target" green state briefly so the student sees the drift happen
@@ -9021,6 +9060,10 @@
         responseTimeSec:   responseTimeSec,
         replayCount:       AtcReplayGate.getCount(),
         sessionId:         AppState.training.sessionId || '',
+        // Did they fly what they read back. Zero is a real answer here — it means the
+        // aircraft never left the tolerance — so these are always sent.
+        altDeviationFt:    Math.round(_altWorstDev || 0),
+        altSecondsOff:     Math.round((_altSecondsOff || 0) * 10) / 10,
         // Write the attempt, skip the summary. The server rebuilds progress once for
         // the whole route in apiFinalizeRoute, just before the debrief. This call used
         // to read the entire Attempts sheet and take two script locks every time, and

@@ -145,7 +145,17 @@ var DB_SCHEMA = {
     'createdAt',
     'replayCount',
     'phaseCode',
-    'sessionId'
+    'sessionId',
+    // Appended, never inserted. dbAppend_ writes by column INDEX, so a field placed
+    // mid-schema would silently reassign the meaning of every existing row.
+    //
+    // Whether a pilot ACTS on a clearance is part of what an ICAO test measures, and
+    // the simulator was already watching it — the drift alarm knew the deviation and
+    // the correction time and threw both away. An attempt row now carries the whole
+    // picture: was the read-back right, how long they took to say it, how many times
+    // they needed to hear it, and whether they flew what they had just read back.
+    'altDeviationFt',    // worst deviation from the cleared altitude, in feet
+    'altSecondsOff'      // total seconds spent outside the tolerance
   ],
 
   Progress: [
