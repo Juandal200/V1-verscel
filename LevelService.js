@@ -87,6 +87,10 @@ function setupLevelsSheet() {
     added++;
   }
 
+  // A level published a moment ago should be reachable now, not when a ten-minute
+  // cache happens to expire.
+  try { clearLevelCapsCache(); } catch (e) {}
+
   var msg = (created ? 'Created ' : 'Found ') + LEVELS_SHEET_ + ' sheet.\n' +
             '  seeded ' + added + ' level(s)\n' +
             '  highest level in Scenarios: ' + maxSeen + '\n' +
@@ -142,7 +146,41 @@ function apiGetLevelMeta(sessionToken) {
  * foundation group; Full reaches whatever exists. Add level 21 and Full covers it the
  * day its scenarios land.
  */
+var _LEVEL_CAPS_CACHE_KEY_ = 'levelcaps_v1';
+
 function levelCapsFromContent_() {
+  // Cached, because this is asked on nearly every request and answers with something
+  // that changes when a level is published — which is to say, almost never.
+  //
+  // It read the whole Levels sheet and all eighty Scenario rows, and it sits inside
+  // _accessFor_, which apiGetMe calls. So it did not slow two screens down, it slowed
+  // every authenticated call down, and the two paths with the tightest deadlines —
+  // Begin Exam at thirty seconds, the proxy at forty-five — were simply the first to
+  // give up. Ten minutes is short enough that a newly published level appears almost
+  // at once and long enough that nobody waits for it twice.
+  try {
+    var hit = CacheService.getScriptCache().get(_LEVEL_CAPS_CACHE_KEY_);
+    if (hit) {
+      var c = JSON.parse(hit);
+      if (c && c.basic && c.full) return c;
+    }
+  } catch (e) {}
+
+  var caps = _levelCapsCompute_();
+  try {
+    CacheService.getScriptCache().put(_LEVEL_CAPS_CACHE_KEY_, JSON.stringify(caps), 600);
+  } catch (e) {}
+  return caps;
+}
+
+/** Drops the cached caps, so a newly published level is reachable immediately. */
+function clearLevelCapsCache() {
+  try { CacheService.getScriptCache().remove(_LEVEL_CAPS_CACHE_KEY_); } catch (e) {}
+  Logger.log('Level caps cache cleared.');
+  return 'Level caps cache cleared.';
+}
+
+function _levelCapsCompute_() {
   var foundationMax = 0, overallMax = 0;
   try {
     dbReadAll_(LEVELS_SHEET_).forEach(function(r) {
@@ -159,11 +197,28 @@ function levelCapsFromContent_() {
   // Nothing to go on: fall back to what the scenarios themselves show, so a missing
   // Levels sheet under-promises rather than over-promises.
   if (!overallMax) {
+    // Two columns, not the whole sheet. Reading a range is the expensive part of Apps
+    // Script, and this wanted the highest level number — it was pulling every column
+    // of every scenario to find it.
     try {
-      readSheetObjectsV5Hard_('Scenarios').forEach(function(r) {
-        if (String(r.isActive).toUpperCase() === 'FALSE') return;
-        overallMax = Math.max(overallMax, Number(r.level || 0));
-      });
+      var sh = SpreadsheetApp.openById(
+        PropertiesService.getScriptProperties().getProperty(CONFIG.PROP_DB_SPREADSHEET_ID))
+        .getSheetByName('Scenarios');
+      if (sh && sh.getLastRow() > 1) {
+        var hdr  = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+        var lCol = hdr.indexOf('level') + 1;
+        var aCol = hdr.indexOf('isActive') + 1;
+        if (lCol) {
+          var lo = aCol ? Math.min(lCol, aCol) : lCol;
+          var hi = aCol ? Math.max(lCol, aCol) : lCol;
+          var vals = sh.getRange(2, lo, sh.getLastRow() - 1, hi - lo + 1).getValues();
+          var li = lCol - lo, ai = aCol ? aCol - lo : -1;
+          vals.forEach(function(row) {
+            if (ai >= 0 && String(row[ai]).toUpperCase() === 'FALSE') return;
+            overallMax = Math.max(overallMax, Number(row[li] || 0));
+          });
+        }
+      }
     } catch (e) {}
     foundationMax = Math.min(9, overallMax);
   }
