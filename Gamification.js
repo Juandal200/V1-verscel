@@ -558,7 +558,17 @@ function getLeaderboard(limit) {
       var streak = streakMap[uid] || { streakDays: 0, streakProtected: false };
       return {
         userId:          uid,
-        name:            String(u['name'] || u['email'] || uid),
+        // An XP row whose user is not in the Users sheet is not a person to rank.
+        //
+        // The ranking is built from LmsXp and each id is then looked up in Users. When
+        // that lookup misses, u is {} and this fell through to the raw identifier, so
+        // the leaderboard showed every student a string like USR_b9d1c8fd. Every one
+        // of the 94 accounts has a name — the row simply pointed at a user who is not
+        // among them. Named here for the case where a row is merely incomplete;
+        // genuine orphans are dropped below, because ranking a deleted account against
+        // real students is worse than a bad label.
+        name:            String(u['name'] || u['email'] || '').trim() || 'Pilot',
+        orphan:          !userMap[uid],
         email:           String(u['email'] || ''),
         profession:      String(u['profession'] || u['licenseType'] || 'PILOT'),
         lmsXp:           xp.lmsXp,
@@ -570,6 +580,11 @@ function getLeaderboard(limit) {
     });
 
     // Sort by weeklyXp DESC, lmsXp DESC as tiebreaker
+    // Drop the orphans before ranking. An XP row pointing at a user who is no longer
+    // in the Users sheet is a leftover, not a competitor, and leaving it in put a
+    // deleted account above real students in their own weekly table.
+    entries = entries.filter(function (e) { return !e.orphan; });
+
     entries.sort(function(a, b) {
       if (b.weeklyXp !== a.weeklyXp) return b.weeklyXp - a.weeklyXp;
       return b.lmsXp - a.lmsXp;

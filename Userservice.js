@@ -900,3 +900,92 @@ function activateAllPendingUsers() {
   Logger.log(msg);
   return msg;
 }
+
+/**
+ * Which accounts have no name to show, and what is actually in their row.
+ *
+ * The leaderboard printed USR_b9d1c8fd to every student because the display name falls
+ * back through name, then email, then the internal identifier. That fallback is fixed,
+ * but it was hiding a data question worth answering: how many rows have neither, and
+ * did they arrive that way or did something shift them.
+ *
+ * Read-only. Run checkUserNames() from Userservice.gs.
+ */
+function checkUserNames() {
+  var rows;
+  try { rows = dbReadAll_('Users'); }
+  catch (e) { Logger.log('Users sheet unreadable: ' + e.message); return 'unreadable'; }
+
+  var noName = [], noEmail = [], neither = [], odd = [];
+  rows.forEach(function(r) {
+    var id    = String(r.userId || '').trim();
+    var name  = String(r.name   || '').trim();
+    var email = String(r.email  || '').trim();
+
+    if (!name)  noName.push(id);
+    if (!email) noEmail.push(id);
+    if (!name && !email) neither.push({ id: id, row: r.__rowNumber, status: String(r.status || ''), role: String(r.role || '') });
+
+    // An email in the name column, or an id in the email column, is the shape a
+    // shifted row leaves behind. Worth separating from a row that was simply blank.
+    if (name.indexOf('@') !== -1 || email.indexOf('USR_') === 0) {
+      odd.push({ id: id, row: r.__rowNumber, name: name, email: email });
+    }
+  });
+
+  var out = [];
+  out.push('USERS: ' + rows.length + ' total');
+  out.push('  no name          : ' + noName.length);
+  out.push('  no email         : ' + noEmail.length);
+  out.push('  neither          : ' + neither.length + '   <- these showed as USR_ ids');
+  out.push('  columns look shifted : ' + odd.length);
+  out.push('');
+
+  if (neither.length) {
+    out.push('ACCOUNTS WITH NO NAME AND NO EMAIL');
+    neither.slice(0, 12).forEach(function(u) {
+      out.push('  row ' + u.row + '  ' + u.id + '  status=' + (u.status || '-') + '  role=' + (u.role || '-'));
+    });
+    if (neither.length > 12) out.push('  ... and ' + (neither.length - 12) + ' more');
+    out.push('');
+  }
+
+  if (odd.length) {
+    out.push('ROWS WHERE THE COLUMNS LOOK SHIFTED');
+    odd.slice(0, 8).forEach(function(u) {
+      out.push('  row ' + u.row + '  name="' + u.name + '"  email="' + u.email + '"');
+    });
+    out.push('');
+  }
+
+  // The leaderboard is built from LmsXp, not from Users, so a name can be perfect
+  // everywhere and still show as an id — the XP row simply points at somebody who is
+  // no longer in Users. That is the case this missed the first time.
+  var orphans = [];
+  try {
+    var known = {};
+    rows.forEach(function(r) { var id = String(r.userId || '').trim(); if (id) known[id] = true; });
+    dbReadAll_('LmsXp').forEach(function(r) {
+      var id = String(r.userId || '').trim();
+      if (id && !known[id]) orphans.push({ id: id, row: r.__rowNumber, xp: Number(r.lmsXp) || 0 });
+    });
+  } catch (e) {}
+
+  out.push('XP ROWS WITH NO USER BEHIND THEM: ' + orphans.length);
+  orphans.slice(0, 10).forEach(function(o) {
+    out.push('  LmsXp row ' + o.row + '  ' + o.id + '  ' + o.xp + ' XP');
+  });
+  if (orphans.length) {
+    out.push('  These are what appeared on the leaderboard as USR_ ids. They are');
+    out.push('  excluded from the ranking now; deleting the rows would tidy the sheet.');
+  }
+  out.push('');
+
+  out.push(neither.length
+    ? 'Those accounts now read "Pilot" on the leaderboard rather than their id.'
+    : 'Every account has a name or an email, so nothing falls back to an id.');
+
+  var msg = out.join('\n');
+  Logger.log(msg);
+  return msg;
+}
