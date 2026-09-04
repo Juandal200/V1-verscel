@@ -12575,29 +12575,32 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
       border-top: 1px solid var(--line) !important;
       box-shadow: 0 -10px 24px rgba(0,0,0,.45) !important;
     }
-    /* The instruction above the box is guidance, not part of the action. */
-    .sim-readback-priority-card .eyebrow,
-    .sim-readback-priority-card .subtitle { display: none !important; }
+    /* The title and the instruction are guidance, not part of the action, and the
+       pinned bar is the one place height is expensive. The class is sim-section-title,
+       not eyebrow — naming the wrong one is why they were still showing. */
+    .sim-readback-priority-card .sim-section-title { display: none !important; }
     .sim-readback-priority-input {
       min-height: 44px !important;
       max-height: 88px !important;
       margin-bottom: 8px !important;
     }
-    /* Microphone and Send share one row: two full-width buttons stacked was most of
-       the pinned bar's height. */
-    .sim-readback-priority-card .demo-mic-btn,
-    .sim-readback-priority-card .sim-action-row { display: inline-flex !important; }
-    .sim-readback-priority-card .demo-mic-btn {
-      width: auto !important;
-      min-width: 92px !important;
-      margin: 0 8px 0 0 !important;
-      vertical-align: top !important;
+    /* One row, from a wrapper the markup now provides. The two buttons were siblings
+       before, so no amount of inline-flex on them could put them side by side. */
+    .sim-answer-row {
+      display: flex !important;
+      gap: 8px !important;
+      align-items: stretch !important;
     }
-    .sim-readback-priority-card .sim-action-row {
-      width: calc(100% - 100px) !important;
+    .sim-answer-row .demo-mic-btn {
+      flex: 0 0 auto !important;
+      width: auto !important;
+      min-width: 104px !important;
       margin: 0 !important;
     }
-    .sim-readback-priority-card .sim-action-row .btn { width: 100% !important; }
+    .sim-answer-row .btn { flex: 1 1 auto !important; width: auto !important; margin: 0 !important; }
+    /* The dot is a control marker, not decoration, so it takes the text colour and
+       sits on the baseline rather than floating like an emoji. */
+    .sim-answer-row .glyph { font-size: 0.7em; opacity: .75; vertical-align: middle; }
 
     /* When the keyboard opens, iOS shrinks the visual viewport rather than the layout
        one, so a bar fixed to the bottom of the page ends up behind the keyboard. The

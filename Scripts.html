@@ -6865,16 +6865,30 @@
 
     var apply = function () {
       _kbRaf = 0;
-      // Below the fold of the layout viewport is keyboard, toolbar, or both.
-      var covered = Math.max(0, (window.innerHeight || 0) - vv.height - vv.offsetTop);
-      // Under about a hundred pixels it is a browser toolbar sliding, not a keyboard,
-      // and moving the bar for that reads as a twitch.
-      document.documentElement.style.setProperty('--kb', (covered > 100 ? covered : 0) + 'px');
+      // Only while something is actually being typed into.
+      //
+      // The gap between the layout viewport and the visual one is not always a
+      // keyboard. In an installed web app iOS reports its own chrome the same way, so
+      // measuring the gap alone lifted the bar off the bottom of the screen with no
+      // keyboard open at all — which is exactly what it looked like.
+      var el = document.activeElement;
+      var typing = el && (el.tagName === 'TEXTAREA' ||
+                          (el.tagName === 'INPUT' && !/^(button|submit|checkbox|radio)$/i.test(el.type || '')));
+      var covered = typing
+        ? Math.max(0, (window.innerHeight || 0) - vv.height - vv.offsetTop)
+        : 0;
+      document.documentElement.style.setProperty('--kb', (covered > 120 ? covered : 0) + 'px');
     };
     var schedule = function () { if (!_kbRaf) _kbRaf = requestAnimationFrame(apply); };
 
     vv.addEventListener('resize', schedule);
     vv.addEventListener('scroll', schedule);
+    // A field gaining or losing focus is the signal; the viewport resize that follows
+    // is the measurement.
+    document.addEventListener('focusin',  schedule, true);
+    document.addEventListener('focusout', function () {
+      document.documentElement.style.setProperty('--kb', '0px');
+    }, true);
     apply();
   }
 
@@ -7602,10 +7616,18 @@
             '<article class="sim-readback-priority-card">' +
               '<div class="sim-section-title"><span>PILOT READ-BACK</span><span class="sim-helper-text">Repeat the clearance exactly as a pilot would.</span></div>' +
               '<textarea id="pilotReadback" class="sim-readback-priority-input" placeholder="Type your pilot read-back here..."></textarea>' +
-              '<button id="simMicBtn" class="demo-mic-btn" onclick="startMicInput(\'pilotReadback\',\'simMicBtn\',\'\',window._simOnTranscript)">&#127908; Tap to speak</button>' +
-              '<div id="simFeedbackBox" class="sim-feedback-box"></div>' +
-              '<div class="sim-action-row"><button id="simSendReadbackBtn" class="btn primary big-action" onclick="immersiveSendReadback()">Send read-back</button></div>' +
-              '<textarea id="studentAnswer" class="legacy-bridge-field"></textarea>' +
+              // Microphone and Send on one row inside the pinned bar. Stacked full-width they
+                // were most of its height, and the bar is the part that must not grow.
+                '<div class="sim-answer-row">' +
+                  '<button id="simMicBtn" class="demo-mic-btn" onclick="startMicInput(\'pilotReadback\',\'simMicBtn\',\'\',window._simOnTranscript)">' +
+                    // A line symbol rather than an emoji: emoji render as a different
+                    // typeface at a different weight on every platform, and next to
+                    // instrument text they read as decoration rather than a control.
+                    '<span class="glyph">\u25CF</span> Speak</button>' +
+                  '<button id="simSendReadbackBtn" class="btn primary big-action" onclick="immersiveSendReadback()">Send</button>' +
+                '</div>' +
+                '<div id="simFeedbackBox" class="sim-feedback-box"></div>' +
+                '<textarea id="studentAnswer" class="legacy-bridge-field"></textarea>' +
               '<textarea id="studentReadback" class="legacy-bridge-field"></textarea>' +
               '<textarea id="readbackInput" class="legacy-bridge-field"></textarea>' +
             '</article>' +
@@ -8554,13 +8576,25 @@
       ctx.stroke();
     });
 
-    ctx.font = '30px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'alphabetic';
+    // Drawn, not typed.
+    //
+    // This was the aeroplane character at 30px, which iOS renders as a colour emoji —
+    // a different typeface at a different weight from everything around it, glowing
+    // cyan next to grey instrument text. A marker on a rail should look like part of
+    // the instrument, so it is a triangle in the same colour as the dots it sits on.
+    ctx.save();
+    ctx.translate(activeX, lineY);
+    ctx.beginPath();
+    ctx.moveTo(0, -7);
+    ctx.lineTo(6, 5);
+    ctx.lineTo(0, 2);
+    ctx.lineTo(-6, 5);
+    ctx.closePath();
     ctx.fillStyle = '#bcc6ce';
-    ctx.shadowColor = 'rgba(0, 242, 255, 0.65)';
-    ctx.shadowBlur = 10;
-    ctx.fillText('\u2708', activeX, lineY + 10);
+    ctx.shadowColor = 'rgba(188, 198, 206, 0.55)';
+    ctx.shadowBlur = 6;
+    ctx.fill();
+    ctx.restore();
     ctx.restore();
   }
 
