@@ -8495,10 +8495,20 @@
       var isDone = i < drawActive;
       var isNow = i === drawActive;
 
-      ctx.font = 'bold 9px Consolas, monospace';
-      ctx.textAlign = 'center';
-      ctx.fillStyle = isNow ? '#bcc6ce' : isDone ? '#5e666e' : '#363c42';
-      ctx.fillText(phase.label, x, lineY - 18);
+      // One label, not eight.
+      //
+      // Eight phases across a phone is about forty-four pixels each, and "Approach"
+      // needs sixty — so they overlapped into "TaxiOutakeoffClimbCruise". A rail of
+      // dots says where you are in the route; the word only has to name where you
+      // are NOW, and for one word there is room.
+      var roomForAll = step >= 62;
+      if (roomForAll || isNow) {
+        ctx.font = (isNow ? 'bold ' : '') + (roomForAll ? '9px' : '10px') + ' Consolas, monospace';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = isNow ? '#bcc6ce' : isDone ? '#5e666e' : '#363c42';
+        // Clamped inside the canvas so the first and last phases keep their names.
+        ctx.fillText(phase.label, roomForAll ? x : Math.max(34, Math.min(W - 34, x)), lineY - 18);
+      }
 
       ctx.beginPath();
       ctx.arc(x, lineY, 2, 0, Math.PI * 2);

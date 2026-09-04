@@ -12404,71 +12404,109 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 
     /* ── The exercise, on one screen ──────────────────────────────────────────
      *
-     * Above the fold there was a Back row, a logo, "Live simulator", "Exercise 3 of
-     * 8", a subtitle, two chips, a full-width Pause, a full-width Menu, a phase
-     * strip, then Country and Scenario. None of that IS the exercise. The two things
-     * that are — the clearance and the read-back — were both below the fold.
+     * One task shown as five stacked cards, each with a border, a title and its own
+     * padding. The chrome was most of the height — which is why it read as cluttered
+     * rather than dense, and why shrinking things did not help. The boxes go; space
+     * and a small label separate the sections instead.
      *
      * What survives is what the student is doing: hear it, fly it, say it. */
 
-    /* The header becomes one line. The logo is on the top bar already, "Live
-       simulator" is where they chose to be, and the chips repeat the subtitle. */
+    /* One row, and it must stay one row. The actions wrapped into a column and took
+       two full rows for two buttons. */
     .sim-cockpit-header {
       display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
       align-items: center !important;
       gap: 8px !important;
-      padding: 6px 0 !important;
-      margin: 0 0 6px !important;
+      padding: 2px 0 8px !important;
+      margin: 0 !important;
       border: 0 !important;
       background: none !important;
+    }
+    .sim-header-brand {
+      display: flex !important;
+      align-items: center !important;
+      gap: 0 !important;
+      min-width: 0 !important;
+      flex: 1 1 auto !important;
+      text-align: left !important;
     }
     .sim-header-brand img,
     .sim-header-brand .eyebrow,
     .sim-cockpit-header .sim-chip { display: none !important; }
-    .sim-header-brand { gap: 0 !important; }
     .sim-header-brand h2 {
-      font-size: 0.92rem !important;
+      font-size: 0.95rem !important;
       margin: 0 !important;
-      line-height: 1.2 !important;
+      line-height: 1.15 !important;
+      text-align: left !important;
     }
     .sim-header-brand .subtitle {
       font-size: 0.7rem !important;
       margin: 1px 0 0 !important;
       color: var(--muted) !important;
+      text-align: left !important;
     }
     .sim-cockpit-actions {
-      margin-left: auto !important;
       display: flex !important;
+      flex-direction: row !important;
+      flex-wrap: nowrap !important;
+      align-items: center !important;
+      margin: 0 0 0 auto !important;
       gap: 6px !important;
       flex: 0 0 auto !important;
+      width: auto !important;
     }
-    /* Pause and Menu keep their glyph and drop their words: both are recognisable
-       without them, and each was taking a full row. */
-    /* Pause and Menu keep their glyph and drop their words. Each was taking a full
-       row for a word its symbol already says. The label is a span rather than a
-       font-size trick, which would have hidden the glyph along with it. */
+    /* The glyph says it. Each of these was taking a full row for a word. */
     .sim-cockpit-actions .btn {
-      padding: 8px 11px !important;
-      min-width: 40px !important;
+      padding: 7px 10px !important;
+      min-width: 38px !important;
+      width: auto !important;
       border-radius: 10px !important;
-      font-size: 1rem !important;
+      font-size: 0.95rem !important;
+      line-height: 1 !important;
     }
     .sim-cockpit-actions .btn-label { display: none !important; }
 
-    /* Country and Scenario do not change while you fly — they were chosen a minute
-       ago and are named in the header line. */
+    /* The boxes go. Five bordered cards inside one bordered column is four borders
+       nobody needs, and the padding on each was costing more height than the content
+       it held. */
+    .sim-side-card,
+    .sim-radio-card,
+    .sim-readback-priority-card {
+      border: 0 !important;
+      background: none !important;
+      padding: 0 !important;
+      margin: 0 0 14px !important;
+      box-shadow: none !important;
+    }
+    .sim-side-card:last-child,
+    .sim-radio-card:last-child,
+    .sim-readback-priority-card:last-child { margin-bottom: 0 !important; }
+
+    /* Country and Scenario do not change while you fly, and the header names them. */
     .sim-side-card.compact .sim-side-grid { display: none !important; }
     .sim-side-card.compact > .eyebrow { display: none !important; }
 
-    /* Hear it, fly it, say it. The radio came after the instruments, which put the
-       thing being responded to below the thing being adjusted. */
+    /* Hear it, fly it, say it. The read-back was landing first because the rule below
+       named a class that does not exist — sim-readback-card, where the markup says
+       sim-readback-priority-card — so it fell to order 0 and went to the top. */
     .sim-priority-side { display: flex !important; flex-direction: column !important; }
-    .sim-radio-card    { order: 1 !important; }
-    .sim-side-card     { order: 2 !important; }
-    .sim-readback-card { order: 3 !important; }
+    .sim-radio-card             { order: 1 !important; }
+    .sim-side-card              { order: 2 !important; }
+    .sim-readback-priority-card { order: 3 !important; }
 
-    /* An empty result card is not a result. This held height before there was
-       anything to say, between the microphone and Send. */
+    /* The altitude reads as one line: where you are, where you should be, and the two
+       controls. It was a card the height of the read-back for two numbers. */
+    .sim-instrument--solo {
+      padding: 10px 12px !important;
+      border-radius: 12px !important;
+    }
+    .sim-instr-value { font-size: 1.45rem !important; line-height: 1 !important; }
+    .sim-instr-label { font-size: 0.6rem !important; }
+    .sim-instr-btns  { margin-top: 8px !important; gap: 8px !important; }
+
+    /* An empty result card is not a result. */
     .sim-feedback-box:empty {
       display: none !important;
       padding: 0 !important;
@@ -12476,9 +12514,29 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
       border: 0 !important;
     }
 
-    /* The phase strip ran its eight labels together — "Taxi OutTakeoff Climb" — with
-       no space between them at this width. */
-    .flight-progress-canvas { height: 42px !important; }
+    .flight-progress-canvas.pro { height: 38px !important; margin-bottom: 12px !important; }
+
+    /* The locked transcript was a large dashed panel announcing that text is hidden.
+       The four dots beside it already say so. One line does the same job. */
+    .atc-hidden-mask {
+      min-height: 0 !important;
+      padding: 10px 12px !important;
+      border-radius: 12px !important;
+    }
+    .atc-hidden-icon { width: 30px !important; height: 30px !important; font-size: 0.95rem !important; }
+    .atc-hidden-copy strong { font-size: 0.72rem !important; }
+    .atc-hidden-copy span   { font-size: 0.7rem !important; line-height: 1.3 !important; }
+
+    /* Section labels carry the separation now that the borders are gone, so they have
+       to read as labels rather than shout. */
+    .sim-radio-card .sim-section-title,
+    .sim-readback-priority-card .eyebrow,
+    .sim-radio-card .eyebrow {
+      font-size: 0.62rem !important;
+      letter-spacing: 0.14em !important;
+      margin: 0 0 8px !important;
+      color: var(--muted) !important;
+    }
 
   /* Trimmed rather than removed: each is small on its own, and together they are
      the difference between fitting and not. */
