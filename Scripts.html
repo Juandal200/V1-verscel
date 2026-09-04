@@ -1549,7 +1549,7 @@
     el.id = 'viewAsSwitcher';
     el.style.cssText = 'display:flex;gap:6px;align-items:center;';
     el.innerHTML =
-      '<span style="font-size:10px;color:#8a929c;font-weight:700;letter-spacing:1px;margin-right:2px;">VIEW AS</span>' +
+      '<span style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:1px;margin-right:2px;">VIEW AS</span>' +
       ['ADMIN','INSTRUCTOR','STUDENT'].map(function(v) {
         var active = AppState.viewAs === v;
         return '<button onclick="setViewAs(\'' + v + '\')" style="padding:4px 10px;font-size:11px;font-weight:700;border-radius:8px;border:1.5px solid ' +
@@ -2116,9 +2116,9 @@
     users.forEach(function(user) {
       var pl = user.placement || { taken: false };
       var plCell = pl.taken
-        ? '<span style="color:#22c55e;font-weight:700;">L' + pl.placedAtLevel + '</span>' +
-          '<span style="color:#5e666e;font-size:0.75rem;margin-left:4px;">R1:' + pl.round1Score + '% R2:' + pl.round2Score + '%</span>'
-        : '<span style="color:#5e666e;font-size:0.78rem;">Not taken</span>';
+        ? '<span style="color:var(--green);font-weight:700;">L' + pl.placedAtLevel + '</span>' +
+          '<span style="color:var(--muted);font-size:0.75rem;margin-left:4px;">R1:' + pl.round1Score + '% R2:' + pl.round2Score + '%</span>'
+        : '<span style="color:var(--muted);font-size:0.78rem;">Not taken</span>';
       var plBtn = pl.taken
         ? '<button class="btn danger" style="padding:3px 8px;font-size:0.75rem;" onclick="adminResetPlacement(\'' + safeJs(user.userId) + '\', \'' + safeJs(user.email) + '\')">Reset Placement</button> '
         : '';
@@ -2131,7 +2131,7 @@
           '<td><span class="status ' + safeText(user.status) + '">' + safeText(user.status) + '</span></td>' +
           '<td>' + safeText(user.currentLevel) + '</td>' +
           '<td>' + safeText(user.currentCountry) + '</td>' +
-          '<td style="color:#5e666e;font-size:0.8rem;">' + (user.assignedGroupId ? safeText(user.assignedGroupId) : '—') + '</td>' +
+          '<td style="color:var(--muted);font-size:0.8rem;">' + (user.assignedGroupId ? safeText(user.assignedGroupId) : '—') + '</td>' +
           '<td>' + plCell + '</td>' +
           '<td>' +
             '<button class="btn primary" onclick="adminUpdateUser(\'' + safeJs(user.userId) + '\', \'STUDENT\', \'ACTIVE\')">Approve</button> ' +
@@ -2326,11 +2326,11 @@
           '<h4 style="margin:0 0 12px;color:var(--text);">Create new group</h4>' +
           '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">' +
             '<div>' +
-              '<label style="display:block;font-size:11px;color:#8a929c;margin-bottom:4px;">Group name *</label>' +
+              '<label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Group name *</label>' +
               '<input id="newGroupName" type="text" placeholder="e.g. Batch 2025-A" style="background:var(--panel-soft);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 12px;font-size:14px;width:220px;">' +
             '</div>' +
             '<div>' +
-              '<label style="display:block;font-size:11px;color:#8a929c;margin-bottom:4px;">Instructor</label>' +
+              '<label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Instructor</label>' +
               '<select id="newGroupInstructor" style="background:var(--panel-soft);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 12px;font-size:14px;">' + instructorOpts + '</select>' +
             '</div>' +
             '<button class="btn primary" onclick="adminCreateGroup()">Create group</button>' +
@@ -2391,31 +2391,31 @@
       memberRows +=
         '<tr>' +
           '<td>' + safeText(u.name || u.email) + '</td>' +
-          '<td style="color:#8a929c;font-size:0.82rem;">' + safeText(u.email) + '</td>' +
+          '<td style="color:var(--muted);font-size:0.82rem;">' + safeText(u.email) + '</td>' +
           '<td><span class="status ' + safeText(u.status) + '">' + safeText(u.status) + '</span></td>' +
           '<td style="text-align:center;font-weight:700;">Lv ' + (u.currentLevel || 1) + '</td>' +
           '<td style="text-align:center;font-weight:700;color:' + scoreColor + ';">' + (u.avgScore || 0) + '%</td>' +
-          '<td style="text-align:center;color:#8a929c;font-size:0.82rem;">' + safeText(u.totalAttempts || 0) + '</td>' +
-          '<td style="text-align:center;color:#8a929c;font-size:0.82rem;">' + safeText(u.lastActivity || '—') + '</td>' +
+          '<td style="text-align:center;color:var(--muted);font-size:0.82rem;">' + safeText(u.totalAttempts || 0) + '</td>' +
+          '<td style="text-align:center;color:var(--muted);font-size:0.82rem;">' + safeText(u.lastActivity || '—') + '</td>' +
           (isInstructor
             ? '<td><button class="btn secondary" style="padding:4px 10px;font-size:0.78rem;" onclick="_progLoadStudent(\'' + safeJs(u.userId) + '\',\'' + safeJs(u.name || u.email) + '\',\'renderGroupDetail(\\\'' + safeJs(groupId) + '\\\')\')">📊 Progress</button></td>'
             : '<td><button class="btn danger" style="padding:4px 10px;font-size:0.78rem;" onclick="adminMoveStudentGroup(\'' + safeJs(groupId) + '\',\'' + safeJs(u.userId) + '\',\'remove\')">Remove</button></td>') +
         '</tr>';
     });
-    if (!memberRows) memberRows = '<tr><td colspan="8" style="color:#5e666e;">No students in this group yet.</td></tr>';
+    if (!memberRows) memberRows = '<tr><td colspan="8" style="color:var(--muted);">No students in this group yet.</td></tr>';
 
     var availRows = '';
     available.forEach(function(u) {
       availRows +=
         '<tr class="avail-row" data-name="' + safeText((u.name + ' ' + u.email).toLowerCase()) + '">' +
           '<td>' + safeText(u.name || u.email) + '</td>' +
-          '<td style="color:#8a929c;font-size:0.82rem;">' + safeText(u.email) + '</td>' +
+          '<td style="color:var(--muted);font-size:0.82rem;">' + safeText(u.email) + '</td>' +
           '<td><span class="status ' + safeText(u.status) + '">' + safeText(u.status) + '</span></td>' +
-          '<td style="font-size:0.78rem;color:#5e666e;">' + (u.assignedGroupId ? 'In another group' : 'Unassigned') + '</td>' +
+          '<td style="font-size:0.78rem;color:var(--muted);">' + (u.assignedGroupId ? 'In another group' : 'Unassigned') + '</td>' +
           '<td><button class="btn primary" style="padding:4px 10px;font-size:0.78rem;" onclick="adminMoveStudentGroup(\'' + safeJs(groupId) + '\',\'' + safeJs(u.userId) + '\',\'add\')">Add</button></td>' +
         '</tr>';
     });
-    if (!availRows) availRows = '<tr><td colspan="5" style="color:#5e666e;">All students are in this group.</td></tr>';
+    if (!availRows) availRows = '<tr><td colspan="5" style="color:var(--muted);">All students are in this group.</td></tr>';
 
     var backFn   = isInstructor ? 'renderInstructorGroupView()' : 'renderAdminGroups()';
     var backLabel = isInstructor ? '&#8592; Back to my groups' : '&#8592; Back to groups';
@@ -2784,7 +2784,7 @@
               '</div>' +
               '<div style="padding:12px 14px;">' +
                 '<div class="cabina-block-label" style="margin-bottom:5px;">Briefing de fase</div>' +
-                '<div id="cabinaPhaseContext" style="color:#8a929c; font-size:0.82rem; line-height:1.65;">' + safeText(selected.context) + '</div>' +
+                '<div id="cabinaPhaseContext" style="color:var(--muted); font-size:0.82rem; line-height:1.65;">' + safeText(selected.context) + '</div>' +
               '</div>' +
             '</div>' +
 
@@ -2793,7 +2793,7 @@
           '<div class="cabina-card">' +
             '<div class="cabina-card-header">' +
               '<span class="cabina-card-label">&#127381; Respuestas &bull; Nivel 1 &bull; USA</span>' +
-              '<span style="font-size:0.75rem; color:#4a5058;">8 FASES</span>' +
+              '<span style="font-size:0.75rem; color:var(--muted);">8 FASES</span>' +
             '</div>' +
             '<div class="cabina-readbacks" id="cabinaReadbackList">' +
               phaseItemsHtml +
@@ -2903,7 +2903,7 @@
           '</button>';
       }).join('');
       langRows += '<div style="margin-bottom:16px;">' +
-        '<p style="font-size:0.72rem;color:#8c8c8c;margin:0 0 6px;">' + lang + '</p>' +
+        '<p style="font-size:0.72rem;color:var(--muted);margin:0 0 6px;">' + lang + '</p>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;">' + btns + '</div>' +
         '</div>';
     });
@@ -2911,22 +2911,22 @@
     byId('contentArea').innerHTML =
       renderAdminTabs('voicelab') +
       '<h2 style="margin-bottom:4px;">Voice Lab</h2>' +
-      '<p style="font-size:0.8rem;color:#8c8c8c;margin-bottom:16px;">Click any voice to hear it. Identify robotic ones and note their names.</p>' +
+      '<p style="font-size:0.8rem;color:var(--muted);margin-bottom:16px;">Click any voice to hear it. Identify robotic ones and note their names.</p>' +
       '<div style="margin-bottom:20px;">' +
-        '<label style="font-size:0.78rem;color:#8c8c8c;display:block;margin-bottom:4px;">Sample text</label>' +
+        '<label style="font-size:0.78rem;color:var(--muted);display:block;margin-bottom:4px;">Sample text</label>' +
         '<textarea id="vlSampleText" class="input" rows="2" style="width:100%;font-size:0.8rem;">' + safeText(sampleText) + '</textarea>' +
       '</div>' +
       langRows +
       '<div style="margin-top:20px;padding-top:16px;border-top:1px solid #1a2a3a;">' +
-        '<p style="font-size:0.72rem;color:#8c8c8c;margin:0 0 8px;">Scan Google API for actual available voices per locale</p>' +
+        '<p style="font-size:0.72rem;color:var(--muted);margin:0 0 8px;">Scan Google API for actual available voices per locale</p>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
           ['en-CA','en-AU','en-GB','en-US','en-IN','en-IE','en-ZA'].map(function(lc) {
             return '<button class="btn secondary" style="font-size:0.78rem;" onclick="vlScanVoices(\'' + lc + '\')">Scan ' + lc + '</button>';
           }).join('') +
         '</div>' +
-        '<div id="vlScanResult" style="margin-top:12px;font-size:0.78rem;color:#8c8c8c;"></div>' +
+        '<div id="vlScanResult" style="margin-top:12px;font-size:0.78rem;color:var(--muted);"></div>' +
       '</div>' +
-      '<div id="vlStatus" style="font-size:0.78rem;color:#8c8c8c;min-height:20px;margin-top:8px;"></div>';
+      '<div id="vlStatus" style="font-size:0.78rem;color:var(--muted);min-height:20px;margin-top:8px;"></div>';
   }
 
   function vlPlay(voiceName, langCode, defaultText, btn) {
@@ -3003,7 +3003,7 @@
       '<div class="panel">' +
         renderAdminTabs('evaltests') +
         '<h2 style="margin-bottom:4px;">Readback Evaluation Test Suite</h2>' +
-        '<p style="color:#8c8c8c;font-size:0.85rem;margin-bottom:16px;">Auto-generates SHOULD-PASS and SHOULD-FAIL test cases per scenario and runs them through the evaluator. Red rows = unexpected behavior.</p>' +
+        '<p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px;">Auto-generates SHOULD-PASS and SHOULD-FAIL test cases per scenario and runs them through the evaluator. Red rows = unexpected behavior.</p>' +
         '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">' +
           '<label style="font-size:0.85rem;">Level<br>' +
             '<select id="rtLevel" style="margin-top:4px;">' +
@@ -3028,12 +3028,12 @@
         '<div id="rtResults" style="overflow-x:auto;"></div>' +
         '<hr style="border-color:#222;margin:24px 0 16px;">' +
         '<h3 style="margin-bottom:8px;">Progress Diagnostics</h3>' +
-        '<p style="color:#8c8c8c;font-size:0.82rem;margin-bottom:12px;">Shows your raw Progress sheet rows — use this to debug rank vs level card incoherence.</p>' +
+        '<p style="color:var(--muted);font-size:0.82rem;margin-bottom:12px;">Shows your raw Progress sheet rows — use this to debug rank vs level card incoherence.</p>' +
         '<button class="btn secondary" onclick="adminDiagnoseMyProgress()">Diagnose My Progress</button>' +
         '<div id="rtDiag" style="margin-top:12px;font-size:0.78rem;overflow-x:auto;"></div>' +
         '<hr style="border-color:#222;margin:24px 0 16px;">' +
         '<h3 style="margin-bottom:8px;">Schema Migration</h3>' +
-        '<p style="color:#8c8c8c;font-size:0.82rem;margin-bottom:12px;">Adds any missing column headers to the database sheets. Safe to run multiple times — only adds columns that are missing.</p>' +
+        '<p style="color:var(--muted);font-size:0.82rem;margin-bottom:12px;">Adds any missing column headers to the database sheets. Safe to run multiple times — only adds columns that are missing.</p>' +
         '<button class="btn secondary" onclick="adminRunMigration()">Run Schema Migration</button>' +
         '<div id="rtMigration" style="margin-top:10px;font-size:0.82rem;"></div>' +
       '</div>';
@@ -3049,7 +3049,7 @@
           ' &nbsp;|&nbsp; <b>Tour started:</b> ' + safeText(res.tourStart || 'unknown') +
           ' &nbsp;|&nbsp; <b>Rows found:</b> ' + (res.rows || []).length + '<br><br>';
         if (!res.rows || !res.rows.length) {
-          html += '<span style="color:#ef4444;">No Progress rows found for this user.</span>';
+          html += '<span style="color:var(--red);">No Progress rows found for this user.</span>';
         } else {
           html += '<table style="border-collapse:collapse;font-size:0.78rem;"><thead><tr style="border-bottom:2px solid #333;">' +
             '<th style="padding:4px 10px;">Level</th><th style="padding:4px 10px;">Country</th>' +
@@ -3063,7 +3063,7 @@
           res.rows.forEach(function(r) {
             var isDone = r.completed === true || r.completed === 1 || String(r.completed).toUpperCase() === 'TRUE' || String(r.completed) === '1';
             var col = isDone ? '#22c55e' : '#ef4444';
-            var na = '<span style="color:#4b5563;">—</span>';
+            var na = '<span style="color:var(--muted);">—</span>';
             html += '<tr style="border-bottom:1px solid #222;">' +
               '<td style="padding:4px 10px;">' + safeText(String(r.level)) + '</td>' +
               '<td style="padding:4px 10px;">' + safeText(r.country) + '</td>' +
@@ -3076,7 +3076,7 @@
               '<td style="padding:4px 10px;">' + (r.avgReplays       !== '' && r.avgReplays       != null ? safeText(String(r.avgReplays))            : na) + '</td>' +
               '<td style="padding:4px 10px;">' + (r.performanceScore !== '' && r.performanceScore != null ? safeText(String(r.performanceScore)) + '%' : na) + '</td>' +
               '<td style="padding:4px 10px;">' + (r.trendLabel ? safeText(r.trendLabel) + ' (' + (r.trendScore >= 0 ? '+' : '') + safeText(String(r.trendScore)) + ')' : na) + '</td>' +
-              '<td style="padding:4px 10px;color:#8c8c8c;">' + safeText(String(r.updatedAt || '—')) + '</td>' +
+              '<td style="padding:4px 10px;color:var(--muted);">' + safeText(String(r.updatedAt || '—')) + '</td>' +
             '</tr>';
           });
           html += '</tbody></table>';
@@ -3138,7 +3138,7 @@
           var s = labelStats[lbl];
           var col = s.bad === 0 ? '#22c55e' : '#ef4444';
           return '<span style="margin-right:10px;"><b style="color:' + col + '">' + lbl + '</b>: ' +
-            (s.bad === 0 ? '✓ all ok' : '<b style="color:#ef4444;">' + s.bad + ' unexpected</b>') + '</span>';
+            (s.bad === 0 ? '✓ all ok' : '<b style="color:var(--red);">' + s.bad + ' unexpected</b>') + '</span>';
         }).join('');
 
         byId('rtSummary').innerHTML =
@@ -3148,7 +3148,7 @@
           '<div style="font-size:0.8rem;font-weight:normal;">' + breakdownHtml + '</div>';
 
         if (!results.length) {
-          byId('rtResults').innerHTML = '<p style="color:#8c8c8c;">' + (res.message || 'No scenarios matched.') + '</p>';
+          byId('rtResults').innerHTML = '<p style="color:var(--muted);">' + (res.message || 'No scenarios matched.') + '</p>';
           return;
         }
 
@@ -3176,10 +3176,10 @@
           scMap[scId].forEach(function(r, i) {
             var rowBg  = r.behaviorOk ? '' : 'background:#3b1a1a;';
             var gotHtml = r.correct
-              ? '<span style="color:#22c55e;">PASS</span>'
-              : '<span style="color:#ef4444;">FAIL</span>';
+              ? '<span style="color:var(--green);">PASS</span>'
+              : '<span style="color:var(--red);">FAIL</span>';
             var expTxt = r.shouldPass ? 'PASS' : 'FAIL';
-            var mark   = r.behaviorOk ? '<span style="color:#22c55e;">✓</span>' : '<b style="color:#ef4444;">✗</b>';
+            var mark   = r.behaviorOk ? '<span style="color:var(--green);">✓</span>' : '<b style="color:var(--red);">✗</b>';
             html +=
               '<tr style="border-bottom:1px solid #222;' + rowBg + '">' +
                 '<td style="padding:5px 8px;font-family:monospace;white-space:nowrap;">' + (i === 0 ? safeText(scId) : '') + '</td>' +
@@ -3351,9 +3351,9 @@
         '</div>' +
         '<div style="padding:10px 14px;border-radius:6px;background:var(--surface-2);border:1px solid var(--border);font-size:0.82rem;margin-bottom:20px;line-height:1.6;">' +
           '<strong>Legend:</strong> ' +
-          '<span style="color:#ef4444;">✗ Missing field</span> · ' +
-          '<span style="color:#f59e0b;">⚠ Consistency issue</span> — keyword not found in ATC text or expected readback · ' +
-          '<span style="color:#22c55e;">✓ OK</span>' +
+          '<span style="color:var(--red);">✗ Missing field</span> · ' +
+          '<span style="color:var(--yellow);">⚠ Consistency issue</span> — keyword not found in ATC text or expected readback · ' +
+          '<span style="color:var(--green);">✓ OK</span>' +
         '</div>';
 
     routes.forEach(function(route) {
@@ -3371,11 +3371,11 @@
               ' · ' + route.totalPhases + ' phase' + (route.totalPhases !== 1 ? 's' : '') + '</small>' +
             '</div>' +
             '<div style="font-size:0.8rem;text-align:right;">' +
-              (route.missingAtcCount      ? '<span style="color:#ef4444;">ATC missing: '       + route.missingAtcCount      + '&nbsp;&nbsp;</span>' : '') +
-              (route.missingReadbackCount ? '<span style="color:#ef4444;">Readback missing: '  + route.missingReadbackCount + '&nbsp;&nbsp;</span>' : '') +
-              (route.missingKeywordsCount ? '<span style="color:#f59e0b;">Keywords missing: '  + route.missingKeywordsCount + '&nbsp;&nbsp;</span>' : '') +
-              (route.duplicateAtcCount    ? '<span style="color:#f59e0b;">Duplicate ATC: '     + route.duplicateAtcCount    + '&nbsp;&nbsp;</span>' : '') +
-              (route.consistencyIssueCount? '<span style="color:#f59e0b;">Mismatch: '          + route.consistencyIssueCount + '</span>'           : '') +
+              (route.missingAtcCount      ? '<span style="color:var(--red);">ATC missing: '       + route.missingAtcCount      + '&nbsp;&nbsp;</span>' : '') +
+              (route.missingReadbackCount ? '<span style="color:var(--red);">Readback missing: '  + route.missingReadbackCount + '&nbsp;&nbsp;</span>' : '') +
+              (route.missingKeywordsCount ? '<span style="color:var(--yellow);">Keywords missing: '  + route.missingKeywordsCount + '&nbsp;&nbsp;</span>' : '') +
+              (route.duplicateAtcCount    ? '<span style="color:var(--yellow);">Duplicate ATC: '     + route.duplicateAtcCount    + '&nbsp;&nbsp;</span>' : '') +
+              (route.consistencyIssueCount? '<span style="color:var(--yellow);">Mismatch: '          + route.consistencyIssueCount + '</span>'           : '') +
             '</div>' +
           '</div>' +
           '<div class="table-wrap" style="max-height:none;">' +
@@ -3392,32 +3392,32 @@
 
                 var atcCell = phase.hasAtcText
                   ? (phase.duplicateAtcText
-                      ? '<span style="color:#f59e0b;" title="Same ATC text in another phase of this route">⚠ ' + safeText(phase.atcPreview) + '</span>'
+                      ? '<span style="color:var(--yellow);" title="Same ATC text in another phase of this route">⚠ ' + safeText(phase.atcPreview) + '</span>'
                       : safeText(phase.atcPreview))
-                  : '<span style="color:#ef4444;font-weight:600;">— missing —</span>';
+                  : '<span style="color:var(--red);font-weight:600;">— missing —</span>';
 
                 var readbackCell = phase.hasExpectedReadback
                   ? safeText(phase.expectedReadback.substring(0, 60))
-                  : '<span style="color:#ef4444;font-weight:600;">— missing —</span>';
+                  : '<span style="color:var(--red);font-weight:600;">— missing —</span>';
 
                 var kwMatchCell;
                 if (!phase.hasKeywords) {
-                  kwMatchCell = '<span style="color:#f59e0b;font-weight:700;">no kw</span>';
+                  kwMatchCell = '<span style="color:var(--yellow);font-weight:700;">no kw</span>';
                 } else if (phase.hasConsistencyIssue) {
                   var details = [];
                   if (phase.kwMissingInAtc && phase.kwMissingInAtc.length) {
-                    details.push('<span style="color:#f59e0b;" title="These keywords not found in ATC text">⚠ not in ATC: ' + safeText(phase.kwMissingInAtc.join(', ')) + '</span>');
+                    details.push('<span style="color:var(--yellow);" title="These keywords not found in ATC text">⚠ not in ATC: ' + safeText(phase.kwMissingInAtc.join(', ')) + '</span>');
                   }
                   if (phase.kwMissingInReadback && phase.kwMissingInReadback.length) {
-                    details.push('<span style="color:#ef4444;" title="These keywords not found in expected readback">✗ not in readback: ' + safeText(phase.kwMissingInReadback.join(', ')) + '</span>');
+                    details.push('<span style="color:var(--red);" title="These keywords not found in expected readback">✗ not in readback: ' + safeText(phase.kwMissingInReadback.join(', ')) + '</span>');
                   }
                   kwMatchCell = details.join('<br>');
                 } else {
-                  kwMatchCell = '<span style="color:#22c55e;">✓ ' + phase.kwList.length + ' matched</span>';
+                  kwMatchCell = '<span style="color:var(--green);">✓ ' + phase.kwList.length + ' matched</span>';
                 }
 
                 var activeCell = phase.isActive
-                  ? '<span style="color:#22c55e;">✓</span>'
+                  ? '<span style="color:var(--green);">✓</span>'
                   : '<span style="opacity:0.4;">–</span>';
 
                 return '<tr style="' + (rowHasIssue ? 'background:#fee2e210;' : '') + '">' +
@@ -3473,7 +3473,7 @@
       ' style="width:72px;padding:5px 7px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:var(--text);text-align:center;font-size:0.8rem;">';
   }
   function _lcCheck(id, checked) {
-    return '<input id="' + id + '" type="checkbox"' + (checked ? ' checked' : '') + ' style="width:16px;height:16px;cursor:pointer;accent-color:#3b82f6;">';
+    return '<input id="' + id + '" type="checkbox"' + (checked ? ' checked' : '') + ' style="width:16px;height:16px;cursor:pointer;accent-color:var(--muted);">';
   }
   function _lcTag(text, color) {
     return '<span style="font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:20px;background:' + color + '20;color:' + color + ';border:1px solid ' + color + '40">' + text + '</span>';
@@ -3529,12 +3529,12 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (statusEl) statusEl.innerHTML = res && res.ok
-          ? '<span style="color:#22c55e;">✓ Saved</span>'
-          : '<span style="color:#ef4444;">' + safeText((res && res.error) || 'Error') + '</span>';
+          ? '<span style="color:var(--green);">✓ Saved</span>'
+          : '<span style="color:var(--red);">' + safeText((res && res.error) || 'Error') + '</span>';
         setTimeout(function() { if (statusEl) statusEl.innerHTML = ''; }, 2500);
       })
       .withFailureHandler(function(err) {
-        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">' + safeText((err && err.message) || 'Error') + '</span>';
+        if (statusEl) statusEl.innerHTML = '<span style="color:var(--red);">' + safeText((err && err.message) || 'Error') + '</span>';
       })
       .apiAdminApplyDifficultyPreset(AppState.sessionToken, { level: level, preset: diff, replayThreshold: threshold });
   }
@@ -3552,11 +3552,11 @@
       google.script.run
         .withSuccessHandler(function() {
           done++;
-          if (done === levels.length && msgEl) msgEl.innerHTML = '<span style="color:#22c55e;">✓ Ramp applied to all levels.</span>';
+          if (done === levels.length && msgEl) msgEl.innerHTML = '<span style="color:var(--green);">✓ Ramp applied to all levels.</span>';
         })
         .withFailureHandler(function() {
           done++;
-          if (msgEl) msgEl.innerHTML = '<span style="color:#ef4444;">One or more levels failed — try again.</span>';
+          if (msgEl) msgEl.innerHTML = '<span style="color:var(--red);">One or more levels failed — try again.</span>';
         })
         .apiAdminApplyDifficultyPreset(AppState.sessionToken, { level: lvl, preset: ramp[lvl], replayThreshold: threshold });
     });
@@ -3753,13 +3753,13 @@
       .withSuccessHandler(function(res) {
         if (res && res.ok) {
           if (window.AppState) window.AppState.flightDriftConfig = allTiers;
-          if (msg) msg.innerHTML = '<span style="color:#22c55e;">✓ Drift tier ' + (idx + 1) + ' saved.</span>';
+          if (msg) msg.innerHTML = '<span style="color:var(--green);">✓ Drift tier ' + (idx + 1) + ' saved.</span>';
         } else {
-          if (msg) msg.innerHTML = '<span style="color:#ef4444;">' + safeText(res && res.error || 'Error.') + '</span>';
+          if (msg) msg.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error || 'Error.') + '</span>';
         }
       })
       .withFailureHandler(function(err) {
-        if (msg) msg.innerHTML = '<span style="color:#ef4444;">' + safeText(err && err.message || 'Server error.') + '</span>';
+        if (msg) msg.innerHTML = '<span style="color:var(--red);">' + safeText(err && err.message || 'Server error.') + '</span>';
       })
       .apiSaveFlightDriftConfig(AppState.sessionToken, allTiers);
   }
@@ -3777,11 +3777,11 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (msg) msg.innerHTML = res && res.ok
-          ? '<span style="color:#22c55e;">✓ Level ' + level + ' saved.</span>'
-          : '<span style="color:#ef4444;">' + safeText(res && res.error || 'Error saving.') + '</span>';
+          ? '<span style="color:var(--green);">✓ Level ' + level + ' saved.</span>'
+          : '<span style="color:var(--red);">' + safeText(res && res.error || 'Error saving.') + '</span>';
       })
       .withFailureHandler(function(err) {
-        if (msg) msg.innerHTML = '<span style="color:#ef4444;">' + safeText(err && err.message || 'Server error.') + '</span>';
+        if (msg) msg.innerHTML = '<span style="color:var(--red);">' + safeText(err && err.message || 'Server error.') + '</span>';
       })
       .apiAdminSaveLevelConfig(AppState.sessionToken, {
         level: level, replayThreshold: threshold,
@@ -3802,10 +3802,10 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (res && res.ok) { renderAdminLevelConfig(); }
-        else if (msg) msg.innerHTML = '<span style="color:#ef4444;">' + safeText(res && res.error || 'Error.') + '</span>';
+        else if (msg) msg.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error || 'Error.') + '</span>';
       })
       .withFailureHandler(function(err) {
-        if (msg) msg.innerHTML = '<span style="color:#ef4444;">' + safeText(err && err.message || 'Server error.') + '</span>';
+        if (msg) msg.innerHTML = '<span style="color:var(--red);">' + safeText(err && err.message || 'Server error.') + '</span>';
       })
       .apiAdminSavePhaseFlightConfig(AppState.sessionToken, {
         level: level, phase: phase,
@@ -3820,7 +3820,7 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (res && res.ok) { renderAdminLevelConfig(); }
-        else if (msg) msg.innerHTML = '<span style="color:#ef4444;">' + safeText(res && res.error || 'Error.') + '</span>';
+        else if (msg) msg.innerHTML = '<span style="color:var(--red);">' + safeText(res && res.error || 'Error.') + '</span>';
       })
       .withFailureHandler(function() { renderAdminLevelConfig(); })
       .apiAdminSavePhaseFlightConfig(AppState.sessionToken, {
@@ -5365,7 +5365,7 @@
               safeText(countryItem.completedScenarios || 0) + ' completed · ' +
               'Avg ' + safeText(countryItem.scoreAvg || 0) + '%' +
               (completed && countryItem.completedAt
-                ? ' · <span style="color:#22c55e;font-size:0.78rem;">✓ ' +
+                ? ' · <span style="color:var(--green);font-size:0.78rem;">✓ ' +
                   String(countryItem.completedAt).replace('T', ' ').slice(0, 16) + '</span>'
                 : '') +
             '</p>' +
@@ -5432,7 +5432,7 @@
     var _cpStrip = _wkLvls >= 10
       ? '<div style="margin-top:10px;padding:7px 14px;background:rgba(218,165,32,0.08);border:1px solid rgba(218,165,32,0.25);border-radius:8px;font-size:0.76rem;color:#DAA520;font-weight:700;letter-spacing:0.04em;">🏆 Full week complete — 725 CP earned</div>'
       : '<div style="margin-top:10px;padding:7px 14px;background:rgba(var(--accent-rgb), 0.06);border:1px solid rgba(var(--accent-rgb), 0.18);border-radius:8px;font-size:0.76rem;color:var(--accent);letter-spacing:0.04em;">' +
-          '⚡ Complete this level → <strong>+' + _nextCp + ' CP</strong> <span style="color:#64748b;">(' + _multip + '× multiplier)</span>' +
+          '⚡ Complete this level → <strong>+' + _nextCp + ' CP</strong> <span style="color:var(--muted);">(' + _multip + '× multiplier)</span>' +
         '</div>';
 
     window.scrollTo(0, 0);
@@ -7275,8 +7275,8 @@
         '<div style="padding:12px 14px;border-radius:12px;text-align:left;' +
           'background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.35);">' +
           '<p style="margin:0 0 6px;font-size:.66rem;font-weight:800;letter-spacing:.14em;' +
-            'text-transform:uppercase;color:#eab308;">ATC \u00b7 audio unavailable</p>' +
-          '<p style="margin:0;font-size:.92rem;line-height:1.55;color:#cacaca;">' +
+            'text-transform:uppercase;color:var(--yellow);">ATC \u00b7 audio unavailable</p>' +
+          '<p style="margin:0;font-size:.92rem;line-height:1.55;color:var(--muted);">' +
             safeText(String(text || '')) + '</p>' +
         '</div>';
     }
@@ -7357,7 +7357,7 @@
               '<div class="sim-section-title"><span>ATC RADIO</span>' +
                 '<div style="display:flex;gap:6px;align-items:center;">' +
                   '<span class="sim-live-dot" id="simAtcLiveDot" style="display:none;">PLAYING</span>' +
-                  '<span id="atcVoiceBadge" style="font-size:0.72rem;color:#8c8c8c;letter-spacing:.02em;align-self:center;">loading…</span>' +
+                  '<span id="atcVoiceBadge" style="font-size:0.72rem;color:var(--muted);letter-spacing:.02em;align-self:center;">loading…</span>' +
                   '<button class="btn primary" id="atcReplayBtn" onclick="immersivePlayAtcAudio(event)">&#8635; Replay ATC</button>' +
                 '</div>' +
               '</div>' +
@@ -9004,7 +9004,7 @@
           '<p class="eyebrow" style="letter-spacing:.14em;">' + safeText(eyebrow || '') + '</p>' +
           '<h2 id="radarLoaderMsg">' + safeText(msgs[0]) + '</h2>' +
           '<div class="completion-loading-bar"><div class="completion-loading-fill" id="radarLoaderFill"></div></div>' +
-          '<p id="radarLoaderHint" style="font-size:.82rem;color:#64748b;margin-top:10px;">' + safeText(hint || '') + '</p>' +
+          '<p id="radarLoaderHint" style="font-size:.82rem;color:var(--muted);margin-top:10px;">' + safeText(hint || '') + '</p>' +
         '</div>' +
       '</div>';
 
@@ -9104,7 +9104,7 @@
     var html =
       '<h3>' + (ok ? '✓ Read-back accepted' : '✗ Non-standard read-back') + '</h3>' +
       '<p><strong>Score:</strong> ' + safeText(evaluation.score || 0) + '/100</p>' +
-      (missing.length ? '<p><strong>Missing:</strong> ' + safeText(missing.map(function(k){ return k.toLowerCase(); }).join(', ')) + '</p>' : '<p style="color:#6ee7b7;"><strong>✓ All required elements included.</strong></p>') +
+      (missing.length ? '<p><strong>Missing:</strong> ' + safeText(missing.map(function(k){ return k.toLowerCase(); }).join(', ')) + '</p>' : '<p style="color:var(--green);"><strong>✓ All required elements included.</strong></p>') +
       '<p class="route-progress-live"><strong>Route progress:</strong> ' + routePct + '% (' + safeText(completedCount) + '/' + safeText(total) + ' phases)</p>' +
       '<div class="sim-action-row">' +
         '<button class="btn secondary" onclick="retryCurrentScenario()">' + (ok ? 'Practice again' : 'Retry') + '</button>' +
@@ -9316,14 +9316,14 @@
     setActiveNav('Simulator');
     byId('contentArea').innerHTML =
       '<div class="panel" style="max-width:600px;margin:0 auto;">' +
-        '<p class="eyebrow" style="color:#eab308;">ICAO Assessment</p>' +
+        '<p class="eyebrow" style="color:var(--yellow);">ICAO Assessment</p>' +
         '<h2>Comprehension Test</h2>' +
         '<p class="subtitle" style="margin-bottom:18px;">10 ATC transmissions across 5 different accents. Listen carefully and type the exact read-back a pilot would give. Replays are allowed but reduce your score.</p>' +
         '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:22px;">' +
-          '<div style="display:flex;gap:10px;align-items:center;font-size:0.83rem;color:#8c8c8c;"><span>📡</span><span>10 scenarios — USA, UK, Australia, Canada, India</span></div>' +
-          '<div style="display:flex;gap:10px;align-items:center;font-size:0.83rem;color:#8c8c8c;"><span>🔁</span><span>Each replay reduces your scenario score</span></div>' +
-          '<div style="display:flex;gap:10px;align-items:center;font-size:0.83rem;color:#8c8c8c;"><span>🏅</span><span>Band 4 Operational (B2) requires ≥ 76%</span></div>' +
-          '<div style="display:flex;gap:10px;align-items:center;font-size:0.83rem;color:#eab308;"><span>⚠️</span><span>This test can only be retaken if authorized by your instructor.</span></div>' +
+          '<div style="display:flex;gap:10px;align-items:center;font-size:0.83rem;color:var(--muted);"><span>📡</span><span>10 scenarios — USA, UK, Australia, Canada, India</span></div>' +
+          '<div style="display:flex;gap:10px;align-items:center;font-size:0.83rem;color:var(--muted);"><span>🔁</span><span>Each replay reduces your scenario score</span></div>' +
+          '<div style="display:flex;gap:10px;align-items:center;font-size:0.83rem;color:var(--muted);"><span>🏅</span><span>Band 4 Operational (B2) requires ≥ 76%</span></div>' +
+          '<div style="display:flex;gap:10px;align-items:center;font-size:0.83rem;color:var(--yellow);"><span>⚠️</span><span>This test can only be retaken if authorized by your instructor.</span></div>' +
         '</div>' +
         '<div style="display:flex;gap:10px;">' +
           '<button class="btn secondary" onclick="renderSimulatorPlaceholder()">Cancel</button>' +
@@ -9362,14 +9362,14 @@
       '<div class="icao-test-stage">' +
         '<div class="icao-test-header">' +
           '<div>' +
-            '<p class="eyebrow" style="color:#eab308;">ICAO Assessment</p>' +
+            '<p class="eyebrow" style="color:var(--yellow);">ICAO Assessment</p>' +
             '<h3 style="margin:2px 0;">Scenario ' + safeText(num) + ' of ' + safeText(total) + '</h3>' +
             '<p class="icao-test-progress">' + safeText(sc.phaseName) + ' · ' +
               getFlagHtml(country, 'flag-preview') + ' <span>' + safeText(countryMeta.label) + '</span>' +
             '</p>' +
           '</div>' +
           '<div style="display:flex;gap:8px;align-items:center;">' +
-            '<span id="icaoVoiceBadge" style="font-size:0.72rem;color:#8c8c8c;"></span>' +
+            '<span id="icaoVoiceBadge" style="font-size:0.72rem;color:var(--muted);"></span>' +
             '<button class="btn primary" id="icaoPlayBtn" onclick="icaoTestPlayAtc()">▶ Play clearance</button>' +
           '</div>' +
         '</div>' +
@@ -9586,7 +9586,7 @@
       return '<div class="icao-scenario-row">' +
         '<span>' + flag + ' ' + safeText(r.phaseName) + '</span>' +
         '<span class="sc-score ' + cls + '">' + safeText(r.score) + '%' +
-          (r.replays > 0 ? ' <small style="color:#606060;">(' + r.replays + ' replay)</small>' : '') +
+          (r.replays > 0 ? ' <small style="color:var(--muted);">(' + r.replays + ' replay)</small>' : '') +
         '</span>' +
       '</div>';
     }).join('');
@@ -9597,7 +9597,7 @@
           '<p class="eyebrow">ICAO Comprehension Assessment</p>' +
           '<div class="icao-band-level">Band ' + safeText(band.band) + '</div>' +
           '<div class="icao-band-label">' + safeText(band.label) + (band.band === 4 ? ' — B2 Operational Minimum' : '') + '</div>' +
-          '<p style="font-size:0.82rem;color:#8c8c8c;margin-top:10px;line-height:1.5;">' + safeText(band.descriptor) + '</p>' +
+          '<p style="font-size:0.82rem;color:var(--muted);margin-top:10px;line-height:1.5;">' + safeText(band.descriptor) + '</p>' +
         '</div>' +
         '<div class="icao-band-body">' +
           '<div class="icao-band-scores">' +
@@ -9671,7 +9671,7 @@
           '<p class="eyebrow" style="letter-spacing:.14em;">ROUTE COMPLETE</p>' +
           '<h2 id="completionLoadingMsg">Calculating your score&hellip;</h2>' +
           '<div class="completion-loading-bar"><div class="completion-loading-fill" id="completionLoadingFill"></div></div>' +
-          '<p id="completionLoadingHint" style="font-size:.82rem;color:#64748b;margin-top:10px;">Syncing with training server</p>' +
+          '<p id="completionLoadingHint" style="font-size:.82rem;color:var(--muted);margin-top:10px;">Syncing with training server</p>' +
         '</div>' +
       '</div>';
     var _msgs = ['Calculating your score…','Grading read-backs…','Updating leaderboard…','Unlocking achievements…','Loading debrief…'];
@@ -9829,8 +9829,8 @@
 
     var rows = phases.map(function(p) {
       var attemptsLabel = p.totalAttempts === 1
-        ? '<span style="color:#22c55e;">1st try ✓</span>'
-        : '<span style="color:#f59e0b;">' + p.totalAttempts + ' attempts</span>';
+        ? '<span style="color:var(--green);">1st try ✓</span>'
+        : '<span style="color:var(--yellow);">' + p.totalAttempts + ' attempts</span>';
 
       var scoreColor = p.bestScore >= 80 ? '#22c55e' : p.bestScore >= 50 ? '#f59e0b' : '#ef4444';
 
@@ -9842,7 +9842,7 @@
       var listensLabel = listens === 0
         ? '<span style="opacity:0.4;">—</span>'
         : listens === 1
-          ? '<span style="color:#22c55e;">1×</span>'
+          ? '<span style="color:var(--green);">1×</span>'
           : '<span style="color:' + (listens <= 3 ? '#f59e0b' : '#ef4444') + ';">' + listens + '×</span>';
 
       return '<tr>' +
@@ -10105,15 +10105,15 @@
           '<div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;">' +
             '<div>' +
               '<div style="font-size:2rem;font-weight:900;color:' + vrColor + ';font-family:\'Courier New\',monospace;line-height:1;">+' + safeText(vrBonus.bonusXp) + '</div>' +
-              '<div style="font-size:0.72rem;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:0.06em;">Bonus XP</div>' +
+              '<div style="font-size:0.72rem;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:0.06em;">Bonus XP</div>' +
             '</div>' +
             '<div style="width:1px;background:' + vrColor + '30;"></div>' +
             '<div>' +
               '<div style="font-size:2rem;font-weight:900;color:' + vrColor + ';font-family:\'Courier New\',monospace;line-height:1;">+' + safeText(vrBonus.bonusCp) + '</div>' +
-              '<div style="font-size:0.72rem;color:#64748b;margin-top:2px;text-transform:uppercase;letter-spacing:0.06em;">Bonus CP</div>' +
+              '<div style="font-size:0.72rem;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:0.06em;">Bonus CP</div>' +
             '</div>' +
           '</div>' +
-          '<div style="font-size:0.72rem;color:#4a6280;margin-top:10px;">Added to your weekly total — visible on the leaderboard</div>' +
+          '<div style="font-size:0.72rem;color:var(--muted);margin-top:10px;">Added to your weekly total — visible on the leaderboard</div>' +
         '</div>';
       // Clear so it doesn't re-show if user navigates back
       AppState.training.vrBonusEarned = null;
@@ -10206,7 +10206,7 @@
 
     byId('contentArea').innerHTML =
       '<section class="senior-certificate-shell">' +
-        '<div class="senior-certificate-toolbar"><div><p class="eyebrow">Level completed</p><h2>Certificate ready</h2><p class="subtitle">A professional certificate has been generated for this completed level.</p><p id="certSaveStatus" style="font-size:0.78rem;color:#606060;margin-top:4px;">Saving to your profile…</p></div><div class="senior-actions compact"><button class="btn secondary" onclick="renderSimulatorPlaceholder()">Back to simulator</button><button class="btn secondary" onclick="renderHome()">Go to Home</button><button class="btn primary" onclick="window.print()">Print certificate</button></div></div>' +
+        '<div class="senior-certificate-toolbar"><div><p class="eyebrow">Level completed</p><h2>Certificate ready</h2><p class="subtitle">A professional certificate has been generated for this completed level.</p><p id="certSaveStatus" style="font-size:0.78rem;color:var(--muted);margin-top:4px;">Saving to your profile…</p></div><div class="senior-actions compact"><button class="btn secondary" onclick="renderSimulatorPlaceholder()">Back to simulator</button><button class="btn secondary" onclick="renderHome()">Go to Home</button><button class="btn primary" onclick="window.print()">Print certificate</button></div></div>' +
         '<div class="senior-certificate-card">' +
           '<div class="senior-cert-watermark">ICAO</div>' +
           '<div class="senior-cert-header"><div><p class="senior-cert-kicker">Aviation English Interactive Campus</p><h1>Certificate of Operational Proficiency</h1></div><div class="senior-cert-id"><span>Certificate ID</span><strong>' + safeText(certId) + '</strong></div></div>' +
@@ -10461,14 +10461,14 @@
       var bandColor = r.band >= 5 ? '#22c55e' : (r.band === 4 ? '#eab308' : '#ef4444');
       return '<tr>' +
         '<td>' + safeText(r.name) + '</td>' +
-        '<td style="color:#8c8c8c;font-size:0.8rem;">' + safeText(r.email) + '</td>' +
-        '<td><strong style="color:' + bandColor + ';">Band ' + safeText(r.band) + '</strong> <span style="color:#606060;font-size:0.78rem;">' + safeText(r.bandLabel) + '</span></td>' +
+        '<td style="color:var(--muted);font-size:0.8rem;">' + safeText(r.email) + '</td>' +
+        '<td><strong style="color:' + bandColor + ';">Band ' + safeText(r.band) + '</strong> <span style="color:var(--muted);font-size:0.78rem;">' + safeText(r.bandLabel) + '</span></td>' +
         '<td>' + safeText(r.score) + '%</td>' +
         '<td>' + safeText(r.replayAvg) + '</td>' +
-        '<td style="color:#606060;font-size:0.8rem;">' + safeText(r.completedAt) + '</td>' +
+        '<td style="color:var(--muted);font-size:0.8rem;">' + safeText(r.completedAt) + '</td>' +
         '<td>' +
           (r.retakeAuthorized === 'true'
-            ? '<span style="color:#eab308;font-size:0.78rem;">Retest authorized</span>'
+            ? '<span style="color:var(--yellow);font-size:0.78rem;">Retest authorized</span>'
             : '<button class="btn secondary" style="padding:4px 10px;font-size:0.72rem;" onclick="adminAuthorizeIcaoRetest(\'' + safeJs(r.userId) + '\')">Auth retest</button>') +
         '</td>' +
       '</tr>';
@@ -10519,18 +10519,18 @@
           for (var i = 1; i <= 5; i++) stars += i <= Number(t.rating) ? '★' : '☆';
           return '<tr>' +
             '<td><span class="tm-initials-sm" style="background:' + _tmColor(t.name) + ';">' + _tmInitials(t.name) + '</span></td>' +
-            '<td><strong>' + safeText(t.name) + '</strong><br><span style="color:#8c8c8c;font-size:0.78rem;">' + safeText(t.role) + '</span></td>' +
-            '<td style="color:#f59e0b;letter-spacing:2px;">' + stars + '</td>' +
-            '<td style="font-size:0.82rem;color:#c0c0c0;max-width:260px;">' + safeText(String(t.text || '').substring(0, 100)) + (String(t.text||'').length > 100 ? '…' : '') + '</td>' +
+            '<td><strong>' + safeText(t.name) + '</strong><br><span style="color:var(--muted);font-size:0.78rem;">' + safeText(t.role) + '</span></td>' +
+            '<td style="color:var(--yellow);letter-spacing:2px;">' + stars + '</td>' +
+            '<td style="font-size:0.82rem;color:var(--muted);max-width:260px;">' + safeText(String(t.text || '').substring(0, 100)) + (String(t.text||'').length > 100 ? '…' : '') + '</td>' +
             '<td><span style="color:' + (t.active === 'true' || t.active === true ? '#22c55e' : '#ef4444') + ';font-size:0.78rem;">' + (t.active === 'true' || t.active === true ? 'Visible' : 'Hidden') + '</span></td>' +
             '<td>#' + safeText(t.sortOrder || 0) + '</td>' +
             '<td style="white-space:nowrap;">' +
               '<button class="btn secondary" style="padding:4px 10px;font-size:0.72rem;margin-right:4px;" onclick="adminEditTestimonial(\'' + safeJs(t.testimonialId) + '\')">Edit</button>' +
-              '<button class="btn secondary" style="padding:4px 10px;font-size:0.72rem;color:#ef4444;" onclick="adminDeleteTestimonial(\'' + safeJs(t.testimonialId) + '\',\'' + safeJs(t.name) + '\')">Delete</button>' +
+              '<button class="btn secondary" style="padding:4px 10px;font-size:0.72rem;color:var(--red);" onclick="adminDeleteTestimonial(\'' + safeJs(t.testimonialId) + '\',\'' + safeJs(t.name) + '\')">Delete</button>' +
             '</td>' +
           '</tr>';
         }).join('')
-      : '<tr><td colspan="7" style="color:#606060;text-align:center;padding:24px;">No testimonials yet. Use the form below to add your first one.</td></tr>';
+      : '<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:24px;">No testimonials yet. Use the form below to add your first one.</td></tr>';
 
     byId('contentArea').innerHTML =
       '<div class="panel">' + renderAdminTabs('testimonials') +
@@ -10553,15 +10553,15 @@
     return '<h4 style="margin:0 0 14px;">' + (editing ? 'Edit testimonial' : 'Add new testimonial') + '</h4>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">' +
         '<div>' +
-          '<label style="font-size:0.8rem;color:#9ca3af;display:block;margin-bottom:4px;">Full name *</label>' +
+          '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Full name *</label>' +
           '<input id="tmName" class="input-field" style="width:100%;" placeholder="e.g. Carlos Rodríguez" value="' + val('name') + '">' +
         '</div>' +
         '<div>' +
-          '<label style="font-size:0.8rem;color:#9ca3af;display:block;margin-bottom:4px;">Role *</label>' +
+          '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Role *</label>' +
           '<input id="tmRole" class="input-field" style="width:100%;" placeholder="e.g. ATCO, Aviation Student, Pilot" value="' + val('role') + '">' +
         '</div>' +
         '<div>' +
-          '<label style="font-size:0.8rem;color:#9ca3af;display:block;margin-bottom:4px;">Stars (1–5) *</label>' +
+          '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Stars (1–5) *</label>' +
           '<select id="tmRating" class="input-field" style="width:100%;">' +
             [5,4,3,2,1].map(function(n) {
               var sel = editing && Number(t.rating) === n ? ' selected' : (!editing && n === 5 ? ' selected' : '');
@@ -10570,12 +10570,12 @@
           '</select>' +
         '</div>' +
         '<div>' +
-          '<label style="font-size:0.8rem;color:#9ca3af;display:block;margin-bottom:4px;">Sort order (lower = first)</label>' +
+          '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Sort order (lower = first)</label>' +
           '<input id="tmSort" class="input-field" style="width:100%;" type="number" min="0" placeholder="0" value="' + val('sortOrder', 0) + '">' +
         '</div>' +
       '</div>' +
       '<div style="margin-bottom:12px;">' +
-        '<label style="font-size:0.8rem;color:#9ca3af;display:block;margin-bottom:4px;">Testimonial text *</label>' +
+        '<label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:4px;">Testimonial text *</label>' +
         '<textarea id="tmText" class="input-field" style="width:100%;min-height:90px;resize:vertical;" placeholder="What they said…">' + (editing ? safeText(t.text || '') : '') + '</textarea>' +
       '</div>' +
       (editing
@@ -10683,7 +10683,7 @@
         '<p class="eyebrow">Admin · Tour Reset</p>' +
         '<h3 style="margin-bottom:4px;">Weekly Tour Control</h3>' +
         '<p class="subtitle" style="margin-bottom:24px;">Close the current tour and start a new one. This snapshots all students\' XP into Career Points and resets the weekly leaderboard to zero.</p>' +
-        '<div id="tourResetInfo" style="margin-bottom:20px;color:#8fa3bb;font-size:0.85rem;">Loading tour info…</div>' +
+        '<div id="tourResetInfo" style="margin-bottom:20px;color:var(--muted);font-size:0.85rem;">Loading tour info…</div>' +
         '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">' +
           '<button class="btn danger"     id="tourResetBtn"     onclick="adminConfirmResetTour()">Close Tour &amp; Reset Weekly XP</button>' +
           '<button class="btn primary"    id="tourEmailBtn"     onclick="adminConfirmSendEmails()">Send Weekly Email to All Students</button>' +
@@ -10715,12 +10715,12 @@
             '<span style="font-size:1rem;">⏱ Resets: <strong style="color:var(--text);">' + safeText(endLocal) + '</strong>' +
             ' &nbsp;— <span style="color:' + countdownColor + ';font-weight:700;">' + safeText(countdown) + '</span></span>';
         } else {
-          info.innerHTML = '<span style="color:#f59e0b;">⚠ Could not load tour info — buttons still work.</span>';
+          info.innerHTML = '<span style="color:var(--yellow);">⚠ Could not load tour info — buttons still work.</span>';
         }
       })
       .withFailureHandler(function() {
         var info = byId('tourResetInfo');
-        if (info) info.innerHTML = '<span style="color:#f59e0b;">⚠ Could not load tour info — buttons still work.</span>';
+        if (info) info.innerHTML = '<span style="color:var(--yellow);">⚠ Could not load tour info — buttons still work.</span>';
       })
       .apiGetActiveTour(AppState.sessionToken);
   }
@@ -10730,7 +10730,7 @@
     var btn = byId('tourResetBtn');
     var msg = byId('tourResetMsg');
     if (btn) btn.disabled = true;
-    if (msg) msg.innerHTML = '<span style="color:#8fa3bb;">Closing tour…</span>';
+    if (msg) msg.innerHTML = '<span style="color:var(--muted);">Closing tour…</span>';
 
     google.script.run
       .withSuccessHandler(function(res) {
@@ -10752,12 +10752,12 @@
               ' &nbsp;— <span style="color:var(--accent);font-weight:700;">7 days remaining</span></span>';
           }
         } else {
-          msg.innerHTML = '<span style="color:#ef4444;">Error: ' + safeText((res && res.message) || 'Unknown error') + '</span>';
+          msg.innerHTML = '<span style="color:var(--red);">Error: ' + safeText((res && res.message) || 'Unknown error') + '</span>';
         }
       })
       .withFailureHandler(function(err) {
         if (btn) btn.disabled = false;
-        if (msg) msg.innerHTML = '<span style="color:#ef4444;">Server error. Try again.</span>';
+        if (msg) msg.innerHTML = '<span style="color:var(--red);">Server error. Try again.</span>';
       })
       .apiAdminResetTour(AppState.sessionToken);
   }
@@ -10775,12 +10775,12 @@
         if (res && res.ok) {
           msg.innerHTML = '<span style="color:var(--accent);">&#10003; Test email sent to <strong>' + safeText(res.sentTo || '') + '</strong> — check your inbox.</span>';
         } else {
-          msg.innerHTML = '<span style="color:#ef4444;">Error: ' + safeText((res && res.message) || 'Unknown error') + '</span>';
+          msg.innerHTML = '<span style="color:var(--red);">Error: ' + safeText((res && res.message) || 'Unknown error') + '</span>';
         }
       })
       .withFailureHandler(function() {
         if (btn) { btn.disabled = false; btn.textContent = 'Send Test Email to Me'; }
-        if (msg) msg.innerHTML = '<span style="color:#ef4444;">Server error. Try again.</span>';
+        if (msg) msg.innerHTML = '<span style="color:var(--red);">Server error. Try again.</span>';
       })
       .apiAdminSendTestEmail(AppState.sessionToken);
   }
@@ -10790,7 +10790,7 @@
     var btn = byId('tourEmailBtn');
     var msg = byId('tourResetMsg');
     if (btn) btn.disabled = true;
-    if (msg) msg.innerHTML = '<span style="color:#8fa3bb;">Sending emails…</span>';
+    if (msg) msg.innerHTML = '<span style="color:var(--muted);">Sending emails…</span>';
 
     google.script.run
       .withSuccessHandler(function(res) {
@@ -10798,14 +10798,14 @@
         if (!msg) return;
         if (res && res.ok) {
           msg.innerHTML = '<span style="color:var(--accent);">&#10003; Sent to <strong>' + safeText(res.sent) + '</strong> student(s).' +
-            (res.failed > 0 ? ' <span style="color:#f59e0b;">' + safeText(res.failed) + ' failed.</span>' : '') + '</span>';
+            (res.failed > 0 ? ' <span style="color:var(--yellow);">' + safeText(res.failed) + ' failed.</span>' : '') + '</span>';
         } else {
-          msg.innerHTML = '<span style="color:#ef4444;">Error: ' + safeText((res && res.message) || 'Unknown error') + '</span>';
+          msg.innerHTML = '<span style="color:var(--red);">Error: ' + safeText((res && res.message) || 'Unknown error') + '</span>';
         }
       })
       .withFailureHandler(function() {
         if (btn) btn.disabled = false;
-        if (msg) msg.innerHTML = '<span style="color:#ef4444;">Server error. Try again.</span>';
+        if (msg) msg.innerHTML = '<span style="color:var(--red);">Server error. Try again.</span>';
       })
       .apiAdminSendWeeklyEmails(AppState.sessionToken);
   }
@@ -10824,30 +10824,30 @@
 
     if (btn) btn.textContent = 'Loading…';
     panel.style.display = 'block';
-    panel.innerHTML = '<span style="color:#8fa3bb;font-size:0.85rem;">Loading email log…</span>';
+    panel.innerHTML = '<span style="color:var(--muted);font-size:0.85rem;">Loading email log…</span>';
 
     google.script.run
       .withSuccessHandler(function(rows) {
         if (btn) btn.textContent = '📄 Email Log';
         if (!panel) return;
         if (!rows || rows.length === 0) {
-          panel.innerHTML = '<p style="color:#8fa3bb;font-size:0.85rem;">No emails logged yet.</p>';
+          panel.innerHTML = '<p style="color:var(--muted);font-size:0.85rem;">No emails logged yet.</p>';
           return;
         }
         var html =
           '<p class="eyebrow" style="margin-bottom:10px;">Email Log — last ' + rows.length + ' entries (newest first)</p>' +
           '<div style="overflow-x:auto;">' +
-          '<table style="width:100%;border-collapse:collapse;font-size:0.78rem;color:#8fa3bb;">' +
+          '<table style="width:100%;border-collapse:collapse;font-size:0.78rem;color:var(--muted);">' +
             '<thead>' +
               '<tr style="border-bottom:1px solid #1e3048;">' +
-                '<th style="text-align:left;padding:6px 10px;color:#4a6280;font-weight:700;letter-spacing:0.06em;">DATE</th>' +
-                '<th style="text-align:left;padding:6px 10px;color:#4a6280;font-weight:700;letter-spacing:0.06em;">NAME</th>' +
-                '<th style="text-align:left;padding:6px 10px;color:#4a6280;font-weight:700;letter-spacing:0.06em;">EMAIL</th>' +
-                '<th style="text-align:left;padding:6px 10px;color:#4a6280;font-weight:700;letter-spacing:0.06em;">TOUR</th>' +
-                '<th style="text-align:left;padding:6px 10px;color:#4a6280;font-weight:700;letter-spacing:0.06em;">TYPE</th>' +
-                '<th style="text-align:right;padding:6px 10px;color:#4a6280;font-weight:700;letter-spacing:0.06em;">XP</th>' +
-                '<th style="text-align:right;padding:6px 10px;color:#4a6280;font-weight:700;letter-spacing:0.06em;">RANK</th>' +
-                '<th style="text-align:left;padding:6px 10px;color:#4a6280;font-weight:700;letter-spacing:0.06em;">STATUS</th>' +
+                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing:0.06em;">DATE</th>' +
+                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing:0.06em;">NAME</th>' +
+                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing:0.06em;">EMAIL</th>' +
+                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing:0.06em;">TOUR</th>' +
+                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing:0.06em;">TYPE</th>' +
+                '<th style="text-align:right;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing:0.06em;">XP</th>' +
+                '<th style="text-align:right;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing:0.06em;">RANK</th>' +
+                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing:0.06em;">STATUS</th>' +
               '</tr>' +
             '</thead>' +
             '<tbody>';
@@ -10873,7 +10873,7 @@
       })
       .withFailureHandler(function() {
         if (btn) btn.textContent = '📄 Email Log';
-        if (panel) panel.innerHTML = '<span style="color:#ef4444;">Could not load email log.</span>';
+        if (panel) panel.innerHTML = '<span style="color:var(--red);">Could not load email log.</span>';
       })
       .apiAdminGetEmailLog(AppState.sessionToken);
   }
@@ -10882,30 +10882,30 @@
     var btn   = byId('tourTtsDiagBtn');
     var panel = byId('tourEmailLogPanel');
     if (btn) btn.textContent = 'Checking…';
-    if (panel) { panel.style.display = 'block'; panel.innerHTML = '<span style="color:#8fa3bb;font-size:0.85rem;">Scanning all active scenarios for TTS issues…</span>'; }
+    if (panel) { panel.style.display = 'block'; panel.innerHTML = '<span style="color:var(--muted);font-size:0.85rem;">Scanning all active scenarios for TTS issues…</span>'; }
 
     google.script.run
       .withSuccessHandler(function(res) {
         if (btn) btn.textContent = '🎙 Voice Check';
         if (!panel) return;
         if (!res || !res.ok) {
-          panel.innerHTML = '<span style="color:#ef4444;">Diagnostic failed: ' + safeText((res && res.message) || 'unknown error') + '</span>';
+          panel.innerHTML = '<span style="color:var(--red);">Diagnostic failed: ' + safeText((res && res.message) || 'unknown error') + '</span>';
           return;
         }
         if (!res.issues || res.issues.length === 0) {
           panel.innerHTML = '<p style="color:var(--accent);font-size:0.85rem;">&#10003; All active scenarios look good — no TTS issues found.</p>';
           return;
         }
-        var html = '<p class="eyebrow" style="margin-bottom:10px;color:#ef4444;">TTS Issues Found (' + res.issues.length + ')</p><ul style="margin:0;padding:0 0 0 16px;">';
+        var html = '<p class="eyebrow" style="margin-bottom:10px;color:var(--red);">TTS Issues Found (' + res.issues.length + ')</p><ul style="margin:0;padding:0 0 0 16px;">';
         res.issues.forEach(function(line) {
-          html += '<li style="font-size:0.8rem;color:#8fa3bb;margin-bottom:6px;">' + safeText(line) + '</li>';
+          html += '<li style="font-size:0.8rem;color:var(--muted);margin-bottom:6px;">' + safeText(line) + '</li>';
         });
-        html += '</ul><p style="margin-top:12px;font-size:0.75rem;color:#4a6280;">Fix these rows in the Scenarios sheet, then re-deploy.</p>';
+        html += '</ul><p style="margin-top:12px;font-size:0.75rem;color:var(--muted);">Fix these rows in the Scenarios sheet, then re-deploy.</p>';
         panel.innerHTML = html;
       })
       .withFailureHandler(function() {
         if (btn) btn.textContent = '🎙 Voice Check';
-        if (panel) panel.innerHTML = '<span style="color:#ef4444;">Could not run diagnostic.</span>';
+        if (panel) panel.innerHTML = '<span style="color:var(--red);">Could not run diagnostic.</span>';
       })
       .apiAdminDiagnoseTts(AppState.sessionToken);
   }
@@ -11161,11 +11161,11 @@
         '<button class="panel-close-btn" onclick="closeSubscriptionModal()" style="position:absolute;top:14px;right:16px;">&times;</button>' +
         '<p class="eyebrow" style="text-align:center;margin-bottom:6px;">Aviation English Interactive Campus</p>' +
         '<h2 style="margin:0 0 8px;text-align:center;font-size:1.6rem;">Elige tu plan</h2>' +
-        '<p style="margin:0 0 28px;color:#8fa3bb;font-size:0.84rem;line-height:1.6;text-align:center;max-width:480px;margin-left:auto;margin-right:auto;">' +
+        '<p style="margin:0 0 28px;color:var(--muted);font-size:0.84rem;line-height:1.6;text-align:center;max-width:480px;margin-left:auto;margin-right:auto;">' +
           'Simulador de entrenamiento ATC con vocabulario especializado de aviaci&oacute;n, diferentes acentos y situaciones rutinarias y de emergencia.' +
         '</p>' +
         '<div id="subPlanCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;align-items:stretch;">' +
-          '<p style="color:#8fa3bb;font-size:0.85rem;margin:auto;">Cargando planes…</p>' +
+          '<p style="color:var(--muted);font-size:0.85rem;margin:auto;">Cargando planes…</p>' +
         '</div>' +
         '<div id="subPayStatus" class="sub-pay-status" style="margin-top:16px;text-align:center;"></div>' +
       '</div>';
@@ -11177,7 +11177,7 @@
         var cards = byId('subPlanCards');
         if (!cards) return;
         if (!res || !res.ok || !res.plans) {
-          cards.innerHTML = '<p style="color:#ef4444;font-size:0.83rem;">Error al cargar planes.</p>';
+          cards.innerHTML = '<p style="color:var(--red);font-size:0.83rem;">Error al cargar planes.</p>';
           return;
         }
 
@@ -11230,18 +11230,18 @@
           var subtext = 'Niveles 1 a ' + plan.maxLevel + ' &middot; ' +
                         plan.examAllowance + ' intentos del examen';
           var priceBlock = monthlyCop
-            ? '<p style="margin:0 0 2px;font-size:2rem;font-weight:900;color:#ffffff;line-height:1;white-space:nowrap;">COP ' + monthlyCop + '</p>' +
-              '<p style="margin:0 0 4px;font-size:0.72rem;color:#8fa3bb;letter-spacing:0.04em;white-space:nowrap;">/ mes</p>' +
-              '<p style="margin:0 0 16px;font-size:0.72rem;color:#555;">' + subtext + '</p>'
-            : '<p style="margin:0 0 2px;font-size:2rem;font-weight:900;color:#ffffff;line-height:1;white-space:nowrap;">COP ' + totalCop + '</p>' +
-              '<p style="margin:0 0 16px;font-size:0.72rem;color:#8fa3bb;">' + subtext + '</p>';
+            ? '<p style="margin:0 0 2px;font-size:2rem;font-weight:900;color:var(--text);line-height:1;white-space:nowrap;">COP ' + monthlyCop + '</p>' +
+              '<p style="margin:0 0 4px;font-size:0.72rem;color:var(--muted);letter-spacing:0.04em;white-space:nowrap;">/ mes</p>' +
+              '<p style="margin:0 0 16px;font-size:0.72rem;color:var(--muted);">' + subtext + '</p>'
+            : '<p style="margin:0 0 2px;font-size:2rem;font-weight:900;color:var(--text);line-height:1;white-space:nowrap;">COP ' + totalCop + '</p>' +
+              '<p style="margin:0 0 16px;font-size:0.72rem;color:var(--muted);">' + subtext + '</p>';
 
           var btnStyle = popular
             ? 'width:100%;padding:12px;font-size:0.9rem;font-weight:700;background:var(--accent);color:var(--accent-ink);border:none;border-radius:10px;cursor:pointer;transition:opacity 0.2s;'
             : 'width:100%;padding:12px;font-size:0.9rem;font-weight:700;background:transparent;color:var(--text);border:1px solid rgba(255,255,255,0.2);border-radius:10px;cursor:pointer;transition:background 0.2s,border-color 0.2s;';
 
           var flagsRow =
-            '<p style="margin:0 0 6px;font-size:0.75rem;font-weight:700;letter-spacing:0.1em;color:#4d6070;text-transform:uppercase;">Acentos incluidos</p>' +
+            '<p style="margin:0 0 6px;font-size:0.75rem;font-weight:700;letter-spacing:0.1em;color:var(--muted);text-transform:uppercase;">Acentos incluidos</p>' +
             '<div style="display:flex;justify-content:center;gap:6px;margin-bottom:16px;">' +
               '<span title="USA" style="font-size:1.3rem;">&#127482;&#127480;</span>' +
               '<span title="UK"  style="font-size:1.3rem;">&#127468;&#127463;</span>' +
@@ -11269,7 +11269,7 @@
           // the cheaper card too rather than only implied by the other one.
           function _missing(icon, text) {
             return '<li style="display:flex;gap:9px;align-items:flex-start;text-align:left;' +
-                   'margin-bottom:9px;font-size:0.82rem;line-height:1.45;color:#4d6070;">' +
+                   'margin-bottom:9px;font-size:0.82rem;line-height:1.45;color:var(--muted);">' +
                      '<span style="flex-shrink:0;width:18px;text-align:center;font-size:0.95rem;' +
                        'filter:grayscale(1);opacity:.5;">' + icon + '</span>' +
                      '<span style="text-decoration:line-through;">' + text + '</span>' +
@@ -11301,7 +11301,7 @@
             (popular ? '' : 'box-shadow:' + cardShadow + ';') + '">' +
             topBadge +
             '<div style="flex:1;">' +
-              '<p style="margin:0 0 2px;font-size:0.7rem;font-weight:700;letter-spacing:0.12em;color:#8fa3bb;text-transform:uppercase;">' + m.name + '</p>' +
+              '<p style="margin:0 0 2px;font-size:0.7rem;font-weight:700;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;">' + m.name + '</p>' +
               '<p style="margin:0 0 12px;font-size:0.78rem;color:#555;">' + m.duration + '</p>' +
               savingsBadge +
               priceBlock +
@@ -11315,7 +11315,7 @@
       })
       .withFailureHandler(function() {
         var cards = byId('subPlanCards');
-        if (cards) cards.innerHTML = '<p style="color:#ef4444;font-size:0.83rem;">Error al cargar planes.</p>';
+        if (cards) cards.innerHTML = '<p style="color:var(--red);font-size:0.83rem;">Error al cargar planes.</p>';
       })
       .apiGetWompiPlans(AppState.sessionToken);
   }
@@ -11374,13 +11374,13 @@
       .withSuccessHandler(function(res) {
         if (res && res.ok && res.active) {
           if (status) status.innerHTML =
-            '<span style="color:#22c55e;font-weight:700">&#10003; ¡Plan activado! ' +
+            '<span style="color:var(--green);font-weight:700">&#10003; ¡Plan activado! ' +
             res.daysLeft + ' días disponibles.</span>';
           hydrateSubscriptionStatus();
           setTimeout(closeSubscriptionModal, 2200);
         } else {
           if (status) status.innerHTML =
-            '<span style="color:#ef4444">Pago no encontrado aún. Espera unos segundos y vuelve a intentar.</span>';
+            '<span style="color:var(--red)">Pago no encontrado aún. Espera unos segundos y vuelve a intentar.</span>';
         }
       })
       .withFailureHandler(function() {
@@ -11438,14 +11438,14 @@
     var preview = byId('inviteParsePreview');
     if (!preview) return;
     if (!users.length) {
-      preview.innerHTML = '<p style="color:#ef4444;font-size:0.83rem;margin:0;">No valid entries found. Check the format.</p>';
+      preview.innerHTML = '<p style="color:var(--red);font-size:0.83rem;margin:0;">No valid entries found. Check the format.</p>';
       return;
     }
     var rows = users.map(function(u, i) {
       return '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">' +
-        '<td style="padding:6px 10px;color:#64748b;font-size:0.78rem;">' + (i + 1) + '</td>' +
+        '<td style="padding:6px 10px;color:var(--muted);font-size:0.78rem;">' + (i + 1) + '</td>' +
         '<td style="padding:6px 10px;color:var(--text);font-size:0.83rem;">' + safeText(u.email) + '</td>' +
-        '<td style="padding:6px 10px;color:#8fa3bb;font-size:0.83rem;">' + safeText(u.name) + '</td>' +
+        '<td style="padding:6px 10px;color:var(--muted);font-size:0.83rem;">' + safeText(u.name) + '</td>' +
       '</tr>';
     }).join('');
     preview.innerHTML =
@@ -11453,9 +11453,9 @@
         '<p style="margin:0 0 10px;font-size:0.78rem;font-weight:700;color:var(--accent);letter-spacing:0.06em;">PARSED — ' + users.length + ' USER' + (users.length !== 1 ? 'S' : '') + '</p>' +
         '<table style="width:100%;border-collapse:collapse;">' +
           '<thead><tr>' +
-            '<th style="padding:4px 10px;text-align:left;font-size:0.72rem;color:#64748b;">#</th>' +
-            '<th style="padding:4px 10px;text-align:left;font-size:0.72rem;color:#64748b;">EMAIL</th>' +
-            '<th style="padding:4px 10px;text-align:left;font-size:0.72rem;color:#64748b;">NAME</th>' +
+            '<th style="padding:4px 10px;text-align:left;font-size:0.72rem;color:var(--muted);">#</th>' +
+            '<th style="padding:4px 10px;text-align:left;font-size:0.72rem;color:var(--muted);">EMAIL</th>' +
+            '<th style="padding:4px 10px;text-align:left;font-size:0.72rem;color:var(--muted);">NAME</th>' +
           '</tr></thead>' +
           '<tbody>' + rows + '</tbody>' +
         '</table>' +
@@ -11464,21 +11464,21 @@
 
   function adminInviteSendTest() {
     var result = byId('inviteResultPanel');
-    if (result) result.innerHTML = '<p style="color:#8fa3bb;font-size:0.83rem;">Sending test to your email...</p>';
+    if (result) result.innerHTML = '<p style="color:var(--muted);font-size:0.83rem;">Sending test to your email...</p>';
     google.script.run
       .withSuccessHandler(function(res) {
         if (!result) return;
         if (res && res.ok) {
           result.innerHTML = '<div style="background:rgba(var(--accent-rgb), 0.07);border:1px solid rgba(var(--accent-rgb), 0.2);border-radius:10px;padding:14px 18px;">' +
             '<p style="margin:0;color:var(--accent);font-weight:700;font-size:0.85rem;">✓ Test email sent to ' + safeText(res.sentTo) + '</p>' +
-            '<p style="margin:6px 0 0;color:#8fa3bb;font-size:0.78rem;">Check your inbox to confirm how it looks.</p>' +
+            '<p style="margin:6px 0 0;color:var(--muted);font-size:0.78rem;">Check your inbox to confirm how it looks.</p>' +
           '</div>';
         } else {
-          result.innerHTML = '<p style="color:#ef4444;font-size:0.83rem;">Error: ' + safeText((res && res.message) || 'Unknown error') + '</p>';
+          result.innerHTML = '<p style="color:var(--red);font-size:0.83rem;">Error: ' + safeText((res && res.message) || 'Unknown error') + '</p>';
         }
       })
       .withFailureHandler(function(err) {
-        if (result) result.innerHTML = '<p style="color:#ef4444;font-size:0.83rem;">Error: ' + safeText(err && err.message ? err.message : String(err)) + '</p>';
+        if (result) result.innerHTML = '<p style="color:var(--red);font-size:0.83rem;">Error: ' + safeText(err && err.message ? err.message : String(err)) + '</p>';
       })
       .apiAdminSendInviteTest(AppState.sessionToken);
   }
@@ -11492,7 +11492,7 @@
     var btn    = byId('adminInviteSendBtn');
     var result = byId('inviteResultPanel');
     if (btn)    { btn.disabled = true; btn.textContent = 'Sending...'; }
-    if (result) result.innerHTML = '<p style="color:#8fa3bb;font-size:0.83rem;">Sending invites to ' + users.length + ' users...</p>';
+    if (result) result.innerHTML = '<p style="color:var(--muted);font-size:0.83rem;">Sending invites to ' + users.length + ' users...</p>';
 
     google.script.run
       .withSuccessHandler(function(res) {
@@ -11503,25 +11503,25 @@
             '<div style="background:rgba(var(--accent-rgb), 0.07);border:1px solid rgba(var(--accent-rgb), 0.2);border-radius:10px;padding:16px 20px;">' +
               '<p style="margin:0 0 12px;font-weight:700;color:var(--accent);font-size:0.9rem;">✓ Done</p>' +
               '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px;">' +
-                '<div style="font-size:0.83rem;"><span style="color:var(--accent);font-weight:800;font-size:1.3rem;">' + (res.created || 0) + '</span><br><span style="color:#8fa3bb;">Invited</span></div>' +
-                '<div style="font-size:0.83rem;"><span style="color:#DAA520;font-weight:800;font-size:1.3rem;">' + (res.skipped || 0) + '</span><br><span style="color:#8fa3bb;">Already existed</span></div>' +
-                '<div style="font-size:0.83rem;"><span style="color:#ef4444;font-weight:800;font-size:1.3rem;">' + (res.failed || 0) + '</span><br><span style="color:#8fa3bb;">Failed</span></div>' +
+                '<div style="font-size:0.83rem;"><span style="color:var(--accent);font-weight:800;font-size:1.3rem;">' + (res.created || 0) + '</span><br><span style="color:var(--muted);">Invited</span></div>' +
+                '<div style="font-size:0.83rem;"><span style="color:var(--muted);font-weight:800;font-size:1.3rem;">' + (res.skipped || 0) + '</span><br><span style="color:var(--muted);">Already existed</span></div>' +
+                '<div style="font-size:0.83rem;"><span style="color:var(--red);font-weight:800;font-size:1.3rem;">' + (res.failed || 0) + '</span><br><span style="color:var(--muted);">Failed</span></div>' +
               '</div>';
           if (res.failedList && res.failedList.length) {
-            html += '<p style="margin:0 0 6px;font-size:0.75rem;color:#ef4444;font-weight:700;">FAILURES:</p>' +
+            html += '<p style="margin:0 0 6px;font-size:0.75rem;color:var(--red);font-weight:700;">FAILURES:</p>' +
               res.failedList.map(function(f) {
-                return '<p style="margin:0 0 4px;font-size:0.75rem;color:#8fa3bb;">' + safeText(f.email) + ' — ' + safeText(f.reason) + '</p>';
+                return '<p style="margin:0 0 4px;font-size:0.75rem;color:var(--muted);">' + safeText(f.email) + ' — ' + safeText(f.reason) + '</p>';
               }).join('');
           }
           html += '</div>';
           result.innerHTML = html;
         } else {
-          result.innerHTML = '<p style="color:#ef4444;font-size:0.83rem;">Error: ' + safeText((res && res.message) || 'Unknown error') + '</p>';
+          result.innerHTML = '<p style="color:var(--red);font-size:0.83rem;">Error: ' + safeText((res && res.message) || 'Unknown error') + '</p>';
         }
       })
       .withFailureHandler(function(err) {
         if (btn) { btn.disabled = false; btn.textContent = '🚀 Send All Invites'; }
-        if (result) result.innerHTML = '<p style="color:#ef4444;font-size:0.83rem;">Error: ' + safeText(err && err.message ? err.message : String(err)) + '</p>';
+        if (result) result.innerHTML = '<p style="color:var(--red);font-size:0.83rem;">Error: ' + safeText(err && err.message ? err.message : String(err)) + '</p>';
       })
       .apiAdminBulkInvite(AppState.sessionToken, users);
   }
@@ -11541,7 +11541,7 @@
 
         // ── Pricing ──
         '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px;margin-bottom:24px;">' +
-          '<p style="margin:0 0 14px;font-size:0.78rem;font-weight:700;letter-spacing:0.07em;color:#8fa3bb;">PRICE SETTINGS (COP)</p>' +
+          '<p style="margin:0 0 14px;font-size:0.78rem;font-weight:700;letter-spacing:0.07em;color:var(--muted);">PRICE SETTINGS (COP)</p>' +
           '<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">' +
             // The two plans that are actually for sale.
             //
@@ -11552,13 +11552,13 @@
             // honoured for settling payments begun before the change; they are not on
             // sale, so they are not edited here.
             '<div>' +
-              '<label style="display:block;font-size:0.75rem;color:#8fa3bb;margin-bottom:6px;">Basic \u00b7 30 días</label>' +
+              '<label style="display:block;font-size:0.75rem;color:var(--muted);margin-bottom:6px;">Basic \u00b7 30 días</label>' +
               '<input id="subPriceBasic" type="number" min="0" step="100" ' +
                 'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);padding:9px 12px;width:130px;" ' +
                 'placeholder="29900">' +
             '</div>' +
             '<div>' +
-              '<label style="display:block;font-size:0.75rem;color:#8fa3bb;margin-bottom:6px;">Full \u00b7 30 días</label>' +
+              '<label style="display:block;font-size:0.75rem;color:var(--muted);margin-bottom:6px;">Full \u00b7 30 días</label>' +
               '<input id="subPriceFull" type="number" min="0" step="100" ' +
                 'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);padding:9px 12px;width:130px;" ' +
                 'placeholder="49900">' +
@@ -11570,16 +11570,16 @@
 
         // ── Manual grant ──
         '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px;margin-bottom:24px;">' +
-          '<p style="margin:0 0 14px;font-size:0.78rem;font-weight:700;letter-spacing:0.07em;color:#8fa3bb;">GRANT FREE ACCESS</p>' +
+          '<p style="margin:0 0 14px;font-size:0.78rem;font-weight:700;letter-spacing:0.07em;color:var(--muted);">GRANT FREE ACCESS</p>' +
           '<div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">' +
             '<div>' +
-              '<label style="display:block;font-size:0.75rem;color:#8fa3bb;margin-bottom:6px;">User email</label>' +
+              '<label style="display:block;font-size:0.75rem;color:var(--muted);margin-bottom:6px;">User email</label>' +
               '<input id="subGrantEmail" type="email" ' +
                 'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);font-size:0.88rem;padding:8px 12px;width:240px;outline:none;" ' +
                 'placeholder="student@example.com">' +
             '</div>' +
             '<div>' +
-              '<label style="display:block;font-size:0.75rem;color:#8fa3bb;margin-bottom:6px;">Days</label>' +
+              '<label style="display:block;font-size:0.75rem;color:var(--muted);margin-bottom:6px;">Days</label>' +
               '<input id="subGrantDays" type="number" min="1" max="365" value="30" ' +
                 'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);font-size:0.88rem;padding:8px 12px;width:90px;outline:none;">' +
             '</div>' +
@@ -11590,8 +11590,8 @@
 
         // ── Subscribers table ──
         '<div>' +
-          '<p style="margin:0 0 12px;font-size:0.78rem;font-weight:700;letter-spacing:0.07em;color:#8fa3bb;">ALL SUBSCRIBERS</p>' +
-          '<div id="subListPanel"><p style="color:#8fa3bb;font-size:0.83rem;">Loading…</p></div>' +
+          '<p style="margin:0 0 12px;font-size:0.78rem;font-weight:700;letter-spacing:0.07em;color:var(--muted);">ALL SUBSCRIBERS</p>' +
+          '<div id="subListPanel"><p style="color:var(--muted);font-size:0.83rem;">Loading…</p></div>' +
         '</div>' +
       '</div>';
 
@@ -11612,9 +11612,9 @@
       .withSuccessHandler(function(res) {
         var panel = byId('subListPanel');
         if (!panel) return;
-        if (!res || !res.ok) { panel.innerHTML = '<p style="color:#ef4444;font-size:0.83rem;">Failed to load.</p>'; return; }
+        if (!res || !res.ok) { panel.innerHTML = '<p style="color:var(--red);font-size:0.83rem;">Failed to load.</p>'; return; }
         var subs = res.subscriptions;
-        if (!subs || !subs.length) { panel.innerHTML = '<p style="color:#8fa3bb;font-size:0.83rem;">No subscribers yet.</p>'; return; }
+        if (!subs || !subs.length) { panel.innerHTML = '<p style="color:var(--muted);font-size:0.83rem;">No subscribers yet.</p>'; return; }
         var now = new Date();
         var rows = subs.map(function(s) {
           var end     = s.endDate ? new Date(s.endDate) : null;
@@ -11626,8 +11626,8 @@
           var cop     = s.amountCents ? 'COP ' + Number(s.amountCents / 100).toLocaleString('es-CO') : '—';
           return '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">' +
             '<td style="padding:8px 10px;font-size:0.82rem;color:var(--text);">' + safeText(s.email || '') + '</td>' +
-            '<td style="padding:8px 10px;font-size:0.82rem;color:#8fa3bb;">' + cop + '</td>' +
-            '<td style="padding:8px 10px;font-size:0.82rem;color:#8fa3bb;">' + endStr + '</td>' +
+            '<td style="padding:8px 10px;font-size:0.82rem;color:var(--muted);">' + cop + '</td>' +
+            '<td style="padding:8px 10px;font-size:0.82rem;color:var(--muted);">' + endStr + '</td>' +
             '<td style="padding:8px 10px;">' + badge + '</td>' +
             '<td style="padding:8px 10px;">' +
               (active
@@ -11640,10 +11640,10 @@
           '<div class="table-wrap">' +
             '<table style="width:100%;border-collapse:collapse;">' +
               '<thead><tr style="border-bottom:2px solid rgba(255,255,255,0.1);">' +
-                '<th style="padding:6px 10px;text-align:left;font-size:0.72rem;color:#64748b;font-weight:700;letter-spacing:0.06em;">EMAIL</th>' +
-                '<th style="padding:6px 10px;text-align:left;font-size:0.72rem;color:#64748b;font-weight:700;letter-spacing:0.06em;">AMOUNT</th>' +
-                '<th style="padding:6px 10px;text-align:left;font-size:0.72rem;color:#64748b;font-weight:700;letter-spacing:0.06em;">EXPIRES</th>' +
-                '<th style="padding:6px 10px;text-align:left;font-size:0.72rem;color:#64748b;font-weight:700;letter-spacing:0.06em;">STATUS</th>' +
+                '<th style="padding:6px 10px;text-align:left;font-size:0.72rem;color:var(--muted);font-weight:700;letter-spacing:0.06em;">EMAIL</th>' +
+                '<th style="padding:6px 10px;text-align:left;font-size:0.72rem;color:var(--muted);font-weight:700;letter-spacing:0.06em;">AMOUNT</th>' +
+                '<th style="padding:6px 10px;text-align:left;font-size:0.72rem;color:var(--muted);font-weight:700;letter-spacing:0.06em;">EXPIRES</th>' +
+                '<th style="padding:6px 10px;text-align:left;font-size:0.72rem;color:var(--muted);font-weight:700;letter-spacing:0.06em;">STATUS</th>' +
                 '<th style="padding:6px 10px;"></th>' +
               '</tr></thead>' +
               '<tbody>' + rows + '</tbody>' +
@@ -11652,7 +11652,7 @@
       })
       .withFailureHandler(function(err) {
         var panel = byId('subListPanel');
-        if (panel) panel.innerHTML = '<p style="color:#ef4444;font-size:0.83rem;">Error: ' + safeText(err && err.message ? err.message : String(err)) + '</p>';
+        if (panel) panel.innerHTML = '<p style="color:var(--red);font-size:0.83rem;">Error: ' + safeText(err && err.message ? err.message : String(err)) + '</p>';
       })
       .apiAdminListSubscriptions(AppState.sessionToken);
   }
@@ -11662,21 +11662,21 @@
     var basic = parseInt((byId('subPriceBasic') || {}).value, 10);
     var full  = parseInt((byId('subPriceFull')  || {}).value, 10);
     if (!basic || !full || basic < 100 || full < 100) {
-      if (status) status.innerHTML = '<span style="color:#ef4444;">Both prices must be at least 100 COP.</span>';
+      if (status) status.innerHTML = '<span style="color:var(--red);">Both prices must be at least 100 COP.</span>';
       return;
     }
-    if (status) status.innerHTML = '<span style="color:#8fa3bb;">Saving…</span>';
+    if (status) status.innerHTML = '<span style="color:var(--muted);">Saving…</span>';
     google.script.run
       .withSuccessHandler(function(res) {
         if (!status) return;
         if (res && res.ok) {
           status.innerHTML = '<span style="color:var(--accent);">✓ Prices saved.</span>';
         } else {
-          status.innerHTML = '<span style="color:#ef4444;">Error: ' + safeText((res && res.error) || 'Unknown') + '</span>';
+          status.innerHTML = '<span style="color:var(--red);">Error: ' + safeText((res && res.error) || 'Unknown') + '</span>';
         }
       })
       .withFailureHandler(function(err) {
-        if (status) status.innerHTML = '<span style="color:#ef4444;">Error: ' + safeText(err && err.message ? err.message : String(err)) + '</span>';
+        if (status) status.innerHTML = '<span style="color:var(--red);">Error: ' + safeText(err && err.message ? err.message : String(err)) + '</span>';
       })
       .apiAdminSaveSubscriptionPrices(AppState.sessionToken, { basic: basic * 100, full: full * 100 });
   }
@@ -11688,11 +11688,11 @@
     var email    = emailEl ? emailEl.value.trim().toLowerCase() : '';
     var days     = daysEl  ? parseInt(daysEl.value, 10) : 30;
     if (!email || email.indexOf('@') === -1) {
-      if (status) status.innerHTML = '<span style="color:#ef4444;">Enter a valid email.</span>';
+      if (status) status.innerHTML = '<span style="color:var(--red);">Enter a valid email.</span>';
       return;
     }
     if (!days || days < 1) days = 30;
-    if (status) status.innerHTML = '<span style="color:#8fa3bb;">Granting access…</span>';
+    if (status) status.innerHTML = '<span style="color:var(--muted);">Granting access…</span>';
     google.script.run
       .withSuccessHandler(function(res) {
         if (!status) return;
@@ -11701,11 +11701,11 @@
           if (emailEl) emailEl.value = '';
           renderAdminSubscriptions();
         } else {
-          status.innerHTML = '<span style="color:#ef4444;">Error: ' + safeText((res && res.error) || 'Unknown') + '</span>';
+          status.innerHTML = '<span style="color:var(--red);">Error: ' + safeText((res && res.error) || 'Unknown') + '</span>';
         }
       })
       .withFailureHandler(function(err) {
-        if (status) status.innerHTML = '<span style="color:#ef4444;">Error: ' + safeText(err && err.message ? err.message : String(err)) + '</span>';
+        if (status) status.innerHTML = '<span style="color:var(--red);">Error: ' + safeText(err && err.message ? err.message : String(err)) + '</span>';
       })
       .apiAdminGrantSubscription(AppState.sessionToken, email, days);
   }
@@ -11737,8 +11737,8 @@
         '<p class="eyebrow">Admin · Incentives</p>' +
         '<h3 style="margin-bottom:4px;">Variable Ratio Incentive Program</h3>' +
         '<p class="subtitle" style="margin-bottom:24px;">Control which levels get priority clearance events and how often they fire. Students see these on the level map — locked levels show FOMO, active levels show urgency, completed show replay bonuses. Bonuses are <strong style="color:var(--accent);">real XP and CP</strong> applied server-side on level completion.</p>' +
-        '<div id="vrTodayBanner" style="margin-bottom:20px;color:#64748b;font-size:0.82rem;">Loading today\'s active assignments…</div>' +
-        '<div id="vrConfigBody" style="color:#8fa3bb;font-size:0.85rem;">Loading config…</div>' +
+        '<div id="vrTodayBanner" style="margin-bottom:20px;color:var(--muted);font-size:0.82rem;">Loading today\'s active assignments…</div>' +
+        '<div id="vrConfigBody" style="color:var(--muted);font-size:0.85rem;">Loading config…</div>' +
       '</div>';
 
     // Load today's live assignments to show at top
@@ -11764,9 +11764,9 @@
         }).join('');
         banner.innerHTML =
           '<div style="padding:10px 14px;background:rgba(255,255,255,0.04);border-radius:10px;">' +
-            '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#64748b;margin-bottom:8px;">Today\'s Live Assignments (' + safeText(res.date) + ')</div>' +
+            '<div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Today\'s Live Assignments (' + safeText(res.date) + ')</div>' +
             chips +
-            '<div style="font-size:0.68rem;color:#4a6280;margin-top:8px;">These are what every student currently sees on their level map. Regenerates daily or when config is saved.</div>' +
+            '<div style="font-size:0.68rem;color:var(--muted);margin-top:8px;">These are what every student currently sees on their level map. Regenerates daily or when config is saved.</div>' +
           '</div>';
       })
       .withFailureHandler(function() {
@@ -11778,14 +11778,14 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (!res || !res.ok) {
-          byId('vrConfigBody').innerHTML = '<span style="color:#ef4444;">Could not load config.</span>';
+          byId('vrConfigBody').innerHTML = '<span style="color:var(--red);">Could not load config.</span>';
           return;
         }
         window._vrConfig = res.config;
         _renderVrConfigUI(res.config);
       })
       .withFailureHandler(function() {
-        byId('vrConfigBody').innerHTML = '<span style="color:#ef4444;">Server error.</span>';
+        byId('vrConfigBody').innerHTML = '<span style="color:var(--red);">Server error.</span>';
       })
       .apiGetVRConfig(AppState.sessionToken);
   }
@@ -11801,18 +11801,18 @@
           return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(255,255,255,0.04);border-radius:8px;margin-bottom:6px;' + (expired ? 'opacity:0.45;' : '') + '">' +
             '<span style="min-width:70px;font-weight:700;color:var(--text);">Level ' + safeText(p.level) + '</span>' +
             '<span style="flex:1;font-size:0.8rem;">' + safeText(eventLabels[p.type] || p.type) + '</span>' +
-            '<span style="font-size:0.75rem;color:#64748b;font-family:monospace;">' + (p.until ? 'until ' + safeText(p.until) : 'permanent') + (expired ? ' · EXPIRED' : '') + '</span>' +
+            '<span style="font-size:0.75rem;color:var(--muted);font-family:monospace;">' + (p.until ? 'until ' + safeText(p.until) : 'permanent') + (expired ? ' · EXPIRED' : '') + '</span>' +
             '<button class="btn secondary" style="padding:4px 10px;font-size:0.72rem;" onclick="adminVrRemovePin(' + i + ')">Remove</button>' +
           '</div>';
         }).join('')
-      : '<div style="color:#64748b;font-size:0.8rem;padding:8px 0;">No pinned events — the system runs fully random.</div>';
+      : '<div style="color:var(--muted);font-size:0.8rem;padding:8px 0;">No pinned events — the system runs fully random.</div>';
 
     byId('vrConfigBody').innerHTML =
       // ── Master toggle + rates ──────────────────────────────────────────
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:28px;">' +
 
         '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;">' +
-          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#64748b;margin-bottom:10px;">System</div>' +
+          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">System</div>' +
           '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;">' +
             '<input type="checkbox" id="vrEnabled"' + (cfg.enabled ? ' checked' : '') + ' style="width:18px;height:18px;cursor:pointer;">' +
             '<span style="font-size:0.9rem;color:var(--text);font-weight:600;">VR Program Enabled</span>' +
@@ -11820,33 +11820,33 @@
         '</div>' +
 
         '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;">' +
-          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#64748b;margin-bottom:10px;">Fire Rate <span id="vrFireRateVal" style="color:var(--accent);">' + (cfg.fireRate || 65) + '%</span></div>' +
+          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Fire Rate <span id="vrFireRateVal" style="color:var(--accent);">' + (cfg.fireRate || 65) + '%</span></div>' +
           '<input type="range" id="vrFireRate" min="0" max="100" value="' + (cfg.fireRate || 65) + '" style="width:100%;" oninput="byId(\'vrFireRateVal\').textContent=this.value+\'%\'">' +
-          '<div style="font-size:0.68rem;color:#64748b;margin-top:6px;">Chance any event fires per page load</div>' +
+          '<div style="font-size:0.68rem;color:var(--muted);margin-top:6px;">Chance any event fires per page load</div>' +
         '</div>' +
 
         '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;">' +
-          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#64748b;margin-bottom:10px;">Secondary Rate <span id="vrSecondaryVal" style="color:var(--accent);">' + (cfg.secondaryRate || 18) + '%</span></div>' +
+          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Secondary Rate <span id="vrSecondaryVal" style="color:var(--accent);">' + (cfg.secondaryRate || 18) + '%</span></div>' +
           '<input type="range" id="vrSecondaryRate" min="0" max="50" value="' + (cfg.secondaryRate || 18) + '" style="width:100%;" oninput="byId(\'vrSecondaryVal\').textContent=this.value+\'%\'">' +
-          '<div style="font-size:0.68rem;color:#64748b;margin-top:6px;">Chance a 2nd level also gets a Hot Sector</div>' +
+          '<div style="font-size:0.68rem;color:var(--muted);margin-top:6px;">Chance a 2nd level also gets a Hot Sector</div>' +
         '</div>' +
 
         '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;">' +
-          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#64748b;margin-bottom:10px;">Slot Window</div>' +
+          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Slot Window</div>' +
           '<div style="display:flex;gap:8px;align-items:center;">' +
             '<input type="number" id="vrSlotMin" value="' + (cfg.slotMin || 22) + '" min="5" max="120" style="width:60px;background:var(--panel-soft);border:1px solid var(--line);border-radius:6px;padding:5px 8px;color:var(--text);font-size:0.85rem;">' +
-            '<span style="color:#64748b;">–</span>' +
+            '<span style="color:var(--muted);">–</span>' +
             '<input type="number" id="vrSlotMax" value="' + (cfg.slotMax || 56) + '" min="5" max="180" style="width:60px;background:var(--panel-soft);border:1px solid var(--line);border-radius:6px;padding:5px 8px;color:var(--text);font-size:0.85rem;">' +
-            '<span style="color:#64748b;font-size:0.75rem;">min</span>' +
+            '<span style="color:var(--muted);font-size:0.75rem;">min</span>' +
           '</div>' +
-          '<div style="font-size:0.68rem;color:#64748b;margin-top:6px;">Range for "CLOSES HHMMZ" countdown</div>' +
+          '<div style="font-size:0.68rem;color:var(--muted);margin-top:6px;">Range for "CLOSES HHMMZ" countdown</div>' +
         '</div>' +
 
       '</div>' +
 
       // ── Event type weights ────────────────────────────────────────────
       '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-bottom:28px;">' +
-        '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#64748b;margin-bottom:14px;">Event Type Weights <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#4a6280;">(must sum to 100)</span></div>' +
+        '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">Event Type Weights <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(must sum to 100)</span></div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">' +
           ['double','critical','priority','hot'].map(function(k) {
             var colors = { double: '#DAA520', critical: '#ef4444', priority: '#f59e0b', hot: 'var(--accent)' };
@@ -11859,28 +11859,28 @@
             '</div>';
           }).join('') +
         '</div>' +
-        '<div id="vrWeightSumMsg" style="margin-top:10px;font-size:0.78rem;color:#64748b;">Sum: <span id="vrWeightSum">100</span> / 100</div>' +
+        '<div id="vrWeightSumMsg" style="margin-top:10px;font-size:0.78rem;color:var(--muted);">Sum: <span id="vrWeightSum">100</span> / 100</div>' +
       '</div>' +
 
       // ── Pinned events ────────────────────────────────────────────────
       '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-bottom:28px;">' +
-        '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#64748b;margin-bottom:4px;">Pinned Events</div>' +
-        '<p style="font-size:0.78rem;color:#4a6280;margin:0 0 14px;">Force a specific level to always show a specific event type. Pinned events bypass the fire rate and are guaranteed to appear until the expiry date.</p>' +
+        '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Pinned Events</div>' +
+        '<p style="font-size:0.78rem;color:var(--muted);margin:0 0 14px;">Force a specific level to always show a specific event type. Pinned events bypass the fire rate and are guaranteed to appear until the expiry date.</p>' +
         '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">' +
           '<div>' +
-            '<div style="font-size:0.72rem;color:#64748b;margin-bottom:4px;">Level</div>' +
+            '<div style="font-size:0.72rem;color:var(--muted);margin-bottom:4px;">Level</div>' +
             '<select id="vrPinLevel" style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:7px 10px;color:var(--text);font-size:0.85rem;">' +
               [1,2,3,4,5,6,7,8,9,10].map(function(n){ return '<option value="' + n + '">Level ' + n + '</option>'; }).join('') +
             '</select>' +
           '</div>' +
           '<div>' +
-            '<div style="font-size:0.72rem;color:#64748b;margin-bottom:4px;">Event Type</div>' +
+            '<div style="font-size:0.72rem;color:var(--muted);margin-bottom:4px;">Event Type</div>' +
             '<select id="vrPinType" style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:7px 10px;color:var(--text);font-size:0.85rem;">' +
               Object.keys(eventLabels).map(function(k){ return '<option value="' + k + '">' + eventLabels[k] + '</option>'; }).join('') +
             '</select>' +
           '</div>' +
           '<div>' +
-            '<div style="font-size:0.72rem;color:#64748b;margin-bottom:4px;">Expires (optional)</div>' +
+            '<div style="font-size:0.72rem;color:var(--muted);margin-bottom:4px;">Expires (optional)</div>' +
             '<input type="date" id="vrPinUntil" style="background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;padding:7px 10px;color:var(--text);font-size:0.85rem;">' +
           '</div>' +
           '<button class="btn primary" onclick="adminVrAddPin()" style="padding:8px 18px;">Pin Event</button>' +
@@ -11949,11 +11949,11 @@
     var sum = _vrWeightSum();
     var msg = byId('vrSaveMsg');
     if (sum !== 100) {
-      if (msg) msg.innerHTML = '<span style="color:#ef4444;">⚠ Weights must sum to 100 (currently ' + sum + ')</span>';
+      if (msg) msg.innerHTML = '<span style="color:var(--red);">⚠ Weights must sum to 100 (currently ' + sum + ')</span>';
       return;
     }
     var cfg = _vrReadFormConfig();
-    if (msg) msg.innerHTML = '<span style="color:#64748b;">Saving…</span>';
+    if (msg) msg.innerHTML = '<span style="color:var(--muted);">Saving…</span>';
     google.script.run
       .withSuccessHandler(function(res) {
         if (res && res.ok) {
@@ -11961,11 +11961,11 @@
           if (msg) msg.innerHTML = '<span style="color:var(--accent);">✓ Saved</span>';
           setTimeout(function(){ if (msg) msg.innerHTML = ''; }, 3000);
         } else {
-          if (msg) msg.innerHTML = '<span style="color:#ef4444;">Save failed</span>';
+          if (msg) msg.innerHTML = '<span style="color:var(--red);">Save failed</span>';
         }
       })
       .withFailureHandler(function() {
-        if (msg) msg.innerHTML = '<span style="color:#ef4444;">Server error</span>';
+        if (msg) msg.innerHTML = '<span style="color:var(--red);">Server error</span>';
       })
       .apiAdminSetVRConfig(AppState.sessionToken, cfg);
   }
@@ -11996,16 +11996,16 @@
         '<div style="flex:1;height:14px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden;">' +
           '<div style="height:100%;width:' + Math.min(100,Math.round(n/20*100)) + '%;background:' + (colors[k]||'#dde6f0') + ';border-radius:4px;"></div>' +
         '</div>' +
-        '<span style="width:30px;text-align:right;font-size:0.78rem;color:#8fa3bb;font-family:monospace;">' + n + '</span>' +
+        '<span style="width:30px;text-align:right;font-size:0.78rem;color:var(--muted);font-family:monospace;">' + n + '</span>' +
       '</div>';
     }).join('');
 
     var out = byId('vrPreviewResult');
     if (out) out.innerHTML =
       '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;">' +
-        '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#64748b;margin-bottom:12px;">Simulation — 20 page loads with current settings</div>' +
+        '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Simulation — 20 page loads with current settings</div>' +
         rows +
-        '<div style="font-size:0.72rem;color:#4a6280;margin-top:10px;">Each event count = how many of the 20 simulated loads produced that type. Pinned events always fire regardless of fire rate.</div>' +
+        '<div style="font-size:0.72rem;color:var(--muted);margin-top:10px;">Each event count = how many of the 20 simulated loads produced that type. Pinned events always fire regardless of fire rate.</div>' +
       '</div>';
   }
 
@@ -12089,7 +12089,7 @@
         if (locked) {
           btn.className = 'btn secondary'; btn.disabled = true; btn.textContent = 'Completed';
           if (block) block.innerHTML =
-            '<p style="font-size:0.78rem;color:#8fa3bb;margin:6px 0 0;">Band ' +
+            '<p style="font-size:0.78rem;color:var(--muted);margin:6px 0 0;">Band ' +
             safeText(last.band || '—') + ' &mdash; ' + safeText(last.bandLabel || '') +
             ' &middot; ' + safeText(last.score ? Math.round(Number(last.score)) + '%' : '—') + '</p>';
         } else if (status === 'retake_authorized') {
@@ -12130,7 +12130,7 @@
       '<div style="height:4px;background:rgba(255,255,255,0.06);border-radius:4px;margin-bottom:24px;overflow:hidden;">' +
         '<div id="lmsProgressFill" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#3b82f6);border-radius:4px;transition:width 0.4s;"></div>' +
       '</div>' +
-      '<div id="lmsBoard"><div style="text-align:center;padding:32px 20px;color:#6b8aad;font-size:13px;"><div style="width:24px;height:24px;border:2px solid rgba(255,255,255,0.08);border-top-color:var(--accent);border-radius:50%;animation:hfSpin 0.8s linear infinite;margin:0 auto 12px;"></div>Loading exercises…</div></div>' +
+      '<div id="lmsBoard"><div style="text-align:center;padding:32px 20px;color:var(--muted);font-size:13px;"><div style="width:24px;height:24px;border:2px solid rgba(255,255,255,0.08);border-top-color:var(--accent);border-radius:50%;animation:hfSpin 0.8s linear infinite;margin:0 auto 12px;"></div>Loading exercises…</div></div>' +
       '<div id="lmsScoreSummary" style="display:none;background:rgba(15,23,42,0.7);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:24px;text-align:center;margin-bottom:20px;"></div>' +
       '<div style="display:flex;gap:12px;flex-wrap:wrap;">' +
         '<button class="btn primary" id="lmsSubmitBtn" disabled onclick="_lmsSubmit()">Submit Results</button>' +
@@ -12143,7 +12143,7 @@
       google.script.run
         .withSuccessHandler(_lmsOnData)
         .withFailureHandler(function(e) {
-          byId('lmsBoard').innerHTML = '<p class="subtitle" style="color:#ef4444;">Failed to load: ' + _lmsEsc(e.message || e) + '</p>';
+          byId('lmsBoard').innerHTML = '<p class="subtitle" style="color:var(--red);">Failed to load: ' + _lmsEsc(e.message || e) + '</p>';
         })
         .fetchLMSData('Admin_Engines');
     } else {
@@ -12181,7 +12181,7 @@
 
       if (!pairs.length) {
         byId('lmsBoard').innerHTML =
-          '<p style="color:#6b8aad;font-size:13px;padding:20px 0;">No data found in <strong>Admin_Engines</strong>. Make sure the sheet has <strong>Term</strong> and <strong>Definition</strong> columns with at least one row.</p>';
+          '<p style="color:var(--muted);font-size:13px;padding:20px 0;">No data found in <strong>Admin_Engines</strong>. Make sure the sheet has <strong>Term</strong> and <strong>Definition</strong> columns with at least one row.</p>';
         return;
       }
       _lmsState.pairs       = pairs;
@@ -12191,7 +12191,7 @@
       _lmsRenderBoard();
     } catch(e) {
       var board = byId('lmsBoard');
-      if (board) board.innerHTML = '<p style="color:#ef4444;font-size:13px;padding:20px 0;">Error loading module: ' + (e.message || String(e)) + '</p>';
+      if (board) board.innerHTML = '<p style="color:var(--red);font-size:13px;padding:20px 0;">Error loading module: ' + (e.message || String(e)) + '</p>';
     }
   }
 
@@ -12283,7 +12283,7 @@
         '<div style="font-size:48px;font-weight:800;letter-spacing:-2px;color:' + (pass ? 'var(--accent)' : '#ef4444') + ';">' + pct + '%</div>' +
         '<div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted,#6b8aad);margin:6px 0 14px;">Final Score</div>' +
         '<div style="font-size:13px;color:var(--muted,#6b8aad);">' + correct + ' of ' + total + ' correct &nbsp;&bull;&nbsp; ' +
-          (pass ? '<strong style="color:var(--accent);">Passed &#10003;</strong>' : '<strong style="color:#ef4444;">Not passed — 70% required</strong>') + '</div>';
+          (pass ? '<strong style="color:var(--accent);">Passed &#10003;</strong>' : '<strong style="color:var(--red);">Not passed — 70% required</strong>') + '</div>';
     }
     var email = (typeof AppState !== 'undefined' && AppState.user) ? AppState.user.email : 'student@test.com';
     if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -12419,7 +12419,7 @@
       google.script.run
         .withSuccessHandler(_nrOnData)
         .withFailureHandler(function(e) {
-          byId('nrPool').innerHTML = '<p style="color:#ef4444;font-size:13px;">Failed: ' + _lmsEsc(e.message || e) + '</p>';
+          byId('nrPool').innerHTML = '<p style="color:var(--red);font-size:13px;">Failed: ' + _lmsEsc(e.message || e) + '</p>';
         })
         .fetchLMSData('Admin_NonRoutine');
     } else {
@@ -12580,8 +12580,8 @@
         '<div><p class="eyebrow" style="margin:0;">Module 3</p>' +
              '<h3 style="margin:0;font-size:1.2rem;">Human Factors &#8212; Audio Concepts</h3></div>' +
         '<div style="margin-left:auto;background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:8px;padding:8px 14px;text-align:center;">' +
-          '<div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#6b8aad;margin-bottom:2px;">Concepts</div>' +
-          '<strong id="hfCount" style="font-size:20px;font-weight:700;color:#a855f7;">&#8212;</strong>' +
+          '<div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:2px;">Concepts</div>' +
+          '<strong id="hfCount" style="font-size:20px;font-weight:700;color:var(--muted);">&#8212;</strong>' +
         '</div>' +
       '</div>' +
       '<div style="background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.18);border-radius:10px;padding:14px 18px;font-size:13px;color:#c4a8e0;margin-bottom:22px;display:flex;align-items:flex-start;gap:12px;">' +
@@ -12589,10 +12589,10 @@
         '<span>Review each concept and its description. Click <strong>Play Audio</strong> to hear the concept read aloud via text-to-speech.</span>' +
       '</div>' +
       '<div style="position:relative;margin-bottom:20px;">' +
-        '<span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:14px;color:#6b8aad;pointer-events:none;">&#128269;</span>' +
+        '<span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--muted);pointer-events:none;">&#128269;</span>' +
         '<input class="hf-search-input" id="hfSearchInput" type="text" placeholder="Search concepts…" oninput="_hfFilter()" />' +
       '</div>' +
-      '<div id="hfGrid"><div style="text-align:center;padding:48px 20px;color:#6b8aad;">' +
+      '<div id="hfGrid"><div style="text-align:center;padding:48px 20px;color:var(--muted);">' +
         '<div class="hf-spinner"></div>Loading concepts…' +
       '</div></div>';
 
@@ -12602,7 +12602,7 @@
       google.script.run
         .withSuccessHandler(_hfOnData)
         .withFailureHandler(function(e) {
-          byId('hfGrid').innerHTML = '<p style="color:#ef4444;font-size:13px;padding:20px;">Failed to load: ' + _lmsEsc(e.message || e) + '</p>';
+          byId('hfGrid').innerHTML = '<p style="color:var(--red);font-size:13px;padding:20px;">Failed to load: ' + _lmsEsc(e.message || e) + '</p>';
         })
         .fetchLMSData('Admin_HumanFactors');
     } else {
@@ -12624,7 +12624,7 @@
     var countEl = byId('hfCount');
     if (countEl) countEl.textContent = _hf.concepts.length;
     if (!_hf.concepts.length) {
-      byId('hfGrid').innerHTML = '<p style="text-align:center;padding:48px 20px;color:#6b8aad;font-size:13px;">No data found in <strong>Admin_HumanFactors</strong>. Add Concept/Description rows first.</p>';
+      byId('hfGrid').innerHTML = '<p style="text-align:center;padding:48px 20px;color:var(--muted);font-size:13px;">No data found in <strong>Admin_HumanFactors</strong>. Add Concept/Description rows first.</p>';
       return;
     }
     _hfRenderGrid(_hf.concepts);
@@ -12634,7 +12634,7 @@
     var grid = byId('hfGrid');
     if (!grid) return;
     if (!list.length) {
-      grid.innerHTML = '<p style="text-align:center;padding:32px 20px;color:#6b8aad;font-size:13px;">No concepts match your search.</p>';
+      grid.innerHTML = '<p style="text-align:center;padding:32px 20px;color:var(--muted);font-size:13px;">No concepts match your search.</p>';
       return;
     }
     grid.innerHTML = list.map(function(c) {
@@ -13732,7 +13732,7 @@
             });
           } catch(e) {}
           var xp = quiz.xpReward || 5;
-          msg.innerHTML = '<span style="color:#22c55e;font-weight:700;">✓ Correct! +' + xp + ' XP</span>' +
+          msg.innerHTML = '<span style="color:var(--green);font-weight:700;">✓ Correct! +' + xp + ' XP</span>' +
             (quiz.explanation ? ' <span style="color:rgba(255,255,255,.45);">· ' + safeText(quiz.explanation) + '</span>' : '');
           google.script.run
             .withSuccessHandler(function(res) {
@@ -13755,7 +13755,7 @@
             .apiSubmitVideoQuizAnswer(AppState.sessionToken, moduleId, quiz.quizId, true);
         } else {
           fired[quiz.quizId] = false;
-          msg.innerHTML = '<span style="color:#ef4444;font-weight:700;">✗ Not quite — rewinding 60 seconds</span>' +
+          msg.innerHTML = '<span style="color:var(--red);font-weight:700;">✗ Not quite — rewinding 60 seconds</span>' +
             (quiz.explanation ? '<br><span style="color:rgba(255,255,255,.45);">' + safeText(quiz.explanation) + '</span>' : '');
         }
         setTimeout(function() {
@@ -14020,7 +14020,7 @@
         '</div>';
       } else if (sub && sub.status === 'pending') {
         html += '<div style="padding:10px 14px;background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.3);border-radius:6px;">' +
-          '<p style="margin:0;font-size:0.84rem;color:#ca8a04;">⏳ Submitted — awaiting instructor review</p>' +
+          '<p style="margin:0;font-size:0.84rem;color:var(--muted);">⏳ Submitted — awaiting instructor review</p>' +
           '<p style="margin:4px 0 0;font-size:0.78rem;color:var(--muted);">Your response: ' + safeText((sub.responseText || '').substring(0, 120)) + (sub.responseText && sub.responseText.length > 120 ? '…' : '') + '</p>' +
         '</div>';
       } else {
@@ -14049,7 +14049,7 @@
       productionBody += '<div style="padding:16px 20px;">' +
         '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.3);border-radius:8px;margin-bottom:16px;">' +
           '<span style="font-size:1.3rem;">⏳</span>' +
-          '<div><p style="margin:0;font-weight:700;color:#ca8a04;">Submitted — awaiting instructor review</p>' +
+          '<div><p style="margin:0;font-weight:700;color:var(--muted);">Submitted — awaiting instructor review</p>' +
           '<p style="margin:2px 0 0;font-size:0.8rem;color:var(--muted);">Your responses are in the review queue. Results will appear here once graded.</p></div>' +
         '</div>';
       speakingPrompts.forEach(function(prompt, idx) { productionBody += _spkPromptCard(prompt, idx, true); });
@@ -14139,7 +14139,7 @@
         ' style="display:flex;align-items:center;gap:7px;padding:12px 20px;border:none;border-bottom:3px solid ' + (isActive ? accent : 'transparent') + ';background:none;font-family:inherit;font-size:0.88rem;font-weight:' + (isActive ? '700' : '500') + ';color:' + (isActive ? accent : 'var(--muted)') + ';cursor:' + (unlocked ? 'pointer' : 'default') + ';white-space:nowrap;transition:color .15s;">' +
           '<span>' + icon + '</span>' +
           '<span>' + label + '</span>' +
-          (completed ? '<span style="font-size:0.65rem;color:#16a34a;">✓</span>' : '') +
+          (completed ? '<span style="font-size:0.65rem;color:var(--green);">✓</span>' : '') +
           (!unlocked ? '<span style="font-size:0.75rem;">🔒</span>' : '') +
         '</button>';
     }
@@ -14203,7 +14203,7 @@
         'style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:' + (isActiveSec ? 'rgba(14,165,233,.12)' : 'var(--panel-soft)') + ';border-bottom:1px solid var(--line);cursor:' + (unlocked ? 'pointer' : 'default') + ';">' +
         '<span style="font-size:0.95rem;flex-shrink:0;">' + sectionIcon + '</span>' +
         '<span style="font-size:0.76rem;font-weight:700;flex:1;color:' + (completed ? '#16a34a' : unlocked ? 'var(--text)' : 'var(--muted)') + ';">' + label + '</span>' +
-        (completed ? '<span style="font-size:0.68rem;font-weight:700;color:#16a34a;">✓</span>' : '') +
+        (completed ? '<span style="font-size:0.68rem;font-weight:700;color:var(--green);">✓</span>' : '') +
         (!unlocked ? '<span style="font-size:0.7rem;color:var(--muted);">🔒</span>' : '') +
       '</div>';
     }
@@ -15398,10 +15398,10 @@
       return '<tr style="border-bottom:1px solid #e5e7eb;">' +
         '<td style="padding:10px 12px;font-weight:600;font-size:13px;">' + (i+1) + '. ' + m.title + '</td>' +
         '<td style="padding:10px 12px;text-align:center;"><span style="font-size:11px;font-weight:700;color:' + statusColor + ';">' + status + '</span></td>' +
-        '<td style="padding:10px 12px;min-width:80px;">' + bar(m.quizBest) + '<div style="font-size:10px;text-align:center;margin-top:2px;color:#6b7280;">' + pct(m.quizBest) + '</div></td>' +
-        '<td style="padding:10px 12px;min-width:80px;">' + bar(m.grammarBest) + '<div style="font-size:10px;text-align:center;margin-top:2px;color:#6b7280;">' + pct(m.grammarBest) + '</div></td>' +
-        '<td style="padding:10px 12px;min-width:80px;">' + bar(m.listeningBest) + '<div style="font-size:10px;text-align:center;margin-top:2px;color:#6b7280;">' + pct(m.listeningBest) + '</div></td>' +
-        '<td style="padding:10px 12px;min-width:80px;">' + bar(m.evalBest) + '<div style="font-size:10px;text-align:center;margin-top:2px;color:#6b7280;">' + pct(m.evalBest) + '</div></td>' +
+        '<td style="padding:10px 12px;min-width:80px;">' + bar(m.quizBest) + '<div style="font-size:10px;text-align:center;margin-top:2px;color:var(--muted);">' + pct(m.quizBest) + '</div></td>' +
+        '<td style="padding:10px 12px;min-width:80px;">' + bar(m.grammarBest) + '<div style="font-size:10px;text-align:center;margin-top:2px;color:var(--muted);">' + pct(m.grammarBest) + '</div></td>' +
+        '<td style="padding:10px 12px;min-width:80px;">' + bar(m.listeningBest) + '<div style="font-size:10px;text-align:center;margin-top:2px;color:var(--muted);">' + pct(m.listeningBest) + '</div></td>' +
+        '<td style="padding:10px 12px;min-width:80px;">' + bar(m.evalBest) + '<div style="font-size:10px;text-align:center;margin-top:2px;color:var(--muted);">' + pct(m.evalBest) + '</div></td>' +
       '</tr>';
     }).join('');
 
@@ -15472,7 +15472,7 @@
       var c = val >= 85 ? '#16a34a' : val >= 60 ? '#d97706' : '#dc2626';
       return '<div style="height:7px;background:#e5e7eb;border-radius:4px;overflow:hidden;">' +
         '<div style="width:' + val + '%;height:100%;background:' + c + ';border-radius:4px;"></div></div>' +
-        '<div style="font-size:10px;text-align:center;margin-top:2px;color:#6b7280;">' + (val !== null && val !== undefined ? val + '%' : '—') + '</div>';
+        '<div style="font-size:10px;text-align:center;margin-top:2px;color:var(--muted);">' + (val !== null && val !== undefined ? val + '%' : '—') + '</div>';
     }
 
     var moduleRows = mods.length ? mods.map(function(m, i) {
@@ -15480,14 +15480,14 @@
       var status = m.completed ? 'Complete' : inProg ? 'In Progress' : 'Not Started';
       var sc = m.completed ? '#16a34a' : inProg ? '#0ea5e9' : '#9ca3af';
       return '<tr style="border-bottom:1px solid #e5e7eb;">' +
-        '<td style="padding:9px 12px;font-weight:600;font-size:12px;">' + (i+1) + '. ' + (m.title||'') + (m.topic ? '<div style="font-size:10px;color:#6b7280;font-weight:400;margin-top:1px;">' + m.topic + '</div>' : '') + '</td>' +
+        '<td style="padding:9px 12px;font-weight:600;font-size:12px;">' + (i+1) + '. ' + (m.title||'') + (m.topic ? '<div style="font-size:10px;color:var(--muted);font-weight:400;margin-top:1px;">' + m.topic + '</div>' : '') + '</td>' +
         '<td style="padding:9px 12px;text-align:center;"><span style="font-size:10px;font-weight:700;color:' + sc + ';">' + status + '</span></td>' +
         '<td style="padding:9px 12px;min-width:72px;">' + bar(m.quizBest)      + '</td>' +
         '<td style="padding:9px 12px;min-width:72px;">' + bar(m.grammarBest)   + '</td>' +
         '<td style="padding:9px 12px;min-width:72px;">' + bar(m.listeningBest) + '</td>' +
         '<td style="padding:9px 12px;min-width:72px;">' + bar(m.evalBest)      + '</td>' +
       '</tr>';
-    }).join('') : '<tr><td colspan="6" style="padding:20px;text-align:center;color:#9ca3af;font-size:12px;">No modules attempted yet.</td></tr>';
+    }).join('') : '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--muted);font-size:12px;">No modules attempted yet.</td></tr>';
 
     var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>aerocomms Progress Report</title>' +
       '<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,Helvetica,sans-serif;color:#111;background:#fff;padding:40px 48px;}' +
@@ -15508,7 +15508,7 @@
       // ── Report header ──────────────────────────────────────────────
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px;">' +
         '<div>' +
-          '<div style="font-size:10px;font-weight:800;letter-spacing:2px;color:#0ea5e9;margin-bottom:6px;">aerocomms</div>' +
+          '<div style="font-size:10px;font-weight:800;letter-spacing:2px;color:var(--muted);margin-bottom:6px;">aerocomms</div>' +
           '<h1>Progress Report</h1>' +
           (name ? '<div class="sub">' + name + '</div>' : '') +
           '<div class="sub">Generated ' + dateStr + '</div>' +
@@ -15522,8 +15522,8 @@
         '<div class="stats">' +
           '<div class="card"><div class="card-label">Avg Score</div><div class="card-value" style="color:' + scoreColor + '">' + avgScore + '%</div></div>' +
           '<div class="card"><div class="card-label">Pass Rate</div><div class="card-value" style="color:' + rateColor + '">' + passRate + '%</div></div>' +
-          '<div class="card"><div class="card-label">Time Trained</div><div class="card-value" style="color:#0369a1">' + timeLabel + '</div></div>' +
-          '<div class="card"><div class="card-label">Read-backs</div><div class="card-value" style="color:#0f172a">' + attempts + '</div></div>' +
+          '<div class="card"><div class="card-label">Time Trained</div><div class="card-value" style="color:var(--muted)">' + timeLabel + '</div></div>' +
+          '<div class="card"><div class="card-label">Read-backs</div><div class="card-value" style="color:var(--text)">' + attempts + '</div></div>' +
         '</div>' +
       '</div>' +
 
@@ -15533,9 +15533,9 @@
       '<div class="section">' +
         '<h2>Course Modules</h2>' +
         '<div class="stats" style="margin-bottom:14px;">' +
-          '<div class="card"><div class="card-label">Completed</div><div class="card-value" style="color:#0f172a">' + done + ' <span style="font-size:14px;color:#9ca3af;">/ ' + mods.length + '</span></div></div>' +
+          '<div class="card"><div class="card-label">Completed</div><div class="card-value" style="color:var(--text)">' + done + ' <span style="font-size:14px;color:var(--muted);">/ ' + mods.length + '</span></div></div>' +
           '<div class="card"><div class="card-label">Overall Progress</div><div class="card-value" style="color:' + (done === mods.length && mods.length ? '#16a34a' : '#0f172a') + '">' + (mods.length ? Math.round(done/mods.length*100) : 0) + '%</div></div>' +
-          '<div class="card"><div class="card-label">Module Time</div><div class="card-value" style="color:#0369a1">' + lmsTimeLabel + '</div></div>' +
+          '<div class="card"><div class="card-label">Module Time</div><div class="card-value" style="color:var(--muted)">' + lmsTimeLabel + '</div></div>' +
         '</div>' +
         (function() {
           var pdfSkills = [
@@ -16905,7 +16905,7 @@
           '</div>' +
         '</div>' +
         (s.rubric ? '<div style="margin-bottom:16px;padding:10px 14px;background:rgba(14,165,233,.05);border:1px solid rgba(14,165,233,.2);border-radius:6px;">' +
-          '<p style="margin:0 0 4px;font-size:0.72rem;font-weight:700;color:#0ea5e9;text-transform:uppercase;">Grading Notes / Rubric</p>' +
+          '<p style="margin:0 0 4px;font-size:0.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;">Grading Notes / Rubric</p>' +
           '<p style="margin:0;font-size:0.82rem;color:var(--muted);">' + safeText(s.rubric) + '</p>' +
         '</div>' : '') +
         (isPending
@@ -18665,7 +18665,7 @@
           return '<div class="prog-bar-row">' +
             '<span>' + h(_phaseLabel(p.phase)) + '</span>' +
             '<div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:' + pct + '%;background:#f59e0b"></div></div>' +
-            '<strong style="color:#f59e0b">' + p.warnings + '</strong>' +
+            '<strong style="color:var(--yellow)">' + p.warnings + '</strong>' +
           '</div>';
         }).join('') + '</div>'
       : '<p class="prog-empty-hint">No phase data yet.</p>';
@@ -19064,14 +19064,14 @@
         '<div class="prog-phase-summary">' +
           '<div class="prog-phase-summary-item">' +
             '<span class="prog-phase-summary-label">Hardest</span>' +
-            '<span class="prog-phase-summary-val" style="color:#ef4444">' + h(_phaseLabel(hardest.phase)) + '</span>' +
-            '<span class="prog-phase-summary-score" style="color:#ef4444">' + hardest.avgScore + '%</span>' +
+            '<span class="prog-phase-summary-val" style="color:var(--red)">' + h(_phaseLabel(hardest.phase)) + '</span>' +
+            '<span class="prog-phase-summary-score" style="color:var(--red)">' + hardest.avgScore + '%</span>' +
           '</div>' +
           '<div class="prog-phase-summary-sep"></div>' +
           '<div class="prog-phase-summary-item">' +
             '<span class="prog-phase-summary-label">Easiest</span>' +
-            '<span class="prog-phase-summary-val" style="color:#22c55e">' + h(_phaseLabel(easiest.phase)) + '</span>' +
-            '<span class="prog-phase-summary-score" style="color:#22c55e">' + easiest.avgScore + '%</span>' +
+            '<span class="prog-phase-summary-val" style="color:var(--green)">' + h(_phaseLabel(easiest.phase)) + '</span>' +
+            '<span class="prog-phase-summary-score" style="color:var(--green)">' + easiest.avgScore + '%</span>' +
           '</div>' +
         '</div>';
     }
@@ -19876,7 +19876,7 @@
           });
       } catch(e) { console.warn('[Rating] send error', e); }
     }
-    if (w) w.innerHTML = '<p style="color:#4ade80;font-size:0.83rem;padding:4px 0 0;">' + (_selectedStars > 0 ? 'Thanks for your feedback!' : '') + '</p>';
+    if (w) w.innerHTML = '<p style="color:var(--green);font-size:0.83rem;padding:4px 0 0;">' + (_selectedStars > 0 ? 'Thanks for your feedback!' : '') + '</p>';
     _selectedStars = 0;
   };
 
@@ -20231,7 +20231,7 @@
           var isHighlighted = phaseFilter !== 'all' && p.phase === phaseFilter;
           var barColor = phaseFilter !== 'all' ? (isHighlighted ? '#f59e0b' : 'rgba(245,158,11,0.22)') : '#f59e0b';
           return '<div class="prog-bar-row">' +
-            '<span' + (isHighlighted ? ' style="font-weight:700;color:#f59e0b"' : '') + '>' + h(p.phase) + '</span>' +
+            '<span' + (isHighlighted ? ' style="font-weight:700;color:var(--yellow)"' : '') + '>' + h(p.phase) + '</span>' +
             '<div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:' + pct + '%;background:' + barColor + '"></div></div>' +
             '<strong style="color:' + barColor + '">' + p.warnings + '</strong>' +
           '</div>';
@@ -20258,7 +20258,7 @@
           return '<div class="psy-coaching-row">' +
             '<div><div class="psy-coaching-name">' + h(u.name) + '</div><div class="psy-coaching-email">' + h(u.email) + '</div></div>' +
             '<div class="psy-coaching-chips">' +
-              '<span class="psy-coaching-chip" style="color:#ef4444">Score: ' + u.multitaskingScore + '</span>' +
+              '<span class="psy-coaching-chip" style="color:var(--red)">Score: ' + u.multitaskingScore + '</span>' +
               '<span class="psy-coaching-chip">Recovery: ' + u.recoveryRate + '%</span>' +
               '<span class="psy-coaching-chip">Correction: ' + (u.avgCorrectionSec > 0 ? u.avgCorrectionSec + 's' : '—') + '</span>' +
               '<span class="psy-coaching-chip">Drift events: ' + u.warnings + '</span>' +
@@ -20398,8 +20398,8 @@
 
   function _b2bErrorHtml(msg) {
     return '<div class="panel" style="padding:20px 16px;">' +
-      '<p class="eyebrow" style="color:#f87171;">Error</p>' +
-      '<p style="color:#94a3b8;font-size:13px;margin:4px 0 0;">' + h(msg || 'Could not load data.') + '</p>' +
+      '<p class="eyebrow" style="color:var(--muted);">Error</p>' +
+      '<p style="color:var(--muted);font-size:13px;margin:4px 0 0;">' + h(msg || 'Could not load data.') + '</p>' +
     '</div>';
   }
 
@@ -20815,7 +20815,7 @@
                 '<div class="ov-summary-card">' +
                   '<div class="ov-summary-label">Students Trained</div>' +
                   '<div class="ov-summary-value" style="color:var(--silver)">' + totalUsersOv + '</div>' +
-                  '<div class="ov-summary-desc">' + active14Ov + ' active in the last 14 days' + (pendingOv > 0 ? ' &nbsp;&bull;&nbsp; <span style="color:#f59e0b">' + pendingOv + ' pending approval</span>' : '') + '</div>' +
+                  '<div class="ov-summary-desc">' + active14Ov + ' active in the last 14 days' + (pendingOv > 0 ? ' &nbsp;&bull;&nbsp; <span style="color:var(--yellow)">' + pendingOv + ' pending approval</span>' : '') + '</div>' +
                 '</div>' +
                 '<div class="ov-summary-card">' +
                   '<div class="ov-summary-label">Platform Pass Rate</div>' +
@@ -21313,7 +21313,7 @@
     return (
       '<div class="demo-card">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">' +
-          '<p style="margin:0;font-size:10px;color:#4a5058;font-weight:700;letter-spacing:1.2px;">AVIATION ENGLISH INTERACTIVE CAMPUS &middot; HOW IT WORKS</p>' +
+          '<p style="margin:0;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:1.2px;">AVIATION ENGLISH INTERACTIVE CAMPUS &middot; HOW IT WORKS</p>' +
           '<button onclick="window._demoClose()" style="background:none;border:none;color:#4a5058;cursor:pointer;font-size:20px;line-height:1;padding:0 4px;">&times;</button>' +
         '</div>' +
         '<div class="demo-progress">' + dots + '</div>' +
@@ -21328,8 +21328,8 @@
       '<div style="text-align:center;padding:8px 0 4px;">' +
         '<div style="font-size:44px;margin-bottom:14px;">✈</div>' +
         '<h2 style="margin:0 0 10px;color:var(--text);font-size:1.45rem;">Welcome to ICAO Trainer</h2>' +
-        '<p style="color:#8a929c;margin:0 0 6px;line-height:1.6;">Practice real ATC radio communications with authentic voices and professional phraseology.</p>' +
-        '<p style="color:#4a5058;font-size:0.82rem;margin:0 0 24px;">This 60-second walkthrough shows you exactly how a training session works.</p>' +
+        '<p style="color:var(--muted);margin:0 0 6px;line-height:1.6;">Practice real ATC radio communications with authentic voices and professional phraseology.</p>' +
+        '<p style="color:var(--muted);font-size:0.82rem;margin:0 0 24px;">This 60-second walkthrough shows you exactly how a training session works.</p>' +
         '<button class="btn primary" onclick="window._demoNext()" style="width:100%;padding:13px;margin-bottom:10px;">Show me how it works &rarr;</button>' +
         '<button onclick="window._demoClose()" style="background:none;border:none;color:#4a5058;cursor:pointer;font-size:0.82rem;">Skip &mdash; take me to the dashboard</button>' +
       '</div>'
@@ -21340,14 +21340,14 @@
     var ready = _audioReady;
     return (
       '<h3 style="margin:0 0 6px;color:var(--text);">Step 1 &mdash; The ATC speaks</h3>' +
-      '<p style="color:#8a929c;margin:0 0 12px;font-size:0.86rem;">In every session the controller transmits first. Listen before reading — just like real radio.</p>' +
+      '<p style="color:var(--muted);margin:0 0 12px;font-size:0.86rem;">In every session the controller transmits first. Listen before reading — just like real radio.</p>' +
       '<div class="demo-callout">Press play to hear the ATC transmission</div>' +
       '<div class="demo-atc-box">' +
-        '<p style="margin:0 0 10px;font-size:0.7rem;color:#4a5058;font-weight:700;letter-spacing:1px;">STARTUP PHASE &middot; LEVEL 1 &middot; USA</p>' +
+        '<p style="margin:0 0 10px;font-size:0.7rem;color:var(--muted);font-weight:700;letter-spacing:1px;">STARTUP PHASE &middot; LEVEL 1 &middot; USA</p>' +
         '<button id="demoPlayBtn" class="demo-play-btn' + (ready ? ' pulse' : '') + '" onclick="window._demoPlay()"' + (ready ? '' : ' disabled') + '>' +
           '<span id="demoPlayIcon">&#9654;</span> ' + (ready ? 'Play ATC transmission' : 'Loading audio&hellip;') +
         '</button>' +
-        '<p style="margin:6px 0 0;font-size:0.73rem;color:#363c42;text-align:center;">' +
+        '<p style="margin:6px 0 0;font-size:0.73rem;color:var(--text);text-align:center;">' +
           'No audio? <button onclick="window._demoNext()" style="background:none;border:none;color:#a0abb5;cursor:pointer;font-size:0.73rem;padding:0;">Continue without it &rarr;</button>' +
         '</p>' +
       '</div>' +
@@ -21361,9 +21361,9 @@
   function _s2() {
     return (
       '<h3 style="margin:0 0 6px;color:var(--text);">Step 2 &mdash; Read the transmission</h3>' +
-      '<p style="color:#8a929c;margin:0 0 12px;font-size:0.86rem;">After listening, you can reveal the text. In practice, always try audio first.</p>' +
+      '<p style="color:var(--muted);margin:0 0 12px;font-size:0.86rem;">After listening, you can reveal the text. In practice, always try audio first.</p>' +
       '<div class="demo-atc-box">' +
-        '<p style="margin:0 0 8px;font-size:0.7rem;color:#4a5058;font-weight:700;letter-spacing:1px;">ATC SAID:</p>' +
+        '<p style="margin:0 0 8px;font-size:0.7rem;color:var(--muted);font-weight:700;letter-spacing:1px;">ATC SAID:</p>' +
         '<p class="demo-atc-text">' + _esc(ATC_TEXT) + '</p>' +
       '</div>' +
       '<div class="demo-callout">Your readback must confirm: the instruction &plus; all numbers &plus; your callsign at the end.</div>' +
@@ -21377,12 +21377,12 @@
   function _s3() {
     return (
       '<h3 style="margin:0 0 6px;color:var(--text);">Step 3 &mdash; Type your readback</h3>' +
-      '<p style="color:#8a929c;margin:0 0 12px;font-size:0.86rem;">Read back the key elements to confirm you understood. Callsign goes at the end.</p>' +
+      '<p style="color:var(--muted);margin:0 0 12px;font-size:0.86rem;">Read back the key elements to confirm you understood. Callsign goes at the end.</p>' +
       '<div class="demo-callout">Include: the clearance &plus; QNH value &plus; your callsign</div>' +
       '<div style="margin:12px 0 4px;">' +
         '<textarea id="demoAnswerInput" class="demo-answer" placeholder="Type your readback here&hellip;"></textarea>' +
         '<button id="demoMicBtn" class="demo-mic-btn" onclick="window._demoMic()">&#127908; Tap to speak</button>' +
-        '<p style="margin:5px 0 0;font-size:0.73rem;color:#363c42;"><em>Hint: ' + _esc(HINT) + '</em></p>' +
+        '<p style="margin:5px 0 0;font-size:0.73rem;color:var(--text);"><em>Hint: ' + _esc(HINT) + '</em></p>' +
       '</div>' +
       '<div class="demo-footer">' +
         '<button class="btn secondary btn-back" onclick="window._demoPrev()">&larr;</button>' +
@@ -21402,19 +21402,19 @@
     }).join(' ');
     return (
       '<h3 style="margin:0 0 6px;color:var(--text);">Step 4 &mdash; Instant feedback</h3>' +
-      '<p style="color:#8a929c;margin:0 0 12px;font-size:0.86rem;">Every keyword is checked. Green = found in your readback. Red = missing.</p>' +
+      '<p style="color:var(--muted);margin:0 0 12px;font-size:0.86rem;">Every keyword is checked. Green = found in your readback. Red = missing.</p>' +
       '<div class="demo-atc-box">' +
         '<div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">' +
           '<div class="demo-score">' + score + '%</div>' +
           '<div>' +
             '<p style="margin:0;font-weight:700;font-size:0.95rem;color:' + (allOk ? '#6ee7b7' : '#fca5a5') + ';">' +
               (allOk ? '✓ All keywords found!' : 'Some keywords missing') + '</p>' +
-            '<p style="margin:3px 0 0;font-size:0.75rem;color:#4a5058;">Keyword check result</p>' +
+            '<p style="margin:3px 0 0;font-size:0.75rem;color:var(--muted);">Keyword check result</p>' +
           '</div>' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">' + kwHtml + '</div>' +
-        '<p style="margin:0 0 4px;font-size:0.7rem;color:#4a5058;font-weight:700;letter-spacing:1px;">MODEL ANSWER</p>' +
-        '<p style="margin:0;font-size:0.82rem;color:#5e666e;font-style:italic;">&ldquo;' + _esc(EXPECTED) + '&rdquo;</p>' +
+        '<p style="margin:0 0 4px;font-size:0.7rem;color:var(--muted);font-weight:700;letter-spacing:1px;">MODEL ANSWER</p>' +
+        '<p style="margin:0;font-size:0.82rem;color:var(--muted);font-style:italic;">&ldquo;' + _esc(EXPECTED) + '&rdquo;</p>' +
       '</div>' +
       (!allOk ? '<div class="demo-callout" style="background:linear-gradient(135deg,#4c1d95,#7c3aed);">No worries — the real sessions let you retry as many times as you need.</div>' : '') +
       '<div class="demo-footer">' +
@@ -21429,10 +21429,10 @@
       '<div style="text-align:center;padding:8px 0 4px;">' +
         '<div style="font-size:44px;margin-bottom:14px;">&#127919;</div>' +
         '<h2 style="margin:0 0 10px;color:var(--text);font-size:1.4rem;">You&apos;ve got it!</h2>' +
-        '<p style="color:#8a929c;margin:0 0 20px;line-height:1.6;">ICAO Trainer works in 4 steps: <strong style="color:var(--text);">listen &rarr; read &rarr; respond &rarr; improve</strong>. Every route uses real ATC voices with authentic regional accents.</p>' +
+        '<p style="color:var(--muted);margin:0 0 20px;line-height:1.6;">ICAO Trainer works in 4 steps: <strong style="color:var(--text);">listen &rarr; read &rarr; respond &rarr; improve</strong>. Every route uses real ATC voices with authentic regional accents.</p>' +
         '<div style="background:var(--panel-soft);border-radius:12px;padding:16px 18px;text-align:left;margin-bottom:22px;">' +
-          '<p style="margin:0 0 8px;font-size:0.7rem;color:#a0abb5;font-weight:700;letter-spacing:1px;">WHAT&apos;S NEXT</p>' +
-          '<ul style="margin:0;padding-left:18px;color:#8a929c;font-size:0.84rem;line-height:1.9;">' +
+          '<p style="margin:0 0 8px;font-size:0.7rem;color:var(--muted);font-weight:700;letter-spacing:1px;">WHAT&apos;S NEXT</p>' +
+          '<ul style="margin:0;padding-left:18px;color:var(--muted);font-size:0.84rem;line-height:1.9;">' +
             '<li>Pick a country and level from the <strong style="color:var(--text);">Simulator</strong></li>' +
             '<li>Complete all phases of a route to unlock the next level</li>' +
             '<li>Earn certificates as you progress through levels</li>' +
@@ -22184,7 +22184,7 @@
       return;
     }
     var fallbackNote = res.fallback
-      ? '<div style="padding:8px 16px 0;font-size:0.68rem;color:#64748b;letter-spacing:0.03em;">Season 1 in progress — CP based on current progress</div>'
+      ? '<div style="padding:8px 16px 0;font-size:0.68rem;color:var(--muted);letter-spacing:0.03em;">Season 1 in progress — CP based on current progress</div>'
       : '';
     var myEmail = _gam.myEmail ? _gam.myEmail.toLowerCase() : '';
     var medals  = ['🥇', '🥈', '🥉'];
@@ -27598,7 +27598,7 @@
     ];
     var _sectionPicker = _isAdmin
       ? '<div style="margin-top:18px;text-align:center;">' +
-          '<div style="font-size:0.7rem;letter-spacing:.14em;color:#3a4a5a;text-transform:uppercase;margin-bottom:8px;">' +
+          '<div style="font-size:0.7rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">' +
             'Test a single section' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:340px;">' +
@@ -27624,7 +27624,7 @@
       '<div class="tea-begin-shell" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 60px);background:#080c10;gap:24px;">' +
         '<div class="tea-part-badge" style="font-size:0.9rem;padding:6px 18px;">ICAO TEST</div>' +
         '<div style="font-size:1.4rem;font-weight:700;color:var(--text);">ICAO Language Proficiency Test</div>' +
-        '<div style="font-size:0.85rem;color:#4a6280;text-align:center;max-width:320px;line-height:1.6;">' +
+        '<div style="font-size:0.85rem;color:var(--muted);text-align:center;max-width:320px;line-height:1.6;">' +
           'This is a full ICAO aviation English proficiency exam.<br>The examiner will speak. Respond via microphone.' +
         '</div>' +
         '<button onclick="window._teaMyResults()" ' +
@@ -27831,7 +27831,7 @@
       'height:calc(100vh - 60px);background:#080c10;gap:16px;">' +
         '<div class="tea-part-badge">PIPELINE TEST</div>' +
         '<div style="font-size:1rem;color:var(--text);">Running full pipeline…</div>' +
-        '<div id="teaTestStatus" style="font-size:0.82rem;color:#4a6280;">Sending mock transcript to /api/tea-pipeline</div>' +
+        '<div id="teaTestStatus" style="font-size:0.82rem;color:var(--muted);">Sending mock transcript to /api/tea-pipeline</div>' +
       '</div>';
 
     fetch('/api/tea-pipeline', {
@@ -28238,7 +28238,7 @@ function _dcShowCompletion(res) {
       '<h2 class="dc-complete-title">Challenge Complete!</h2>' +
       (res.xpAwarded ? '<div class="dc-complete-xp">+' + res.xpAwarded + ' XP</div>' : '') +
       (res.newStreakDays ? '<div class="dc-complete-streak">Streak: <strong>' + res.newStreakDays + ' days</strong></div>' : '') +
-      (res.freezeAwarded ? '<div class="dc-complete-badge" style="color:#38bdf8;">🧊 Streak freeze earned!</div>' : '') +
+      (res.freezeAwarded ? '<div class="dc-complete-badge" style="color:var(--muted);">🧊 Streak freeze earned!</div>' : '') +
       '<p class="dc-complete-msg">Come back tomorrow for a new challenge.</p>' +
       '<button class="btn primary" style="margin-top:24px;min-width:180px;" onclick="_navTo(renderHome)">← Home</button>' +
     '</div>';
@@ -28279,7 +28279,7 @@ function _renderAdminDcList(list) {
       '<td style="color:var(--muted);font-size:0.8rem;">' + c.items.length + ' questions</td>' +
       '<td style="white-space:nowrap;">' +
         '<button class="btn secondary" style="font-size:0.78rem;padding:4px 10px;margin-right:4px;" onclick="_adminDcEdit(window._dcAdminList[' + i + '])">Edit</button>' +
-        '<button class="btn secondary" style="font-size:0.78rem;padding:4px 10px;color:#ef4444;" onclick="_adminDcDelete(\'' + safeId + '\',\'' + safeTitle + '\')">Delete</button>' +
+        '<button class="btn secondary" style="font-size:0.78rem;padding:4px 10px;color:var(--red);" onclick="_adminDcDelete(\'' + safeId + '\',\'' + safeTitle + '\')">Delete</button>' +
       '</td>' +
     '</tr>';
   }).join('');
@@ -28336,7 +28336,7 @@ function _adminDcShowForm(challenge) {
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
           '<strong style="font-size:0.85rem;">Question ' + (idx + 1) + '</strong>' +
           (window._dcFormItems.length > 1
-            ? '<button class="btn secondary" style="font-size:0.75rem;padding:3px 8px;color:#ef4444;" onclick="window._dcRemItem(' + idx + ')">Remove</button>'
+            ? '<button class="btn secondary" style="font-size:0.75rem;padding:3px 8px;color:var(--red);" onclick="window._dcRemItem(' + idx + ')">Remove</button>'
             : '') +
         '</div>' +
         '<label class="dc-form-label">Audio Script (ATC radio call)</label>' +
@@ -28593,7 +28593,7 @@ function _aeroShowInstallBar(mode) {
   if (mode === 'ios') {
     body =
       '<p style="margin:0 0 4px;font-weight:700;font-size:0.9rem;">Add aerocomms to your home screen</p>' +
-      '<p style="margin:0;font-size:0.78rem;line-height:1.5;color:#b9b9b9;">' +
+      '<p style="margin:0;font-size:0.78rem;line-height:1.5;color:var(--muted);">' +
         'Tap ' + shareGlyph + ' below, then <strong style="color:var(--text);">Add to Home Screen</strong>. ' +
         'Keeps you signed in and turns on your streak reminders.</p>';
     action =
@@ -28602,7 +28602,7 @@ function _aeroShowInstallBar(mode) {
   } else {
     body =
       '<p style="margin:0 0 4px;font-weight:700;font-size:0.9rem;">Install aerocomms</p>' +
-      '<p style="margin:0;font-size:0.78rem;line-height:1.5;color:#b9b9b9;">' +
+      '<p style="margin:0;font-size:0.78rem;line-height:1.5;color:var(--muted);">' +
         'Adds an icon to your device \u2014 full screen, works offline, streak reminders.</p>';
     action =
       '<button class="btn primary" style="padding:7px 14px;font-size:0.78rem;white-space:nowrap;" ' +
@@ -28704,7 +28704,7 @@ function _aeroPageInstall(btn) {
     if (choice && choice.outcome === 'accepted') {
       var b = document.getElementById('_aeroPageStep');
       if (b) b.innerHTML =
-        '<p style="margin:0;font-size:0.95rem;font-weight:700;color:#22c55e;">✓ Installing…</p>' +
+        '<p style="margin:0;font-size:0.95rem;font-weight:700;color:var(--green);">✓ Installing…</p>' +
         '<p style="margin:6px 0 0;font-size:0.82rem;color:var(--muted,#808080);">' +
         'Look for the aerocomms icon on your home screen.</p>';
     } else if (btn) {

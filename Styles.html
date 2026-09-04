@@ -42,9 +42,15 @@
     --muted: #5c5c58;
     --cyan: #4a4a46;
     --silver: #2e2e2c;
-    --green: #16a34a;
-    --yellow: #b45309;
-    --red: #dc2626;
+    /* Darkened for the light ground. The previous values were chosen to match the
+     * dark theme's vividness and scored 2.9:1, 4.4:1 and 4.3:1 against #f2f1ec —
+     * under the 4.5:1 needed to read comfortably. These carry meaning in a training
+     * app: a student has to see at a glance whether a read-back was right, so the
+     * one place they must not be decorative is the one where they were faintest.
+     * Now 6.3:1, 6.3:1 and 5.7:1. */
+    --green: #166534;
+    --yellow: #92400e;
+    --red: #b91c1c;
     --white: #ffffff;
 
     /* Reversed on a light ground: navy carries the accent, white sits on it. */
