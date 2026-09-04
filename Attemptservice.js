@@ -74,6 +74,28 @@ var AttemptService = {
       dbAppend_('Attempts', attempt);
     });
 
+    // The expensive half of this call is deferred to the end of the route.
+    //
+    // updateUserProgress reads the WHOLE Attempts sheet and then takes a second
+    // script lock to rewrite the Progress row. Both ran on every single answer, so an
+    // eight-phase route paid eight full-sheet reads and sixteen lock acquisitions —
+    // and the client disables "Next exercise" until this returns, so the student
+    // watched "Saving…" through every one of them. It also grew slower for everybody
+    // as the sheet filled.
+    //
+    // The attempt itself is still written immediately, so nothing is lost if the
+    // route is abandoned. Only the summary is postponed, and apiFinalizeRoute rebuilds
+    // it once before the debrief is shown.
+    if (payload.deferProgress === true) {
+      return {
+        ok: true,
+        attempt: attempt,
+        evaluation: evaluation,
+        expectedAnswer: scenario.expectedReadback || '',
+        deferred: true
+      };
+    }
+
     var progress = ProgressService.updateUserProgress(user, scenario);
     var lmsXpTotal;
     var lmsStreakDays;
@@ -860,3 +882,69 @@ var ProgressService = {
     return ProgressService.COUNTRY_ALIASES_[key] || key;
   }
 };
+
+/**
+ * Rebuild a route's progress once, at the end of it.
+ *
+ * Every answer used to do this: read the whole Attempts sheet, take a script lock,
+ * rewrite the Progress row. The client waits on that call before it will let the
+ * student move on, so an eight-phase route spent eight of those waits in front of a
+ * disabled "Saving…" button — and the cost grew with the sheet.
+ *
+ * The attempts themselves were always written as they happened, so this recomputes
+ * from what is already stored rather than trusting anything the client carried. If it
+ * fails the attempts survive and it can simply be run again; the debrief is what
+ * waits, not the exercise.
+ */
+function apiFinalizeRoute(sessionToken, payload) {
+  try {
+    var user = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    payload = payload || {};
+
+    var scenarioIds = payload.scenarioIds || [];
+    if (!scenarioIds.length) return { ok: false, error: 'No scenarios given.' };
+
+    // Read the scenario rows once for the whole route rather than once per phase.
+    var byId = {};
+    readSheetObjectsV5Hard_('Scenarios').forEach(function(r) {
+      byId[String(r.scenarioId || '').trim()] = r;
+    });
+
+    var progress = null, done = 0, missing = [];
+    scenarioIds.forEach(function(id) {
+      var sc = byId[String(id || '').trim()];
+      if (!sc) { missing.push(id); return; }
+      try {
+        progress = ProgressService.updateUserProgress(user, sc);
+        done++;
+      } catch (e) {
+        Logger.log('[finalizeRoute] ' + id + ': ' + e.message);
+      }
+    });
+
+    // XP and the streak were awarded per answer before; they are settled here now, so
+    // a route grants exactly what its correct answers earned rather than one award
+    // per round-trip.
+    var lmsXpTotal, lmsStreakDays;
+    try {
+      var correct = Number(payload.correctCount || 0);
+      if (correct > 0) {
+        lmsXpTotal   = lmsAddXp_(user.userId, 25 * correct);
+        lmsStreakDays = lmsUpdateStreak_(user.userId);
+      }
+    } catch (e) {
+      Logger.log('[finalizeRoute] xp/streak: ' + e.message);
+    }
+
+    return {
+      ok: true,
+      progress: progress,
+      finalized: done,
+      missing: missing,
+      lmsXpTotal: lmsXpTotal,
+      lmsStreakDays: lmsStreakDays
+    };
+  } catch (err) {
+    return apiError_('apiFinalizeRoute', err);
+  }
+}

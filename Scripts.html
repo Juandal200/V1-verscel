@@ -3,6 +3,25 @@
 (function() {
   var _gMicRecorder = null;
   var _gMicStream   = null;
+  var _gMicPromise  = null;
+
+  // The stream taken for this route, or a fresh one the first time. The PROMISE is
+  // kept as well as the stream: a student who taps the microphone again while the
+  // permission dialog is still open would otherwise open a second one.
+  function _gMicReuse() {
+    if (_gMicStream && _gMicStream.active) return Promise.resolve(_gMicStream);
+    if (_gMicPromise) return _gMicPromise;
+    _gMicPromise = navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      .then(function (st) { _gMicStream = st; _gMicPromise = null; return st; })
+      .catch(function (e) { _gMicPromise = null; throw e; });
+    return _gMicPromise;
+  }
+
+  // Leaving the route hands the microphone back, and the recording indicator with it.
+  window._gMicRelease = function () {
+    try { if (_gMicStream) _gMicStream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+    _gMicStream = null; _gMicPromise = null;
+  };
   var _gMicChunks   = [];
   var _gMicActive   = false;
 
@@ -143,7 +162,17 @@
       return;
     }
 
-    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+    // Ask once, then keep it.
+    //
+    // The stream was torn down after every answer, so each phase called getUserMedia
+    // again. On desktop and Android the browser remembers the grant and nothing
+    // happens; in an installed iOS web app it does not, and the student was asked for
+    // the microphone at taxi, again at take-off, and again at every phase after.
+    //
+    // Held for as long as the route is open and released by simMediaStopAll, which
+    // already runs on every way out — so leaving still gives the microphone back and
+    // the recording indicator goes off with it.
+    _gMicReuse()
       .then(function(stream) {
         _gMicStream = stream;
         _gMicChunks = [];
@@ -161,8 +190,9 @@
         };
 
         _gMicRecorder.onstop = function() {
-          _gMicActive = false;
-          stream.getTracks().forEach(function(t) { t.stop(); });
+            _gMicActive = false;
+          // Deliberately NOT stopped: the stream is held for the route so the next
+          // phase does not have to ask for the microphone again.
 
           if (btn) {
             btn.classList.remove('listening');
@@ -6675,6 +6705,10 @@
   window.SimAmbient = SimAmbient;
 
   function simMediaStopAll() {
+    // Leaving the simulator hands the microphone back. It is now held for the whole
+    // route rather than re-taken per phase, so the one place that already runs on
+    // every exit is the one place that has to release it.
+    try { if (window._gMicRelease) window._gMicRelease(); } catch (e) {}
     SimMedia.isPaused = false;
     document.body.classList.remove('sim-paused');
     SimAmbient.stop();
@@ -8843,7 +8877,12 @@
         studentAnswer:     answer,
         responseTimeSec:   responseTimeSec,
         replayCount:       AtcReplayGate.getCount(),
-        sessionId:         AppState.training.sessionId || ''
+        sessionId:         AppState.training.sessionId || '',
+        // Write the attempt, skip the summary. The server rebuilds progress once for
+        // the whole route in apiFinalizeRoute, just before the debrief. This call used
+        // to read the entire Attempts sheet and take two script locks every time, and
+        // "Next exercise" stays disabled until it answers.
+        deferProgress:     true
       });
   }
 
@@ -9653,6 +9692,37 @@
     simMediaStopAll();
     disableSimulatorFocusMode();
     _simStateClear();
+
+    // Settle the route before anything reads its numbers.
+    //
+    // Every answer used to rebuild the whole summary — a full read of the Attempts
+    // sheet and two script locks — and "Next exercise" stayed disabled until it came
+    // back, so the student paid that wait once per phase. The attempts were already
+    // written as they happened; only the summary was postponed, and it is rebuilt
+    // here, once, from what is stored.
+    //
+    // If it fails the debrief still opens: the attempts are safe on the sheet and the
+    // summary rebuilds on the next route or refresh. Blocking the debrief would trade
+    // a stale number for no screen at all.
+    try {
+      var _ids = (AppState.training.scenarios || []).map(function (sc) { return sc.scenarioId; });
+      var _correct = Object.keys(AppState.training.serverConfirmedIds || {}).length;
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (!res || !res.ok) return;
+          if (res.progress) AppState.training.lastProgress = res.progress;
+          if (res.lmsXpTotal !== undefined) window._lmsLmsXp = res.lmsXpTotal;
+          if (res.lmsStreakDays) window._lmsStreakDays = res.lmsStreakDays;
+        })
+        .withFailureHandler(function () {})
+        .apiFinalizeRoute(AppState.sessionToken, {
+          scenarioIds:  _ids,
+          correctCount: _correct,
+          level:        Number(AppState.training.selectedLevel || 1),
+          country:      String(AppState.training.selectedCountry || ''),
+          sessionId:    AppState.training.sessionId || ''
+        });
+    } catch (e) {}
 
     // Derive level/country directly from training state — don't rely on lastProgress yet.
     var level   = Number(AppState.training.selectedLevel   || (AppState.training.lastProgress && AppState.training.lastProgress.level)   || 1);
