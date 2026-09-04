@@ -347,3 +347,61 @@ function deleteTestLevel11() {
   Logger.log(msg);
   return msg;
 }
+
+/**
+ * What opening a level actually costs.
+ *
+ * The mock test has had checkExamStartSpeed for a while; the simulator had nothing, so
+ * "the training server took too long" could only be answered with a guess. It was a
+ * cold start both times — a deploy recompiles the whole project and the next request
+ * pays for it — but a guess that happens to be right is still a guess.
+ *
+ * Run twice and trust the second number: the first opens the spreadsheet.
+ * Read-only. Run checkCatalogSpeed() from LevelService.gs.
+ */
+function checkCatalogSpeed() {
+  var out = [], t0 = Date.now(), t = t0;
+  function lap(label, extra) {
+    var now = Date.now();
+    out.push(('     ' + (now - t) + ' ms').slice(-11) + '  ' + label + (extra ? '  — ' + extra : ''));
+    t = now;
+  }
+
+  var email = Session.getActiveUser().getEmail();
+  var user = null;
+  try {
+    dbReadAll_('Users').forEach(function(r) {
+      if (String(r.email || '').toLowerCase() === String(email).toLowerCase()) user = r;
+    });
+  } catch (e) {}
+  lap('FIRST sheet access (opens the spreadsheet + reads Users)', email);
+  if (!user) { out.push('  no Users row for ' + email); Logger.log(out.join('\n')); return out.join('\n'); }
+
+  var access = null;
+  try { access = getUserAccessStatus_(user); } catch (e) {}
+  lap('access status', access ? (access.plan + ', levels to ' + access.maxLevel) : 'failed');
+
+  try { levelCapsFromContent_(); } catch (e) {}
+  lap('level caps (cached after the first call)');
+
+  var scen = 0;
+  try { scen = readSheetObjectsV5Hard_('Scenarios').length; } catch (e) {}
+  lap('read the whole Scenarios sheet', scen + ' rows');
+
+  var lv = 0;
+  try { lv = dbReadAll_(LEVELS_SHEET_).length; } catch (e) {}
+  lap('read the Levels sheet', lv + ' rows');
+
+  var cat = null;
+  try { cat = buildTrainingCatalogV5Hard_(user, 50); } catch (e) { out.push('  catalog failed: ' + e.message); }
+  lap('BUILD THE CATALOG', cat && cat.levels ? cat.levels.length + ' levels' : 'failed');
+
+  out.push('');
+  out.push('  total: ' + (Date.now() - t0) + ' ms');
+  out.push('  The proxy gives up at 45 s. A cold start after a deploy can pass that;');
+  out.push('  a warm request should be a couple of seconds.');
+
+  var msg = out.join('\n');
+  Logger.log(msg);
+  return msg;
+}
