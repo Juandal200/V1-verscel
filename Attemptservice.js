@@ -985,7 +985,27 @@ function addMissingSheetColumns() {
     var missing = want.filter(function(h) { return have.indexOf(h) === -1; });
     if (!missing.length) return;
 
-    // Appended in schema order, so the sheet ends up in the order dbAppend_ writes.
+    // Appending is only correct when the missing columns are the LAST ones in the
+    // schema, which is the case for a schema that has grown at the end — the only
+    // place fields may be added, because dbAppend_ writes by schema index.
+    //
+    // The first run of this appended 'token' to Sessions, where token is the FIRST
+    // field. Nothing broke, because dbGetHeaders_ returns the schema and never reads
+    // row 1 — but the sheet then labelled column six as the token while every session
+    // wrote it into column one. A header row that disagrees with the data is a trap
+    // for whoever opens the sheet next.
+    var tail = want.slice(want.length - missing.length);
+    var appendIsSafe = missing.every(function(h, i) { return tail[i] === h; });
+
+    if (!appendIsSafe) {
+      out.push('  ' + name + ': NOT TOUCHED — ' + missing.join(', ') +
+               ' belong mid-schema, so appending them would mislabel the columns.');
+      out.push('      the data is written by schema position and is unaffected;');
+      out.push('      run repairSheetHeaders() to relabel row 1 to match the schema.');
+      touched++;
+      return;
+    }
+
     sh.getRange(1, have.length + 1, 1, missing.length).setValues([missing]);
     out.push('  ' + name + ': added ' + missing.join(', '));
     touched++;
@@ -994,6 +1014,55 @@ function addMissingSheetColumns() {
   var msg = touched
     ? 'ADDED MISSING COLUMNS\n' + out.join('\n')
     : 'Every sheet already has every column its schema declares.';
+  Logger.log(msg);
+  return msg;
+}
+
+/**
+ * Make row 1 say what each column actually holds.
+ *
+ * dbAppend_ and dbReadAll_ both go through dbGetHeaders_, which returns the SCHEMA and
+ * never looks at the sheet. So a header row is a label, and the data is in schema order
+ * whatever the label says. When the two disagree the data is still correct and the
+ * sheet is still readable by the app — but anyone opening it by hand reads the wrong
+ * column names, and a hand-edit in the wrong column is silent and permanent.
+ *
+ * This rewrites row 1 to the schema, which is what the columns have always been.
+ * It does not move a single value.
+ *
+ * Run repairSheetHeaders() from Attemptservice.gs.
+ */
+function repairSheetHeaders() {
+  var ss = SpreadsheetApp.openById(
+    PropertiesService.getScriptProperties().getProperty(CONFIG.PROP_DB_SPREADSHEET_ID));
+  var out = [], fixed = 0;
+
+  Object.keys(DB_SCHEMA).forEach(function(name) {
+    var sh = ss.getSheetByName(name);
+    if (!sh) return;
+    var want = DB_SCHEMA[name] || [];
+    if (!want.length) return;
+
+    var lastCol = Math.max(sh.getLastColumn(), 1);
+    var have = sh.getRange(1, 1, 1, lastCol).getValues()[0]
+                 .map(function(h) { return String(h || '').trim(); });
+
+    var same = have.length >= want.length &&
+               want.every(function(h, i) { return have[i] === h; });
+    if (same) return;
+
+    sh.getRange(1, 1, 1, want.length).setValues([want]);
+    // Anything beyond the schema is left alone — it may be a note somebody added.
+    out.push('  ' + name + ': row 1 relabelled to schema order');
+    out.push('      was: ' + have.slice(0, want.length).join(', '));
+    out.push('      now: ' + want.join(', '));
+    fixed++;
+  });
+
+  var msg = fixed
+    ? 'RELABELLED ' + fixed + ' SHEET(S)\n' + out.join('\n') +
+      '\n\nNo values were moved. The columns always held this; only the labels were wrong.'
+    : 'Every sheet already labels its columns the way the schema writes them.';
   Logger.log(msg);
   return msg;
 }
