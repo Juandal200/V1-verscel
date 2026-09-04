@@ -262,6 +262,10 @@ function apiGetMyIcaoResults(sessionToken) {
 
         rows.forEach(function(r) {
           if (String(r[idx['Candidate']] || '').trim().toLowerCase() !== email) return;
+          // The pre-grading transcript row is the same sitting filed twice. Listed
+          // separately it showed one examination as two, the second carrying no band
+          // and labelled "Below Operational" — a failing grade for a row never marked.
+          if (!(Number(r[idx['Overall Band']]) > 0)) return;
           // A locked result is sent as a sitting that happened, carrying no numbers.
           // The date and the fact of it are not what is being charged for.
           if (locked) {
@@ -394,18 +398,30 @@ function _icaoSittingsFor_(email, sinceIso) {
   // report link — to count how many rows carry one email. Reading a range is the
   // expensive part of Apps Script, and this call sits directly in front of the
   // Begin button, so the whole sheet was being fetched before an exam could start.
+  // The band column is read too, because an unmarked row is not an attempt.
+  //
+  // Every sitting writes TWO rows: apiSaveIcaoTranscript files the transcript before
+  // grading so an exam that fails to score is not lost, then apiSaveIcaoExamResult
+  // files the marked result. This counted rows, so ONE examination consumed TWO
+  // attempts — a free plan's single test was spent twice over by taking it once, and
+  // Basic's two were gone after one exam.
+  //
+  // A candidate is charged for a result, not for a row. A sitting with no band
+  // produced nothing, which is the same rule that refuses to mark an unheard sitting.
   var dateCol = TEA_SHEET_HEADERS.indexOf('Date') + 1;
   var candCol = TEA_SHEET_HEADERS.indexOf('Candidate') + 1;
-  var lo = Math.min(dateCol, candCol);
-  var hi = Math.max(dateCol, candCol);
+  var bandCol = TEA_SHEET_HEADERS.indexOf('Overall Band') + 1;
+  var lo = Math.min(dateCol, candCol, bandCol);
+  var hi = Math.max(dateCol, candCol, bandCol);
   var rows = sheet.getRange(2, lo, lastRow - 1, hi - lo + 1).getValues();
-  var dIdx = dateCol - lo, cIdx = candCol - lo;
+  var dIdx = dateCol - lo, cIdx = candCol - lo, bIdx = bandCol - lo;
 
   var since = sinceIso ? new Date(sinceIso) : null;
   var want  = String(email || '').trim().toLowerCase();
   var n = 0;
   rows.forEach(function(r) {
     if (String(r[cIdx] || '').trim().toLowerCase() !== want) return;
+    if (!(Number(r[bIdx]) > 0)) return;   // filed but never marked — not an attempt
     if (since) {
       var d = new Date(String(r[dIdx] || ''));
       // An unparseable date counts. Losing a sitting because a cell was odd
