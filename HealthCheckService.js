@@ -175,6 +175,59 @@ function _hcLevelIdentity_(levels) {
   return { issues: issues };
 }
 
+/**
+ * Rows belonging to people who are not in the Users sheet.
+ *
+ * A leaderboard entry showed USR_b9d1c8fd to every student. Every account had a name;
+ * the XP row simply pointed at somebody who was no longer there. There is no
+ * delete-user function in this project, so an account is removed by hand — and
+ * twenty-one sheets carry a userId, of which exactly one happened to put its orphans
+ * on screen.
+ *
+ * The rest are quieter but not harmless: orphaned attempts inflate completion rates,
+ * orphaned exam results sit in the results table, orphaned sessions authenticate
+ * nobody but never expire. This finds all of them in one pass so a hand-deletion is
+ * visible rather than discovered a screen at a time.
+ */
+function _hcOrphans_() {
+  var issues = [], known = {}, total = 0;
+  try {
+    dbReadAll_('Users').forEach(function(r) {
+      var id = String(r.userId || '').trim();
+      if (id) known[id] = true;
+    });
+  } catch (e) {
+    return { issues: [_hcIssue_('Orphans', '-', 'Users sheet unreadable: ' + e.message)] };
+  }
+
+  // Every sheet whose schema carries a userId, checked the same way.
+  var sheets = [];
+  try {
+    Object.keys(DB_SCHEMA).forEach(function(name) {
+      if (name === 'Users') return;
+      if ((DB_SCHEMA[name] || []).indexOf('userId') !== -1) sheets.push(name);
+    });
+  } catch (e) {}
+
+  sheets.forEach(function(name) {
+    var rows;
+    try { rows = dbReadAll_(name); } catch (e) { return; }   // a sheet that does not exist yet
+    var missing = {};
+    rows.forEach(function(r) {
+      var id = String(r.userId || '').trim();
+      if (id && !known[id]) missing[id] = (missing[id] || 0) + 1;
+    });
+    var ids = Object.keys(missing);
+    if (!ids.length) return;
+    var n = ids.reduce(function(a, k) { return a + missing[k]; }, 0);
+    total += n;
+    issues.push(_hcIssue_('Orphans', name, n + ' row(s) belonging to ' + ids.length +
+      ' user(s) no longer in Users'));
+  });
+
+  return { issues: issues, total: total };
+}
+
 /** What is on sale must be what the app grants. */
 function _hcPlans_() {
   var issues = [];
@@ -241,6 +294,7 @@ function checkEverything() {
 
   section('LEVEL IDENTITY', _hcLevelIdentity_(sc.levels));
   section('SIMULATOR AUDIO', _hcScenarioAudio_());
+  section('ORPHANED ROWS', _hcOrphans_());
   section('PLANS', _hcPlans_());
 
   out.unshift(all.length ? ('FOUND ' + all.length + ' ISSUE(S)') : 'EVERYTHING CHECKS OUT');
