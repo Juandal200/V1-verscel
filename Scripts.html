@@ -24753,7 +24753,15 @@
       // pipeline fails and for every sitting answered by typing, since there is
       // then no recording to transcribe. Those results existed only on screen.
       _teaSaveConversationResult(jsonData);
-      var summary = 'The examination is now complete. Your overall ICAO band is ' + band + '. Please review your results below.';
+      // The examiner does not read the result out.
+      //
+      // It used to say the band aloud while the report on screen was blurred for a
+      // free candidate — so the paywall covered the page and nothing covered the
+      // speaker, and the one number being charged for was the one thing given away.
+      // A closing line has no business carrying the outcome in any case: it is said
+      // in a room that may not be private, and the report is on screen for whoever
+      // is entitled to read it.
+      var summary = 'The examination is now complete. Thank you.';
       _teaSay(summary, onDone);
       return;
     }
@@ -25477,7 +25485,8 @@
           _teaApplyComprehensionCap(d);
           var band = d.student_view.overall_band;
           _showReportScreen(d);
-          _teaSay('The examination is now complete. Your overall ICAO band is ' + band + '. Please review your results below.', function() {});
+          // Same closing line as the other finish path: no result is spoken.
+          _teaSay('The examination is now complete. Thank you.', function() {});
         } else {
           // Pipeline failed — fall back to Gemini live grading via conversation.
           // The loader owns the screen at this point, so the exam has to be put

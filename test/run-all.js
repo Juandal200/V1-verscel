@@ -2,7 +2,7 @@
  * Run before every push: node test/run-all.js */
 const { execFileSync } = require('child_process');
 const suites = ['audio-cache.test.js', 'exam-accent.test.js', 'server-contract.test.js',
-                'speed-ramp.test.js', 'exam-audio-cache.test.js', 'gas-proxy.test.js', 'sim-teardown.test.js', 'exam-sitting.test.js', 'exam-regressions.test.js', 'palette.test.js'];
+                'speed-ramp.test.js', 'exam-audio-cache.test.js', 'gas-proxy.test.js', 'sim-teardown.test.js', 'exam-sitting.test.js', 'exam-regressions.test.js', 'palette.test.js', 'result-privacy.test.js'];
 let bad = 0;
 for (const s of suites) {
   try { execFileSync(process.execPath, [__dirname + '/' + s], { stdio: 'pipe' });

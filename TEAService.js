@@ -599,3 +599,76 @@ function checkExamStartSpeed() {
   Logger.log(msg);
   return msg;
 }
+
+/**
+ * Why a sitting was given the band it was given.
+ *
+ * A candidate reported a band of 1 after answering everything clearly, and the
+ * result screen is blurred on a free plan so they could not read the transcript to
+ * check. This reads the most recent saved sitting and says plainly whether the
+ * examiner ever heard them.
+ *
+ * The two transcripts are kept apart on purpose. enrichedTranscript is the flattened
+ * conversation the CLIENT built, where every answer whose browser-side transcription
+ * failed was recorded as "(no answer given)". annotatedTranscript is what the server
+ * produced by re-transcribing the recordings themselves. When the first is full of
+ * silence and the second is full of speech, the recording was fine and the
+ * bookkeeping was not — and it is the bookkeeping that Gemini is shown first.
+ *
+ * Read-only. Run from TEAService.gs.
+ */
+function checkLastIcaoSitting() {
+  var folder = _teaGetOrCreateFolder_();
+  var it = folder.getFilesByType(MimeType.PLAIN_TEXT);
+  var newest = null, newestAt = 0;
+  var all = folder.getFiles();
+  while (all.hasNext()) {
+    var f = all.next();
+    if (String(f.getName()).indexOf('TEA_') !== 0) continue;
+    var t = f.getLastUpdated().getTime();
+    if (t > newestAt) { newestAt = t; newest = f; }
+  }
+  if (!newest) { Logger.log('No saved sittings found.'); return 'No saved sittings found.'; }
+
+  var d;
+  try { d = JSON.parse(newest.getBlob().getDataAsString()); }
+  catch (e) { Logger.log('Could not read ' + newest.getName() + ': ' + e.message); return 'unreadable'; }
+
+  var flat = String(d.enrichedTranscript || '');
+  var ann  = String(d.annotatedTranscript || '');
+
+  // Count the answers the client believed it never heard.
+  var turns  = (flat.match(/\n?(Ca|Candidate|user)\s*:/gi) || []).length;
+  var silent = (flat.match(/\(no answer given\)/gi) || []).length;
+
+  var out = [];
+  out.push('SITTING  ' + newest.getName());
+  out.push('  candidate    : ' + (d.candidateId || '?'));
+  out.push('  paper        : ' + (d.bank || '?') + '   scope: ' + (d.scope || '?'));
+  out.push('  overall band : ' + (d.overallBand === 0 ? '0 (not recorded)' : d.overallBand));
+  out.push('');
+  out.push('  WHAT THE CLIENT RECORDED AS SAID  (this is what Gemini reads first)');
+  out.push('    candidate turns          : ' + turns);
+  out.push('    logged "(no answer given)": ' + silent);
+  out.push('    first 300 characters     : ' + flat.substring(0, 300).replace(/\n/g, ' | '));
+  out.push('');
+  out.push('  WHAT THE SERVER HEARD ON THE RECORDINGS');
+  out.push('    length                   : ' + ann.length + ' characters');
+  out.push('    first 300 characters     : ' + (ann.substring(0, 300).replace(/\n/g, ' | ') || '(empty)'));
+  out.push('');
+
+  if (silent > 0 && ann.length > 200) {
+    out.push('  VERDICT: the recordings captured speech, but ' + silent + ' answer(s) were');
+    out.push('  filed as "(no answer given)". The band was marked against the silence.');
+  } else if (ann.length <= 200) {
+    out.push('  VERDICT: the server heard little or nothing. The recording itself failed,');
+    out.push('  and no band should have been awarded at all.');
+  } else {
+    out.push('  VERDICT: both transcripts carry speech. The band came from the rubric,');
+    out.push('  not from a transcription fault.');
+  }
+
+  var msg = out.join('\n');
+  Logger.log(msg);
+  return msg;
+}
