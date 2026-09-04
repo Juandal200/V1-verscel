@@ -27072,6 +27072,37 @@
       }).join('');
     }
 
+    // One sitting, blurred, with the way to unlock it laid over the top.
+    function _lockedSittingCard(r) {
+      var inner =
+        '<div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;">' +
+          _bandChipNumber(4) +
+          '<div style="flex:1;min-width:0;">' +
+            '<div style="font-size:0.88rem;font-weight:800;color:#dde2e6;">Operational</div>' +
+            '<div style="font-size:0.72rem;color:#5b7690;">' + _esc(when(r.date)) +
+              (r.version ? ' \u00b7 version ' + _esc(r.version) : '') + '</div>' +
+          '</div>' +
+        '</div>' + bars({
+          pronunciation: 4, structure: 4, vocabulary: 4,
+          fluency: 4, comprehension: 4, interactions: 4
+        });
+
+      return '<div class="tea-score-box" style="margin-bottom:10px;position:relative;overflow:hidden;">' +
+        '<div style="filter:blur(7px);pointer-events:none;user-select:none;" aria-hidden="true">' +
+          inner +
+        '</div>' +
+        '<div style="position:absolute;inset:0;display:flex;flex-direction:column;' +
+          'align-items:center;justify-content:center;text-align:center;padding:16px;' +
+          'background:rgba(8,12,16,.55);">' +
+          '<p class="eyebrow" style="margin:0 0 6px;">' + _esc(when(r.date)) + '</p>' +
+          '<div style="font-size:0.92rem;font-weight:800;color:var(--white,#fff);margin-bottom:10px;">' +
+            'Your result is ready</div>' +
+          '<button class="btn primary" style="padding:8px 18px;font-size:0.8rem;" ' +
+            'onclick="if(window.openSubscriptionModal)openSubscriptionModal()">See plans</button>' +
+        '</div>' +
+      '</div>';
+    }
+
     function bars(scores) {
       if (!scores) return _lockedBars();
       return _TEA_DESCRIPTORS.map(function(k) {
@@ -27116,6 +27147,14 @@
       if (full.length) {
         body += head('Full examinations', full.length + ' sitting' + (full.length === 1 ? '' : 's'));
         body += full.map(function(r) {
+          // A locked sitting is shown the way the report screen shows one: the
+          // finished thing, out of focus, with the offer over it. A padlock says
+          // "you cannot have this"; a blurred report says "this is yours and it is
+          // ready" — the better argument, and the one you asked for.
+          //
+          // Nothing is recoverable behind the blur: the server sent zeros, and the
+          // numbers under it are placeholders rather than this candidate's.
+          if (r.locked) return _lockedSittingCard(r);
           return '<div class="tea-score-box" style="margin-bottom:10px;">' +
             '<div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;">' +
               bandChip(r.band, r.locked) +

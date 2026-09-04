@@ -269,11 +269,26 @@ function apiGetMyIcaoResults(sessionToken) {
           // A locked result is sent as a sitting that happened, carrying no numbers.
           // The date and the fact of it are not what is being charged for.
           if (locked) {
+            // Zeros, not nulls.
+            //
+            // Sending null was correct for the client I had just written and a crash
+            // for the one already on the phone: Apps Script deploys the instant it is
+            // pushed, while the browser is still running whatever the service worker
+            // cached. bars() read scores[k] straight off it and the results screen
+            // died with "null is not an object".
+            //
+            // A server may not assume the client it is talking to is the client it
+            // was written against. Zeros carry no result, and an old build renders
+            // them as an empty report rather than falling over.
             results.push({
-              date:   String(r[idx['Date']] || ''),
-              band:   null,
-              locked: true,
-              scores: null
+              date:    String(r[idx['Date']] || ''),
+              band:    0,
+              locked:  true,
+              version: String(r[idx['Version']] || ''),
+              scores: {
+                pronunciation: 0, structure: 0, vocabulary: 0,
+                fluency: 0, comprehension: 0, interactions: 0
+              }
             });
             return;
           }
