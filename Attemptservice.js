@@ -1021,6 +1021,16 @@ function addMissingSheetColumns() {
 /**
  * Make row 1 say what each column actually holds.
  *
+ * NOT called repairSheetHeaders: Código.gs already has a function by that name, and
+ * two functions sharing one name in the same Apps Script project means whichever the
+ * runtime resolves first is the one that runs — so the other is unreachable and the
+ * person calling it has no way to tell which they got.
+ *
+ * The one in Código.gs is the more careful of the two. It refuses a conflict and says
+ * to review it, which is right when nobody has checked whether the data matches the
+ * labels. This one rewrites row 1, and is only correct once something like
+ * checkSessionColumnOrder has confirmed the values are in schema order.
+ *
  * dbAppend_ and dbReadAll_ both go through dbGetHeaders_, which returns the SCHEMA and
  * never looks at the sheet. So a header row is a label, and the data is in schema order
  * whatever the label says. When the two disagree the data is still correct and the
@@ -1032,7 +1042,7 @@ function addMissingSheetColumns() {
  *
  * Run repairSheetHeaders() from Attemptservice.gs.
  */
-function repairSheetHeaders() {
+function relabelSheetHeadersToSchema() {
   var ss = SpreadsheetApp.openById(
     PropertiesService.getScriptProperties().getProperty(CONFIG.PROP_DB_SPREADSHEET_ID));
   var out = [], fixed = 0;

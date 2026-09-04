@@ -7,12 +7,15 @@
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function mergeObjects_(base, patch) {
-  var out = {};
-  Object.keys(base).forEach(function(k) { out[k] = base[k]; });
-  Object.keys(patch).forEach(function(k) { out[k] = patch[k]; });
-  return out;
-}
+// mergeObjects_ lives in Userservice.gs.
+//
+// There were two of these, in one global scope, and they were not the same: that one
+// guards against null and this one called Object.keys on it. Apps Script keeps
+// whichever file it loads last, so which behaviour you got depended on file order —
+// and the difference only shows when somebody passes a null, which is exactly when a
+// throw is least welcome.
+//
+// Deleted rather than reconciled: one definition cannot drift from itself.
 
 // Normalize GAS sheet boolean — Sheets may return TRUE/FALSE as strings
 function lmsBool_(v) {
