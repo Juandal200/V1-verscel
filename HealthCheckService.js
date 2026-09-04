@@ -86,7 +86,12 @@ function _hcIcaoBanks_() {
       issues.push(_hcIssue_('ICAO items', where, 'no image — Part 3 asks about a blank'));
     if (type === 'IMAGE' && !String(r.description || '').trim())
       issues.push(_hcIssue_('ICAO items', where, 'no description — the grader never sees the picture'));
-    if (!lang) issues.push(_hcIssue_('ICAO items', where, 'no lang — the accent falls back to American'));
+    // Only rows that are SPOKEN need a language. An IMAGE row is a picture; it is
+    // the LINE beside it that gets read out. Flagging those was my check being wrong,
+    // not the data — four findings that would have sent somebody editing a column
+    // that changes nothing.
+    if (!lang && type !== 'IMAGE')
+      issues.push(_hcIssue_('ICAO items', where, 'no lang — the accent falls back to American'));
   });
 
   // Every paper should be the same examination in a different accent. A shape that
@@ -126,6 +131,32 @@ function _hcScenarioAudio_() {
     if (seen[k] < SCENARIO_AUDIO_VOICES_)
       issues.push(_hcIssue_('Scenario audio', k,
         'only ' + seen[k] + ' of ' + SCENARIO_AUDIO_VOICES_ + ' voices rendered'));
+  });
+  return { issues: issues };
+}
+
+/**
+ * A level the student can reach must be a level the app can name.
+ *
+ * The Scenarios sheet carries ten levels. The client names nine — LEVEL_THEMES in
+ * Scripts.html — and falls back to a grey card reading "Training Level" with no
+ * description and no phase list for anything beyond. It renders, so nothing breaks
+ * and nothing complains; the tenth level simply looks like a mistake to whoever
+ * reaches it.
+ *
+ * This number is deliberately duplicated from the client so that the two disagreeing
+ * is itself the finding. Raise it here when a level is named there.
+ */
+var _HC_CLIENT_NAMED_LEVELS_ = 9;
+
+function _hcLevelIdentity_(levels) {
+  var issues = [];
+  Object.keys(levels).forEach(function(l) {
+    var n = Number(l);
+    if (n > _HC_CLIENT_NAMED_LEVELS_)
+      issues.push(_hcIssue_('Levels', 'L' + n,
+        levels[l] + ' scenarios, but no name, icon or description in the client — ' +
+        'it renders as an unnamed "Training Level"'));
   });
   return { issues: issues };
 }
@@ -190,6 +221,7 @@ function checkEverything() {
              e.unrendered + ' unrendered, langs ' + (Object.keys(e.langs).join('/') || 'none'));
   });
 
+  section('LEVEL IDENTITY', _hcLevelIdentity_(sc.levels));
   section('SIMULATOR AUDIO', _hcScenarioAudio_());
   section('PLANS', _hcPlans_());
 
