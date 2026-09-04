@@ -12538,6 +12538,80 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
       color: var(--muted) !important;
     }
 
+    /* ── Pin the two ends ─────────────────────────────────────────────────────
+     *
+     * Fitting everything on the screen only works until something grows — a longer
+     * clearance, a feedback message, a keyboard. Then the read-back, which is the
+     * thing the student came to do, is the first thing pushed off the bottom.
+     *
+     * So it does not move. The header stays at the top, the answer stays at the
+     * bottom, and whatever is between them scrolls if it has to. Nothing can push the
+     * action off-screen because the action was never in the flow. */
+
+    .sim-cockpit {
+      position: relative;
+      /* Room for the pinned answer, plus the home indicator underneath it. */
+      padding-bottom: calc(150px + env(safe-area-inset-bottom)) !important;
+    }
+
+    .sim-cockpit-header {
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 6 !important;
+      background: var(--bg) !important;
+    }
+
+    /* The answer, pinned above the bottom navigation. */
+    .sim-readback-priority-card {
+      position: fixed !important;
+      left: 0 !important;
+      right: 0 !important;
+      /* 50px is the bottom nav's measured height on a phone. */
+      bottom: calc(50px + env(safe-area-inset-bottom)) !important;
+      z-index: 7 !important;
+      margin: 0 !important;
+      padding: 10px 12px !important;
+      background: var(--panel) !important;
+      border-top: 1px solid var(--line) !important;
+      box-shadow: 0 -10px 24px rgba(0,0,0,.45) !important;
+    }
+    /* The instruction above the box is guidance, not part of the action. */
+    .sim-readback-priority-card .eyebrow,
+    .sim-readback-priority-card .subtitle { display: none !important; }
+    .sim-readback-priority-input {
+      min-height: 44px !important;
+      max-height: 88px !important;
+      margin-bottom: 8px !important;
+    }
+    /* Microphone and Send share one row: two full-width buttons stacked was most of
+       the pinned bar's height. */
+    .sim-readback-priority-card .demo-mic-btn,
+    .sim-readback-priority-card .sim-action-row { display: inline-flex !important; }
+    .sim-readback-priority-card .demo-mic-btn {
+      width: auto !important;
+      min-width: 92px !important;
+      margin: 0 8px 0 0 !important;
+      vertical-align: top !important;
+    }
+    .sim-readback-priority-card .sim-action-row {
+      width: calc(100% - 100px) !important;
+      margin: 0 !important;
+    }
+    .sim-readback-priority-card .sim-action-row .btn { width: 100% !important; }
+
+    /* When the keyboard opens, iOS shrinks the visual viewport rather than the layout
+       one, so a bar fixed to the bottom of the page ends up behind the keyboard. The
+       client sets --kb to the keyboard height it measures; without it this is zero and
+       nothing changes. */
+    .sim-readback-priority-card {
+      transform: translateY(calc(-1 * var(--kb, 0px))) !important;
+      transition: transform .18s ease-out !important;
+    }
+
+    /* Everything between the two pinned ends. On most phones it does not scroll at
+       all; on a small one the radio and the altitude do, and the answer stays put. */
+    .sim-priority-side { padding-bottom: 4px !important; }
+
   /* Trimmed rather than removed: each is small on its own, and together they are
      the difference between fitting and not. */
   .sim-cockpit-header .subtitle { display: none; }

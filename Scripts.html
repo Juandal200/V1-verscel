@@ -6847,7 +6847,41 @@
   }());
   window.SimAmbient = SimAmbient;
 
+  // How much of the screen the keyboard is covering.
+  //
+  // iOS shrinks the VISUAL viewport when the keyboard opens and leaves the layout
+  // viewport alone, so an element fixed to the bottom of the page sits behind the
+  // keyboard rather than above it — which would hide the read-back at the exact moment
+  // somebody is typing into it.
+  //
+  // visualViewport reports the difference. The CSS moves the bar by --kb, which is
+  // zero anywhere the API is missing, so a browser without it simply behaves as before
+  // rather than breaking.
+  var _kbRaf = 0;
+  function _simTrackKeyboard() {
+    var vv = window.visualViewport;
+    if (!vv || window._simKbBound) return;
+    window._simKbBound = true;
+
+    var apply = function () {
+      _kbRaf = 0;
+      // Below the fold of the layout viewport is keyboard, toolbar, or both.
+      var covered = Math.max(0, (window.innerHeight || 0) - vv.height - vv.offsetTop);
+      // Under about a hundred pixels it is a browser toolbar sliding, not a keyboard,
+      // and moving the bar for that reads as a twitch.
+      document.documentElement.style.setProperty('--kb', (covered > 100 ? covered : 0) + 'px');
+    };
+    var schedule = function () { if (!_kbRaf) _kbRaf = requestAnimationFrame(apply); };
+
+    vv.addEventListener('resize', schedule);
+    vv.addEventListener('scroll', schedule);
+    apply();
+  }
+
   function simMediaStopAll() {
+    // The keyboard offset belongs to the exercise. Left set, it would push an unrelated
+    // screen's content up by a keyboard that is no longer open.
+    try { document.documentElement.style.setProperty('--kb', '0px'); } catch (e) {}
     // Leaving the simulator hands the microphone back. It is now held for the whole
     // route rather than re-taken per phase, so the one place that already runs on
     // every exit is the one place that has to release it.
@@ -7500,6 +7534,7 @@
     var emergencyType = String(scenario.emergencyType || '').trim();
     var atcText = getScenarioAtcTextSafe(scenario);
 
+    _simTrackKeyboard();
     byId('contentArea').innerHTML =
       '<div class="sim-paused-banner">&#9646;&#9646; PAUSED — Click "Resume" to continue</div>' +
       '<section class="sim-cockpit">' +
