@@ -26575,6 +26575,21 @@
   }
 
   // Render dual-view JSON score card
+  // A copy of the report with every measurement removed. The headings, the six
+  // descriptor rows and the layout survive; the numbers and the examiner's written
+  // justification do not.
+  function _teaRedactScores(json) {
+    var sv = (json && json.student_view) || {};
+    var out = { student_view: { overall_band: 0 }, admin_view: {} };
+    ['pronunciation','structure','vocabulary','fluency','comprehension','interactions']
+      .forEach(function (k) {
+        var v = sv[k];
+        out.student_view[k] = (v && typeof v === 'object') ? { score: 0, feedback: '' } : 0;
+      });
+    if (sv.summary !== undefined) out.student_view.summary = '';
+    return out;
+  }
+
   function _renderScoreJSON(json) {
     var sv = json.student_view;
     var av = json.admin_view;
@@ -26951,7 +26966,13 @@
           (_teaResultsLocked()
             ? '<div style="position:relative;">' +
                 '<div class="tea-score-box" style="filter:blur(7px);pointer-events:none;' +
-                  'user-select:none;" aria-hidden="true">' + _renderScoreJSON(json) + '</div>' +
+                  // Redacted, not merely blurred. A CSS filter is a picture of a gate:
+                // the real band and every descriptor score sat in the DOM behind it,
+                // readable by anyone who opened dev tools or copied the page. What is
+                // behind the blur now is the SHAPE of the report with no numbers in
+                // it, so the argument to subscribe is still "your finished report is
+                // here" without the report being handed to whoever thinks to look.
+                'user-select:none;" aria-hidden="true">' + _renderScoreJSON(_teaRedactScores(json)) + '</div>' +
                 '<div style="position:absolute;inset:0;display:flex;flex-direction:column;' +
                   'align-items:center;justify-content:center;text-align:center;padding:24px;">' +
                   '<div style="background:var(--panel,rgba(18,18,18,.97));border-radius:16px;' +
@@ -27020,13 +27041,39 @@
       '</div>';
     }
 
-    function bandChip(b) {
+    // A withheld band is a padlock, not a zero. Rendering 0 or an em-dash would read
+    // as a result — and a poor one — rather than as something not yet bought.
+    function bandChip(b, locked) {
+      if (locked) {
+        return '<div style="width:44px;height:44px;border-radius:12px;flex-shrink:0;display:flex;' +
+          'align-items:center;justify-content:center;font-size:1.05rem;' +
+          'background:rgba(255,255,255,0.05);color:var(--muted,#808080);' +
+          'border:1px solid var(--line,rgba(186,186,186,.12));">\u{1F512}</div>';
+      }
+      return _bandChipNumber(b);
+    }
+
+    function _bandChipNumber(b) {
       return '<div style="width:44px;height:44px;border-radius:12px;flex-shrink:0;display:flex;' +
         'align-items:center;justify-content:center;font-size:1.25rem;font-weight:900;' +
         'background:' + _teaBandColorFor(b) + '1f;color:' + _teaBandColorFor(b) + ';">' + (b || '—') + '</div>';
     }
 
+    // The six descriptors as empty rails: the shape of the report is visible, the
+    // measurements are not.
+    function _lockedBars() {
+      return _TEA_DESCRIPTORS.map(function (k) {
+        return '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;">' +
+          '<div style="width:92px;font-size:0.62rem;letter-spacing:.05em;color:#4a6280;' +
+            'text-transform:uppercase;">' + k + '</div>' +
+          '<div style="flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,0.05);"></div>' +
+          '<div style="width:16px;font-size:0.62rem;color:#3a4a5a;text-align:right;">&#8226;</div>' +
+        '</div>';
+      }).join('');
+    }
+
     function bars(scores) {
+      if (!scores) return _lockedBars();
       return _TEA_DESCRIPTORS.map(function(k) {
         var v = Number(scores[k]) || 0;
         return '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;">' +
@@ -27071,10 +27118,10 @@
         body += full.map(function(r) {
           return '<div class="tea-score-box" style="margin-bottom:10px;">' +
             '<div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;">' +
-              bandChip(r.band) +
+              bandChip(r.band, r.locked) +
               '<div style="flex:1;min-width:0;">' +
                 '<div style="font-size:0.88rem;font-weight:800;color:#dde2e6;">' +
-                  (r.band >= 5 ? 'Extended' : r.band === 4 ? 'Operational' : r.band === 3 ? 'Pre-Operational' : 'Below Operational') +
+                  (r.locked ? 'Result locked' : r.band >= 5 ? 'Extended' : r.band === 4 ? 'Operational' : r.band === 3 ? 'Pre-Operational' : 'Below Operational') +
                 '</div>' +
                 '<div style="font-size:0.72rem;color:#5b7690;">' + _esc(when(r.date)) +
                   (r.version ? ' · version ' + _esc(r.version) : '') +
@@ -27091,7 +27138,7 @@
         body += part.map(function(r) {
           return '<div class="tea-score-box" style="margin-bottom:8px;opacity:.78;">' +
             '<div style="display:flex;gap:10px;align-items:center;">' +
-              bandChip(r.band) +
+              bandChip(r.band, r.locked) +
               '<div><div style="font-size:0.82rem;font-weight:700;color:#c8d8e8;">Part ' + _esc(r.scope) + '</div>' +
               '<div style="font-size:0.7rem;color:#5b7690;">' + _esc(when(r.date)) + '</div></div>' +
             '</div>' +

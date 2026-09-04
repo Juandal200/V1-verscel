@@ -241,6 +241,15 @@ function apiGetMyIcaoResults(sessionToken) {
     var user  = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
     var email = String(user.email || '').trim().toLowerCase();
 
+    // Whether this candidate may READ their bands.
+    //
+    // The paywall was a CSS blur on one screen. The numbers themselves were sent to
+    // the browser regardless — plainly, with no blur at all, in the results history
+    // — so the gate held only for someone who did not look. A price on information
+    // has to be enforced where the information is, not where it happens to be drawn.
+    var locked = false;
+    try { locked = String(getUserAccessStatus_(user).status || '') === 'free'; } catch (e) {}
+
     var results = [];
     try {
       var sheet   = _teaGetOrCreateSheet_();
@@ -253,6 +262,17 @@ function apiGetMyIcaoResults(sessionToken) {
 
         rows.forEach(function(r) {
           if (String(r[idx['Candidate']] || '').trim().toLowerCase() !== email) return;
+          // A locked result is sent as a sitting that happened, carrying no numbers.
+          // The date and the fact of it are not what is being charged for.
+          if (locked) {
+            results.push({
+              date:   String(r[idx['Date']] || ''),
+              band:   null,
+              locked: true,
+              scores: null
+            });
+            return;
+          }
           results.push({
             date:    String(r[idx['Date']] || ''),
             band:    Number(r[idx['Overall Band']]) || 0,
