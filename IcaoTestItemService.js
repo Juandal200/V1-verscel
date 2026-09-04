@@ -1459,3 +1459,105 @@ function applyIcaoContentC() {
   Logger.log(msg);
   return msg;
 }
+
+/**
+ * Which picture each paper shows, and whether they differ.
+ *
+ * Part 3 asks the candidate to describe a photograph and then compare two. If all
+ * three papers carry the same two pictures, a candidate who sits B after A is
+ * describing images they have already described — Part 3 stops being three
+ * examinations and becomes one, repeated.
+ *
+ * Read-only. Run checkIcaoImages() from IcaoTestItemService.gs.
+ */
+function checkIcaoImages() {
+  var rows;
+  try { rows = dbReadAll_(ICAO_ITEMS_SHEET_); }
+  catch (e) { Logger.log('Item sheet unreadable: ' + e.message); return 'unreadable'; }
+
+  var byBank = {}, urlUse = {};
+  rows.forEach(function(r) {
+    if (String(r.itemType || '').toUpperCase() !== 'IMAGE') return;
+    if (String(r.isActive).toUpperCase() === 'FALSE') return;
+    var b = String(r.bank || '').trim().toUpperCase();
+    (byBank[b] = byBank[b] || []).push({
+      id:   String(r.itemId || ''),
+      url:  String(r.imageUrl || '').trim(),
+      desc: String(r.description || '').trim()
+    });
+    var u = String(r.imageUrl || '').trim();
+    if (u) (urlUse[u] = urlUse[u] || []).push(b + '/' + String(r.itemId || ''));
+  });
+
+  var out = [];
+  Object.keys(byBank).sort().forEach(function(b) {
+    out.push(b);
+    byBank[b].forEach(function(i) {
+      out.push('   ' + i.id.padEnd(10) +
+        (i.url ? i.url.substring(0, 62) : '(no image)'));
+      out.push('      description: ' + (i.desc ? i.desc.substring(0, 66) : '(none — the grader is blind without this)'));
+    });
+    out.push('');
+  });
+
+  var shared = Object.keys(urlUse).filter(function(u) {
+    var banks = {};
+    urlUse[u].forEach(function(x) { banks[x.split('/')[0]] = true; });
+    return Object.keys(banks).length > 1;
+  });
+
+  if (shared.length) {
+    out.push('SHARED BETWEEN PAPERS: ' + shared.length + ' picture(s)');
+    shared.forEach(function(u) { out.push('   ' + u.substring(0, 60) + '\n      used by ' + urlUse[u].join(', ')); });
+    out.push('');
+    out.push('A candidate sitting two papers describes the same photograph twice.');
+  } else {
+    out.push('Every paper has its own pictures.');
+  }
+
+  var msg = out.join('\n');
+  Logger.log(msg);
+  return msg;
+}
+
+/**
+ * Point one paper's Part 3 at different pictures.
+ *
+ * Give it a bank and the image URLs, and it sets them in order — first URL to the
+ * first picture, second to the second. Descriptions are set alongside, because the
+ * grader never sees the image and marks Part 3 against the description alone; a new
+ * picture with the old description is worse than no change at all.
+ *
+ *   setIcaoImages('VERSION_B',
+ *     ['https://…/apron.jpg',  'A busy apron at dusk, three widebodies at stands…'],
+ *     ['https://…/deice.jpg',  'A de-icing rig spraying a regional jet in snow…']);
+ */
+function setIcaoImages(bank, first, second) {
+  var want = String(bank || '').trim().toUpperCase();
+  if (!want) return 'Give a bank, e.g. VERSION_B';
+
+  var pairs = [first, second].filter(function(p) { return p && p[0]; });
+  if (!pairs.length) return 'Give at least one [url, description] pair.';
+
+  var rows = dbReadAll_(ICAO_ITEMS_SHEET_).filter(function(r) {
+    return String(r.itemType || '').toUpperCase() === 'IMAGE' &&
+           String(r.bank || '').trim().toUpperCase() === want;
+  }).sort(function(a, b) { return (Number(a.orderIndex) || 0) - (Number(b.orderIndex) || 0); });
+
+  if (!rows.length) return 'No IMAGE rows in ' + want;
+
+  var now = new Date().toISOString(), done = [];
+  rows.forEach(function(r, i) {
+    var p = pairs[i];
+    if (!p) return;
+    var patch = { imageUrl: String(p[0]).trim(), updatedAt: now };
+    if (p[1]) patch.description = String(p[1]).trim();
+    dbUpdateByRow_(ICAO_ITEMS_SHEET_, r.__rowNumber, patch);
+    done.push(String(r.itemId || '') + ' → ' + String(p[0]).substring(0, 50));
+  });
+
+  var msg = 'UPDATED ' + want + '\n  ' + done.join('\n  ') +
+    '\n\nPictures are not spoken, so no re-render is needed. Run checkIcaoImages() to confirm.';
+  Logger.log(msg);
+  return msg;
+}
