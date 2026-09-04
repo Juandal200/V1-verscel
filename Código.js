@@ -204,18 +204,38 @@ function apiVerifyLoginCode(payload) {
 var ACCESS_PLANS_ = {
   FREE:  { maxLevel: 1,  examAllowance: 1, emergencies: false, label: 'Free'  },
   BASIC: { maxLevel: 9,  examAllowance: 2, emergencies: false, label: 'Basic' },
-  FULL:  { maxLevel: 20, examAllowance: 6, emergencies: true,  label: 'Full'  },
+  // maxLevel here is the CEILING, not the promise. What each tier actually opens is
+  // computed from the content by levelCapsFromContent_ — Basic to the end of the
+  // foundation group, Full to whatever exists — because this number said twenty while
+  // ten levels existed and nothing compared the two. Leaving a generous ceiling means
+  // adding level 21 needs no edit here either.
+  FULL:  { maxLevel: 99, examAllowance: 6, emergencies: true,  label: 'Full'  },
   // Staff see everything. Not a purchasable plan.
   STAFF: { maxLevel: 999, examAllowance: 999, emergencies: true, label: 'Staff' }
 };
 
 function _accessFor_(planKey, extra) {
   var plan = ACCESS_PLANS_[planKey] || ACCESS_PLANS_.FREE;
+
+  // How far the tier reaches is read from the content, not from the number above.
+  //
+  // FULL said twenty while ten levels existed, and nothing compared them, so the app
+  // promised eleven levels it did not have. Basic stops at the end of the foundation
+  // group and Full reaches whatever is published, which means adding level 21 needs no
+  // edit here — the day its scenarios land, Full covers it.
+  var reach = plan.maxLevel;
+  try {
+    if (planKey === 'BASIC' || planKey === 'FULL') {
+      var caps = levelCapsFromContent_();
+      reach = Math.min(plan.maxLevel, planKey === 'BASIC' ? caps.basic : caps.full);
+    }
+  } catch (e) {}
+
   var out = {
     status:        planKey === 'FREE' ? 'free' : 'active',
     plan:          planKey,
     planLabel:     plan.label,
-    maxLevel:      plan.maxLevel,
+    maxLevel:      reach,
     examAllowance: plan.examAllowance,
     // Emergency scenarios — engine failure, weather, technical — are what Full
     // adds beyond more levels. Carried here so the gate and the sales copy read

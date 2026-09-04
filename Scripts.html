@@ -3038,7 +3038,7 @@
           '<label style="font-size:0.85rem;">Level<br>' +
             '<select id="rtLevel" style="margin-top:4px;">' +
               '<option value="">All</option>' +
-              (function() { var o = ''; for (var l = 1; l <= 12; l++) o += '<option value="' + l + '">Level ' + l + '</option>'; return o; })() +
+              (function() { var o = ''; for (var l = 1; l <= 20; l++) o += '<option value="' + l + '">Level ' + l + '</option>'; return o; })() +
             '</select>' +
           '</label>' +
           '<label style="font-size:0.85rem;">Max Scenarios<br>' +
@@ -4924,7 +4924,52 @@
     9:  { gradient: 'linear-gradient(145deg,rgba(28,2,2,0.98),rgba(18,1,1,0.98))',   border: 'rgba(239,68,68,0.38)',  accent: '#ef4444', icon: '🚨', tag: 'Emergency Procedures',    phases: ['PAN-PAN','MAYDAY','DISTRESS'],      desc: 'Declare and handle aircraft emergencies — MAYDAY, PAN-PAN and distress communications.' }
   };
 
+  // Level identities from the Levels sheet, when it has been set up.
+  //
+  // LEVEL_THEMES stays exactly as it was and remains the fallback, so nothing changes
+  // on screen until a row is edited. It named nine levels while the scenarios carried
+  // ten, which is how level 10 came to render as an anonymous grey card reading
+  // "Training Level" — the content was there, the identity was in a file nobody
+  // thought to edit.
+  var _levelMeta = null;
+
+  function _loadLevelMeta(then) {
+    if (_levelMeta) { if (then) then(); return; }
+    try {
+      google.script.run
+        .withSuccessHandler(function (res) {
+          _levelMeta = {};
+          ((res && res.levels) || []).forEach(function (m) { _levelMeta[m.level] = m; });
+          if (then) then();
+        })
+        // Silent: the built-in nine still render, so a missing sheet costs a name on
+        // one card rather than the whole level map.
+        .withFailureHandler(function () { _levelMeta = {}; if (then) then(); })
+        .apiGetLevelMeta(AppState.sessionToken);
+    } catch (e) { _levelMeta = {}; if (then) then(); }
+  }
+
   function _lcTheme(levelNum) {
+    var n = Number(levelNum);
+    var m = _levelMeta && _levelMeta[n];
+    if (m && m.name) {
+      var base = LEVEL_THEMES[n] || {};
+      return {
+        gradient:  base.gradient || 'linear-gradient(145deg,rgba(28,28,28,0.97),rgba(14,14,14,0.97))',
+        border:    base.border   || 'rgba(148,148,148,0.22)',
+        accent:    m.accent || base.accent || 'var(--muted)',
+        icon:      m.icon   || base.icon   || '\u2708\uFE0F',
+        tag:       m.tag    || m.name,
+        phases:    (m.phases && m.phases.length) ? m.phases : (base.phases || []),
+        desc:      m.description || base.desc || '',
+        groupKey:  m.groupKey  || '',
+        groupName: m.groupName || ''
+      };
+    }
+    return _lcThemeBuiltIn(levelNum);
+  }
+
+  function _lcThemeBuiltIn(levelNum) {
     return LEVEL_THEMES[Number(levelNum)] || {
       gradient: 'linear-gradient(145deg,rgba(28,28,28,0.97),rgba(14,14,14,0.97))',
       border: 'rgba(148,148,148,0.22)', accent: '#8fa3bb',
@@ -4934,6 +4979,10 @@
 
   function renderLevelMap(data) {
     simMediaStopAll();
+
+    // Identities first, then draw. One call, cached for the session, and it falls
+    // through to the built-in nine if the sheet is not there yet.
+    if (_levelMeta === null) { _loadLevelMeta(function () { renderLevelMap(data); }); return; }
     var levels   = data && data.levels ? data.levels : [];
     var heroCard = '';
     var vrEvents = _vrPickEvents(levels);
@@ -4993,7 +5042,7 @@
         }
       }
     }
-    var totalTraining   = trainingLevels.length || 9;
+    var totalTraining   = trainingLevels.length || 0;
     var overallPct      = totalTraining > 0 ? Math.round((completedCount / totalTraining) * 100) : 0;
     var currentTierName = currentLevelNum <= 3 ? 'Foundation' : currentLevelNum <= 6 ? 'Advanced' : 'Expert';
 

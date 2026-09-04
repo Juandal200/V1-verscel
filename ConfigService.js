@@ -61,6 +61,31 @@ var DB_SCHEMA = {
     'updatedAt'
   ],
 
+  /* What a level IS, as data rather than as code.
+   *
+   * Level 10 had eight working scenarios, passed every content check, and rendered as
+   * an anonymous grey card reading "Training Level" — because its name, icon and
+   * description lived in LEVEL_THEMES in the client and nobody had added a tenth
+   * entry. Adding a level meant editing two files and deploying.
+   *
+   * A level is now a row. `group` is what the student sees on the front: levels
+   * sharing one open together under a single card, so 10 to 20 can present as
+   * "Operational" without eleven cards on the home screen. */
+  Levels: [
+    'level',        // the number the scenarios carry
+    'name',         // "Emergency Procedures"
+    'icon',         // one emoji
+    'tag',          // the short label on the card
+    'description',  // one sentence
+    'accent',       // hex, or blank to inherit the group's
+    'groupKey',     // FOUNDATION | OPERATIONAL — blank means it stands alone
+    'groupName',    // "Operational" — what the shared card is called
+    'phases',       // comma-separated, shown on the card
+    'isActive',
+    'createdAt',
+    'updatedAt'
+  ],
+
   Scenarios: [
     'scenarioId',
     'scenarioOrder',
