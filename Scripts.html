@@ -237,7 +237,7 @@
           '<h3 style="color:var(--text,#f0f0ee);margin:0 0 8px;font-size:1.1rem;font-weight:700;">Something went wrong</h3>' +
           '<p style="color:var(--muted,#5c5c58);font-size:0.85rem;margin:0 0 6px;line-height:1.5;">An unexpected error occurred. Your progress is saved.</p>' +
           (msg ? '<p style="color:var(--muted,#5c5c58);font-size:0.72rem;margin:0 0 24px;opacity:0.6;font-family:monospace;word-break:break-word;">' + String(msg).slice(0, 120) + '</p>' : '<div style="margin-bottom:24px;"></div>') +
-          '<button onclick="location.reload()" style="width:100%;padding:12px;background:#00d48e;color:#000;border:none;border-radius:10px;font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:10px;font-family:inherit;">Reload app</button>' +
+          '<button onclick="location.reload()" style="width:100%;padding:12px;background:var(--accent);color:var(--accent-ink);border:none;border-radius:10px;font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:10px;font-family:inherit;">Reload app</button>' +
           '<button onclick="document.getElementById(\'_crashOverlay\').remove();try{renderHome();}catch(e){}" style="width:100%;padding:10px;background:transparent;color:var(--muted,#5c5c58);border:1px solid var(--line,rgba(255,255,255,0.08));border-radius:10px;font-size:0.85rem;cursor:pointer;font-family:inherit;">Try going home</button>' +
         '</div>';
       document.body ? document.body.appendChild(d) : document.addEventListener('DOMContentLoaded', function() { document.body.appendChild(d); });
@@ -1911,7 +1911,7 @@
               '<span style="font-size:1.1rem;">' + safeText(getCountryUi(country).emoji || '🌐') + '</span>' +
             '</div>' +
           '</div>' +
-          '<button style="flex-shrink:0;width:auto;white-space:nowrap;background:#00d48e;color:#07101e;border:none;border-radius:10px;padding:7px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;" onclick="_navTo(renderSimulatorPlaceholder)">Continue →</button>' +
+          '<button style="flex-shrink:0;width:auto;white-space:nowrap;background:var(--accent);color:var(--accent-ink);border:none;border-radius:10px;padding:7px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;" onclick="_navTo(renderSimulatorPlaceholder)">Continue →</button>' +
         '</div>';
 
       var cardsRow =
@@ -2387,7 +2387,7 @@
     var isInstructor = AppState.user && AppState.user.role === 'INSTRUCTOR';
     var memberRows = '';
     members.forEach(function(u) {
-      var scoreColor = u.avgScore >= 70 ? '#00d48e' : u.avgScore > 0 ? '#f59e0b' : '#6b8aad';
+      var scoreColor = u.avgScore >= 70 ? 'var(--accent)' : u.avgScore > 0 ? '#f59e0b' : '#6b8aad';
       memberRows +=
         '<tr>' +
           '<td>' + safeText(u.name || u.email) + '</td>' +
@@ -4883,7 +4883,7 @@
   }
 
   var LEVEL_THEMES = {
-    1:  { gradient: 'linear-gradient(145deg,rgba(0,28,18,0.98),rgba(0,14,9,0.98))',  border: 'rgba(0,212,142,0.28)',  accent: '#00d48e', icon: '📡', tag: 'ATC Basics',             phases: ['GROUND','PUSHBACK','TAXI'],         desc: 'Master the fundamentals of aeronautical radio — callsigns, readbacks and ground comms.' },
+    1:  { gradient: 'linear-gradient(145deg,rgba(0,28,18,0.98),rgba(0,14,9,0.98))',  border: 'rgba(var(--accent-rgb), 0.28)',  accent: 'var(--accent)', icon: '📡', tag: 'ATC Basics',             phases: ['GROUND','PUSHBACK','TAXI'],         desc: 'Master the fundamentals of aeronautical radio — callsigns, readbacks and ground comms.' },
     2:  { gradient: 'linear-gradient(145deg,rgba(6,14,32,0.98),rgba(3,8,22,0.98))',  border: 'rgba(59,130,246,0.28)', accent: '#3b82f6', icon: '🛫', tag: 'Taxi & Departure',        phases: ['TAXI OUT','DELIVERY','IFR CLR'],    desc: 'Navigate complex taxiway routes and secure IFR clearances before departure.' },
     3:  { gradient: 'linear-gradient(145deg,rgba(36,14,2,0.98),rgba(22,8,1,0.98))',  border: 'rgba(249,115,22,0.28)', accent: '#f97316', icon: '🚀', tag: 'Takeoff & Climb',         phases: ['TAKEOFF','DEPARTURE','CLIMB'],      desc: 'Coordinate takeoff clearances and initial climb with departure control at high workload.' },
     4:  { gradient: 'linear-gradient(145deg,rgba(8,10,34,0.98),rgba(4,6,22,0.98))',  border: 'rgba(99,102,241,0.28)', accent: '#6366f1', icon: '✈️', tag: 'En-Route',                phases: ['CLIMB','CRUISE','HANDOFF'],         desc: 'Manage altitude changes, route amendments and frequency transfers across sectors.' },
@@ -5431,7 +5431,7 @@
     var _multip  = Math.round((1 + 0.10 * _wkLvls) * 10) / 10;
     var _cpStrip = _wkLvls >= 10
       ? '<div style="margin-top:10px;padding:7px 14px;background:rgba(218,165,32,0.08);border:1px solid rgba(218,165,32,0.25);border-radius:8px;font-size:0.76rem;color:#DAA520;font-weight:700;letter-spacing:0.04em;">🏆 Full week complete — 725 CP earned</div>'
-      : '<div style="margin-top:10px;padding:7px 14px;background:rgba(0,212,142,0.06);border:1px solid rgba(0,212,142,0.18);border-radius:8px;font-size:0.76rem;color:#00d48e;letter-spacing:0.04em;">' +
+      : '<div style="margin-top:10px;padding:7px 14px;background:rgba(var(--accent-rgb), 0.06);border:1px solid rgba(var(--accent-rgb), 0.18);border-radius:8px;font-size:0.76rem;color:var(--accent);letter-spacing:0.04em;">' +
           '⚡ Complete this level → <strong>+' + _nextCp + ' CP</strong> <span style="color:#64748b;">(' + _multip + '× multiplier)</span>' +
         '</div>';
 
@@ -10095,9 +10095,9 @@
     var vrBonus = levelCompleted ? (AppState.training.vrBonusEarned || null) : null;
     var vrPanel = '';
     if (vrBonus) {
-      var vrColors = { double:'#DAA520', critical:'#ef4444', priority:'#f59e0b', hot:'#00d48e' };
+      var vrColors = { double:'#DAA520', critical:'#ef4444', priority:'#f59e0b', hot:'var(--accent)' };
       var vrLabels = { double:'⚡ DOUBLE XP SECTOR', critical:'🔴 CRITICAL SCENARIO', priority:'🚨 PRIORITY DISPATCH', hot:'📡 HOT SECTOR' };
-      var vrColor  = vrColors[vrBonus.type] || '#00d48e';
+      var vrColor  = vrColors[vrBonus.type] || 'var(--accent)';
       var vrLabel  = vrLabels[vrBonus.type] || vrBonus.type;
       vrPanel =
         '<div style="margin:20px 0;padding:18px 22px;background:' + vrColor + '0f;border:1.5px solid ' + vrColor + '44;border-radius:14px;text-align:center;">' +
@@ -10704,7 +10704,7 @@
           var endIso   = String(t.endDate || '');
           var endLocal = endIso ? new Date(endIso).toLocaleString() : '—';
           var hrs      = Number(t.hoursRemaining || 0);
-          var countdownColor = hrs <= 24 ? '#ef4444' : hrs <= 72 ? '#f59e0b' : '#00d48e';
+          var countdownColor = hrs <= 24 ? '#ef4444' : hrs <= 72 ? '#f59e0b' : 'var(--accent)';
           var countdown = hrs <= 48
             ? hrs + 'h remaining'
             : (t.daysRemaining || 0) + ' day(s) remaining';
@@ -10738,7 +10738,7 @@
         if (!msg) return;
         if (res && res.ok) {
           var newId = (res.newTour && res.newTour.tourId) || '';
-          msg.innerHTML = '<span style="color:#00d48e;">&#10003; Done. New tour started' + (newId ? ': <strong>' + safeText(newId) + '</strong>' : '') + '. Weekly XP has been reset.</span>';
+          msg.innerHTML = '<span style="color:var(--accent);">&#10003; Done. New tour started' + (newId ? ': <strong>' + safeText(newId) + '</strong>' : '') + '. Weekly XP has been reset.</span>';
           var info = byId('tourResetInfo');
           if (info && res.newTour) {
             var t = res.newTour;
@@ -10749,7 +10749,7 @@
               ' &nbsp;|&nbsp; Started: ' + safeText(String(t.startDate || '').substring(0, 10)) +
               '<br style="margin:4px 0;">' +
               '<span style="font-size:1rem;">⏱ Resets: <strong style="color:#dde6f0;">' + safeText(endLocal2) + '</strong>' +
-              ' &nbsp;— <span style="color:#00d48e;font-weight:700;">7 days remaining</span></span>';
+              ' &nbsp;— <span style="color:var(--accent);font-weight:700;">7 days remaining</span></span>';
           }
         } else {
           msg.innerHTML = '<span style="color:#ef4444;">Error: ' + safeText((res && res.message) || 'Unknown error') + '</span>';
@@ -10773,7 +10773,7 @@
         if (btn) { btn.disabled = false; btn.textContent = 'Send Test Email to Me'; }
         if (!msg) return;
         if (res && res.ok) {
-          msg.innerHTML = '<span style="color:#00d48e;">&#10003; Test email sent to <strong>' + safeText(res.sentTo || '') + '</strong> — check your inbox.</span>';
+          msg.innerHTML = '<span style="color:var(--accent);">&#10003; Test email sent to <strong>' + safeText(res.sentTo || '') + '</strong> — check your inbox.</span>';
         } else {
           msg.innerHTML = '<span style="color:#ef4444;">Error: ' + safeText((res && res.message) || 'Unknown error') + '</span>';
         }
@@ -10797,7 +10797,7 @@
         if (btn) btn.disabled = false;
         if (!msg) return;
         if (res && res.ok) {
-          msg.innerHTML = '<span style="color:#00d48e;">&#10003; Sent to <strong>' + safeText(res.sent) + '</strong> student(s).' +
+          msg.innerHTML = '<span style="color:var(--accent);">&#10003; Sent to <strong>' + safeText(res.sent) + '</strong> student(s).' +
             (res.failed > 0 ? ' <span style="color:#f59e0b;">' + safeText(res.failed) + ' failed.</span>' : '') + '</span>';
         } else {
           msg.innerHTML = '<span style="color:#ef4444;">Error: ' + safeText((res && res.message) || 'Unknown error') + '</span>';
@@ -10854,7 +10854,7 @@
         rows.forEach(function(r) {
           var ts     = r.timestamp ? String(r.timestamp).substring(0, 16).replace('T', ' ') : '';
           var status = String(r.status || '');
-          var statusColor = status === 'sent' ? '#00d48e' : '#ef4444';
+          var statusColor = status === 'sent' ? 'var(--accent)' : '#ef4444';
           var typeColor   = String(r.type || '') === 'test' ? '#f59e0b' : '#8fa3bb';
           html +=
             '<tr style="border-bottom:1px solid #0e1e2e;">' +
@@ -10863,7 +10863,7 @@
               '<td style="padding:6px 10px;">' + safeText(r.recipientEmail || '') + '</td>' +
               '<td style="padding:6px 10px;">' + safeText(r.weekNumber || '') + '</td>' +
               '<td style="padding:6px 10px;color:' + typeColor + ';text-transform:uppercase;font-size:0.7rem;font-weight:700;">' + safeText(r.type || '') + '</td>' +
-              '<td style="padding:6px 10px;text-align:right;color:#00d48e;">' + safeText(r.weeklyXp || '0') + '</td>' +
+              '<td style="padding:6px 10px;text-align:right;color:var(--accent);">' + safeText(r.weeklyXp || '0') + '</td>' +
               '<td style="padding:6px 10px;text-align:right;">' + safeText(r.rank || '—') + '</td>' +
               '<td style="padding:6px 10px;color:' + statusColor + ';font-weight:700;">' + safeText(status) + '</td>' +
             '</tr>';
@@ -10893,7 +10893,7 @@
           return;
         }
         if (!res.issues || res.issues.length === 0) {
-          panel.innerHTML = '<p style="color:#00d48e;font-size:0.85rem;">&#10003; All active scenarios look good — no TTS issues found.</p>';
+          panel.innerHTML = '<p style="color:var(--accent);font-size:0.85rem;">&#10003; All active scenarios look good — no TTS issues found.</p>';
           return;
         }
         var html = '<p class="eyebrow" style="margin-bottom:10px;color:#ef4444;">TTS Issues Found (' + res.issues.length + ')</p><ul style="margin:0;padding:0 0 0 16px;">';
@@ -11103,11 +11103,11 @@
       var _st = document.createElement('style');
       _st.id = 'subModalAnim';
       _st.textContent =
-        '@keyframes subGlow{0%,100%{box-shadow:0 0 0 1px rgba(0,212,142,.55),0 0 22px rgba(0,212,142,.18)}' +
-        '50%{box-shadow:0 0 0 1px rgba(0,212,142,.95),0 0 40px rgba(0,212,142,.42)}}' +
+        '@keyframes subGlow{0%,100%{box-shadow:0 0 0 1px rgba(var(--accent-rgb), .55),0 0 22px rgba(var(--accent-rgb), .18)}' +
+        '50%{box-shadow:0 0 0 1px rgba(var(--accent-rgb), .95),0 0 40px rgba(var(--accent-rgb), .42)}}' +
         '@keyframes subSheen{0%{background-position:0% 50%}100%{background-position:200% 50%}}' +
         '.sub-card-hot{animation:subGlow 2.6s ease-in-out infinite;}' +
-        '.sub-badge-hot{background:linear-gradient(90deg,#00d48e,#5eead4,#00d48e);' +
+        '.sub-badge-hot{background:linear-gradient(90deg,var(--accent),#5eead4,var(--accent));' +
           'background-size:200% 100%;animation:subSheen 3s linear infinite;' +
           'color:#04241a;font-weight:800;}' +
         // Respect a system preference for less motion: the card keeps its
@@ -11177,16 +11177,16 @@
           var monthlyCop = m.months ? Math.round(plan.cents / 100 / m.months).toLocaleString('es-CO') : null;
           var popular    = m.popular;
 
-          var cardBorder = popular ? '2px solid #00d48e' : '1px solid rgba(255,255,255,0.1)';
-          var cardBg     = popular ? 'rgba(0,212,142,0.04)' : 'rgba(255,255,255,0.02)';
-          var cardShadow = popular ? '0 0 0 4px rgba(0,212,142,0.08)' : 'none';
+          var cardBorder = popular ? '2px solid var(--accent)' : '1px solid rgba(255,255,255,0.1)';
+          var cardBg     = popular ? 'rgba(var(--accent-rgb), 0.04)' : 'rgba(255,255,255,0.02)';
+          var cardShadow = popular ? '0 0 0 4px rgba(var(--accent-rgb), 0.08)' : 'none';
 
           var topBadge = popular
             ? '<div class="sub-badge-hot" style="position:absolute;top:-13px;left:50%;transform:translateX(-50%);font-size:0.75rem;letter-spacing:0.1em;padding:5px 16px;border-radius:20px;white-space:nowrap;">MÁS POPULAR</div>'
             : '';
 
           var savingsBadge = m.savings
-            ? '<div style="display:inline-block;background:rgba(0,212,142,0.12);border:1px solid rgba(0,212,142,0.3);color:#00d48e;font-size:0.75rem;font-weight:800;letter-spacing:0.06em;padding:3px 10px;border-radius:20px;margin-bottom:14px;">' + m.savings + '</div>'
+            ? '<div style="display:inline-block;background:rgba(var(--accent-rgb), 0.12);border:1px solid rgba(var(--accent-rgb), 0.3);color:var(--accent);font-size:0.75rem;font-weight:800;letter-spacing:0.06em;padding:3px 10px;border-radius:20px;margin-bottom:14px;">' + m.savings + '</div>'
             : '<div style="height:22px;margin-bottom:14px;"></div>';
 
           // Straight from the server's entitlement, so the card cannot promise more
@@ -11201,7 +11201,7 @@
               '<p style="margin:0 0 16px;font-size:0.72rem;color:#8fa3bb;">' + subtext + '</p>';
 
           var btnStyle = popular
-            ? 'width:100%;padding:12px;font-size:0.9rem;font-weight:700;background:#00d48e;color:#000;border:none;border-radius:10px;cursor:pointer;transition:opacity 0.2s;'
+            ? 'width:100%;padding:12px;font-size:0.9rem;font-weight:700;background:var(--accent);color:var(--accent-ink);border:none;border-radius:10px;cursor:pointer;transition:opacity 0.2s;'
             : 'width:100%;padding:12px;font-size:0.9rem;font-weight:700;background:transparent;color:#dde6f0;border:1px solid rgba(255,255,255,0.2);border-radius:10px;cursor:pointer;transition:background 0.2s,border-color 0.2s;';
 
           var flagsRow =
@@ -11320,7 +11320,7 @@
         if (payWin) payWin.location.href = checkoutUrl;
         if (btn) btn.disabled = false;
         if (status) status.innerHTML =
-          '<span style="color:#00d48e;">&#10003; Redirigiendo a Wompi…</span>';
+          '<span style="color:var(--accent);">&#10003; Redirigiendo a Wompi…</span>';
       })
       .withFailureHandler(function(err) {
         if (payWin) payWin.close();
@@ -11413,8 +11413,8 @@
       '</tr>';
     }).join('');
     preview.innerHTML =
-      '<div style="background:rgba(0,212,142,0.05);border:1px solid rgba(0,212,142,0.18);border-radius:10px;padding:12px 16px;">' +
-        '<p style="margin:0 0 10px;font-size:0.78rem;font-weight:700;color:#00d48e;letter-spacing:0.06em;">PARSED — ' + users.length + ' USER' + (users.length !== 1 ? 'S' : '') + '</p>' +
+      '<div style="background:rgba(var(--accent-rgb), 0.05);border:1px solid rgba(var(--accent-rgb), 0.18);border-radius:10px;padding:12px 16px;">' +
+        '<p style="margin:0 0 10px;font-size:0.78rem;font-weight:700;color:var(--accent);letter-spacing:0.06em;">PARSED — ' + users.length + ' USER' + (users.length !== 1 ? 'S' : '') + '</p>' +
         '<table style="width:100%;border-collapse:collapse;">' +
           '<thead><tr>' +
             '<th style="padding:4px 10px;text-align:left;font-size:0.72rem;color:#64748b;">#</th>' +
@@ -11433,8 +11433,8 @@
       .withSuccessHandler(function(res) {
         if (!result) return;
         if (res && res.ok) {
-          result.innerHTML = '<div style="background:rgba(0,212,142,0.07);border:1px solid rgba(0,212,142,0.2);border-radius:10px;padding:14px 18px;">' +
-            '<p style="margin:0;color:#00d48e;font-weight:700;font-size:0.85rem;">✓ Test email sent to ' + safeText(res.sentTo) + '</p>' +
+          result.innerHTML = '<div style="background:rgba(var(--accent-rgb), 0.07);border:1px solid rgba(var(--accent-rgb), 0.2);border-radius:10px;padding:14px 18px;">' +
+            '<p style="margin:0;color:var(--accent);font-weight:700;font-size:0.85rem;">✓ Test email sent to ' + safeText(res.sentTo) + '</p>' +
             '<p style="margin:6px 0 0;color:#8fa3bb;font-size:0.78rem;">Check your inbox to confirm how it looks.</p>' +
           '</div>';
         } else {
@@ -11464,10 +11464,10 @@
         if (!result) return;
         if (res && res.ok) {
           var html =
-            '<div style="background:rgba(0,212,142,0.07);border:1px solid rgba(0,212,142,0.2);border-radius:10px;padding:16px 20px;">' +
-              '<p style="margin:0 0 12px;font-weight:700;color:#00d48e;font-size:0.9rem;">✓ Done</p>' +
+            '<div style="background:rgba(var(--accent-rgb), 0.07);border:1px solid rgba(var(--accent-rgb), 0.2);border-radius:10px;padding:16px 20px;">' +
+              '<p style="margin:0 0 12px;font-weight:700;color:var(--accent);font-size:0.9rem;">✓ Done</p>' +
               '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px;">' +
-                '<div style="font-size:0.83rem;"><span style="color:#00d48e;font-weight:800;font-size:1.3rem;">' + (res.created || 0) + '</span><br><span style="color:#8fa3bb;">Invited</span></div>' +
+                '<div style="font-size:0.83rem;"><span style="color:var(--accent);font-weight:800;font-size:1.3rem;">' + (res.created || 0) + '</span><br><span style="color:#8fa3bb;">Invited</span></div>' +
                 '<div style="font-size:0.83rem;"><span style="color:#DAA520;font-weight:800;font-size:1.3rem;">' + (res.skipped || 0) + '</span><br><span style="color:#8fa3bb;">Already existed</span></div>' +
                 '<div style="font-size:0.83rem;"><span style="color:#ef4444;font-weight:800;font-size:1.3rem;">' + (res.failed || 0) + '</span><br><span style="color:#8fa3bb;">Failed</span></div>' +
               '</div>';
@@ -11582,7 +11582,7 @@
           var end     = s.endDate ? new Date(s.endDate) : null;
           var active  = s.status === 'active' && end && end > now;
           var badge   = active
-            ? '<span style="background:rgba(0,212,142,0.15);color:#00d48e;border-radius:4px;padding:2px 7px;font-size:0.72rem;font-weight:700;">ACTIVE</span>'
+            ? '<span style="background:rgba(var(--accent-rgb), 0.15);color:var(--accent);border-radius:4px;padding:2px 7px;font-size:0.72rem;font-weight:700;">ACTIVE</span>'
             : '<span style="background:rgba(239,68,68,0.12);color:#ef4444;border-radius:4px;padding:2px 7px;font-size:0.72rem;font-weight:700;">EXPIRED</span>';
           var endStr  = end ? end.toLocaleDateString('en-GB') : '—';
           var cop     = s.amountCents ? 'COP ' + Number(s.amountCents / 100).toLocaleString('es-CO') : '—';
@@ -11633,7 +11633,7 @@
       .withSuccessHandler(function(res) {
         if (!status) return;
         if (res && res.ok) {
-          status.innerHTML = '<span style="color:#00d48e;">✓ Prices saved.</span>';
+          status.innerHTML = '<span style="color:var(--accent);">✓ Prices saved.</span>';
         } else {
           status.innerHTML = '<span style="color:#ef4444;">Error: ' + safeText((res && res.error) || 'Unknown') + '</span>';
         }
@@ -11660,7 +11660,7 @@
       .withSuccessHandler(function(res) {
         if (!status) return;
         if (res && res.ok) {
-          status.innerHTML = '<span style="color:#00d48e;">✓ Access granted to ' + safeText(email) + ' for ' + days + ' days.</span>';
+          status.innerHTML = '<span style="color:var(--accent);">✓ Access granted to ' + safeText(email) + ' for ' + days + ' days.</span>';
           if (emailEl) emailEl.value = '';
           renderAdminSubscriptions();
         } else {
@@ -11699,7 +11699,7 @@
       '<div class="panel">' + renderAdminTabs('incentives') +
         '<p class="eyebrow">Admin · Incentives</p>' +
         '<h3 style="margin-bottom:4px;">Variable Ratio Incentive Program</h3>' +
-        '<p class="subtitle" style="margin-bottom:24px;">Control which levels get priority clearance events and how often they fire. Students see these on the level map — locked levels show FOMO, active levels show urgency, completed show replay bonuses. Bonuses are <strong style="color:#00d48e;">real XP and CP</strong> applied server-side on level completion.</p>' +
+        '<p class="subtitle" style="margin-bottom:24px;">Control which levels get priority clearance events and how often they fire. Students see these on the level map — locked levels show FOMO, active levels show urgency, completed show replay bonuses. Bonuses are <strong style="color:var(--accent);">real XP and CP</strong> applied server-side on level completion.</p>' +
         '<div id="vrTodayBanner" style="margin-bottom:20px;color:#64748b;font-size:0.82rem;">Loading today\'s active assignments…</div>' +
         '<div id="vrConfigBody" style="color:#8fa3bb;font-size:0.85rem;">Loading config…</div>' +
       '</div>';
@@ -11713,14 +11713,14 @@
         var a = res.assignments || {};
         var keys = Object.keys(a);
         var vrLabels = { double:'⚡ Double XP', critical:'🔴 Critical', priority:'🚨 Priority', hot:'📡 Hot' };
-        var vrColors = { double:'#DAA520', critical:'#ef4444', priority:'#f59e0b', hot:'#00d48e' };
+        var vrColors = { double:'#DAA520', critical:'#ef4444', priority:'#f59e0b', hot:'var(--accent)' };
         if (!keys.length) {
           banner.innerHTML = '<div style="padding:10px 14px;background:rgba(255,255,255,0.04);border-radius:10px;font-size:0.8rem;">No VR events active today' + (!res.enabled ? ' (system disabled)' : '') + '.</div>';
           return;
         }
         var chips = keys.map(function(lvl) {
           var type = a[lvl];
-          var color = vrColors[type] || '#00d48e';
+          var color = vrColors[type] || 'var(--accent)';
           return '<span style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:' + color + '12;border:1px solid ' + color + '35;border-radius:8px;font-size:0.75rem;font-weight:700;color:' + color + ';margin:3px;">' +
             safeText(vrLabels[type] || type) + ' <span style="opacity:0.6;font-weight:400;">Lv ' + safeText(lvl) + '</span>' +
           '</span>';
@@ -11783,13 +11783,13 @@
         '</div>' +
 
         '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;">' +
-          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#64748b;margin-bottom:10px;">Fire Rate <span id="vrFireRateVal" style="color:#00d48e;">' + (cfg.fireRate || 65) + '%</span></div>' +
+          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#64748b;margin-bottom:10px;">Fire Rate <span id="vrFireRateVal" style="color:var(--accent);">' + (cfg.fireRate || 65) + '%</span></div>' +
           '<input type="range" id="vrFireRate" min="0" max="100" value="' + (cfg.fireRate || 65) + '" style="width:100%;" oninput="byId(\'vrFireRateVal\').textContent=this.value+\'%\'">' +
           '<div style="font-size:0.68rem;color:#64748b;margin-top:6px;">Chance any event fires per page load</div>' +
         '</div>' +
 
         '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;">' +
-          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#64748b;margin-bottom:10px;">Secondary Rate <span id="vrSecondaryVal" style="color:#00d48e;">' + (cfg.secondaryRate || 18) + '%</span></div>' +
+          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#64748b;margin-bottom:10px;">Secondary Rate <span id="vrSecondaryVal" style="color:var(--accent);">' + (cfg.secondaryRate || 18) + '%</span></div>' +
           '<input type="range" id="vrSecondaryRate" min="0" max="50" value="' + (cfg.secondaryRate || 18) + '" style="width:100%;" oninput="byId(\'vrSecondaryVal\').textContent=this.value+\'%\'">' +
           '<div style="font-size:0.68rem;color:#64748b;margin-top:6px;">Chance a 2nd level also gets a Hot Sector</div>' +
         '</div>' +
@@ -11812,7 +11812,7 @@
         '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#64748b;margin-bottom:14px;">Event Type Weights <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#4a6280;">(must sum to 100)</span></div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">' +
           ['double','critical','priority','hot'].map(function(k) {
-            var colors = { double: '#DAA520', critical: '#ef4444', priority: '#f59e0b', hot: '#00d48e' };
+            var colors = { double: '#DAA520', critical: '#ef4444', priority: '#f59e0b', hot: 'var(--accent)' };
             return '<div>' +
               '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
                 '<span style="font-size:0.78rem;color:' + colors[k] + ';font-weight:700;">' + safeText(eventLabels[k]) + '</span>' +
@@ -11868,7 +11868,7 @@
     var el = byId('vrWeightSum');
     if (el) {
       el.textContent = sum;
-      el.style.color = sum === 100 ? '#00d48e' : '#ef4444';
+      el.style.color = sum === 100 ? 'var(--accent)' : '#ef4444';
     }
     return sum;
   }
@@ -11921,7 +11921,7 @@
       .withSuccessHandler(function(res) {
         if (res && res.ok) {
           window._vrConfig = res.config;
-          if (msg) msg.innerHTML = '<span style="color:#00d48e;">✓ Saved</span>';
+          if (msg) msg.innerHTML = '<span style="color:var(--accent);">✓ Saved</span>';
           setTimeout(function(){ if (msg) msg.innerHTML = ''; }, 3000);
         } else {
           if (msg) msg.innerHTML = '<span style="color:#ef4444;">Save failed</span>';
@@ -11950,7 +11950,7 @@
     }
     window._vrConfig = saved;
 
-    var colors = { double:'#DAA520', critical:'#ef4444', priority:'#f59e0b', hot:'#00d48e', none:'#64748b' };
+    var colors = { double:'#DAA520', critical:'#ef4444', priority:'#f59e0b', hot:'var(--accent)', none:'#64748b' };
     var eventLabels = { double:'⚡ Double XP', critical:'🔴 Critical', priority:'🚨 Priority', hot:'📡 Hot Sector', none:'No event' };
     var rows = Object.keys(counts).map(function(k) {
       var n = counts[k];
@@ -12091,9 +12091,9 @@
         '<span>Progress</span><span id="lmsProgressPct">0%</span>' +
       '</div>' +
       '<div style="height:4px;background:rgba(255,255,255,0.06);border-radius:4px;margin-bottom:24px;overflow:hidden;">' +
-        '<div id="lmsProgressFill" style="height:100%;width:0%;background:linear-gradient(90deg,#00d48e,#3b82f6);border-radius:4px;transition:width 0.4s;"></div>' +
+        '<div id="lmsProgressFill" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#3b82f6);border-radius:4px;transition:width 0.4s;"></div>' +
       '</div>' +
-      '<div id="lmsBoard"><div style="text-align:center;padding:32px 20px;color:#6b8aad;font-size:13px;"><div style="width:24px;height:24px;border:2px solid rgba(255,255,255,0.08);border-top-color:#00d48e;border-radius:50%;animation:hfSpin 0.8s linear infinite;margin:0 auto 12px;"></div>Loading exercises…</div></div>' +
+      '<div id="lmsBoard"><div style="text-align:center;padding:32px 20px;color:#6b8aad;font-size:13px;"><div style="width:24px;height:24px;border:2px solid rgba(255,255,255,0.08);border-top-color:var(--accent);border-radius:50%;animation:hfSpin 0.8s linear infinite;margin:0 auto 12px;"></div>Loading exercises…</div></div>' +
       '<div id="lmsScoreSummary" style="display:none;background:rgba(15,23,42,0.7);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:24px;text-align:center;margin-bottom:20px;"></div>' +
       '<div style="display:flex;gap:12px;flex-wrap:wrap;">' +
         '<button class="btn primary" id="lmsSubmitBtn" disabled onclick="_lmsSubmit()">Submit Results</button>' +
@@ -12243,10 +12243,10 @@
     if (summary) {
       summary.style.display = 'block';
       summary.innerHTML =
-        '<div style="font-size:48px;font-weight:800;letter-spacing:-2px;color:' + (pass ? '#00d48e' : '#ef4444') + ';">' + pct + '%</div>' +
+        '<div style="font-size:48px;font-weight:800;letter-spacing:-2px;color:' + (pass ? 'var(--accent)' : '#ef4444') + ';">' + pct + '%</div>' +
         '<div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted,#6b8aad);margin:6px 0 14px;">Final Score</div>' +
         '<div style="font-size:13px;color:var(--muted,#6b8aad);">' + correct + ' of ' + total + ' correct &nbsp;&bull;&nbsp; ' +
-          (pass ? '<strong style="color:#00d48e;">Passed &#10003;</strong>' : '<strong style="color:#ef4444;">Not passed — 70% required</strong>') + '</div>';
+          (pass ? '<strong style="color:var(--accent);">Passed &#10003;</strong>' : '<strong style="color:#ef4444;">Not passed — 70% required</strong>') + '</div>';
     }
     var email = (typeof AppState !== 'undefined' && AppState.user) ? AppState.user.email : 'student@test.com';
     if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -12369,8 +12369,8 @@
         '<div class="nr-pool-panel"><div class="lms-col-label">Scenario Pool</div><div id="nrPool"><div style="text-align:center;padding:20px;color:var(--muted,#6b8aad);">Loading…</div></div></div>' +
         '<div class="nr-zones">' + zonesHtml + '</div>' +
       '</div>' +
-      '<div id="nrSuccess" style="display:none;background:rgba(15,23,42,0.7);border:1px solid rgba(0,212,142,0.3);border-radius:14px;padding:28px;text-align:center;margin-top:20px;">' +
-        '<div style="font-size:44px;font-weight:800;color:#00d48e;letter-spacing:-2px;line-height:1;">100%</div>' +
+      '<div id="nrSuccess" style="display:none;background:rgba(15,23,42,0.7);border:1px solid rgba(var(--accent-rgb), 0.3);border-radius:14px;padding:28px;text-align:center;margin-top:20px;">' +
+        '<div style="font-size:44px;font-weight:800;color:var(--accent);letter-spacing:-2px;line-height:1;">100%</div>' +
         '<div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted,#6b8aad);margin:6px 0 12px;">Module Complete</div>' +
         '<div id="nrSuccessDetail" style="font-size:13px;color:var(--muted,#6b8aad);margin-bottom:20px;"></div>' +
         '<button class="btn secondary" onclick="_nrReset()">Try Again</button>' +
@@ -12495,7 +12495,7 @@
     if (_nr.completed) return;
     _nr.completed = true;
     var detail = byId('nrSuccessDetail');
-    if (detail) detail.innerHTML = 'All <strong>' + _nr.scenarios.length + ' scenarios</strong> correctly categorised. <span style="color:#00d48e;font-weight:700;">Passed &#10003;</span>';
+    if (detail) detail.innerHTML = 'All <strong>' + _nr.scenarios.length + ' scenarios</strong> correctly categorised. <span style="color:var(--accent);font-weight:700;">Passed &#10003;</span>';
     var success = byId('nrSuccess'); if (success) success.style.display = 'block';
     var email = (typeof AppState !== 'undefined' && AppState.user) ? AppState.user.email : 'student@test.com';
     if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -23087,7 +23087,7 @@
     try {
       if (navigator.vibrate) navigator.vibrate([30, 60, 30, 60, 80, 120]);
 
-      var color = '#00d48e';
+      var color = 'var(--accent)';
 
       // Victory fanfare — ascending arpeggio with final resolve
       try {
@@ -23550,11 +23550,11 @@
           '<p style="font-size:0.85rem;color:#8fa3bb;margin:0 0 22px;line-height:1.5;">' + _esc(levelMsg) + '</p>' +
           '<div style="display:flex;gap:24px;justify-content:center;margin-bottom:26px;">' +
             '<div style="text-align:center;">' +
-              '<div style="font-size:1.5rem;font-weight:900;color:' + (r1 >= 75 ? '#00d48e' : '#ef4444') + ';">' + r1 + '%</div>' +
+              '<div style="font-size:1.5rem;font-weight:900;color:' + (r1 >= 75 ? 'var(--accent)' : '#ef4444') + ';">' + r1 + '%</div>' +
               '<div style="font-size:0.7rem;color:#6e7a88;margin-top:2px;">Round 1</div>' +
             '</div>' +
             '<div style="text-align:center;">' +
-              '<div style="font-size:1.5rem;font-weight:900;color:' + (r2 >= 75 ? '#00d48e' : '#ef4444') + ';">' + r2 + '%</div>' +
+              '<div style="font-size:1.5rem;font-weight:900;color:' + (r2 >= 75 ? 'var(--accent)' : '#ef4444') + ';">' + r2 + '%</div>' +
               '<div style="font-size:0.7rem;color:#6e7a88;margin-top:2px;">Round 2</div>' +
             '</div>' +
           '</div>' +
@@ -24256,7 +24256,7 @@
       var level = 0.45 + 0.30 * Math.sin(ms / 155) + 0.25 * Math.sin(ms / 63);
       level = Math.max(0, Math.min(1, level));
       ring.style.transform = 'scale(' + (1 + level * 0.045).toFixed(3) + ')';
-      ring.style.boxShadow = '0 0 ' + (10 + level * 30).toFixed(0) + 'px rgba(0,212,142,' +
+      ring.style.boxShadow = '0 0 ' + (10 + level * 30).toFixed(0) + 'px rgba(var(--accent-rgb),' +
                              (0.18 + level * 0.4).toFixed(2) + ')';
     })();
   }
@@ -24694,7 +24694,7 @@
   var _TEA_DESCRIPTORS = ['pronunciation','structure','vocabulary','fluency','comprehension','interactions'];
 
   function _teaBandColor(b) {
-    return b >= 5 ? '#00d48e' : b === 4 ? '#5b9bd5' : b > 0 ? '#e05252' : '#3a4a5a';
+    return b >= 5 ? 'var(--accent)' : b === 4 ? '#5b9bd5' : b > 0 ? '#e05252' : '#3a4a5a';
   }
 
 
@@ -25298,7 +25298,7 @@
     // second "Finish Exam & Get Score" button further down a scrolled transcript,
     // which is easy to miss entirely — and a candidate who misses it is left telling
     // the examiner they have finished and hoping. One button, one click.
-    if (_isEnd) btn.style = 'margin:8px 16px;align-self:flex-start;background:#00d48e;color:#000;';
+    if (_isEnd) btn.style = 'margin:8px 16px;align-self:flex-start;background:var(--accent);color:var(--accent-ink);';
 
     btn.onclick = function() {
       btn.remove();
@@ -26094,8 +26094,8 @@
     window._teaPickedVersion = String(bank || '');
     Array.prototype.slice.call(document.querySelectorAll('.tea-ver-opt')).forEach(function (el) {
       var on = el.getAttribute('data-bank') === window._teaPickedVersion;
-      el.style.borderColor = on ? '#00d48e' : 'rgba(255,255,255,0.12)';
-      el.style.background  = on ? 'rgba(0,212,142,0.10)' : 'rgba(255,255,255,0.02)';
+      el.style.borderColor = on ? 'var(--accent)' : 'rgba(255,255,255,0.12)';
+      el.style.background  = on ? 'rgba(var(--accent-rgb), 0.10)' : 'rgba(255,255,255,0.02)';
       el.style.color       = on ? '#dde6f0' : '#8fa3bb';
     });
     _teaSyncBeginBtn();
@@ -26483,7 +26483,7 @@
     var btn = document.createElement('button');
     btn.id        = 'teaFinishBtn';
     btn.className = 'tea-send-btn';
-    btn.style     = 'margin:12px 16px;align-self:flex-start;background:#00d48e;color:#000;';
+    btn.style     = 'margin:12px 16px;align-self:flex-start;background:var(--accent);color:var(--accent-ink);';
     // Same wording as the button _showNextAudioBtn offers at the end of a run. Two
     // labels for one action reads as two different actions.
     btn.textContent = 'Finish and get my report →';
@@ -26508,7 +26508,7 @@
     var av = json.admin_view;
     var descriptors = ['pronunciation','structure','vocabulary','fluency','comprehension','interactions'];
     var band = sv.overall_band;
-    var bandColor = band >= 5 ? '#00d48e' : band === 4 ? '#5b9bd5' : '#e05252';
+    var bandColor = band >= 5 ? 'var(--accent)' : band === 4 ? '#5b9bd5' : '#e05252';
 
     var html = '<div class="tea-score-json">';
 
@@ -26540,7 +26540,7 @@
     descriptors.forEach(function(d) {
       var s = _bandOf(sv[d]);
       var na = (s === 0) || (_typed && _unheard[d]);
-      var sc = na ? '#3a4a5a' : s >= 5 ? '#00d48e' : s === 4 ? '#5b9bd5' : '#e05252';
+      var sc = na ? '#3a4a5a' : s >= 5 ? 'var(--accent)' : s === 4 ? '#5b9bd5' : '#e05252';
       html += '<div class="tea-score-descriptor"' + (na ? ' style="opacity:.72;"' : '') + '>';
       html += '<div class="tea-score-descriptor-header">';
       html += '<span class="tea-score-descriptor-name">' + d.charAt(0).toUpperCase() + d.slice(1) + '</span>';
@@ -26596,7 +26596,7 @@
       // Build pin dimension lookup for colour coding
       var dimColor = {
         PRONUNCIATION:'#e05252', STRUCTURE:'#f0a500', VOCABULARY:'#5b9bd5',
-        FLUENCY:'#00d48e', COMPREHENSION:'#a78bfa', INTERACTIONS:'#f97316'
+        FLUENCY:'var(--accent)', COMPREHENSION:'#a78bfa', INTERACTIONS:'#f97316'
       };
       var pinMap = {};
       if (Array.isArray(av.annotations)) {
@@ -26671,7 +26671,7 @@
           : 'Every descriptor above says what to work on next. Run the training routes, then take this test again and watch the bands move.') +
       '</div>' +
       '<button class="tea-send-btn" onclick="window._teaExitToHome()" ' +
-        'style="background:#00d48e;color:#000;padding:12px 28px;">Back to Home</button>' +
+        'style="background:var(--accent);color:var(--accent-ink);padding:12px 28px;">Back to Home</button>' +
       '<button class="tea-send-btn" onclick="window._teaMyResults()" ' +
         'style="margin-left:8px;padding:12px 22px;">My results</button>' +
     '</div>';
@@ -26814,7 +26814,7 @@
             'so nothing is lost. Only the scoring step failed, and that is usually ' +
             'temporary — try it again, or come back to it from My results.</div>' +
           '<button class="tea-send-btn" onclick="window._teaRetryReport()" ' +
-            'style="background:#00d48e;color:#000;padding:12px 26px;">Try scoring again</button>' +
+            'style="background:var(--accent);color:var(--accent-ink);padding:12px 26px;">Try scoring again</button>' +
           '<button class="tea-send-btn" onclick="window._teaExitToHome()" ' +
             'style="margin-left:8px;padding:12px 22px;">Back to Home</button>' +
         '</div>' +
@@ -26933,7 +26933,7 @@
   };
 
   function _teaBandColorFor(b) {
-    return b >= 5 ? '#00d48e' : b === 4 ? '#5b9bd5' : b > 0 ? '#e05252' : '#3a4a5a';
+    return b >= 5 ? 'var(--accent)' : b === 4 ? '#5b9bd5' : b > 0 ? '#e05252' : '#3a4a5a';
   }
 
   function _renderMyResults(res) {
@@ -27041,7 +27041,7 @@
           '</div>' +
           body +
           '<div style="text-align:center;margin-top:26px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">' +
-            '<button class="tea-send-btn" onclick="window.renderTeaExam()" style="background:#00d48e;color:#000;">Take the test</button>' +
+            '<button class="tea-send-btn" onclick="window.renderTeaExam()" style="background:var(--accent);color:var(--accent-ink);">Take the test</button>' +
             '<button class="tea-send-btn" onclick="window._teaExitToHome()">Back to Home</button>' +
           '</div>' +
         '</div>' +
@@ -27442,7 +27442,7 @@
         // while the scripted one is proven, and reads as the secondary option.
         '<div id="teaVersionPicker" style="width:100%;max-width:460px;"></div>' +
         '<button id="teaBeginBtn" disabled onclick="window._teaPickedVersion && window._teaBeginScripted(window._teaPickedVersion)" ' +
-          'style="padding:14px 40px;background:#00d48e;color:#000;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:8px;">' +
+          'style="padding:14px 40px;background:var(--accent);color:var(--accent-ink);border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:8px;">' +
           'Choose a paper above' +
         '</button>' +
         '<button onclick="window._teaBegin()" ' +
@@ -27656,7 +27656,7 @@
           '<div style="padding:16px;background:#080c10;min-height:100%;overflow-y:auto;">' +
             '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
               '<div class="tea-part-badge">PIPELINE TEST RESULT</div>' +
-              '<span style="font-size:0.78rem;color:#00d48e;">&#10003; Gemini graded • GAS saved</span>' +
+              '<span style="font-size:0.78rem;color:var(--accent);">&#10003; Gemini graded • GAS saved</span>' +
             '</div>' +
             _renderScoreJSON(d) +
             '<button onclick="renderTeaExam()" style="margin:20px 0;padding:10px 24px;' +
