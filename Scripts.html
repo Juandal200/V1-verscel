@@ -11016,6 +11016,30 @@
   }
 
   // ── Shop screen ────────────────────────────────────────────────────────────
+  // Plan names and the cheapest price, taken from the server rather than typed into
+  // the markup. Silent on failure: a shop that cannot reach the plan list should not
+  // invent one, and the modal behind the button asks again anyway.
+  function _shopFillPlanCard() {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        var names = document.getElementById('shopPlanNames');
+        var price = document.getElementById('shopPlanPrice');
+        if (!names || !price) return;
+        var plans = (res && res.ok && res.plans) || [];
+        if (!plans.length) { names.textContent = ''; price.innerHTML = '&nbsp;'; return; }
+        names.textContent = plans.map(function (p) { return p.label; }).join(' \u00b7 ');
+        var cheapest = plans.reduce(function (a, b) { return b.cents < a.cents ? b : a; });
+        price.textContent = 'From COP ' + Math.round(cheapest.cents / 100).toLocaleString('es-CO');
+      })
+      .withFailureHandler(function () {
+        var names = document.getElementById('shopPlanNames');
+        var price = document.getElementById('shopPlanPrice');
+        if (names) names.textContent = '';
+        if (price) price.innerHTML = '&nbsp;';
+      })
+      .apiGetWompiPlans(AppState.sessionToken);
+  }
+
   function renderShop() {
     setActiveNav('Shop');
     var freezes = window._lmsStreakFreezes || 0;
@@ -11049,19 +11073,31 @@
           '</div>' +
 
           // ── Full Access card ─────────────────────────────────────────────
+          // Named and priced from the same call the subscription modal uses.
+          //
+          // This card advertised "Sprint \u00b7 Training \u00b7 Full Course" from
+          // COP 20,000 — three plans retired when Basic and Full replaced them, at a
+          // price neither of them costs. It was hardcoded, so changing what is sold
+          // updated the modal and left the shop selling last season's catalogue.
+          //
+          // A price written down in two places is a price that will disagree with
+          // itself. Filled in by _shopFillPlanCard once the plans arrive.
           '<div class="shop-card">' +
             '<div class="shop-card-icon">🚀</div>' +
             '<h3 class="shop-card-title">Full Access</h3>' +
             '<p class="shop-card-desc">Unlock the ATC Simulator, all country routes, immersive scenarios, and more.</p>' +
             '<div class="shop-card-count">' +
-              '<span style="font-size:0.85rem;color:var(--muted);">Sprint · Training · Full Course</span>' +
+              '<span id="shopPlanNames" style="font-size:0.85rem;color:var(--muted);">Loading plans\u2026</span>' +
             '</div>' +
-            '<div class="shop-card-price">From COP 20,000</div>' +
+            '<div class="shop-card-price" id="shopPlanPrice">&nbsp;</div>' +
             '<button class="btn primary full" onclick="openSubscriptionModal()">View plans</button>' +
           '</div>' +
 
         '</div>' +
       '</div>';
+
+    // The card is in the DOM now, so it can be filled with what is actually on sale.
+    _shopFillPlanCard();
   }
 
   function purchaseStreakFreeze() {
@@ -11507,23 +11543,25 @@
         '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px;margin-bottom:24px;">' +
           '<p style="margin:0 0 14px;font-size:0.78rem;font-weight:700;letter-spacing:0.07em;color:#8fa3bb;">PRICE SETTINGS (COP)</p>' +
           '<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">' +
+            // The two plans that are actually for sale.
+            //
+            // This form still edited 15 días / 1 mes / 3 meses long after Basic and Full
+            // replaced them. The server had already moved on and accepts basic and full,
+            // so an administrator could open this page, set three prices, be told they
+            // were saved, and change nothing anyone could buy. The old keys are still
+            // honoured for settling payments begun before the change; they are not on
+            // sale, so they are not edited here.
             '<div>' +
-              '<label style="display:block;font-size:0.75rem;color:#8fa3bb;margin-bottom:6px;">15 días</label>' +
-              '<input id="subPrice15d" type="number" min="0" step="100" ' +
-                'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#dde6f0;font-size:0.88rem;padding:8px 12px;width:140px;outline:none;" ' +
-                'placeholder="14900">' +
-            '</div>' +
-            '<div>' +
-              '<label style="display:block;font-size:0.75rem;color:#8fa3bb;margin-bottom:6px;">1 mes</label>' +
-              '<input id="subPrice1m" type="number" min="0" step="100" ' +
-                'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#dde6f0;font-size:0.88rem;padding:8px 12px;width:140px;outline:none;" ' +
+              '<label style="display:block;font-size:0.75rem;color:#8fa3bb;margin-bottom:6px;">Basic \u00b7 30 días</label>' +
+              '<input id="subPriceBasic" type="number" min="0" step="100" ' +
+                'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#dde6f0;padding:9px 12px;width:130px;" ' +
                 'placeholder="29900">' +
             '</div>' +
             '<div>' +
-              '<label style="display:block;font-size:0.75rem;color:#8fa3bb;margin-bottom:6px;">3 meses</label>' +
-              '<input id="subPrice3m" type="number" min="0" step="100" ' +
-                'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#dde6f0;font-size:0.88rem;padding:8px 12px;width:140px;outline:none;" ' +
-                'placeholder="79900">' +
+              '<label style="display:block;font-size:0.75rem;color:#8fa3bb;margin-bottom:6px;">Full \u00b7 30 días</label>' +
+              '<input id="subPriceFull" type="number" min="0" step="100" ' +
+                'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#dde6f0;padding:9px 12px;width:130px;" ' +
+                'placeholder="49900">' +
             '</div>' +
             '<button class="btn primary" onclick="adminSubSavePrices()">Save Prices</button>' +
           '</div>' +
@@ -11621,11 +11659,10 @@
 
   function adminSubSavePrices() {
     var status = byId('subPriceStatus');
-    var v15 = parseInt((byId('subPrice15d') || {}).value, 10);
-    var v1m = parseInt((byId('subPrice1m')  || {}).value, 10);
-    var v3m = parseInt((byId('subPrice3m')  || {}).value, 10);
-    if (!v15 || !v1m || !v3m || v15 < 100 || v1m < 100 || v3m < 100) {
-      if (status) status.innerHTML = '<span style="color:#ef4444;">All prices must be at least 100 COP.</span>';
+    var basic = parseInt((byId('subPriceBasic') || {}).value, 10);
+    var full  = parseInt((byId('subPriceFull')  || {}).value, 10);
+    if (!basic || !full || basic < 100 || full < 100) {
+      if (status) status.innerHTML = '<span style="color:#ef4444;">Both prices must be at least 100 COP.</span>';
       return;
     }
     if (status) status.innerHTML = '<span style="color:#8fa3bb;">Saving…</span>';
@@ -11641,7 +11678,7 @@
       .withFailureHandler(function(err) {
         if (status) status.innerHTML = '<span style="color:#ef4444;">Error: ' + safeText(err && err.message ? err.message : String(err)) + '</span>';
       })
-      .apiAdminSaveSubscriptionPrices(AppState.sessionToken, { cents15d: v15 * 100, cents1m: v1m * 100, cents3m: v3m * 100 });
+      .apiAdminSaveSubscriptionPrices(AppState.sessionToken, { basic: basic * 100, full: full * 100 });
   }
 
   function adminSubGrant() {
