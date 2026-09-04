@@ -528,7 +528,9 @@ function getLeaderboard(limit) {
       dbReadAll_('LmsXp').forEach(function(r) {
         var uid = String(r.userId || '').trim();
         if (!uid) return;
-        var weeklyReset = !r.weeklyResetAt || String(r.weeklyResetAt) < thisMonday;
+        // Compared as instants, not as text: an offset stamp and a Z stamp for the
+        // same moment sort the wrong way round as strings.
+        var weeklyReset = !r.weeklyResetAt || tsBefore_(r.weeklyResetAt, thisMonday);
         lmsXpMap[uid] = {
           lmsXp: Number(r.lmsXp) || 0,
           weeklyXp: weeklyReset ? 0 : (Number(r.weeklyXp) || 0)

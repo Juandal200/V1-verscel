@@ -8,6 +8,13 @@ var TEA_FOLDER_NAME  = 'AEROCOMMS TEA Results';
 var TEA_TAB_NAME     = 'TEA Results';
 
 var TEA_SHEET_HEADERS = [
+  // UserId is appended at the end, never inserted, because rows already written would
+  // otherwise shift by one and every past sitting would report the wrong band.
+  //
+  // A sitting was identified only by email while everything else in the product is
+  // keyed by userId, so the one measurement that matters commercially — did their band
+  // improve — could not be joined to their training without matching on an address
+  // that a person can change.
   'Date', 'Candidate', 'Overall Band',
   'Pronunciation', 'Structure', 'Vocabulary',
   'Fluency', 'Comprehension', 'Interactions',
@@ -23,7 +30,8 @@ var TEA_SHEET_HEADERS = [
   'Source',
   // Which part of the exam ran. FULL is a real sitting; 2A, 2B, 2C, 1, 3 and SCORE
   // are section test runs and must not be read as exam results.
-  'Scope'
+  'Scope',
+  'UserId'
 ];
 
 /**
@@ -111,7 +119,12 @@ function _teaAppendSheetRow_(data, fileUrl) {
     fileUrl                    || '',
     data.bank                  || '',
     data.source                || 'pipeline',
-    data.scope                 || 'FULL'
+    data.scope                 || 'FULL',
+    // The stable key. Candidate stays as the email for the reports already written
+    // against it, but a person can change their address, and userId is what the rest
+    // of the product joins on — so without this a band cannot be tied to the training
+    // that produced it.
+    data.userId                || ''
   ]);
 }
 
@@ -178,6 +191,7 @@ function apiSaveIcaoExamResult(sessionToken, payload) {
 
     var data = {
       candidateId: String(user.email || user.userId || 'unknown'),
+      userId:      String(user.userId || ''),
       examDate:    String(payload.examDate || now_()),
       savedAt:     now_(),
       bank:        String(payload.bank  || ''),

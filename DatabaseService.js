@@ -230,12 +230,17 @@ function uuid_(prefix) {
   return prefix + '_' + Utilities.getUuid();
 }
 
+// UTC, not the local offset.
+//
+// This stamped with a timezone offset while twenty-seven other places wrote
+// toISOString() in UTC and twenty-nine wrote epoch milliseconds. The same instant in
+// two shapes sorts differently as a string, and several places compare timestamps as
+// strings — where the wrong order is silent rather than an error.
+//
+// One shape for everything written from here on. Everything already stored is still
+// read correctly, because readers go through tsMs_ which understands all of them.
 function now_() {
-  return Utilities.formatDate(
-    new Date(),
-    CONFIG.TIMEZONE,
-    "yyyy-MM-dd'T'HH:mm:ssXXX"
-  );
+  return tsNow_();
 }
 
 function normalizeEmail_(email) {

@@ -466,3 +466,58 @@ function setupSessionsSheet() {
   Logger.log(msg);
   return msg;
 }
+
+/**
+ * Are the session rows in the order the code reads them?
+ *
+ * The Sessions sheet was created by something other than setupSessionsSheet, with its
+ * own header order: sessionToken, userId, email, role, expiresAt, createdAt. The
+ * schema says token, userId, email, role, createdAt, expiresAt — columns five and six
+ * the other way round.
+ *
+ * dbReadAll_ maps by SCHEMA position and never looks at row 1, so a row written by the
+ * older convention has its two dates read the wrong way round: the code would take the
+ * creation time as the expiry, and treat a session as expired the moment it was made.
+ * A row written by dbAppend_ is correct.
+ *
+ * This says which rows are which, by looking at the values rather than the labels — an
+ * expiry is always later than a creation, so a row where the "expiry" precedes the
+ * "creation" was written the other way round.
+ *
+ * Read-only. Run checkSessionColumnOrder() from Authservice.gs.
+ */
+function checkSessionColumnOrder() {
+  var rows;
+  try { rows = dbReadAll_('Sessions'); }
+  catch (e) { Logger.log('Sessions unreadable: ' + e.message); return 'unreadable'; }
+
+  var ok = 0, swapped = 0, unreadable = 0, examples = [];
+  rows.forEach(function(r) {
+    var c = new Date(r.createdAt).getTime();
+    var x = new Date(r.expiresAt).getTime();
+    if (isNaN(c) || isNaN(x)) { unreadable++; return; }
+    if (x > c) { ok++; return; }
+    swapped++;
+    if (examples.length < 5) {
+      examples.push('  row ' + r.__rowNumber + '  created=' + r.createdAt + '  expires=' + r.expiresAt);
+    }
+  });
+
+  var out = [];
+  out.push('SESSIONS: ' + rows.length + ' row(s)');
+  out.push('  read correctly       : ' + ok);
+  out.push('  dates the wrong way  : ' + swapped);
+  out.push('  dates unreadable     : ' + unreadable);
+  if (examples.length) { out.push(''); out.push('EXAMPLES'); examples.forEach(function(e) { out.push(e); }); }
+  out.push('');
+  out.push(swapped
+    ? 'Those rows were written before the schema convention and read as already\n' +
+      'expired, which logs that person out. They are safe to delete — a deleted\n' +
+      'session only means signing in again.'
+    : 'Every row is in schema order. The header row is mislabelled but the data is\n' +
+      'correct, so repairSheetHeaders can relabel it safely.');
+
+  var msg = out.join('\n');
+  Logger.log(msg);
+  return msg;
+}

@@ -116,7 +116,9 @@ function lmsGetXpData_(userId) {
   if (!rows.length) return { lmsXp: 0, weeklyXp: 0 };
   var row = rows[0];
   var thisMonday = _lmsGetMondayIso_();
-  var weeklyReset = !row.weeklyResetAt || String(row.weeklyResetAt) < thisMonday;
+  // Compared as instants, not as text: an offset stamp and a Z stamp for the
+        // same moment sort the wrong way round as strings.
+        var weeklyReset = !row.weeklyResetAt || tsBefore_(row.weeklyResetAt, thisMonday);
   return {
     lmsXp: Number(row.lmsXp) || 0,
     weeklyXp: weeklyReset ? 0 : (Number(row.weeklyXp) || 0)
