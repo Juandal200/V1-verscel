@@ -2757,7 +2757,7 @@
 
         '<header class="cabina-header">' +
           '<div class="cabina-title">' +
-            '<span class="cabina-title-plane">&#9992;</span>' +
+            '<span class="cabina-title-plane"><svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg></span>' +
             '<span>COCKPIT&nbsp;DEMO &nbsp;&bull;&nbsp; LEVEL&nbsp;1 &nbsp;&bull;&nbsp; USA</span>' +
             '<span class="cabina-led cyan"></span>' +
           '</div>' +
@@ -2810,7 +2810,7 @@
 
             '<div class="cabina-card">' +
               '<div class="cabina-card-header">' +
-                '<span class="cabina-card-label">&#9992; Contexto operacional</span>' +
+                '<span class="cabina-card-label"><svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg> Contexto operacional</span>' +
               '</div>' +
               '<div style="padding:12px 14px;">' +
                 '<div class="cabina-block-label" style="margin-bottom:5px;">Briefing de fase</div>' +
@@ -4608,7 +4608,7 @@
 
   function _simTabStrip(active) {
     var tabs = [
-      { id: 'flight',   label: '&#9992; Flight Simulator' },
+      { id: 'flight',   label: '<svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg> Flight Simulator' },
       { id: 'modules',  label: '&#128218; LMS Modules'    }
     ];
     return '<div class="sim-subtab-strip">' +
@@ -8439,7 +8439,7 @@
     host.innerHTML =
       '<div class="sim-fallback-visual pro">' +
         '<div class="sim-fallback-hud"><span>AVIATION ENGLISH INTERACTIVE CAMPUS</span><span>' + safeText(scenario.country || 'INTL') + '</span><span>' + safeText(scenario.phaseName || scenario.phaseCode || 'PHASE') + '</span></div>' +
-        '<div class="sim-fallback-center"><div class="sim-radar-ring ring-1"></div><div class="sim-radar-ring ring-2"></div><div class="sim-radar-ring ring-3"></div><div class="sim-radar-sweep"></div><div class="sim-plane-icon" aria-hidden="true">&#9992;</div></div>' +
+        '<div class="sim-fallback-center"><div class="sim-radar-ring ring-1"></div><div class="sim-radar-ring ring-2"></div><div class="sim-radar-ring ring-3"></div><div class="sim-radar-sweep"></div><div class="sim-plane-icon" aria-hidden="true"><svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg></div></div>' +
       '</div>';
   }
 
@@ -9321,7 +9321,7 @@
           '<span class="completion-radar-ring r2"></span>' +
           '<span class="completion-radar-ring r3"></span>' +
           '<span class="completion-radar-sweep"></span>' +
-          '<span class="completion-radar-plane">&#9992;</span>' +
+          '<span class="completion-radar-plane"><svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg></span>' +
         '</div>' +
         '<div class="completion-loading-text">' +
           '<p class="eyebrow" style="letter-spacing:.14em;">' + safeText(eyebrow || '') + '</p>' +
@@ -10019,7 +10019,7 @@
           '<span class="completion-radar-ring r2"></span>' +
           '<span class="completion-radar-ring r3"></span>' +
           '<span class="completion-radar-sweep"></span>' +
-          '<span class="completion-radar-plane">&#9992;</span>' +
+          '<span class="completion-radar-plane"><svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg></span>' +
         '</div>' +
         '<div class="completion-loading-text">' +
           '<p class="eyebrow" style="letter-spacing:.14em;">ROUTE COMPLETE</p>' +
@@ -10476,7 +10476,7 @@
     byId('contentArea').innerHTML =
       '<section class="senior-completion-shell">' +
         '<div class="senior-debrief-hero">' +
-          '<div class="senior-radar-mark"><span class="senior-radar-ring r1"></span><span class="senior-radar-ring r2"></span><span class="senior-radar-ring r3"></span><span class="senior-radar-sweep"></span><span class="senior-plane">&#9992;</span></div>' +
+          '<div class="senior-radar-mark"><span class="senior-radar-ring r1"></span><span class="senior-radar-ring r2"></span><span class="senior-radar-ring r3"></span><span class="senior-radar-sweep"></span><span class="senior-plane"><svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg></span></div>' +
           '<div class="senior-debrief-copy">' +
             '<p class="eyebrow">Operational Debrief</p>' +
             '<h1>' + (levelCompleted ? 'Level ' + safeText(level) + ' complete'
@@ -10697,7 +10697,7 @@
           '</div>' +
           '<div class="certificate-radar-preview" aria-hidden="true">' +
             '<div class="certificate-radar-grid"></div>' +
-            '<div class="senior-radar-mark"><span class="senior-radar-ring r1"></span><span class="senior-radar-ring r2"></span><span class="senior-radar-ring r3"></span><span class="senior-radar-sweep"></span><span class="senior-plane">&#9992;</span></div>' +
+            '<div class="senior-radar-mark"><span class="senior-radar-ring r1"></span><span class="senior-radar-ring r2"></span><span class="senior-radar-ring r3"></span><span class="senior-radar-sweep"></span><span class="senior-plane"><svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg></span></div>' +
             '<div class="certificate-radar-hud"><span>ATC CERT READY</span><strong>' + safeText(new Date().toISOString().slice(0, 10)) + '</strong></div>' +
           '</div>' +
         '</div>' +
@@ -12484,7 +12484,7 @@
         '</div>' +
       '</div>' +
       '<div style="background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:14px 18px;font-size:13px;color:#93b4d4;margin-bottom:22px;">' +
-        '&#9992; Select a <strong>Term</strong> on the left, then click its matching <strong>Definition</strong> on the right. All pairs must be matched before submitting.' +
+        '<svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg> Select a <strong>Term</strong> on the left, then click its matching <strong>Definition</strong> on the right. All pairs must be matched before submitting.' +
       '</div>' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:12px;color:var(--muted,#6b8aad);">' +
         '<span>Progress</span><span id="lmsProgressPct">0%</span>' +
@@ -19595,7 +19595,7 @@
         '</div>' +
         '<div class="welcome-aviation-panel" aria-hidden="true">' +
           '<div class="welcome-skyline">' +
-            '<span class="welcome-plane">&#9992;</span>' +
+            '<span class="welcome-plane"><svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg></span>' +
             '<span class="welcome-route r1"></span>' +
             '<span class="welcome-route r2"></span>' +
             '<span class="welcome-beacon b1"></span>' +
