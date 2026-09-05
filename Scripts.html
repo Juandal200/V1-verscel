@@ -6537,11 +6537,21 @@ var LEVEL_THEMES = {
    * Reuses SimMedia.bgCtx when available; creates a throwaway context otherwise.
    ************************************************************************* */
   var SimAudio = (function() {
+    // One context, kept.
+    //
+    // This returned a NEW AudioContext whenever SimMedia.bgCtx was absent or closed and
+    // never held on to it, so every click, tail and burst could build another. iOS
+    // allows only a handful and does not reclaim them, so a long session ended with the
+    // radio producing no sound at all — silently, because creating a context never
+    // throws, it just stops working.
+    var _ownCtx = null;
     function _ctx() {
       try {
         var c = SimMedia.bgCtx;
         if (c && c.state !== 'closed') return c;
-        return new (window.AudioContext || window.webkitAudioContext)();
+        if (_ownCtx && _ownCtx.state !== 'closed') return _ownCtx;
+        _ownCtx = new (window.AudioContext || window.webkitAudioContext)();
+        return _ownCtx;
       } catch(e) { return null; }
     }
 
@@ -6674,17 +6684,31 @@ var LEVEL_THEMES = {
     //
     // Never in the opening moment: a clearance unintelligible from its first syllable
     // teaches nothing, it just gets replayed.
+    var _pending = [];
+
     function interfere(seconds) {
       var diff = _difficulty();
-      if (diff < 0.12 || !seconds || seconds < 1.2) return;   // level 1 stays clean
+      if (!seconds || seconds < 1.2) return;
+      // Level 1 hears it too, quietly.
+      //
+      // It was excluded on the theory that somebody meeting read-backs for the first
+      // time should not also fight the radio. But a clean radio at level 1 teaches
+      // that the radio is clean, and then every level after it is a surprise —
+      // interference becomes an obstacle rather than the medium. A pilot never hears
+      // a clean one, so neither should a student on their first exercise.
+      //
+      // The floor makes level 1 one gentle burst rather than none, and the ceiling is
+      // unchanged, so what grows with the level is how much rather than whether.
       var ctx = _ctx();
       if (!ctx) return;
-      var bursts = 1 + Math.round(diff * 2);
+      var floor  = 0.18;                          // what level 1 hears
+      var scaled = floor + (1 - floor) * diff;
+      var bursts = 1 + Math.round(scaled * 2);
       for (var n = 0; n < bursts; n++) {
         try {
           var at   = 0.6 + Math.random() * Math.max(0.1, seconds - 1.2);
-          var dur  = 0.25 + Math.random() * (0.3 + diff * 0.5);
-          var peak = 0.03 + diff * 0.075;
+          var dur  = 0.22 + Math.random() * (0.28 + scaled * 0.5);
+          var peak = 0.025 + scaled * 0.08;
           var sr   = ctx.sampleRate;
           var len  = Math.floor(sr * dur);
           var buf  = ctx.createBuffer(1, len, sr);
@@ -6703,11 +6727,28 @@ var LEVEL_THEMES = {
           g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
           src.connect(bp); bp.connect(g); g.connect(ctx.destination);
           src.start(t0); src.stop(t0 + dur);
+          // Held so leaving can stop them. These are scheduled up to a few seconds
+          // ahead, so without this a student who answers early — or walks out — hears
+          // static over whatever screen they moved to.
+          _pending.push(src);
+          src.onended = function () {
+            var i = _pending.indexOf(src);
+            if (i >= 0) _pending.splice(i, 1);
+          };
         } catch (e) {}
       }
     }
 
+    // Everything scheduled but not yet played.
+    function stopScheduled() {
+      _pending.splice(0).forEach(function (src) {
+        try { src.stop(0); } catch (e) {}
+        try { src.disconnect(); } catch (e) {}
+      });
+    }
+
     return { squelch: squelch, squelchTail: squelchTail, interfere: interfere,
+             stopScheduled: stopScheduled,
              difficulty: _difficulty,
              chimeUnlock: chimeUnlock, correct: correct, wrong: wrong };
   }());
@@ -6997,6 +7038,9 @@ var LEVEL_THEMES = {
   }
 
   function simMediaStopAll() {
+    // Static scheduled a second or two ahead would otherwise play over the next
+    // screen, which sounds like the app malfunctioning rather than like a radio.
+    try { if (window.SimAudio && SimAudio.stopScheduled) SimAudio.stopScheduled(); } catch (e) {}
     // The keyboard offset belongs to the exercise. Left set, it would push an unrelated
     // screen's content up by a keyboard that is no longer open.
     try { document.documentElement.style.setProperty('--kb', '0px'); } catch (e) {}
@@ -7491,7 +7535,12 @@ var LEVEL_THEMES = {
         // somebody is listening rather than in the silence between clearances.
         // duration is NaN until metadata loads, in which case there is nothing to
         // schedule against and it is skipped rather than guessed.
-        try { if (isFinite(a.duration)) SimAudio.interfere(a.duration); } catch (e) {}
+        // Divided by the playback rate: duration is the FILE's length, and a clearance
+        // played at 1.1x finishes sooner than that, so bursts scheduled against the raw
+        // figure would land after the transmission had ended.
+        try {
+          if (isFinite(a.duration)) SimAudio.interfere(a.duration / (a.playbackRate || 1));
+        } catch (e) {}
         AtcRadioEngine.startStatic();
         var dot = document.getElementById('simAtcLiveDot');
         if (dot) dot.style.display = '';
@@ -8847,7 +8896,9 @@ var LEVEL_THEMES = {
       }, { once: true });
       audio.play().then(function () {
         try { SimAudio.squelch(); } catch (e) {}
-        try { if (isFinite(audio.duration)) SimAudio.interfere(audio.duration); } catch (e) {}
+        try {
+          if (isFinite(audio.duration)) SimAudio.interfere(audio.duration / (audio.playbackRate || 1));
+        } catch (e) {}
       }).catch(function(err) {
         if (SimMedia.atcAudio === audio) SimMedia.atcAudio = null;
         setImmersiveFeedback('Could not play generated audio: ' + (err && err.message ? err.message : ''), 'danger');
@@ -11625,7 +11676,7 @@ var LEVEL_THEMES = {
         '.sub-card-hot{animation:subGlow 2.6s ease-in-out infinite;}' +
         '.sub-badge-hot{background:linear-gradient(90deg,var(--accent),var(--accent),var(--accent));' +
           'background-size:200% 100%;animation:subSheen 3s linear infinite;' +
-          'color:var(--bg);font-weight:800;}' +
+          'color: var(--muted);font-weight:800;}' +
         // Respect a system preference for less motion: the card keeps its
         // emphasis, it simply stops pulsing.
         '@media (prefers-reduced-motion:reduce){.sub-card-hot,.sub-badge-hot{animation:none;}}';
@@ -14803,7 +14854,7 @@ var LEVEL_THEMES = {
 
         // Toggle tabs — Forum LEFT (default), Progress RIGHT
         '<div class="lms-rp-tabs" style="display:flex;border-bottom:1px solid var(--line);flex-shrink:0;">' +
-          '<button id="rpBtnForum"   onclick="_lmsToggleRightPanel(\'forum\')"   style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid var(--cyan);background:none;font-family:inherit;font-size: 0.82rem;font-weight:700;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">💬 Forum<span id="rpForumRequired" style="font-size: 0.62rem;font-weight:800;color:#92400e;background:var(--text);border-radius: 4px;padding:1px 6px;' + ((!introForumPosted && defaultSection === 'intro') || (expUnlocked && !expForumPosted && defaultSection === 'explanation') ? '' : 'display:none;') + '">Required</span></button>' +
+          '<button id="rpBtnForum"   onclick="_lmsToggleRightPanel(\'forum\')"   style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid var(--cyan);background:none;font-family:inherit;font-size: 0.82rem;font-weight:700;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">💬 Forum<span id="rpForumRequired" style="font-size: 0.62rem;font-weight:800;color:#92400e;background: var(--panel);border-radius: 4px;padding:1px 6px;' + ((!introForumPosted && defaultSection === 'intro') || (expUnlocked && !expForumPosted && defaultSection === 'explanation') ? '' : 'display:none;') + '">Required</span></button>' +
           '<button id="rpBtnOutline" onclick="_lmsToggleRightPanel(\'outline\')" style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid transparent;background:none;font-family:inherit;font-size: 0.82rem;font-weight:400;color:var(--muted);cursor:pointer;">📋 Progress</button>' +
         '</div>' +
 
@@ -15875,9 +15926,9 @@ var LEVEL_THEMES = {
 
     function pct(val) { return val !== null && val !== undefined ? val + '%' : '—'; }
     function bar(val) {
-      if (val === null || val === undefined) return '<div style="height:8px;background:var(--text);border-radius:4px;"></div>';
+      if (val === null || val === undefined) return '<div style="height:8px;background: var(--panel);border-radius:4px;"></div>';
       var c = val >= 85 ? 'var(--green)' : val >= 60 ? 'var(--yellow)' : 'var(--red)';
-      return '<div style="height:8px;background:var(--text);border-radius:4px;overflow:hidden;"><div style="width:' + val + '%;height:100%;background:' + c + ';border-radius:4px;"></div></div>';
+      return '<div style="height:8px;background: var(--panel);border-radius:4px;overflow:hidden;"><div style="width:' + val + '%;height:100%;background:' + c + ';border-radius:4px;"></div></div>';
     }
 
     var moduleRows = mods.map(function(m, i) {
@@ -15896,12 +15947,12 @@ var LEVEL_THEMES = {
     var html = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
       '<title>aerocomms Progress Report</title>' +
       '<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;color:#111;background:#fff;padding:40px;}' +
-      'h1{font-size: 1.35rem;font-weight:800;color:var(--bg);margin-bottom:4px;}' +
-      '.sub{font-size: 0.82rem;color:var(--line);margin-bottom:28px;}' +
+      'h1{font-size: 1.35rem;font-weight:800;color: var(--muted);margin-bottom:4px;}' +
+      '.sub{font-size: 0.82rem;color: var(--muted);margin-bottom:28px;}' +
       '.summary{display:flex;gap:16px;margin-bottom:28px;}' +
       '.card{flex:1;padding:14px 18px;border:1px solid var(--text);border-radius:8px;}' +
       '.card-label{font-size: 0.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}' +
-      '.card-value{font-size: 1.6rem;font-weight:800;color:var(--bg);}' +
+      '.card-value{font-size: 1.6rem;font-weight:800;color: var(--muted);}' +
       'table{width:100%;border-collapse:collapse;}' +
       'thead th{padding:10px 12px;text-align:left;font-size: 0.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid var(--text);}' +
       '@media print{body{padding:20px;}button{display:none!important;}}' +
@@ -15956,9 +16007,9 @@ var LEVEL_THEMES = {
     var lmsTimeLabel = lmsH > 0 ? lmsH + 'h ' + lmsM + 'm' : lmsM + 'm';
 
     function bar(val) {
-      if (val === null || val === undefined) return '<div style="height:7px;background:var(--text);border-radius:4px;"></div>';
+      if (val === null || val === undefined) return '<div style="height:7px;background: var(--panel);border-radius:4px;"></div>';
       var c = val >= 85 ? 'var(--green)' : val >= 60 ? 'var(--yellow)' : 'var(--red)';
-      return '<div style="height:7px;background:var(--text);border-radius:4px;overflow:hidden;">' +
+      return '<div style="height:7px;background: var(--panel);border-radius:4px;overflow:hidden;">' +
         '<div style="width:' + val + '%;height:100%;background:' + c + ';border-radius:4px;"></div></div>' +
         '<div style="font-size: 0.62rem;text-align:center;margin-top:2px;color:var(--muted);">' + (val !== null && val !== undefined ? val + '%' : '—') + '</div>';
     }
@@ -15979,9 +16030,9 @@ var LEVEL_THEMES = {
 
     var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>aerocomms Progress Report</title>' +
       '<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,Helvetica,sans-serif;color:#111;background:#fff;padding:40px 48px;}' +
-      'h1{font-size: 1.15rem;font-weight:800;color:var(--bg);margin:0;}' +
-      'h2{font-size: 0.82rem;font-weight:800;color:var(--bg);letter-spacing:.06em;text-transform:uppercase;margin:0 0 14px;}' +
-      '.sub{font-size: 0.72rem;color:var(--line);margin-top:4px;}' +
+      'h1{font-size: 1.15rem;font-weight:800;color: var(--muted);margin:0;}' +
+      'h2{font-size: 0.82rem;font-weight:800;color: var(--muted);letter-spacing:.06em;text-transform:uppercase;margin:0 0 14px;}' +
+      '.sub{font-size: 0.72rem;color: var(--muted);margin-top:4px;}' +
       '.section{margin-bottom:32px;}' +
       '.stats{display:flex;gap:12px;margin-bottom:18px;}' +
       '.card{flex:1;padding:12px 16px;border:1px solid var(--text);border-radius:8px;}' +
@@ -21802,7 +21853,7 @@ var LEVEL_THEMES = {
       '<div class="demo-card">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">' +
           '<p style="margin:0;font-size: 0.62rem;color:var(--muted);font-weight:700;letter-spacing:1.2px;">AVIATION ENGLISH INTERACTIVE CAMPUS &middot; HOW IT WORKS</p>' +
-          '<button onclick="window._demoClose()" style="background:none;border:none;color:var(--panel);cursor:pointer;font-size: 1.15rem;line-height:1;padding:0 4px;">&times;</button>' +
+          '<button onclick="window._demoClose()" style="background:none;border:none;color: var(--muted);cursor:pointer;font-size: 1.15rem;line-height:1;padding:0 4px;">&times;</button>' +
         '</div>' +
         '<div class="demo-progress">' + dots + '</div>' +
         [_s0, _s1, _s2, _s3, _s4, _s5][_step]() +
@@ -21819,7 +21870,7 @@ var LEVEL_THEMES = {
         '<p style="color:var(--muted);margin:0 0 6px;line-height:1.6;">Practice real ATC radio communications with authentic voices and professional phraseology.</p>' +
         '<p style="color:var(--muted);font-size:0.82rem;margin:0 0 24px;">This 60-second walkthrough shows you exactly how a training session works.</p>' +
         '<button class="btn primary" onclick="window._demoNext()" style="width:100%;padding:13px;margin-bottom:10px;">Show me how it works &rarr;</button>' +
-        '<button onclick="window._demoClose()" style="background:none;border:none;color:var(--panel);cursor:pointer;font-size:0.82rem;">Skip &mdash; take me to the dashboard</button>' +
+        '<button onclick="window._demoClose()" style="background:none;border:none;color: var(--muted);cursor:pointer;font-size:0.82rem;">Skip &mdash; take me to the dashboard</button>' +
       '</div>'
     );
   }
@@ -21927,7 +21978,7 @@ var LEVEL_THEMES = {
           '</ul>' +
         '</div>' +
         '<button class="btn primary" onclick="window._demoFinish()" style="width:100%;padding:13px;margin-bottom:10px;font-size:1rem;">Start training &rarr;</button>' +
-        '<button onclick="window._demoClose()" style="background:none;border:none;color:var(--panel);cursor:pointer;font-size:0.82rem;">Go to dashboard</button>' +
+        '<button onclick="window._demoClose()" style="background:none;border:none;color: var(--muted);cursor:pointer;font-size:0.82rem;">Go to dashboard</button>' +
       '</div>'
     );
   }
@@ -28137,7 +28188,7 @@ var LEVEL_THEMES = {
         '</button>' +
         '<button onclick="window._teaBegin()" ' +
           'style="padding:8px 18px;background:transparent;border:1px solid var(--panel);' +
-          'color:var(--line);border-radius: 8px;font-size: 0.72rem;cursor:pointer;">' +
+          'color: var(--muted);border-radius: 8px;font-size: 0.72rem;cursor:pointer;">' +
           'Conversational exam (legacy)' +
         '</button>' +
         _debugBtn +

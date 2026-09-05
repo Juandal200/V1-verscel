@@ -59,5 +59,21 @@ ok(`${hexes.size} distinct hex colours (was 153 in the stylesheet alone, ceiling
 ok('the eight tokens carry the work',
    (ALL.match(/var\(--(bg|panel|line|text|muted|accent|green|yellow|red)\)/g) || []).length > 900);
 
+console.log('--- tokens are used for what they are ---');
+// The colour sweep bucketed by luminance calibrated against the DARK theme, so a light
+// surface became var(--text) — correct on dark and inverted on light — and a mid-grey
+// used as text became var(--line), which is twelve per cent opacity. 117 pieces of text
+// were briefly invisible. Neither showed up as an error: invalid CSS is dropped, and
+// unreadable CSS is not invalid.
+const misuse = [
+  ['text painted with a surface token', /(?<!-)color:\s*var\(--(line|bg|panel)\)/g],
+  ['a surface painted with a text token', /background:\s*var\(--(text|muted)\)/g],
+];
+misuse.forEach(([label, re]) => {
+  const n = (ALL.match(re) || []).length;
+  if (n) console.log('      ' + n + ' found');
+  ok('no ' + label, n === 0);
+});
+
 console.log(fails?('\n'+fails+' FAILING'):'\nall green');
 process.exit(fails?1:0);
