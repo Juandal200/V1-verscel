@@ -72,7 +72,7 @@ function exportAttemptsCsv() {
 
   var head = ['userId','email','name','plan','attemptDateUtc','attemptDay','level','country',
               'phaseCode','scenarioId','sessionId','attemptNumber','correct','score',
-              'responseTimeSec','replayCount','altDeviationFt','altSecondsOff',
+              'responseTimeSec','replayCount','altDeviationFt','altSecondsOff','radioDifficulty',
               'latestBand','latestBandDateUtc','latestBandVersion'];
   var lines = [head.join(',')], unknown = 0, n = 0;
 
@@ -97,6 +97,7 @@ function exportAttemptsCsv() {
       Number(a.replayCount) || 0,
       Number(a.altDeviationFt) || 0,
       Number(a.altSecondsOff) || 0,
+      Number(a.radioDifficulty) || 0,
       b ? b.band : '',
       b ? new Date(b.when).toISOString() : '',
       b ? b.version : ''

@@ -155,7 +155,11 @@ var DB_SCHEMA = {
     // picture: was the read-back right, how long they took to say it, how many times
     // they needed to hear it, and whether they flew what they had just read back.
     'altDeviationFt',    // worst deviation from the cleared altitude, in feet
-    'altSecondsOff'      // total seconds spent outside the tolerance
+    'altSecondsOff',     // total seconds spent outside the tolerance
+    // How obstructed the radio was, 0 to 1, from the level. Recorded so the question
+    // "does harder radio produce more replays" can be answered from the data rather
+    // than argued about — replayCount is already on the row beside it.
+    'radioDifficulty'
   ],
 
   Progress: [

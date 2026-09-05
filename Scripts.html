@@ -6630,7 +6630,86 @@ var LEVEL_THEMES = {
       } catch(e) {}
     }
 
-    return { squelch: squelch, chimeUnlock: chimeUnlock, correct: correct, wrong: wrong };
+    // How hard the radio is at this level. Nearly clean at level 1, genuinely
+    // obstructive by level 9 — the same shape as the speed ramp, so difficulty moves
+    // in one direction rather than two.
+    function _difficulty() {
+      var lv = Number((window.AppState && AppState.training && AppState.training.selectedLevel) || 1);
+      return Math.max(0, Math.min(1, (lv - 1) / 8));
+    }
+
+    // The tail: static as the carrier drops at the END of a transmission.
+    //
+    // squelch() above is the opening click, twenty-five milliseconds of it. The tail is
+    // the other half and the more recognisable one — it is how a pilot knows somebody
+    // has stopped talking rather than merely paused. Without it a clearance just stops,
+    // the way a file ends, which is what it was doing.
+    function squelchTail() {
+      var ctx = _ctx();
+      if (!ctx) return;
+      try {
+        var sr  = ctx.sampleRate;
+        var dur = 0.15 + Math.random() * 0.10;
+        var len = Math.floor(sr * dur);
+        var buf = ctx.createBuffer(1, len, sr);
+        var d   = buf.getChannelData(0);
+        // Decays rather than cuts: a carrier fades, it does not switch off.
+        for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 1.6);
+        var src = ctx.createBufferSource(); src.buffer = buf;
+        var bp  = ctx.createBiquadFilter();
+        bp.type = 'bandpass'; bp.frequency.value = 1700; bp.Q.value = 0.7;
+        var g   = ctx.createGain();
+        g.gain.value = 0.22 + _difficulty() * 0.10;
+        src.connect(bp); bp.connect(g); g.connect(ctx.destination);
+        src.start();
+      } catch (e) {}
+    }
+
+    // Interference OVER the clearance, not between clearances.
+    //
+    // The ambience already fires bursts on its own timer, every five to twenty-two
+    // seconds, so they almost never coincide with a transmission — and a burst nobody
+    // is listening through is atmosphere rather than difficulty. These are scheduled
+    // against the audio that is actually playing.
+    //
+    // Never in the opening moment: a clearance unintelligible from its first syllable
+    // teaches nothing, it just gets replayed.
+    function interfere(seconds) {
+      var diff = _difficulty();
+      if (diff < 0.12 || !seconds || seconds < 1.2) return;   // level 1 stays clean
+      var ctx = _ctx();
+      if (!ctx) return;
+      var bursts = 1 + Math.round(diff * 2);
+      for (var n = 0; n < bursts; n++) {
+        try {
+          var at   = 0.6 + Math.random() * Math.max(0.1, seconds - 1.2);
+          var dur  = 0.25 + Math.random() * (0.3 + diff * 0.5);
+          var peak = 0.03 + diff * 0.075;
+          var sr   = ctx.sampleRate;
+          var len  = Math.floor(sr * dur);
+          var buf  = ctx.createBuffer(1, len, sr);
+          var d    = buf.getChannelData(0);
+          for (var i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+          var src = ctx.createBufferSource(); src.buffer = buf;
+          var bp  = ctx.createBiquadFilter();
+          bp.type = 'bandpass';
+          bp.frequency.value = 1400 + Math.random() * 900;
+          bp.Q.value = 0.55;
+          var g  = ctx.createGain();
+          var t0 = ctx.currentTime + at;
+          g.gain.setValueAtTime(0.0001, t0);
+          g.gain.linearRampToValueAtTime(peak, t0 + 0.06);
+          g.gain.setValueAtTime(peak, t0 + dur - 0.08);
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+          src.connect(bp); bp.connect(g); g.connect(ctx.destination);
+          src.start(t0); src.stop(t0 + dur);
+        } catch (e) {}
+      }
+    }
+
+    return { squelch: squelch, squelchTail: squelchTail, interfere: interfere,
+             difficulty: _difficulty,
+             chimeUnlock: chimeUnlock, correct: correct, wrong: wrong };
   }());
   window.SimAudio = SimAudio;
 
@@ -7397,11 +7476,22 @@ var LEVEL_THEMES = {
         if (dot) dot.style.display = 'none';
         if (andThen) andThen();
       }
+      // The squelch tail, before the callback: a pilot hears the carrier drop and
+      // only then knows the transmission is over. Firing it after _done would put it
+      // under whatever the next screen is doing.
+      a.addEventListener('ended', function () {
+        try { SimAudio.squelchTail(); } catch (e) {}
+      }, { once: true });
       a.addEventListener('ended', _done, { once: true });
       a.addEventListener('error', _done, { once: true });
 
       a.play().then(function() {
         SimAudio.squelch();
+        // Interference is scheduled against THIS transmission, so it lands while
+        // somebody is listening rather than in the silence between clearances.
+        // duration is NaN until metadata loads, in which case there is nothing to
+        // schedule against and it is skipped rather than guessed.
+        try { if (isFinite(a.duration)) SimAudio.interfere(a.duration); } catch (e) {}
         AtcRadioEngine.startStatic();
         var dot = document.getElementById('simAtcLiveDot');
         if (dot) dot.style.display = '';
@@ -8750,8 +8840,15 @@ var LEVEL_THEMES = {
       SimMedia.atcAudio = audio;
       audio.addEventListener('ended', function() {
         if (SimMedia.atcAudio === audio) SimMedia.atcAudio = null;
+        // A replay is the same radio. Without this the first hearing ended with a
+        // carrier drop and every replay just stopped, which is a different sound and
+        // teaches the student to expect the wrong cue.
+        try { SimAudio.squelchTail(); } catch (e) {}
       }, { once: true });
-      audio.play().catch(function(err) {
+      audio.play().then(function () {
+        try { SimAudio.squelch(); } catch (e) {}
+        try { if (isFinite(audio.duration)) SimAudio.interfere(audio.duration); } catch (e) {}
+      }).catch(function(err) {
         if (SimMedia.atcAudio === audio) SimMedia.atcAudio = null;
         setImmersiveFeedback('Could not play generated audio: ' + (err && err.message ? err.message : ''), 'danger');
       });
@@ -9187,6 +9284,10 @@ var LEVEL_THEMES = {
         // aircraft never left the tolerance — so these are always sent.
         altDeviationFt:    Math.round(_altWorstDev || 0),
         altSecondsOff:     Math.round((_altSecondsOff || 0) * 10) / 10,
+        // What the radio was doing to them, so replay counts can be read against it.
+        radioDifficulty:   (function () {
+          try { return Math.round(SimAudio.difficulty() * 100) / 100; } catch (e) { return 0; }
+        })(),
         // Write the attempt, skip the summary. The server rebuilds progress once for
         // the whole route in apiFinalizeRoute, just before the debrief. This call used
         // to read the entire Attempts sheet and take two script locks every time, and

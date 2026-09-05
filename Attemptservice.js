@@ -72,7 +72,9 @@ var AttemptService = {
       // the aircraft never left the tolerance — so these are stored as given rather
       // than treated as missing.
       altDeviationFt: Number(payload.altDeviationFt) || 0,
-      altSecondsOff:  Number(payload.altSecondsOff)  || 0
+      altSecondsOff:  Number(payload.altSecondsOff)  || 0,
+      // What the radio was doing to them, so a replay count can be read against it.
+      radioDifficulty: Number(payload.radioDifficulty) || 0
       };
 
     dbWithScriptLock_(function() {

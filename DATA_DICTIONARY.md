@@ -57,6 +57,7 @@ a local one, so a chart does not gain or lose an hour twice a year.
 | `replayCount` | count | Times the clearance was replayed. 0 means heard once. |
 | `altDeviationFt` | feet | **Worst** deviation from the cleared altitude during that exercise. 0 means never left tolerance. |
 | `altSecondsOff` | seconds | Total time outside the ±200 ft tolerance. 0 is a real value, not missing. |
+| `radioDifficulty` | 0–1 | How obstructed the radio was, derived from the level: 0 at level 1, 1 at level 9. Read `replayCount` against this — a rising replay count at a rising difficulty is the radio working, not the student struggling. |
 
 Tolerance is ±200 ft. The aircraft starts **on** target and drifts; the student corrects.
 So these two measure attention while speaking, not the ability to reach an altitude.
