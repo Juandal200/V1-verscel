@@ -4913,7 +4913,7 @@
   }
 
   var LEVEL_THEMES = {
-    1:  { gradient: 'linear-gradient(145deg,rgba(0,28,18,0.98),rgba(0,14,9,0.98))',  border: 'rgba(var(--accent-rgb), 0.28)',  accent: 'var(--accent)', icon: '📡', tag: 'ATC Basics',             phases: ['GROUND','PUSHBACK','TAXI'],         desc: 'Master the fundamentals of aeronautical radio — callsigns, readbacks and ground comms.' },
+    1:  { gradient: 'linear-gradient(145deg,rgba(0,28,18,0.98),rgba(0,14,9,0.98))',  border: 'rgba(var(--accent-rgb), 0.28)',  accent: '#5eead4', icon: '📡', tag: 'ATC Basics',             phases: ['GROUND','PUSHBACK','TAXI'],         desc: 'Master the fundamentals of aeronautical radio — callsigns, readbacks and ground comms.' },
     2:  { gradient: 'linear-gradient(145deg,rgba(6,14,32,0.98),rgba(3,8,22,0.98))',  border: 'rgba(59,130,246,0.28)', accent: '#3b82f6', icon: '🛫', tag: 'Taxi & Departure',        phases: ['TAXI OUT','DELIVERY','IFR CLR'],    desc: 'Navigate complex taxiway routes and secure IFR clearances before departure.' },
     3:  { gradient: 'linear-gradient(145deg,rgba(36,14,2,0.98),rgba(22,8,1,0.98))',  border: 'rgba(249,115,22,0.28)', accent: '#f97316', icon: '🚀', tag: 'Takeoff & Climb',         phases: ['TAKEOFF','DEPARTURE','CLIMB'],      desc: 'Coordinate takeoff clearances and initial climb with departure control at high workload.' },
     4:  { gradient: 'linear-gradient(145deg,rgba(8,10,34,0.98),rgba(4,6,22,0.98))',  border: 'rgba(99,102,241,0.28)', accent: '#6366f1', icon: '✈️', tag: 'En-Route',                phases: ['CLIMB','CRUISE','HANDOFF'],         desc: 'Manage altitude changes, route amendments and frequency transfers across sectors.' },
@@ -5275,7 +5275,20 @@
             '<div class="lc-content">' +
 
               '<div class="lc-top-row">' +
-                '<div class="lc-theme-tag" style="background:' + theme.accent + '28;border:1px solid ' + theme.accent + '50;color:' + theme.accent + ';">' +
+                // color-mix, not string concatenation.
+                //
+                // This appended '28' and '50' to the accent to get hex alpha, which
+                // works only while every accent is a six-digit hex. The teal sweep
+                // turned level 1's into var(--accent), and 'var(--accent)28' is not a
+                // colour — so that tag lost its background, its border and its text
+                // colour at once, silently, because invalid CSS is simply dropped.
+                //
+                // color-mix takes any colour, so an accent can be a token from the
+                // Levels sheet without the card falling apart.
+                '<div class="lc-theme-tag" style="' +
+                  'background:color-mix(in srgb, ' + theme.accent + ' 16%, transparent);' +
+                  'border:1px solid color-mix(in srgb, ' + theme.accent + ' 32%, transparent);' +
+                  'color:' + theme.accent + ';">' +
                   theme.icon + '&nbsp;' + safeText(theme.tag) +
                 '</div>' +
                 '<span class="status ' + statusClass + '" style="backdrop-filter:blur(6px);">' + safeText(statusText) + '</span>' +

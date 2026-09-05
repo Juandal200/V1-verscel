@@ -33,7 +33,14 @@ ok('text inverts between themes',            dark['--text']   !== light['--text'
 ok('the feedback colours differ per theme',  dark['--green']  !== light['--green']);
 
 console.log('--- nothing in the client pins a colour to one theme ---');
-const EXAM = n => n > 23000 && n < 27600;   // the exam's own dark room
+// The exam's own dark room, bounded by what it CONTAINS rather than by line numbers.
+// A hardcoded line number moves every time anything above it grows — this test failed
+// twice for edits that had nothing to do with it, which teaches you to ignore it.
+const EXAM_FROM = S.indexOf('function _examNext');
+const EXAM_TO   = S.indexOf('function _unlockExamUI');
+const examStart = S.slice(0, EXAM_FROM).split('\n').length;
+const examEnd   = S.slice(0, EXAM_TO).split('\n').length;
+const EXAM = n => n > examStart && n < examEnd;
 let stranded = [];
 for (const m of S.matchAll(/style="([^"]*)"/g)) {
   const line = S.slice(0, m.index).split('\n').length;
