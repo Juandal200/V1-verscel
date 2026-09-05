@@ -4912,16 +4912,28 @@
     '</article>';
   }
 
-  var LEVEL_THEMES = {
-    1:  { gradient: 'linear-gradient(145deg,rgba(0,28,18,0.98),rgba(0,14,9,0.98))',  border: 'rgba(var(--accent-rgb), 0.28)',  accent: '#5eead4', icon: '📡', tag: 'ATC Basics',             phases: ['GROUND','PUSHBACK','TAXI'],         desc: 'Master the fundamentals of aeronautical radio — callsigns, readbacks and ground comms.' },
-    2:  { gradient: 'linear-gradient(145deg,rgba(6,14,32,0.98),rgba(3,8,22,0.98))',  border: 'rgba(59,130,246,0.28)', accent: '#3b82f6', icon: '🛫', tag: 'Taxi & Departure',        phases: ['TAXI OUT','DELIVERY','IFR CLR'],    desc: 'Navigate complex taxiway routes and secure IFR clearances before departure.' },
-    3:  { gradient: 'linear-gradient(145deg,rgba(36,14,2,0.98),rgba(22,8,1,0.98))',  border: 'rgba(249,115,22,0.28)', accent: '#f97316', icon: '🚀', tag: 'Takeoff & Climb',         phases: ['TAKEOFF','DEPARTURE','CLIMB'],      desc: 'Coordinate takeoff clearances and initial climb with departure control at high workload.' },
-    4:  { gradient: 'linear-gradient(145deg,rgba(8,10,34,0.98),rgba(4,6,22,0.98))',  border: 'rgba(99,102,241,0.28)', accent: '#6366f1', icon: '✈️', tag: 'En-Route',                phases: ['CLIMB','CRUISE','HANDOFF'],         desc: 'Manage altitude changes, route amendments and frequency transfers across sectors.' },
-    5:  { gradient: 'linear-gradient(145deg,rgba(0,20,28,0.98),rgba(0,12,18,0.98))', border: 'rgba(6,182,212,0.28)',  accent: '#06b6d4', icon: '🌐', tag: 'Oceanic & International', phases: ['OCEANIC','CRUISE','SELCAL'],        desc: 'Cross oceanic airspace and handle international frequency protocols.' },
-    6:  { gradient: 'linear-gradient(145deg,rgba(14,14,22,0.98),rgba(8,8,14,0.98))', border: 'rgba(148,163,184,0.25)',accent: '#94a3b8', icon: '🌩️',tag: 'Weather Operations',       phases: ['DEVIATION','SIGMET','HOLD'],        desc: 'Coordinate weather deviations, SIGMET alerts and holding patterns under IMC.' },
-    7:  { gradient: 'linear-gradient(145deg,rgba(20,6,32,0.98),rgba(12,3,20,0.98))', border: 'rgba(168,85,247,0.28)', accent: '#a855f7', icon: '🛬', tag: 'Approach & Descent',      phases: ['DESCEND','APPROACH','ILS'],         desc: 'Execute ILS approaches and STAR arrivals at complex, high-traffic airports.' },
-    8:  { gradient: 'linear-gradient(145deg,rgba(26,10,2,0.98),rgba(16,6,1,0.98))',  border: 'rgba(234,88,12,0.28)',  accent: '#ea580c', icon: '🏁', tag: 'Landing & Go-Around',     phases: ['LANDING','GO-AROUND','VACATE'],     desc: 'Master landing clearances, go-around procedures and runway vacating instructions.' },
-    9:  { gradient: 'linear-gradient(145deg,rgba(28,2,2,0.98),rgba(18,1,1,0.98))',   border: 'rgba(239,68,68,0.38)',  accent: '#ef4444', icon: '🚨', tag: 'Emergency Procedures',    phases: ['PAN-PAN','MAYDAY','DISTRESS'],      desc: 'Declare and handle aircraft emergencies — MAYDAY, PAN-PAN and distress communications.' }
+    // One look for every level.
+  //
+  // There were nine gradients and nine border colours — a green level, an orange one,
+  // a purple one — so the map read as nine products rather than one course. The colour
+  // was carrying nothing a student needs: the level is identified by its number, its
+  // name and its icon, all of which are on the card already.
+  //
+  // What differs between levels now is what a level actually IS. What they share is
+  // the brand, and the accent is a token, so changing it changes all of them.
+  //
+  // The exception that would earn a colour back is a state — locked, current, complete
+  // — because that is information the card cannot otherwise show.
+var LEVEL_THEMES = {
+    1:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))',  border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: '📡', tag: 'ATC Basics',             phases: ['GROUND','PUSHBACK','TAXI'],         desc: 'Master the fundamentals of aeronautical radio — callsigns, readbacks and ground comms.' },
+    2:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))',  border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: '🛫', tag: 'Taxi & Departure',        phases: ['TAXI OUT','DELIVERY','IFR CLR'],    desc: 'Navigate complex taxiway routes and secure IFR clearances before departure.' },
+    3:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))',  border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: '🚀', tag: 'Takeoff & Climb',         phases: ['TAKEOFF','DEPARTURE','CLIMB'],      desc: 'Coordinate takeoff clearances and initial climb with departure control at high workload.' },
+    4:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))',  border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: '✈️', tag: 'En-Route',                phases: ['CLIMB','CRUISE','HANDOFF'],         desc: 'Manage altitude changes, route amendments and frequency transfers across sectors.' },
+    5:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))', border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: '🌐', tag: 'Oceanic & International', phases: ['OCEANIC','CRUISE','SELCAL'],        desc: 'Cross oceanic airspace and handle international frequency protocols.' },
+    6:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))', border: 'rgba(var(--accent-rgb), 0.22)',accent: 'var(--accent)', icon: '🌩️',tag: 'Weather Operations',       phases: ['DEVIATION','SIGMET','HOLD'],        desc: 'Coordinate weather deviations, SIGMET alerts and holding patterns under IMC.' },
+    7:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))', border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: '🛬', tag: 'Approach & Descent',      phases: ['DESCEND','APPROACH','ILS'],         desc: 'Execute ILS approaches and STAR arrivals at complex, high-traffic airports.' },
+    8:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))',  border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: '🏁', tag: 'Landing & Go-Around',     phases: ['LANDING','GO-AROUND','VACATE'],     desc: 'Master landing clearances, go-around procedures and runway vacating instructions.' },
+    9:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))',   border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: '🚨', tag: 'Emergency Procedures',    phases: ['PAN-PAN','MAYDAY','DISTRESS'],      desc: 'Declare and handle aircraft emergencies — MAYDAY, PAN-PAN and distress communications.' }
   };
 
   // Level identities from the Levels sheet, when it has been set up.

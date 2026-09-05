@@ -39,13 +39,19 @@ ok('no near-black ink is pinned to an accent fill',
    !/background\s*:\s*var\(--accent\)[^;]*;\s*(?:border[^;]*;\s*)?color\s*:\s*(#07101e|#000000|#000\b)/i.test(C + S));
 ok('--accent-ink is used for that',      /var\(--accent-ink\)/.test(C + S));
 
-console.log('--- what was deliberately NOT swept ---');
-// Each level has its own accent so a student recognises it on sight. These are an
-// identity system, not stray colour, and flattening them would cost information.
+console.log('--- the levels ---');
+// Levels are identified by number, name and icon — not by colour.
 const levels = (S.match(/\n\s*\d+:\s*\{\s*gradient:[\s\S]*?tag:\s*'[^']+'/g)||[]);
-ok('the nine level identities survive', levels.length === 9);
-ok('they still differ from each other',
-   new Set(levels.map(l => (l.match(/accent:\s*'(#[0-9a-f]{6})'/i)||[])[1]).filter(Boolean)).size >= 7);
+ok('the nine levels are still there', levels.length === 9);
+// They used to be asserted as DIFFERENT from each other, and that was right while the
+// colour was meant to identify a level. It is not any more: nine gradients made the map
+// read as nine products, and a level is identified by its number, its name and its
+// icon, all of which are on the card. What is asserted now is the opposite — that they
+// share one look — because a colour returning to one of them would be the regression.
+ok('they share one look',
+   new Set(levels.map(l => (l.match(/accent:\s*'([^']+)'/)||[])[1]).filter(Boolean)).size === 1);
+ok('and that look is the brand token, not a colour of its own',
+   /accent: 'var\(--accent\)'/.test(S));
 // Correct, incorrect and warning have to stay distinguishable in a training app.
 ok('feedback colours are untouched',
    /--green:/.test(C) && /--red:/.test(C) && /--yellow:/.test(C));
