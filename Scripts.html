@@ -8693,13 +8693,14 @@ var LEVEL_THEMES = {
 
     var activeX = padX + drawActive * step;
 
+    var T = _canvasTokens();
     ctx.save();
     ctx.lineCap = 'round';
 
     ctx.beginPath();
     ctx.moveTo(padX, lineY);
     ctx.lineTo(W - padX, lineY);
-    ctx.strokeStyle = '#23324f';
+    ctx.strokeStyle = T.strong;
     ctx.lineWidth = 2;
     ctx.stroke();
 
@@ -8707,8 +8708,8 @@ var LEVEL_THEMES = {
       ctx.beginPath();
       ctx.moveTo(padX, lineY);
       ctx.lineTo(activeX, lineY);
-      ctx.strokeStyle = 'var(--accent)';
-      ctx.shadowColor = 'rgba(34, 211, 238, 0.45)';
+      ctx.strokeStyle = T.accent;
+      ctx.shadowColor = T.line;
       ctx.shadowBlur = 8;
       ctx.lineWidth = 2;
       ctx.stroke();
@@ -8728,19 +8729,19 @@ var LEVEL_THEMES = {
       // are NOW, and for one word there is room.
       var roomForAll = step >= 62;
       if (roomForAll || isNow) {
-        ctx.font = (isNow ? 'bold ' : '') + (roomForAll ? '9px' : '10px') + ' Consolas, monospace';
+        ctx.font = (isNow ? '700 ' : '') + (roomForAll ? '11px ' : '12px ') + T.instrument;
         ctx.textAlign = 'center';
-        ctx.fillStyle = isNow ? 'var(--muted)' : isDone ? 'var(--line)' : 'var(--panel)';
+        ctx.fillStyle = isNow ? T.text : isDone ? T.muted : T.strong;
         // Clamped inside the canvas so the first and last phases keep their names.
         ctx.fillText(phase.label, roomForAll ? x : Math.max(34, Math.min(W - 34, x)), lineY - 18);
       }
 
       ctx.beginPath();
       ctx.arc(x, lineY, 2, 0, Math.PI * 2);
-      ctx.fillStyle = isNow ? 'var(--muted)' : isDone ? 'var(--panel)' : 'var(--bg)';
+      ctx.fillStyle = isNow ? T.accent : isDone ? T.muted : T.panel;
       ctx.fill();
       ctx.lineWidth = 1.5;
-      ctx.strokeStyle = isNow ? 'var(--muted)' : isDone ? 'var(--line)' : 'var(--panel)';
+      ctx.strokeStyle = isNow ? T.accent : isDone ? T.muted : T.strong;
       ctx.stroke();
     });
 
@@ -8758,12 +8759,39 @@ var LEVEL_THEMES = {
     ctx.lineTo(0, 2);
     ctx.lineTo(-6, 5);
     ctx.closePath();
-    ctx.fillStyle = 'var(--muted)';
-    ctx.shadowColor = 'rgba(188, 198, 206, 0.55)';
+    ctx.fillStyle = T.accent;
+    ctx.shadowColor = T.line;
     ctx.shadowBlur = 6;
     ctx.fill();
     ctx.restore();
     ctx.restore();
+  }
+
+  /* A canvas cannot read a token.
+   *
+   * ctx.fillStyle = 'var(--muted)' is not a colour. The assignment is rejected in
+   * silence and the context keeps whatever it had, which is black on the first
+   * pass — so the phase rail drew its labels and its dots in black on black, and
+   * the only thing visible was the one line still using a literal, a navy #23324f
+   * that belongs to nothing. A colour sweep did this: tokens were the right answer
+   * everywhere the sweep could see, and a canvas is somewhere it could not.
+   *
+   * getComputedStyle resolves the token against whichever theme is on, which is
+   * what a var() would have done had the canvas been able to use one. Read once
+   * per draw rather than per shape — it forces layout. */
+  function _canvasTokens() {
+    var cs = getComputedStyle(document.documentElement);
+    var t = function(n) { return (cs.getPropertyValue(n) || '').trim(); };
+    return {
+      text:   t('--text')   || '#cacaca',
+      muted:  t('--muted')  || '#808080',
+      line:   t('--line')   || 'rgba(186,186,186,0.12)',
+      strong: t('--line-strong') || 'rgba(186,186,186,0.26)',
+      panel:  t('--panel')  || '#121212',
+      accent: t('--accent') || '#ffffff',
+      instrument: t('--font-instrument') ||
+        "ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace"
+    };
   }
 
   function bindImmersiveReadbackSync() {
@@ -11537,12 +11565,12 @@ var LEVEL_THEMES = {
           el.innerHTML =
             '<div class="sub-badge sub-badge-active">' +
               '<span class="sub-badge-dot"></span>' +
-              'Plan activo &mdash; ' + res.daysLeft + ' d&iacute;as restantes' +
+              'Plan active &mdash; ' + res.daysLeft + ' days remaining' +
             '</div>';
         } else {
           el.innerHTML =
             '<div class="sub-badge sub-badge-inactive">' +
-              '<button class="btn btn-sub-upgrade" onclick="openSubscriptionModal()">Activar suscripci&oacute;n</button>' +
+              '<button class="btn btn-sub-upgrade" onclick="openSubscriptionModal()">Start a subscription</button>' +
             '</div>';
         }
       })
@@ -11697,7 +11725,7 @@ var LEVEL_THEMES = {
         '<p class="eyebrow" style="text-align:center;margin-bottom:6px;">Aviation English Interactive Campus</p>' +
         '<h2 style="margin:0 0 8px;text-align:center;font-size:1.6rem;">Elige tu plan</h2>' +
         '<p style="margin:0 0 28px;color:var(--muted);font-size: 0.82rem;line-height:1.6;text-align:center;max-width:480px;margin-left:auto;margin-right:auto;">' +
-          'Simulador de entrenamiento ATC con vocabulario especializado de aviaci&oacute;n, diferentes acentos y situaciones rutinarias y de emergencia.' +
+          'ATC training with the phraseology of the job, in the accents you will actually hear, across routine traffic and emergencies.' +
         '</p>' +
         '<div id="subPlanCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;align-items:stretch;">' +
           '<p style="color:var(--muted);font-size: 0.82rem;margin:auto;">Cargando planes…</p>' +
@@ -11784,7 +11812,7 @@ var LEVEL_THEMES = {
             : 'width:100%;padding:12px;font-size:0.9rem;font-weight:700;background:transparent;color:var(--text);border:1px solid var(--line-strong);border-radius: 8px;cursor:pointer;transition:background 0.25s var(--ease), border-color 0.25s var(--ease);';
 
           var flagsRow =
-            '<p style="margin:0 0 6px;font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;color:var(--muted);text-transform:uppercase;">Acentos incluidos</p>' +
+            '<p style="margin:0 0 6px;font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;color:var(--muted);text-transform:uppercase;">Accents included</p>' +
             '<div style="display:flex;justify-content:center;gap:6px;margin-bottom:16px;">' +
               '<span title="USA" style="font-size: 1.35rem;">&#127482;&#127480;</span>' +
               '<span title="UK"  style="font-size: 1.35rem;">&#127468;&#127463;</span>' +
@@ -11830,9 +11858,9 @@ var LEVEL_THEMES = {
                   _feat('&#128295;', 'Technical failures: hydraulics, pressurisation, landing gear') +
                   _feat('&#128657;', 'Medical emergencies and disruptive passengers')
                 : _missing('&#128680;', 'Emergency simulation')) +
-              _feat('&#129302;', 'Evaluaci&oacute;n por IA en la escala OACI, banda por descriptor') +
+              _feat('&#129302;', 'Scored on the ICAO scale, a band for each of the six descriptors') +
               _feat('&#127942;', 'Downloadable certificate for each level') +
-              _feat('&#128202;', 'Anal&iacute;tica detallada de tu progreso') +
+              _feat('&#128202;', 'Your progress, broken down by level and by descriptor') +
               (plan.id === 'full'
                 ? _feat('&#128640;', 'Operational levels as they are published', true)
                 : '') +
@@ -11845,7 +11873,7 @@ var LEVEL_THEMES = {
             topBadge +
             '<div style="flex:1;">' +
               '<p style="margin:0 0 2px;font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;color:var(--muted);text-transform:uppercase;">' + m.name + '</p>' +
-              '<p style="margin:0 0 12px;font-size: 0.82rem;color:#555;">' + m.duration + '</p>' +
+              '<p style="margin:0 0 12px;font-size: 0.82rem;color:var(--muted);">' + m.duration + '</p>' +
               savingsBadge +
               priceBlock +
               featureList +

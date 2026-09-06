@@ -127,6 +127,28 @@ ok(`ink on paper is ${cr(fieldInk, fieldBg).toFixed(1)}:1`, cr(fieldInk, fieldBg
   ok(sel + ' is paper', i > 0 && /var\(--field\)/.test(C.slice(i, i + 400)));
 });
 
+console.log('--- a canvas reads its tokens, it cannot be given them ---');
+// ctx.fillStyle = 'var(--muted)' is not a colour. The assignment is rejected in
+// silence and the context keeps what it had — black, on the first pass — so the
+// flight phase rail drew its labels and its dots black on black, and the only
+// thing visible was the one line still using a literal: a navy #23324f belonging
+// to nothing. Third place a colour sweep put tokens where tokens cannot go, after
+// the emails and the printed reports.
+// Strip comments first: the note explaining this fault quotes the fault.
+const code = S.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/[^\n]*/g, '$1');
+const canvasToks = [...code.matchAll(/ctx\.(?:fill|stroke|shadowColor)[A-Za-z]*\s*=\s*([^;]+);/g)]
+  .map(m => m[1]).filter(v => /var\(--/.test(v));
+if (canvasToks.length) console.log('    ' + canvasToks.slice(0, 4).join('  '));
+ok('no canvas is handed a token it cannot resolve', canvasToks.length === 0);
+ok('it reads them off the root instead',
+   /function _canvasTokens\(\)/.test(S) && /getComputedStyle\(document\.documentElement\)/.test(S));
+ok('and every one has a fallback, since a token can be missing',
+   (S.slice(S.indexOf('function _canvasTokens'), S.indexOf('function _canvasTokens') + 900)
+     .match(/\|\|\s*['"]/g) || []).length >= 7);
+ok('the rail no longer paints a navy of its own', !/#23324f/i.test(code));
+ok('and its label uses the instrument face, not Consolas by name',
+   !/Consolas, monospace';/.test(code));
+
 console.log('--- the brand accent is still stated once ---');
 ok('no teal survives anywhere',
    !/00d48e/i.test(S + C) && !/0\s*,\s*212\s*,\s*142/.test(S + C));

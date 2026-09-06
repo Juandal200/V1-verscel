@@ -18,11 +18,24 @@ const SPANISH = /\b(mejor|valor|gratis|ahora|comprar|elegir|m[aá]s|nuevo|oferta
 /* A placeholder name is an example, not a sentence. */
 const NOT_COPY = /placeholder="e\.g\./i;
 
+/* An accent written as an entity is not an accent to a regex. &oacute; is six
+ * ASCII characters, so "Evaluaci&oacute;n por IA" read as clean English and sat on
+ * the subscription card — the screen where somebody decides whether to pay — through
+ * every sweep. Six strings were hiding this way. Decode before looking. */
+const ENT = { aacute:'á', eacute:'é', iacute:'í', oacute:'ó', uacute:'ú',
+              Aacute:'Á', Eacute:'É', Iacute:'Í', Oacute:'Ó', Uacute:'Ú',
+              ntilde:'ñ', Ntilde:'Ñ', uuml:'ü', iquest:'¿', iexcl:'¡' };
+const decode = t => t.replace(/&([A-Za-z]+);/g, (m, n) => ENT[n] || m);
+// The decoder is the whole point of this section, so prove it works rather than
+// trusting a pass that could equally mean it is looking at nothing.
+ok('the decoder sees an accent written as an entity',
+   /[áéíóúñ]/.test(decode('Evaluaci&oacute;n por d&iacute;a')));
+
 console.log('--- no Spanish in anything a student reads ---');
 const found = [];
 S.split('\n').forEach((l, i) => {
   if (NOT_COPY.test(l)) return;
-  (l.match(/'[^']{2,140}'/g) || []).forEach(str => {
+  (l.match(/'[^']{2,140}'/g) || []).map(decode).forEach(str => {
     if (!SPANISH.test(str)) return;
     if (/function|\.js|https?:|var |espa/i.test(str)) return;
     found.push((i + 1) + ': ' + str.slice(0, 70));
