@@ -262,13 +262,13 @@
       d.id = '_crashOverlay';
       d.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg,var(--bg));';
       d.innerHTML =
-        '<div style="background:var(--panel,var(--bg));border:1px solid var(--line,rgba(255,255,255,0.08));border-radius: 22px;padding:36px 32px;max-width:340px;width:100%;text-align:center;box-shadow: var(--shadow-3);">' +
+        '<div style="background:var(--panel,var(--bg));border:1px solid var(--line);border-radius: 22px;padding:36px 32px;max-width:340px;width:100%;text-align:center;box-shadow: var(--shadow-3);">' +
           '<p style="font-size:2rem;margin:0 0 12px;">⚙️</p>' +
           '<h3 style="color:var(--text,var(--text));margin:0 0 8px;font-size: 1.15rem;font-weight:700;">Something went wrong</h3>' +
           '<p style="color:var(--muted,var(--line));font-size: 0.82rem;margin:0 0 6px;line-height:1.5;">An unexpected error occurred. Your progress is saved.</p>' +
           (msg ? '<p style="color:var(--muted,var(--line));font-size:0.72rem;margin:0 0 24px;opacity:0.6;font-family:monospace;word-break:break-word;">' + String(msg).slice(0, 120) + '</p>' : '<div style="margin-bottom:24px;"></div>') +
           '<button onclick="location.reload()" style="width:100%;padding:12px;background:var(--accent);color:var(--accent-ink);border:none;border-radius: 8px;font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:10px;font-family:inherit;">Reload app</button>' +
-          '<button onclick="document.getElementById(\'_crashOverlay\').remove();try{renderHome();}catch(e){}" style="width:100%;padding:10px;background:transparent;color:var(--muted,var(--line));border:1px solid var(--line,rgba(255,255,255,0.08));border-radius: 8px;font-size: 0.82rem;cursor:pointer;font-family:inherit;">Try going home</button>' +
+          '<button onclick="document.getElementById(\'_crashOverlay\').remove();try{renderHome();}catch(e){}" style="width:100%;padding:10px;background:transparent;color:var(--muted,var(--line));border:1px solid var(--line);border-radius: 8px;font-size: 0.82rem;cursor:pointer;font-family:inherit;">Try going home</button>' +
         '</div>';
       document.body ? document.body.appendChild(d) : document.addEventListener('DOMContentLoaded', function() { document.body.appendChild(d); });
     }
@@ -1367,10 +1367,10 @@
     var stripes = window._gamStripesSvg(tier.stripes, tier.color) + '&nbsp;' + window._gamStripesSvg(tier.stripes, tier.color);
     overlay.innerHTML =
       '<div style="text-align:center;animation:_ruPop .65s cubic-bezier(.34,1.56,.64,1) both;">' +
-        '<div style="font-size:0.9rem;font-weight: 800;letter-spacing:.35em;color:' + tier.color + ';animation:_ruGlow 1.8s ease-in-out infinite;margin-bottom:22px;text-transform:uppercase;">Rank Up</div>' +
+        '<div style="font-size:0.9rem;font-weight: 800;letter-spacing: 0.2em;color:' + tier.color + ';animation:_ruGlow 1.8s ease-in-out infinite;margin-bottom:22px;text-transform:uppercase;">Rank Up</div>' +
         '<div style="margin-bottom:18px;font-size: 1.35rem;">' + stripes + '</div>' +
-        '<div style="font-size: 2rem;font-weight: 800;color:#fff;line-height:1;letter-spacing:.02em;">' + tier.label.toUpperCase() + '</div>' +
-        '<div style="font-size: 0.82rem;color:rgba(255,255,255,.38);margin-top:32px;letter-spacing:.12em;">TAP TO CONTINUE</div>' +
+        '<div style="font-size: 2rem;font-weight: 800;color:#fff;line-height:1;letter-spacing: 0.02em;">' + tier.label.toUpperCase() + '</div>' +
+        '<div style="font-size: 0.82rem;color:rgba(255,255,255,.38);margin-top:32px;letter-spacing: 0.12em;">TAP TO CONTINUE</div>' +
       '</div>';
     var dismiss = function() {
       overlay.style.transition = 'opacity .3s';
@@ -1579,7 +1579,7 @@
     el.id = 'viewAsSwitcher';
     el.style.cssText = 'display:flex;gap:6px;align-items:center;';
     el.innerHTML =
-      '<span style="font-size: 0.62rem;color:var(--muted);font-weight:700;letter-spacing:1px;margin-right:2px;">VIEW AS</span>' +
+      '<span style="font-size: 0.62rem;color:var(--muted);font-weight:700;letter-spacing: 0.08em;margin-right:2px;">VIEW AS</span>' +
       ['ADMIN','INSTRUCTOR','STUDENT'].map(function(v) {
         var active = AppState.viewAs === v;
         return '<button onclick="setViewAs(\'' + v + '\')" style="padding:4px 10px;font-size: 0.72rem;font-weight:700;border-radius:8px;border:1.5px solid ' +
@@ -1804,15 +1804,15 @@
           '<div class="home-card-img" style="position:relative;background:' + opts.gradient + ';overflow:hidden;">' +
             '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 55%);"></div>' +
             '<div style="position:absolute;bottom:12px;left:14px;display:flex;align-items:center;gap:10px;">' +
-              '<div style="width:38px;height:38px;border-radius:50%;background:' + opts.icon.bg + ';border:2px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-size: 1.15rem;">' + opts.icon.emoji + '</div>' +
-              '<span style="font-size: 0.72rem;font-weight:800;letter-spacing:.13em;color:rgba(255,255,255,.75);text-transform:uppercase;">' + opts.badge + '</span>' +
+              '<div style="width:38px;height:38px;border-radius:50%;background:' + opts.icon.bg + ';border:2px solid var(--line-strong);display:flex;align-items:center;justify-content:center;font-size: 1.15rem;">' + opts.icon.emoji + '</div>' +
+              '<span style="font-size: 0.72rem;font-weight:800;letter-spacing: 0.12em;color:rgba(255,255,255,.75);text-transform:uppercase;">' + opts.badge + '</span>' +
             '</div>' +
             opts.statusHtml +
           '</div>' +
           // Card body
           '<div style="padding:14px 16px;">' +
             '<h3 style="margin:0 0 2px;font-size:1rem;font-weight:700;">' + opts.title + '</h3>' +
-            '<p style="margin:0 0 12px;font-size: 0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-weight:600;">' + opts.subtitle + '</p>' +
+            '<p style="margin:0 0 12px;font-size: 0.72rem;color:var(--muted);text-transform:uppercase;letter-spacing: 0.08em;font-weight:600;">' + opts.subtitle + '</p>' +
             opts.bodyHtml +
             '<button class="btn ' + opts.btnClass + '" style="width:100%;font-size: 0.82rem;margin-top:12px;" onclick="event.stopPropagation();' + opts.onClick + '">' + opts.btnLabel + '</button>' +
           '</div>' +
@@ -1868,10 +1868,10 @@
           : '';
         streakCard = flicker +
           '<div onclick="_navTo(renderSimulatorPlaceholder)" class="streak-hero-card" style="flex:1;min-width:280px;cursor:pointer;background:' + gradient + ';border-radius: 12px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 24px 28px;text-align:center;">' +
-            '<div style="font-size: 2rem;line-height:1;margin-bottom:14px;filter:' + flameFilter + ';transition:filter 1s;' + (hour >= 19 ? 'animation:_lmsFlicker 1.6s ease-in-out infinite;' : '') + '">🔥</div>' +
-            '<div style="font-size: 2rem;font-weight: 800;color:#fff;line-height:1;letter-spacing:-0.02em;">' + days + '</div>' +
+            '<div style="font-size: 2rem;line-height:1;margin-bottom:14px;filter:' + flameFilter + ';transition:filter 0.4s var(--ease);' + (hour >= 19 ? 'animation:_lmsFlicker 1.6s ease-in-out infinite;' : '') + '">🔥</div>' +
+            '<div style="font-size: 2rem;font-weight: 800;color:#fff;line-height:1;letter-spacing: -0.02em;">' + days + '</div>' +
             '<div style="font-size:1rem;font-weight:700;color:rgba(255,255,255,.75);margin-top:2px;margin-bottom:6px;">day streak</div>' +
-            '<div style="font-size: 0.72rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:28px;">' + _leftLabel + '</div>' +
+            '<div style="font-size: 0.72rem;font-weight:800;letter-spacing: 0.12em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:28px;">' + _leftLabel + '</div>' +
             '<button class="btn primary" style="width:100%;font-size: 0.82rem;" onclick="event.stopPropagation();_navTo(renderSimulatorPlaceholder)">' +
               (_doneToday ? 'Keep training \u2192' : 'Protect streak \u2192') + '</button>' +
             pushBtn +
@@ -1879,16 +1879,16 @@
       })();
 
       var simStatusHtml = _cpPending
-        ? '<span style="position:absolute;top:10px;right:12px;font-size: 0.72rem;font-weight:800;background:rgba(234,179,8,.25);border:1px solid rgba(234,179,8,.5);color:var(--green);padding:2px 10px;border-radius: 22px;letter-spacing:.06em;">EXAM</span>'
-        : '<span style="position:absolute;top:10px;right:12px;font-size: 0.72rem;font-weight:800;background:rgba(14,165,233,.25);border:1px solid rgba(14,165,233,.5);color:var(--accent);padding:2px 10px;border-radius: 22px;letter-spacing:.06em;">&#9654; ACTIVE</span>';
+        ? '<span style="position:absolute;top:10px;right:12px;font-size: 0.72rem;font-weight:800;background:rgba(234,179,8,.25);border:1px solid rgba(234,179,8,.5);color:var(--green);padding:2px 10px;border-radius: 22px;letter-spacing: 0.06em;">EXAM</span>'
+        : '<span style="position:absolute;top:10px;right:12px;font-size: 0.72rem;font-weight:800;background:rgba(14,165,233,.25);border:1px solid rgba(14,165,233,.5);color:var(--accent);padding:2px 10px;border-radius: 22px;letter-spacing: 0.06em;">&#9654; ACTIVE</span>';
       var simBodyHtml =
         '<div style="display:flex;gap:0;margin-bottom:4px;">' +
           '<div style="flex:1;border-right:1px solid var(--line);padding-right:12px;">' +
-            '<p style="margin:0;font-size: 0.72rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Level</p>' +
+            '<p style="margin:0;font-size: 0.72rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing: 0.06em;">Level</p>' +
             '<p class="home-stat-val" style="margin:0;font-size: 1.35rem;font-weight:800;color:var(--cyan);">' + level + '</p>' +
           '</div>' +
           '<div style="flex:1;padding-left:12px;">' +
-            '<p style="margin:0;font-size: 0.72rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Country</p>' +
+            '<p style="margin:0;font-size: 0.72rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing: 0.06em;">Country</p>' +
             '<p class="home-stat-val" style="margin:0;font-size: 1.6rem;line-height:1;">' + safeText(getCountryUi(country).emoji || '🌐') + '</p>' +
           '</div>' +
         '</div>';
@@ -1912,7 +1912,7 @@
           : '_navTo(renderSimulatorPlaceholder)'
       });
 
-      var teaStatusHtml = '<span style="position:absolute;top:10px;right:12px;font-size: 0.72rem;font-weight:800;background:rgba(139,92,246,.25);border:1px solid rgba(139,92,246,.5);color:var(--muted);padding:2px 10px;border-radius: 22px;letter-spacing:.06em;">ICAO TEST</span>';
+      var teaStatusHtml = '<span style="position:absolute;top:10px;right:12px;font-size: 0.72rem;font-weight:800;background:rgba(139,92,246,.25);border:1px solid rgba(139,92,246,.5);color:var(--muted);padding:2px 10px;border-radius: 22px;letter-spacing: 0.06em;">ICAO TEST</span>';
       var teaBodyHtml =
         '<p style="margin:0;font-size: 0.82rem;color:var(--muted);line-height:1.55;">Evaluate your reading, listening and comprehension skills for ICAO Level 4+.</p>'
 ;
@@ -2352,7 +2352,7 @@
           '</table>' +
         '</div>' +
 
-        '<div class="panel" style="background:var(--bg);border:1px solid var(--panel);margin-top:0;">' +
+        '<div class="panel" style="background:var(--bg);border:1px solid var(--line);margin-top:0;">' +
           '<h4 style="margin:0 0 12px;color:var(--text);">Create new group</h4>' +
           '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">' +
             '<div>' +
@@ -2947,7 +2947,7 @@
         '<textarea id="vlSampleText" class="input" rows="2" style="width:100%;font-size: 0.82rem;">' + safeText(sampleText) + '</textarea>' +
       '</div>' +
       langRows +
-      '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--panel);">' +
+      '<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">' +
         '<p style="font-size:0.72rem;color:var(--muted);margin:0 0 8px;">Scan Google API for actual available voices per locale</p>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
           ['en-CA','en-AU','en-GB','en-US','en-IN','en-IE','en-ZA'].map(function(lc) {
@@ -3056,12 +3056,12 @@
         '</div>' +
         '<div id="rtSummary" style="font-weight:600;margin-bottom:8px;"></div>' +
         '<div id="rtResults" style="overflow-x:auto;"></div>' +
-        '<hr style="border-color:#222;margin:24px 0 16px;">' +
+        '<hr style="border-color:var(--line);margin:24px 0 16px;">' +
         '<h3 style="margin-bottom:8px;">Progress Diagnostics</h3>' +
         '<p style="color:var(--muted);font-size:0.82rem;margin-bottom:12px;">Shows your raw Progress sheet rows — use this to debug rank vs level card incoherence.</p>' +
         '<button class="btn secondary" onclick="adminDiagnoseMyProgress()">Diagnose My Progress</button>' +
         '<div id="rtDiag" style="margin-top:12px;font-size: 0.82rem;overflow-x:auto;"></div>' +
-        '<hr style="border-color:#222;margin:24px 0 16px;">' +
+        '<hr style="border-color:var(--line);margin:24px 0 16px;">' +
         '<h3 style="margin-bottom:8px;">Schema Migration</h3>' +
         '<p style="color:var(--muted);font-size:0.82rem;margin-bottom:12px;">Adds any missing column headers to the database sheets. Safe to run multiple times — only adds columns that are missing.</p>' +
         '<button class="btn secondary" onclick="adminRunMigration()">Run Schema Migration</button>' +
@@ -3081,7 +3081,7 @@
         if (!res.rows || !res.rows.length) {
           html += '<span style="color:var(--red);">No Progress rows found for this user.</span>';
         } else {
-          html += '<table style="border-collapse:collapse;font-size: 0.82rem;"><thead><tr style="border-bottom:2px solid #333;">' +
+          html += '<table style="border-collapse:collapse;font-size: 0.82rem;"><thead><tr style="border-bottom:2px solid var(--line-strong);">' +
             '<th style="padding:4px 10px;">Level</th><th style="padding:4px 10px;">Country</th>' +
             '<th style="padding:4px 10px;">Done</th>' +
             '<th style="padding:4px 10px;">Score</th><th style="padding:4px 10px;">Progress</th>' +
@@ -3094,7 +3094,7 @@
             var isDone = r.completed === true || r.completed === 1 || String(r.completed).toUpperCase() === 'TRUE' || String(r.completed) === '1';
             var col = isDone ? 'var(--green)' : 'var(--red)';
             var na = '<span style="color:var(--muted);">—</span>';
-            html += '<tr style="border-bottom:1px solid #222;">' +
+            html += '<tr style="border-bottom:1px solid var(--line);">' +
               '<td style="padding:4px 10px;">' + safeText(String(r.level)) + '</td>' +
               '<td style="padding:4px 10px;">' + safeText(r.country) + '</td>' +
               '<td style="padding:4px 10px;color:' + col + ';">' + (isDone ? '✓' : '✗') + '</td>' +
@@ -3191,7 +3191,7 @@
 
         var html =
           '<table style="width:100%;border-collapse:collapse;font-size: 0.82rem;">' +
-          '<thead><tr style="text-align:left;border-bottom:2px solid #333;">' +
+          '<thead><tr style="text-align:left;border-bottom:2px solid var(--line-strong);">' +
             '<th style="padding:6px 8px;">Scenario</th>' +
             '<th style="padding:6px 8px;">Lvl</th>' +
             '<th style="padding:6px 8px;">Country</th>' +
@@ -3211,7 +3211,7 @@
             var expTxt = r.shouldPass ? 'PASS' : 'FAIL';
             var mark   = r.behaviorOk ? '<span style="color:var(--green);">✓</span>' : '<b style="color:var(--red);">✗</b>';
             html +=
-              '<tr style="border-bottom:1px solid #222;' + rowBg + '">' +
+              '<tr style="border-bottom:1px solid var(--line);' + rowBg + '">' +
                 '<td style="padding:5px 8px;font-family:monospace;white-space:nowrap;">' + (i === 0 ? safeText(scId) : '') + '</td>' +
                 '<td style="padding:5px 8px;">' + (i === 0 ? safeText(String(r.level)) : '') + '</td>' +
                 '<td style="padding:5px 8px;">' + (i === 0 ? safeText(r.country) : '') + '</td>' +
@@ -3379,7 +3379,7 @@
         '<div style="padding:12px 16px;border-radius:8px;background:' + summaryColor + '20;border:1px solid ' + summaryColor + ';color:' + summaryColor + ';font-weight:600;margin-bottom:20px;">' +
           summaryMsg +
         '</div>' +
-        '<div style="padding:10px 14px;border-radius: 4px;background:var(--surface-2);border:1px solid var(--border);font-size:0.82rem;margin-bottom:20px;line-height:1.6;">' +
+        '<div style="padding:10px 14px;border-radius: 4px;background:var(--panel-soft);border:1px solid var(--line);font-size:0.82rem;margin-bottom:20px;line-height:1.6;">' +
           '<strong>Legend:</strong> ' +
           '<span style="color:var(--red);">✗ Missing field</span> · ' +
           '<span style="color:var(--yellow);">⚠ Consistency issue</span> — keyword not found in ATC text or expected readback · ' +
@@ -3392,8 +3392,8 @@
         : '<span style="background:var(--green);color:#fff;padding:2px 8px;border-radius:12px;font-size: 0.72rem;margin-left:8px;">OK</span>';
 
       html +=
-        '<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:16px;overflow:hidden;">' +
-          '<div style="padding:12px 16px;background:var(--surface-2);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">' +
+        '<div style="border:1px solid var(--line);border-radius:8px;margin-bottom:16px;overflow:hidden;">' +
+          '<div style="padding:12px 16px;background:var(--panel-soft);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">' +
             '<div>' +
               '<strong>' + safeText(route.flightScenarioName) + '</strong>' + headerBadge +
               '<br><small style="opacity:0.6;">Level ' + safeText(route.level) + ' · ' + safeText(route.country) + ' · ' + safeText(route.scenarioType) +
@@ -3500,7 +3500,7 @@
 
   function _lcInput(id, type, val, extra) {
     return '<input id="' + id + '" type="' + type + '" value="' + safeText(val) + '" ' + (extra || '') +
-      ' style="width:72px;padding:5px 7px;border:1px solid var(--border);border-radius: 4px;background:var(--surface-2);color:var(--text);text-align:center;font-size: 0.82rem;">';
+      ' style="width:72px;padding:5px 7px;border:1px solid var(--line);border-radius: 4px;background:var(--panel-soft);color:var(--text);text-align:center;font-size: 0.82rem;">';
   }
   function _lcCheck(id, checked) {
     return '<input id="' + id + '" type="checkbox"' + (checked ? ' checked' : '') + ' style="width:16px;height:16px;cursor:pointer;accent-color:var(--muted);">';
@@ -3597,8 +3597,8 @@
   window.adminAutoFillRamp  = adminAutoFillRamp;
 
   function _renderLevelConfigUI(levels, driftTiers) {
-    var thStyle = 'padding:8px 12px;font-size: 0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;';
-    var tdStyle = 'padding:10px 12px;vertical-align:middle;border-bottom:1px solid rgba(255,255,255,0.04);';
+    var thStyle = 'padding:8px 12px;font-size: 0.72rem;font-weight:700;text-transform:uppercase;letter-spacing: 0.06em;color:var(--muted);border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;';
+    var tdStyle = 'padding:10px 12px;vertical-align:middle;border-bottom:1px solid var(--line);';
 
     // Init difficulty state from saved data
     levels.forEach(function(l) { _LEVEL_DIFF_STATE[l.level] = _guessDiff(l); });
@@ -3683,7 +3683,7 @@
         '<details style="margin-top:28px;">' +
           '<summary style="cursor:pointer;font-size: 0.82rem;color:var(--muted);user-select:none;padding:6px 0;">▸ Advanced — raw level defaults, phase overrides &amp; drift speed</summary>' +
           '<div style="margin-top:16px;">' +
-            '<h4 style="font-size: 0.82rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin:0 0 8px;">Level Defaults</h4>' +
+            '<h4 style="font-size: 0.82rem;text-transform:uppercase;letter-spacing: 0.08em;color:var(--muted);margin:0 0 8px;">Level Defaults</h4>' +
             '<div class="table-wrap" style="margin-bottom:28px;">' +
               '<table style="width:100%;border-collapse:collapse;font-size: 0.82rem;">' +
                 '<thead><tr>' +
@@ -3697,7 +3697,7 @@
                 '<tbody>' + (levelRows || '<tr><td colspan="6" style="padding:12px;color:var(--muted)">No levels found.</td></tr>') + '</tbody>' +
               '</table>' +
             '</div>' +
-            '<h4 style="font-size: 0.82rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin:0 0 8px;">Phase Overrides</h4>' +
+            '<h4 style="font-size: 0.82rem;text-transform:uppercase;letter-spacing: 0.08em;color:var(--muted);margin:0 0 8px;">Phase Overrides</h4>' +
             '<div class="table-wrap">' +
               '<table style="width:100%;border-collapse:collapse;font-size: 0.82rem;">' +
                 '<thead><tr>' +
@@ -3737,14 +3737,14 @@
       return '<tr>' +
         '<td style="' + tdStyle + ';color:var(--muted);font-size: 0.82rem;">' + range + '</td>' +
         '<td style="' + tdStyle + '">' + _lcInput('driftInterval' + i, 'number', intSec, 'min="0.5" max="10" step="0.5" style="width:60px"') + '<small style="color:var(--muted);margin-left:4px;">s</small></td>' +
-        '<td style="' + tdStyle + '"><input id="driftAlt' + i + '" type="text" value="' + (t.altAmounts || []).join(', ') + '" style="width:130px;padding:5px 7px;border:1px solid var(--border);border-radius: 4px;background:var(--surface-2);color:var(--text);font-size: 0.82rem;" placeholder="50, 100, 200"><small style="color:var(--muted);margin-left:4px;">ft</small></td>' +
-        '<td style="' + tdStyle + '"><input id="driftHdg' + i + '" type="text" value="' + (t.hdgDrops || []).join(', ') + '" style="width:110px;padding:5px 7px;border:1px solid var(--border);border-radius: 4px;background:var(--surface-2);color:var(--text);font-size: 0.82rem;" placeholder="5, 10, 20"><small style="color:var(--muted);margin-left:4px;">°</small></td>' +
+        '<td style="' + tdStyle + '"><input id="driftAlt' + i + '" type="text" value="' + (t.altAmounts || []).join(', ') + '" style="width:130px;padding:5px 7px;border:1px solid var(--line);border-radius: 4px;background:var(--panel-soft);color:var(--text);font-size: 0.82rem;" placeholder="50, 100, 200"><small style="color:var(--muted);margin-left:4px;">ft</small></td>' +
+        '<td style="' + tdStyle + '"><input id="driftHdg' + i + '" type="text" value="' + (t.hdgDrops || []).join(', ') + '" style="width:110px;padding:5px 7px;border:1px solid var(--line);border-radius: 4px;background:var(--panel-soft);color:var(--text);font-size: 0.82rem;" placeholder="5, 10, 20"><small style="color:var(--muted);margin-left:4px;">°</small></td>' +
         '<td style="' + tdStyle + '">' + _lcInput('driftLevelMax' + i, 'number', t.levelMax >= 99 ? 99 : t.levelMax, 'min="1" max="99" style="width:52px"') + '<small style="color:var(--muted);margin-left:4px;">max lvl</small></td>' +
         '<td style="' + tdStyle + '"><button class="btn primary" style="padding:5px 14px;font-size: 0.82rem;" onclick="adminSaveDriftTier(' + i + ')">Save</button></td>' +
       '</tr>';
     }).join('');
 
-    return '<h4 style="font-size: 0.82rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin:28px 0 8px;">Flight Drift Difficulty <span style="font-weight:400;font-size:0.72rem;text-transform:none;letter-spacing:0">&mdash; controls how fast heading drops and altitude drifts per level tier</span></h4>' +
+    return '<h4 style="font-size: 0.82rem;text-transform:uppercase;letter-spacing: 0.08em;color:var(--muted);margin:28px 0 8px;">Flight Drift Difficulty <span style="font-weight:400;font-size:0.72rem;text-transform:none;letter-spacing:0">&mdash; controls how fast heading drops and altitude drifts per level tier</span></h4>' +
       '<div class="table-wrap" style="margin-bottom:8px;">' +
         '<table style="width:100%;border-collapse:collapse;font-size: 0.82rem;">' +
           '<thead><tr>' +
@@ -5233,8 +5233,8 @@ var LEVEL_THEMES = {
               '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
                 '<span class="vr-event-badge">' + vr.icon + ' ' + vr.label + '</span>' +
                 '<span style="display:flex;gap:5px;flex-shrink:0;">' +
-                  '<span style="font-size: 0.72rem;font-weight:800;background:rgba(255,255,255,0.12);border-radius:4px;padding:2px 6px;letter-spacing:0.04em;">' + vr.xpLabel + '</span>' +
-                  '<span style="font-size: 0.72rem;font-weight:800;background:rgba(255,215,0,0.18);color:var(--yellow);border-radius:4px;padding:2px 6px;letter-spacing:0.04em;">+' + vr.cp + ' CP</span>' +
+                  '<span style="font-size: 0.72rem;font-weight:800;background:rgba(255,255,255,0.12);border-radius:4px;padding:2px 6px;letter-spacing: 0.04em;">' + vr.xpLabel + '</span>' +
+                  '<span style="font-size: 0.72rem;font-weight:800;background:rgba(255,215,0,0.18);color:var(--yellow);border-radius:4px;padding:2px 6px;letter-spacing: 0.04em;">+' + vr.cp + ' CP</span>' +
                 '</span>' +
               '</div>' +
               '<span class="vr-event-desc">' +
@@ -5291,7 +5291,7 @@ var LEVEL_THEMES = {
                 //
                 // This appended '28' and '50' to the accent to get hex alpha, which
                 // works only while every accent is a six-digit hex. The teal sweep
-                // turned level 1's into var(--accent), and 'var(--accent)28' is not a
+                // turned level 1's into var(--accent), and 'var(--line-strong)' is not a
                 // colour — so that tag lost its background, its border and its text
                 // colour at once, silently, because invalid CSS is simply dropped.
                 //
@@ -5390,8 +5390,8 @@ var LEVEL_THEMES = {
             '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
               '<span class="vr-event-badge">' + olVr.icon + ' ' + olVr.label + '</span>' +
               '<span style="display:flex;gap:5px;flex-shrink:0;">' +
-                '<span style="font-size: 0.72rem;font-weight:800;background:rgba(255,255,255,0.12);border-radius:4px;padding:2px 6px;letter-spacing:0.04em;">' + olVr.xpLabel + '</span>' +
-                '<span style="font-size: 0.72rem;font-weight:800;background:rgba(255,215,0,0.18);color:var(--yellow);border-radius:4px;padding:2px 6px;letter-spacing:0.04em;">+' + olVr.cp + ' CP</span>' +
+                '<span style="font-size: 0.72rem;font-weight:800;background:rgba(255,255,255,0.12);border-radius:4px;padding:2px 6px;letter-spacing: 0.04em;">' + olVr.xpLabel + '</span>' +
+                '<span style="font-size: 0.72rem;font-weight:800;background:rgba(255,215,0,0.18);color:var(--yellow);border-radius:4px;padding:2px 6px;letter-spacing: 0.04em;">+' + olVr.cp + ' CP</span>' +
               '</span>' +
             '</div>' +
             '<span class="vr-event-desc">' +
@@ -5628,8 +5628,8 @@ var LEVEL_THEMES = {
     var _nextCp  = Math.round(50 * (1 + 0.10 * _wkLvls));
     var _multip  = Math.round((1 + 0.10 * _wkLvls) * 10) / 10;
     var _cpStrip = _wkLvls >= 10
-      ? '<div style="margin-top:10px;padding:7px 14px;background:rgba(218,165,32,0.08);border:1px solid rgba(218,165,32,0.25);border-radius:8px;font-size: 0.72rem;color:var(--yellow);font-weight:700;letter-spacing:0.04em;">🏆 Full week complete — 725 CP earned</div>'
-      : '<div style="margin-top:10px;padding:7px 14px;background:rgba(var(--accent-rgb), 0.06);border:1px solid rgba(var(--accent-rgb), 0.18);border-radius:8px;font-size: 0.72rem;color:var(--accent);letter-spacing:0.04em;">' +
+      ? '<div style="margin-top:10px;padding:7px 14px;background:rgba(218,165,32,0.08);border:1px solid rgba(218,165,32,0.25);border-radius:8px;font-size: 0.72rem;color:var(--yellow);font-weight:700;letter-spacing: 0.04em;">🏆 Full week complete — 725 CP earned</div>'
+      : '<div style="margin-top:10px;padding:7px 14px;background:rgba(var(--accent-rgb), 0.06);border:1px solid rgba(var(--accent-rgb), 0.18);border-radius:8px;font-size: 0.72rem;color:var(--accent);letter-spacing: 0.04em;">' +
           '⚡ Complete this level → <strong>+' + _nextCp + ' CP</strong> <span style="color:var(--muted);">(' + _multip + '× multiplier)</span>' +
         '</div>';
 
@@ -6988,7 +6988,7 @@ var LEVEL_THEMES = {
       start(phaseCode);
     }
 
-    return { start: start, stop: stop, transition: transition };
+    return { start: start, stop: stop, transition: transition};
   }());
   window.SimAmbient = SimAmbient;
 
@@ -7677,7 +7677,7 @@ var LEVEL_THEMES = {
       host.innerHTML =
         '<div style="padding:12px 14px;border-radius:12px;text-align:left;' +
           'background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.35);">' +
-          '<p style="margin:0 0 6px;font-size: 0.62rem;font-weight:800;letter-spacing:.14em;' +
+          '<p style="margin:0 0 6px;font-size: 0.62rem;font-weight:800;letter-spacing: 0.12em;' +
             'text-transform:uppercase;color:var(--yellow);">ATC \u00b7 audio unavailable</p>' +
           '<p style="margin:0;font-size: 0.9rem;line-height:1.55;color:var(--muted);">' +
             safeText(String(text || '')) + '</p>' +
@@ -7766,7 +7766,7 @@ var LEVEL_THEMES = {
               '<div class="sim-section-title"><span>ATC RADIO</span>' +
                 '<div style="display:flex;gap:6px;align-items:center;">' +
                   '<span class="sim-live-dot" id="simAtcLiveDot" style="display:none;">PLAYING</span>' +
-                  '<span id="atcVoiceBadge" style="font-size:0.72rem;color:var(--muted);letter-spacing:.02em;align-self:center;">loading…</span>' +
+                  '<span id="atcVoiceBadge" style="font-size:0.72rem;color:var(--muted);letter-spacing: 0.02em;align-self:center;">loading…</span>' +
                   '<button class="btn primary" id="atcReplayBtn" onclick="immersivePlayAtcAudio(event)">&#8635; Replay ATC</button>' +
                 '</div>' +
               '</div>' +
@@ -9501,7 +9501,7 @@ var LEVEL_THEMES = {
           '<span class="completion-radar-plane"><svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg></span>' +
         '</div>' +
         '<div class="completion-loading-text">' +
-          '<p class="eyebrow" style="letter-spacing:.14em;">' + safeText(eyebrow || '') + '</p>' +
+          '<p class="eyebrow" style="letter-spacing: 0.12em;">' + safeText(eyebrow || '') + '</p>' +
           '<h2 id="radarLoaderMsg">' + safeText(msgs[0]) + '</h2>' +
           '<div class="completion-loading-bar"><div class="completion-loading-fill" id="radarLoaderFill"></div></div>' +
           '<p id="radarLoaderHint" style="font-size: 0.82rem;color:var(--muted);margin-top:10px;">' + safeText(hint || '') + '</p>' +
@@ -10199,7 +10199,7 @@ var LEVEL_THEMES = {
           '<span class="completion-radar-plane"><svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg></span>' +
         '</div>' +
         '<div class="completion-loading-text">' +
-          '<p class="eyebrow" style="letter-spacing:.14em;">ROUTE COMPLETE</p>' +
+          '<p class="eyebrow" style="letter-spacing: 0.12em;">ROUTE COMPLETE</p>' +
           '<h2 id="completionLoadingMsg">Calculating your score&hellip;</h2>' +
           '<div class="completion-loading-bar"><div class="completion-loading-fill" id="completionLoadingFill"></div></div>' +
           '<p id="completionLoadingHint" style="font-size: 0.82rem;color:var(--muted);margin-top:10px;">Syncing with training server</p>' +
@@ -10632,16 +10632,16 @@ var LEVEL_THEMES = {
       var vrLabel  = vrLabels[vrBonus.type] || vrBonus.type;
       vrPanel =
         '<div style="margin:20px 0;padding:18px 22px;background:' + vrColor + '0f;border:1.5px solid ' + vrColor + '44;border-radius: 12px;text-align:center;">' +
-          '<div style="font-size:0.72rem;font-weight:800;letter-spacing:0.12em;color:' + vrColor + ';margin-bottom:8px;">' + safeText(vrLabel) + ' — BONUS CONFIRMED</div>' +
+          '<div style="font-size:0.72rem;font-weight:800;letter-spacing: 0.12em;color:' + vrColor + ';margin-bottom:8px;">' + safeText(vrLabel) + ' — BONUS CONFIRMED</div>' +
           '<div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;">' +
             '<div>' +
               '<div style="font-size:2rem;font-weight: 800;color:' + vrColor + ';font-family:\'Courier New\',monospace;line-height:1;">+' + safeText(vrBonus.bonusXp) + '</div>' +
-              '<div style="font-size:0.72rem;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:0.06em;">Bonus XP</div>' +
+              '<div style="font-size:0.72rem;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing: 0.06em;">Bonus XP</div>' +
             '</div>' +
             '<div style="width:1px;background:' + vrColor + '30;"></div>' +
             '<div>' +
               '<div style="font-size:2rem;font-weight: 800;color:' + vrColor + ';font-family:\'Courier New\',monospace;line-height:1;">+' + safeText(vrBonus.bonusCp) + '</div>' +
-              '<div style="font-size:0.72rem;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:0.06em;">Bonus CP</div>' +
+              '<div style="font-size:0.72rem;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing: 0.06em;">Bonus CP</div>' +
             '</div>' +
           '</div>' +
           '<div style="font-size:0.72rem;color:var(--muted);margin-top:10px;">Added to your weekly total — visible on the leaderboard</div>' +
@@ -11051,7 +11051,7 @@ var LEVEL_THEMES = {
           return '<tr>' +
             '<td><span class="tm-initials-sm" style="background:' + _tmColor(t.name) + ';">' + _tmInitials(t.name) + '</span></td>' +
             '<td><strong>' + safeText(t.name) + '</strong><br><span style="color:var(--muted);font-size: 0.82rem;">' + safeText(t.role) + '</span></td>' +
-            '<td style="color:var(--yellow);letter-spacing:2px;">' + stars + '</td>' +
+            '<td style="color:var(--yellow);letter-spacing: 0.2em;">' + stars + '</td>' +
             '<td style="font-size:0.82rem;color:var(--muted);max-width:260px;">' + safeText(String(t.text || '').substring(0, 100)) + (String(t.text||'').length > 100 ? '…' : '') + '</td>' +
             '<td><span style="color:' + (t.active === 'true' || t.active === true ? 'var(--green)' : 'var(--red)') + ';font-size: 0.82rem;">' + (t.active === 'true' || t.active === true ? 'Visible' : 'Hidden') + '</span></td>' +
             '<td>#' + safeText(t.sortOrder || 0) + '</td>' +
@@ -11072,7 +11072,7 @@ var LEVEL_THEMES = {
           '<thead><tr><th></th><th>Name / Role</th><th>Stars</th><th>Testimonial</th><th>Status</th><th>Order</th><th>Actions</th></tr></thead>' +
           '<tbody>' + rows + '</tbody>' +
         '</table></div>' +
-        '<div class="panel" style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);padding:20px;" id="tmFormWrap">' +
+        '<div class="panel" style="background:rgba(255,255,255,0.04);border:1px solid var(--line);padding:20px;" id="tmFormWrap">' +
           _renderTmForm(null) +
         '</div>' +
       '</div>';
@@ -11371,14 +11371,14 @@ var LEVEL_THEMES = {
           '<table style="width:100%;border-collapse:collapse;font-size: 0.82rem;color:var(--muted);">' +
             '<thead>' +
               '<tr style="border-bottom:1px solid #1e3048;">' +
-                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing:0.06em;">DATE</th>' +
-                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing:0.06em;">NAME</th>' +
-                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing:0.06em;">EMAIL</th>' +
-                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing:0.06em;">TOUR</th>' +
-                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing:0.06em;">TYPE</th>' +
-                '<th style="text-align:right;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing:0.06em;">XP</th>' +
-                '<th style="text-align:right;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing:0.06em;">RANK</th>' +
-                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing:0.06em;">STATUS</th>' +
+                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">DATE</th>' +
+                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">NAME</th>' +
+                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">EMAIL</th>' +
+                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">TOUR</th>' +
+                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">TYPE</th>' +
+                '<th style="text-align:right;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">XP</th>' +
+                '<th style="text-align:right;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">RANK</th>' +
+                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">STATUS</th>' +
               '</tr>' +
             '</thead>' +
             '<tbody>';
@@ -11757,11 +11757,11 @@ var LEVEL_THEMES = {
           var cardShadow = popular ? '0 0 0 4px rgba(var(--accent-rgb), 0.08)' : 'none';
 
           var topBadge = popular
-            ? '<div class="sub-badge-hot" style="position:absolute;top:-13px;left:50%;transform:translateX(-50%);font-size: 0.72rem;letter-spacing:0.1em;padding:5px 16px;border-radius: 22px;white-space:nowrap;">MÁS POPULAR</div>'
+            ? '<div class="sub-badge-hot" style="position:absolute;top:-13px;left:50%;transform:translateX(-50%);font-size: 0.72rem;letter-spacing: 0.12em;padding:5px 16px;border-radius: 22px;white-space:nowrap;">MÁS POPULAR</div>'
             : '';
 
           var savingsBadge = m.savings
-            ? '<div style="display:inline-block;background:rgba(var(--accent-rgb), 0.12);border:1px solid rgba(var(--accent-rgb), 0.3);color:var(--accent);font-size: 0.72rem;font-weight:800;letter-spacing:0.06em;padding:3px 10px;border-radius: 22px;margin-bottom:14px;">' + m.savings + '</div>'
+            ? '<div style="display:inline-block;background:rgba(var(--accent-rgb), 0.12);border:1px solid rgba(var(--accent-rgb), 0.3);color:var(--accent);font-size: 0.72rem;font-weight:800;letter-spacing: 0.06em;padding:3px 10px;border-radius: 22px;margin-bottom:14px;">' + m.savings + '</div>'
             : '<div style="height:22px;margin-bottom:14px;"></div>';
 
           // Straight from the server's entitlement, so the card cannot promise more
@@ -11770,17 +11770,17 @@ var LEVEL_THEMES = {
                         plan.examAllowance + ' exam attempts';
           var priceBlock = monthlyCop
             ? '<p style="margin:0 0 2px;font-size:2rem;font-weight: 800;color:var(--text);line-height:1;white-space:nowrap;">COP ' + monthlyCop + '</p>' +
-              '<p style="margin:0 0 4px;font-size:0.72rem;color:var(--muted);letter-spacing:0.04em;white-space:nowrap;">/ month</p>' +
+              '<p style="margin:0 0 4px;font-size:0.72rem;color:var(--muted);letter-spacing: 0.04em;white-space:nowrap;">/ month</p>' +
               '<p style="margin:0 0 16px;font-size:0.72rem;color:var(--muted);">' + subtext + '</p>'
             : '<p style="margin:0 0 2px;font-size:2rem;font-weight: 800;color:var(--text);line-height:1;white-space:nowrap;">COP ' + totalCop + '</p>' +
               '<p style="margin:0 0 16px;font-size:0.72rem;color:var(--muted);">' + subtext + '</p>';
 
           var btnStyle = popular
-            ? 'width:100%;padding:12px;font-size:0.9rem;font-weight:700;background:var(--accent);color:var(--accent-ink);border:none;border-radius: 8px;cursor:pointer;transition:opacity 0.2s;'
-            : 'width:100%;padding:12px;font-size:0.9rem;font-weight:700;background:transparent;color:var(--text);border:1px solid rgba(255,255,255,0.2);border-radius: 8px;cursor:pointer;transition:background 0.2s,border-color 0.2s;';
+            ? 'width:100%;padding:12px;font-size:0.9rem;font-weight:700;background:var(--accent);color:var(--accent-ink);border:none;border-radius: 8px;cursor:pointer;transition:opacity 0.25s var(--ease);'
+            : 'width:100%;padding:12px;font-size:0.9rem;font-weight:700;background:transparent;color:var(--text);border:1px solid var(--line-strong);border-radius: 8px;cursor:pointer;transition:background 0.25s var(--ease), border-color 0.25s var(--ease);';
 
           var flagsRow =
-            '<p style="margin:0 0 6px;font-size: 0.72rem;font-weight:700;letter-spacing:0.1em;color:var(--muted);text-transform:uppercase;">Acentos incluidos</p>' +
+            '<p style="margin:0 0 6px;font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;color:var(--muted);text-transform:uppercase;">Acentos incluidos</p>' +
             '<div style="display:flex;justify-content:center;gap:6px;margin-bottom:16px;">' +
               '<span title="USA" style="font-size: 1.35rem;">&var(--accent);&var(--accent);</span>' +
               '<span title="UK"  style="font-size: 1.35rem;">&var(--accent);&var(--accent);</span>' +
@@ -11840,7 +11840,7 @@ var LEVEL_THEMES = {
             (popular ? '' : 'box-shadow:' + cardShadow + ';') + '">' +
             topBadge +
             '<div style="flex:1;">' +
-              '<p style="margin:0 0 2px;font-size: 0.72rem;font-weight:700;letter-spacing:0.12em;color:var(--muted);text-transform:uppercase;">' + m.name + '</p>' +
+              '<p style="margin:0 0 2px;font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;color:var(--muted);text-transform:uppercase;">' + m.name + '</p>' +
               '<p style="margin:0 0 12px;font-size: 0.82rem;color:#555;">' + m.duration + '</p>' +
               savingsBadge +
               priceBlock +
@@ -11941,7 +11941,7 @@ var LEVEL_THEMES = {
         '<h2 style="margin:0 0 6px;">Send Invites</h2>' +
         '<p class="subtitle" style="margin:0 0 20px;">One user per line. Format: <code>email, Full Name</code> — name is optional (email only also works).</p>' +
 
-        '<textarea id="inviteListInput" style="width:100%;height:200px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius: 8px;color:var(--text);font-size: 0.82rem;font-family:\'Courier New\',monospace;padding:12px;resize:vertical;outline:none;line-height:1.6;" placeholder="juan@example.com, Juan Pérez&#10;maria@example.com&#10;carlos@airline.com, Carlos Ruiz"></textarea>' +
+        '<textarea id="inviteListInput" style="width:100%;height:200px;background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius: 8px;color:var(--text);font-size: 0.82rem;font-family:\'Courier New\',monospace;padding:12px;resize:vertical;outline:none;line-height:1.6;" placeholder="juan@example.com, Juan Pérez&#10;maria@example.com&#10;carlos@airline.com, Carlos Ruiz"></textarea>' +
 
         '<div id="inviteParsePreview" style="margin-top:12px;"></div>' +
 
@@ -11981,7 +11981,7 @@ var LEVEL_THEMES = {
       return;
     }
     var rows = users.map(function(u, i) {
-      return '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">' +
+      return '<tr style="border-bottom:1px solid var(--line);">' +
         '<td style="padding:6px 10px;color:var(--muted);font-size: 0.82rem;">' + (i + 1) + '</td>' +
         '<td style="padding:6px 10px;color:var(--text);font-size: 0.82rem;">' + safeText(u.email) + '</td>' +
         '<td style="padding:6px 10px;color:var(--muted);font-size: 0.82rem;">' + safeText(u.name) + '</td>' +
@@ -11989,7 +11989,7 @@ var LEVEL_THEMES = {
     }).join('');
     preview.innerHTML =
       '<div style="background:rgba(var(--accent-rgb), 0.05);border:1px solid rgba(var(--accent-rgb), 0.18);border-radius: 8px;padding:12px 16px;">' +
-        '<p style="margin:0 0 10px;font-size: 0.82rem;font-weight:700;color:var(--accent);letter-spacing:0.06em;">PARSED — ' + users.length + ' USER' + (users.length !== 1 ? 'S' : '') + '</p>' +
+        '<p style="margin:0 0 10px;font-size: 0.82rem;font-weight:700;color:var(--accent);letter-spacing: 0.06em;">PARSED — ' + users.length + ' USER' + (users.length !== 1 ? 'S' : '') + '</p>' +
         '<table style="width:100%;border-collapse:collapse;">' +
           '<thead><tr>' +
             '<th style="padding:4px 10px;text-align:left;font-size:0.72rem;color:var(--muted);">#</th>' +
@@ -12079,8 +12079,8 @@ var LEVEL_THEMES = {
         '<h2 style="margin:0 0 20px;">Subscription Management</h2>' +
 
         // ── Pricing ──
-        '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px;margin-bottom:24px;">' +
-          '<p style="margin:0 0 14px;font-size: 0.82rem;font-weight:700;letter-spacing:0.07em;color:var(--muted);">PRICE SETTINGS (COP)</p>' +
+        '<div style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:24px;">' +
+          '<p style="margin:0 0 14px;font-size: 0.82rem;font-weight:700;letter-spacing: 0.08em;color:var(--muted);">PRICE SETTINGS (COP)</p>' +
           '<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">' +
             // The two plans that are actually for sale.
             //
@@ -12093,13 +12093,13 @@ var LEVEL_THEMES = {
             '<div>' +
               '<label style="display:block;font-size: 0.72rem;color:var(--muted);margin-bottom:6px;">Basic \u00b7 30 days</label>' +
               '<input id="subPriceBasic" type="number" min="0" step="100" ' +
-                'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);padding:9px 12px;width:130px;" ' +
+                'style="background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 12px;width:130px;" ' +
                 'placeholder="29900">' +
             '</div>' +
             '<div>' +
               '<label style="display:block;font-size: 0.72rem;color:var(--muted);margin-bottom:6px;">Full \u00b7 30 days</label>' +
               '<input id="subPriceFull" type="number" min="0" step="100" ' +
-                'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);padding:9px 12px;width:130px;" ' +
+                'style="background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 12px;width:130px;" ' +
                 'placeholder="49900">' +
             '</div>' +
             '<button class="btn primary" onclick="adminSubSavePrices()">Save Prices</button>' +
@@ -12108,19 +12108,19 @@ var LEVEL_THEMES = {
         '</div>' +
 
         // ── Manual grant ──
-        '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px;margin-bottom:24px;">' +
-          '<p style="margin:0 0 14px;font-size: 0.82rem;font-weight:700;letter-spacing:0.07em;color:var(--muted);">GRANT FREE ACCESS</p>' +
+        '<div style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:24px;">' +
+          '<p style="margin:0 0 14px;font-size: 0.82rem;font-weight:700;letter-spacing: 0.08em;color:var(--muted);">GRANT FREE ACCESS</p>' +
           '<div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">' +
             '<div>' +
               '<label style="display:block;font-size: 0.72rem;color:var(--muted);margin-bottom:6px;">User email</label>' +
               '<input id="subGrantEmail" type="email" ' +
-                'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);font-size: 0.9rem;padding:8px 12px;width:240px;outline:none;" ' +
+                'style="background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:8px;color:var(--text);font-size: 0.9rem;padding:8px 12px;width:240px;outline:none;" ' +
                 'placeholder="student@example.com">' +
             '</div>' +
             '<div>' +
               '<label style="display:block;font-size: 0.72rem;color:var(--muted);margin-bottom:6px;">Days</label>' +
               '<input id="subGrantDays" type="number" min="1" max="365" value="30" ' +
-                'style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:var(--text);font-size: 0.9rem;padding:8px 12px;width:90px;outline:none;">' +
+                'style="background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:8px;color:var(--text);font-size: 0.9rem;padding:8px 12px;width:90px;outline:none;">' +
             '</div>' +
             '<button class="btn primary" onclick="adminSubGrant()">Grant Access</button>' +
           '</div>' +
@@ -12129,7 +12129,7 @@ var LEVEL_THEMES = {
 
         // ── Subscribers table ──
         '<div>' +
-          '<p style="margin:0 0 12px;font-size: 0.82rem;font-weight:700;letter-spacing:0.07em;color:var(--muted);">ALL SUBSCRIBERS</p>' +
+          '<p style="margin:0 0 12px;font-size: 0.82rem;font-weight:700;letter-spacing: 0.08em;color:var(--muted);">ALL SUBSCRIBERS</p>' +
           '<div id="subListPanel"><p style="color:var(--muted);font-size: 0.82rem;">Loading…</p></div>' +
         '</div>' +
       '</div>';
@@ -12163,7 +12163,7 @@ var LEVEL_THEMES = {
             : '<span style="background:rgba(239,68,68,0.12);color:var(--red);border-radius:4px;padding:2px 7px;font-size:0.72rem;font-weight:700;">EXPIRED</span>';
           var endStr  = end ? end.toLocaleDateString('en-GB') : '—';
           var cop     = s.amountCents ? 'COP ' + Number(s.amountCents / 100).toLocaleString('es-CO') : '—';
-          return '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">' +
+          return '<tr style="border-bottom:1px solid var(--line);">' +
             '<td style="padding:8px 10px;font-size:0.82rem;color:var(--text);">' + safeText(s.email || '') + '</td>' +
             '<td style="padding:8px 10px;font-size:0.82rem;color:var(--muted);">' + cop + '</td>' +
             '<td style="padding:8px 10px;font-size:0.82rem;color:var(--muted);">' + endStr + '</td>' +
@@ -12178,11 +12178,11 @@ var LEVEL_THEMES = {
         panel.innerHTML =
           '<div class="table-wrap">' +
             '<table style="width:100%;border-collapse:collapse;">' +
-              '<thead><tr style="border-bottom:2px solid rgba(255,255,255,0.1);">' +
-                '<th style="padding:6px 10px;text-align:left;font-size:0.72rem;color:var(--muted);font-weight:700;letter-spacing:0.06em;">EMAIL</th>' +
-                '<th style="padding:6px 10px;text-align:left;font-size:0.72rem;color:var(--muted);font-weight:700;letter-spacing:0.06em;">AMOUNT</th>' +
-                '<th style="padding:6px 10px;text-align:left;font-size:0.72rem;color:var(--muted);font-weight:700;letter-spacing:0.06em;">EXPIRES</th>' +
-                '<th style="padding:6px 10px;text-align:left;font-size:0.72rem;color:var(--muted);font-weight:700;letter-spacing:0.06em;">STATUS</th>' +
+              '<thead><tr style="border-bottom:2px solid var(--line);">' +
+                '<th style="padding:6px 10px;text-align:left;font-size:0.72rem;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">EMAIL</th>' +
+                '<th style="padding:6px 10px;text-align:left;font-size:0.72rem;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">AMOUNT</th>' +
+                '<th style="padding:6px 10px;text-align:left;font-size:0.72rem;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">EXPIRES</th>' +
+                '<th style="padding:6px 10px;text-align:left;font-size:0.72rem;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">STATUS</th>' +
                 '<th style="padding:6px 10px;"></th>' +
               '</tr></thead>' +
               '<tbody>' + rows + '</tbody>' +
@@ -12303,7 +12303,7 @@ var LEVEL_THEMES = {
         }).join('');
         banner.innerHTML =
           '<div style="padding:10px 14px;background:rgba(255,255,255,0.04);border-radius: 8px;">' +
-            '<div style="font-size: 0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Today\'s Live Assignments (' + safeText(res.date) + ')</div>' +
+            '<div style="font-size: 0.72rem;font-weight:700;letter-spacing: 0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Today\'s Live Assignments (' + safeText(res.date) + ')</div>' +
             chips +
             '<div style="font-size: 0.72rem;color:var(--muted);margin-top:8px;">These are what every student currently sees on their level map. Regenerates daily or when config is saved.</div>' +
           '</div>';
@@ -12350,28 +12350,28 @@ var LEVEL_THEMES = {
       // ── Master toggle + rates ──────────────────────────────────────────
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:28px;">' +
 
-        '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;">' +
-          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">System</div>' +
+        '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:12px;padding:16px;">' +
+          '<div style="font-size:0.72rem;font-weight:700;letter-spacing: 0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">System</div>' +
           '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;">' +
             '<input type="checkbox" id="vrEnabled"' + (cfg.enabled ? ' checked' : '') + ' style="width:18px;height:18px;cursor:pointer;">' +
             '<span style="font-size:0.9rem;color:var(--text);font-weight:600;">VR Program Enabled</span>' +
           '</label>' +
         '</div>' +
 
-        '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;">' +
-          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Fire Rate <span id="vrFireRateVal" style="color:var(--accent);">' + (cfg.fireRate || 65) + '%</span></div>' +
+        '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:12px;padding:16px;">' +
+          '<div style="font-size:0.72rem;font-weight:700;letter-spacing: 0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Fire Rate <span id="vrFireRateVal" style="color:var(--accent);">' + (cfg.fireRate || 65) + '%</span></div>' +
           '<input type="range" id="vrFireRate" min="0" max="100" value="' + (cfg.fireRate || 65) + '" style="width:100%;" oninput="byId(\'vrFireRateVal\').textContent=this.value+\'%\'">' +
           '<div style="font-size: 0.72rem;color:var(--muted);margin-top:6px;">Chance any event fires per page load</div>' +
         '</div>' +
 
-        '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;">' +
-          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Secondary Rate <span id="vrSecondaryVal" style="color:var(--accent);">' + (cfg.secondaryRate || 18) + '%</span></div>' +
+        '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:12px;padding:16px;">' +
+          '<div style="font-size:0.72rem;font-weight:700;letter-spacing: 0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Secondary Rate <span id="vrSecondaryVal" style="color:var(--accent);">' + (cfg.secondaryRate || 18) + '%</span></div>' +
           '<input type="range" id="vrSecondaryRate" min="0" max="50" value="' + (cfg.secondaryRate || 18) + '" style="width:100%;" oninput="byId(\'vrSecondaryVal\').textContent=this.value+\'%\'">' +
           '<div style="font-size: 0.72rem;color:var(--muted);margin-top:6px;">Chance a 2nd level also gets a Hot Sector</div>' +
         '</div>' +
 
-        '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;">' +
-          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Slot Window</div>' +
+        '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:12px;padding:16px;">' +
+          '<div style="font-size:0.72rem;font-weight:700;letter-spacing: 0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Slot Window</div>' +
           '<div style="display:flex;gap:8px;align-items:center;">' +
             '<input type="number" id="vrSlotMin" value="' + (cfg.slotMin || 22) + '" min="5" max="120" style="width:60px;background:var(--panel-soft);border:1px solid var(--line);border-radius: 4px;padding:5px 8px;color:var(--text);font-size: 0.82rem;">' +
             '<span style="color:var(--muted);">–</span>' +
@@ -12384,8 +12384,8 @@ var LEVEL_THEMES = {
       '</div>' +
 
       // ── Event type weights ────────────────────────────────────────────
-      '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-bottom:28px;">' +
-        '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">Event Type Weights <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(must sum to 100)</span></div>' +
+      '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:28px;">' +
+        '<div style="font-size:0.72rem;font-weight:700;letter-spacing: 0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">Event Type Weights <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(must sum to 100)</span></div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">' +
           ['double','critical','priority','hot'].map(function(k) {
             var colors = { double: 'var(--yellow)', critical: 'var(--red)', priority: 'var(--yellow)', hot: 'var(--accent)' };
@@ -12402,8 +12402,8 @@ var LEVEL_THEMES = {
       '</div>' +
 
       // ── Pinned events ────────────────────────────────────────────────
-      '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-bottom:28px;">' +
-        '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Pinned Events</div>' +
+      '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:28px;">' +
+        '<div style="font-size:0.72rem;font-weight:700;letter-spacing: 0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Pinned Events</div>' +
         '<p style="font-size: 0.82rem;color:var(--muted);margin:0 0 14px;">Force a specific level to always show a specific event type. Pinned events bypass the fire rate and are guaranteed to appear until the expiry date.</p>' +
         '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">' +
           '<div>' +
@@ -12541,8 +12541,8 @@ var LEVEL_THEMES = {
 
     var out = byId('vrPreviewResult');
     if (out) out.innerHTML =
-      '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;">' +
-        '<div style="font-size:0.72rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Simulation — 20 page loads with current settings</div>' +
+      '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:12px;padding:16px;">' +
+        '<div style="font-size:0.72rem;font-weight:700;letter-spacing: 0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Simulation — 20 page loads with current settings</div>' +
         rows +
         '<div style="font-size:0.72rem;color:var(--muted);margin-top:10px;">Each event count = how many of the 20 simulated loads produced that type. Pinned events always fire regardless of fire rate.</div>' +
       '</div>';
@@ -12667,10 +12667,10 @@ var LEVEL_THEMES = {
         '<span>Progress</span><span id="lmsProgressPct">0%</span>' +
       '</div>' +
       '<div style="height:4px;background:rgba(255,255,255,0.06);border-radius:4px;margin-bottom:24px;overflow:hidden;">' +
-        '<div id="lmsProgressFill" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent));border-radius:4px;transition:width 0.4s;"></div>' +
+        '<div id="lmsProgressFill" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent));border-radius:4px;transition:width 0.4s var(--ease);"></div>' +
       '</div>' +
-      '<div id="lmsBoard"><div style="text-align:center;padding:32px 20px;color:var(--muted);font-size: 0.82rem;"><div style="width:24px;height:24px;border:2px solid rgba(255,255,255,0.08);border-top-color:var(--accent);border-radius:50%;animation:hfSpin 0.8s linear infinite;margin:0 auto 12px;"></div>Loading exercises…</div></div>' +
-      '<div id="lmsScoreSummary" style="display:none;background:rgba(15,23,42,0.7);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:24px;text-align:center;margin-bottom:20px;"></div>' +
+      '<div id="lmsBoard"><div style="text-align:center;padding:32px 20px;color:var(--muted);font-size: 0.82rem;"><div style="width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:hfSpin 0.8s linear infinite;margin:0 auto 12px;"></div>Loading exercises…</div></div>' +
+      '<div id="lmsScoreSummary" style="display:none;background:rgba(15,23,42,0.7);border:1px solid var(--line);border-radius:12px;padding:24px;text-align:center;margin-bottom:20px;"></div>' +
       '<div style="display:flex;gap:12px;flex-wrap:wrap;">' +
         '<button class="btn primary" id="lmsSubmitBtn" disabled onclick="_lmsSubmit()">Submit Results</button>' +
         '<button class="btn secondary" onclick="_lmsReset()">Reset</button>' +
@@ -12819,8 +12819,8 @@ var LEVEL_THEMES = {
     if (summary) {
       summary.style.display = 'block';
       summary.innerHTML =
-        '<div style="font-size: 2rem;font-weight:800;letter-spacing:-2px;color:' + (pass ? 'var(--accent)' : 'var(--red)') + ';">' + pct + '%</div>' +
-        '<div style="font-size: 0.72rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted,var(--accent));margin:6px 0 14px;">Final Score</div>' +
+        '<div style="font-size: 2rem;font-weight:800;letter-spacing: -0.02em;color:' + (pass ? 'var(--accent)' : 'var(--red)') + ';">' + pct + '%</div>' +
+        '<div style="font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;text-transform:uppercase;color:var(--muted,var(--accent));margin:6px 0 14px;">Final Score</div>' +
         '<div style="font-size: 0.82rem;color:var(--muted,var(--accent));">' + correct + ' of ' + total + ' correct &nbsp;&bull;&nbsp; ' +
           (pass ? '<strong style="color:var(--accent);">Passed &#10003;</strong>' : '<strong style="color:var(--red);">Not passed — 70% required</strong>') + '</div>';
     }
@@ -12883,9 +12883,9 @@ var LEVEL_THEMES = {
       t = document.createElement('div');
       t.id = 'simToast';
       t.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);' +
-        'background:var(--panel);border:1px solid rgba(255,255,255,0.08);border-radius: 8px;' +
+        'background:var(--panel);border:1px solid var(--line);border-radius: 8px;' +
         'padding:12px 22px;font-size: 0.82rem;color:var(--text);box-shadow: var(--shadow-2);' +
-        'transition:transform 0.28s cubic-bezier(.22,1,.36,1),opacity 0.28s;opacity:0;z-index:9999;white-space:nowrap;';
+        'transition:transform 0.25s var(--ease), opacity 0.25s var(--ease);opacity:0;z-index:9999;white-space:nowrap;';
       document.body.appendChild(t);
     }
     t.innerHTML = msg;
@@ -12939,15 +12939,15 @@ var LEVEL_THEMES = {
         '<span>Progress</span><span id="nrProgressPct">0%</span>' +
       '</div>' +
       '<div style="height:4px;background:rgba(255,255,255,0.06);border-radius:4px;margin-bottom:24px;overflow:hidden;">' +
-        '<div id="nrProgressFill" style="height:100%;width:0%;background:linear-gradient(90deg,var(--yellow),var(--accent));border-radius:4px;transition:width 0.4s;"></div>' +
+        '<div id="nrProgressFill" style="height:100%;width:0%;background:linear-gradient(90deg,var(--yellow),var(--accent));border-radius:4px;transition:width 0.4s var(--ease);"></div>' +
       '</div>' +
       '<div class="nr-layout">' +
         '<div class="nr-pool-panel"><div class="lms-col-label">Scenario Pool</div><div id="nrPool"><div style="text-align:center;padding:20px;color:var(--muted,var(--accent));">Loading…</div></div></div>' +
         '<div class="nr-zones">' + zonesHtml + '</div>' +
       '</div>' +
       '<div id="nrSuccess" style="display:none;background:rgba(15,23,42,0.7);border:1px solid rgba(var(--accent-rgb), 0.3);border-radius: 12px;padding:28px;text-align:center;margin-top:20px;">' +
-        '<div style="font-size: 2rem;font-weight:800;color:var(--accent);letter-spacing:-2px;line-height:1;">100%</div>' +
-        '<div style="font-size: 0.72rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted,var(--accent));margin:6px 0 12px;">Module Complete</div>' +
+        '<div style="font-size: 2rem;font-weight:800;color:var(--accent);letter-spacing: -0.02em;line-height:1;">100%</div>' +
+        '<div style="font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;text-transform:uppercase;color:var(--muted,var(--accent));margin:6px 0 12px;">Module Complete</div>' +
         '<div id="nrSuccessDetail" style="font-size: 0.82rem;color:var(--muted,var(--accent));margin-bottom:20px;"></div>' +
         '<button class="btn secondary" onclick="_nrReset()">Try Again</button>' +
       '</div>';
@@ -13119,7 +13119,7 @@ var LEVEL_THEMES = {
         '<div><p class="eyebrow" style="margin:0;">Module 3</p>' +
              '<h3 style="margin:0;font-size: 1.15rem;">Human Factors &#8212; Audio Concepts</h3></div>' +
         '<div style="margin-left:auto;background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:8px;padding:8px 14px;text-align:center;">' +
-          '<div style="font-size: 0.62rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin-bottom:2px;">Concepts</div>' +
+          '<div style="font-size: 0.62rem;letter-spacing: 0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;">Concepts</div>' +
           '<strong id="hfCount" style="font-size: 1.15rem;font-weight:700;color:var(--muted);">&#8212;</strong>' +
         '</div>' +
       '</div>' +
@@ -13662,7 +13662,7 @@ var LEVEL_THEMES = {
       } catch(e) {}
 
       var ov = document.createElement('div');
-      ov.style.cssText = 'position:fixed;inset:0;z-index:99998;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0);transition:background .35s;cursor:pointer;overflow:hidden;';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:99998;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0);transition:background 0.4s var(--ease);cursor:pointer;overflow:hidden;';
 
       ov.innerHTML =
         // Radial glow background
@@ -13670,12 +13670,12 @@ var LEVEL_THEMES = {
         // Close button
         '<button onclick="event.stopPropagation();_rankUpDismiss();" style="position:absolute;top:20px;right:24px;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.5);font-size: 1.15rem;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;">✕</button>' +
         // Content
-        '<div id="_rankUpCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform .55s cubic-bezier(0.34,1.56,0.64,1),opacity .4s ease;padding:0 20px;pointer-events:none;max-width:min(460px,calc(100vw - 32px));">' +
-          '<div style="font-size: 0.72rem;font-weight:800;letter-spacing:.2em;color:' + color + ';text-transform:uppercase;margin-bottom:18px;">Rank Up</div>' +
+        '<div id="_rankUpCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1),opacity 0.4s ease;padding:0 20px;pointer-events:none;max-width:min(460px,calc(100vw - 32px));">' +
+          '<div style="font-size: 0.72rem;font-weight:800;letter-spacing: 0.2em;color:' + color + ';text-transform:uppercase;margin-bottom:18px;">Rank Up</div>' +
           (stripes ? '<div style="display:flex;justify-content:center;margin-bottom:22px;gap:6px;">' + stripes + '</div>' : '') +
-          '<div style="font-size:clamp(1.7rem,8.5vw,4rem);font-weight: 800;color:#fff;letter-spacing:-0.02em;line-height:1.05;text-wrap:balance;text-shadow:0 0 40px ' + color + ',0 0 80px ' + color + '55;margin-bottom:12px;">' + label.toUpperCase() + '</div>' +
+          '<div style="font-size:clamp(1.7rem,8.5vw,4rem);font-weight: 800;color:#fff;letter-spacing: -0.02em;line-height:1.05;text-wrap:balance;text-shadow:0 0 40px ' + color + ',0 0 80px ' + color + '55;margin-bottom:12px;">' + label.toUpperCase() + '</div>' +
           '<div style="font-size:1rem;color:rgba(255,255,255,.45);margin-bottom:52px;font-weight: 600;">You\'ve earned your wings</div>' +
-          '<div style="font-size:0.72rem;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,.2);text-transform:uppercase;">Tap anywhere to continue</div>' +
+          '<div style="font-size:0.72rem;font-weight:700;letter-spacing: 0.12em;color:rgba(255,255,255,.2);text-transform:uppercase;">Tap anywhere to continue</div>' +
         '</div>' +
         // Countdown bar
         '<div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.06);">' +
@@ -13756,7 +13756,7 @@ var LEVEL_THEMES = {
 
       var ov = document.createElement('div');
       ov.style.cssText = 'position:fixed;inset:0;z-index:99998;display:flex;align-items:center;' +
-        'justify-content:center;background:rgba(0,0,0,0);transition:background .35s;cursor:pointer;overflow:hidden;';
+        'justify-content:center;background:rgba(0,0,0,0);transition:background 0.4s var(--ease);cursor:pointer;overflow:hidden;';
 
       var headline = isMilestone
         ? days + '-day streak'
@@ -13779,18 +13779,18 @@ var LEVEL_THEMES = {
       ov.innerHTML =
         '<div style="position:absolute;inset:0;background:radial-gradient(ellipse 55% 50% at 50% 50%,' + ORANGE + '22 0%,transparent 70%);pointer-events:none;"></div>' +
         '<button onclick="event.stopPropagation();_streakDismiss();" style="position:absolute;top:20px;right:24px;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.5);font-size: 1.15rem;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;">&#10005;</button>' +
-        '<div id="_streakCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform .55s cubic-bezier(0.34,1.56,0.64,1),opacity .4s ease;padding:0 20px;pointer-events:none;max-width:min(420px,calc(100vw - 32px));">' +
-          '<div id="_streakFlame" style="font-size:clamp(2.6rem,11vw,3.6rem);line-height:1;margin-bottom:14px;filter:drop-shadow(0 0 26px ' + ORANGE + ');transition:transform .5s cubic-bezier(0.34,1.56,0.64,1);">&var(--accent);</div>' +
-          '<div style="font-size:0.72rem;font-weight:800;letter-spacing:.2em;color:' + ORANGE_LT + ';text-transform:uppercase;margin-bottom:10px;">' + safeText(headline) + '</div>' +
-          '<div style="font-size:clamp(3.2rem,15vw,5rem);font-weight: 800;color:#fff;letter-spacing:-0.04em;line-height:1;text-shadow:0 0 44px ' + ORANGE + ',0 0 90px ' + ORANGE + '55;">' + days + '</div>' +
-          '<div style="font-size: 0.82rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.42);margin-top:6px;">' + (days === 1 ? 'day' : 'days') + ' in a row</div>' +
+        '<div id="_streakCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1),opacity 0.4s ease;padding:0 20px;pointer-events:none;max-width:min(420px,calc(100vw - 32px));">' +
+          '<div id="_streakFlame" style="font-size:clamp(2.6rem,11vw,3.6rem);line-height:1;margin-bottom:14px;filter:drop-shadow(0 0 26px ' + ORANGE + ');transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);">&var(--accent);</div>' +
+          '<div style="font-size:0.72rem;font-weight:800;letter-spacing: 0.2em;color:' + ORANGE_LT + ';text-transform:uppercase;margin-bottom:10px;">' + safeText(headline) + '</div>' +
+          '<div style="font-size:clamp(3.2rem,15vw,5rem);font-weight: 800;color:#fff;letter-spacing: -0.02em;line-height:1;text-shadow:0 0 44px ' + ORANGE + ',0 0 90px ' + ORANGE + '55;">' + days + '</div>' +
+          '<div style="font-size: 0.82rem;font-weight:800;letter-spacing: 0.12em;text-transform:uppercase;color:rgba(255,255,255,.42);margin-top:6px;">' + (days === 1 ? 'day' : 'days') + ' in a row</div>' +
           '<div style="margin-top:30px;height:6px;border-radius: 22px;background:rgba(255,255,255,.09);overflow:hidden;">' +
             '<div id="_streakCharge" style="height:6px;border-radius: 22px;width:' + fillFrom + '%;' +
               'background:linear-gradient(90deg,' + ORANGE + ',' + ORANGE_LT + ');' +
-              'box-shadow:0 0 16px ' + ORANGE + 'aa;transition:width 1.1s cubic-bezier(0.22,1,0.36,1);"></div>' +
+              'box-shadow:0 0 16px ' + ORANGE + 'aa;transition:width 1.1s var(--ease);"></div>' +
           '</div>' +
           '<div style="font-size:0.72rem;color:rgba(255,255,255,.4);margin-top:12px;font-weight:600;">' + safeText(subline) + '</div>' +
-          '<div style="font-size: 0.72rem;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,.2);text-transform:uppercase;margin-top:34px;">Tap anywhere to continue</div>' +
+          '<div style="font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;color:rgba(255,255,255,.2);text-transform:uppercase;margin-top:34px;">Tap anywhere to continue</div>' +
         '</div>';
 
       document.body.appendChild(ov);
@@ -13836,7 +13836,7 @@ var LEVEL_THEMES = {
       chip.style.cssText = 'position:fixed;z-index:99999;pointer-events:none;font-size: 1.6rem;font-weight: 800;' +
         'color:' + color + ';text-shadow:0 0 24px rgba(34,197,94,.8),0 2px 10px rgba(0,0,0,.9);' +
         'left:' + sx + 'px;top:' + sy + 'px;transform:translate(-50%,-50%) scale(0.5);' +
-        'white-space:nowrap;opacity:0;transition:transform .22s cubic-bezier(0.34,1.56,0.64,1),opacity .15s;';
+        'white-space:nowrap;opacity:0;transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1),opacity 0.15s;';
       document.body.appendChild(chip);
 
       var xpLbl = document.getElementById('topnavXpLabel');
@@ -13921,20 +13921,20 @@ var LEVEL_THEMES = {
           '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.65) 0%,transparent 50%);"></div>' +
           // Module number badge — bottom-left
           '<div style="position:absolute;bottom:10px;left:12px;display:flex;align-items:center;gap:8px;">' +
-            '<div style="width:34px;height:34px;border-radius:50%;background:' + accentColor + ';border:2px solid rgba(255,255,255,.45);display:flex;align-items:center;justify-content:center;font-weight:800;font-size: 0.9rem;color:#fff;">' +
+            '<div style="width:34px;height:34px;border-radius:50%;background:' + accentColor + ';border:2px solid var(--line-strong);display:flex;align-items:center;justify-content:center;font-weight:800;font-size: 0.9rem;color:#fff;">' +
               (completed ? '✓' : String(idx+1)) +
             '</div>' +
-            '<span style="font-size: 0.72rem;font-weight:800;letter-spacing:.13em;color:rgba(255,255,255,.7);text-transform:uppercase;">Module</span>' +
+            '<span style="font-size: 0.72rem;font-weight:800;letter-spacing: 0.12em;color:rgba(255,255,255,.7);text-transform:uppercase;">Module</span>' +
           '</div>' +
           // Lock overlay
           (locked ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2rem;background:rgba(0,0,0,.25);">🔒</div>' : '') +
           // Completed ribbon
-          (completed ? '<div style="position:absolute;top:10px;right:10px;background:var(--green);border-radius: 22px;padding:2px 10px;font-size: 0.72rem;font-weight:800;letter-spacing:.07em;color:#fff;">✓ DONE</div>' : '') +
+          (completed ? '<div style="position:absolute;top:10px;right:10px;background:var(--green);border-radius: 22px;padding:2px 10px;font-size: 0.72rem;font-weight:800;letter-spacing: 0.08em;color:#fff;">✓ DONE</div>' : '') +
         '</div>';
 
       // Status chip
       var chip = completed
-        ? '<span style="font-size: 0.72rem;font-weight:700;color:var(--green);background:rgba(22,163,74,.12);border:1px solid rgba(22,163,74,.25);padding:2px 8px;border-radius: 22px;letter-spacing:.05em;">✓ COMPLETED</span>'
+        ? '<span style="font-size: 0.72rem;font-weight:700;color:var(--green);background:rgba(22,163,74,.12);border:1px solid rgba(22,163,74,.25);padding:2px 8px;border-radius: 22px;letter-spacing: 0.06em;">✓ COMPLETED</span>'
         : locked
           ? '<span style="font-size: 0.72rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:2px 8px;border-radius: 22px;">LOCKED</span>'
           : sectionsDone > 0
@@ -13971,7 +13971,7 @@ var LEVEL_THEMES = {
 
       return '<div class="lms-module-card-wrap" style="' + (!locked ? 'cursor:pointer;' : 'opacity:0.65;') + '"' +
         (!locked ? ' onclick="renderModuleDetail(\'' + m.moduleId + '\')"' : '') + '>' +
-        '<div style="border:1px solid ' + (completed ? 'rgba(22,163,74,.3)' : inProgress ? 'rgba(14,165,233,.2)' : 'var(--line)') + ';border-radius: 12px;overflow:hidden;background:var(--panel);transition:box-shadow .2s;">' +
+        '<div style="border:1px solid ' + (completed ? 'rgba(22,163,74,.3)' : inProgress ? 'rgba(14,165,233,.2)' : 'var(--line)') + ';border-radius: 12px;overflow:hidden;background:var(--panel);transition:box-shadow 0.25s var(--ease);">' +
 
           thumb +
 
@@ -13980,7 +13980,7 @@ var LEVEL_THEMES = {
               '<h3 style="margin:0;font-size: 1rem;line-height:1.3;font-weight:700;">' + safeText(m.title) + '</h3>' +
               chip +
             '</div>' +
-            (m.topic ? '<p style="margin:0 0 10px;font-size: 0.72rem;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;font-weight:600;">' + safeText(m.topic) + '</p>' : '<div style="margin-bottom:10px;"></div>') +
+            (m.topic ? '<p style="margin:0 0 10px;font-size: 0.72rem;color:var(--muted);letter-spacing: 0.08em;text-transform:uppercase;font-weight:600;">' + safeText(m.topic) + '</p>' : '<div style="margin-bottom:10px;"></div>') +
             stepsRow +
             (m.score !== null && m.score !== undefined
               ? (function() {
@@ -13988,7 +13988,7 @@ var LEVEL_THEMES = {
                   var scColor = sc >= 85 ? 'var(--green)' : sc >= 70 ? 'var(--yellow)' : 'var(--red)';
                   return '<div style="margin-bottom:12px;">' +
                     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">' +
-                      '<span style="font-size:0.72rem;font-weight:700;letter-spacing:.06em;color:var(--muted);text-transform:uppercase;">Module Score</span>' +
+                      '<span style="font-size:0.72rem;font-weight:700;letter-spacing: 0.06em;color:var(--muted);text-transform:uppercase;">Module Score</span>' +
                       '<span style="font-size: 0.82rem;font-weight: 800;color:' + scColor + ';">' + sc + '%</span>' +
                     '</div>' +
                     '<div style="background:var(--line);border-radius:4px;height:5px;overflow:hidden;">' +
@@ -14105,7 +14105,7 @@ var LEVEL_THEMES = {
         '<div style="display:flex;align-items:center;gap:14px;padding:14px 20px;">' +
           '<div style="width:36px;height:36px;border-radius:8px;background:var(--panel-soft);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">' + typeIcon + '</div>' +
           '<div style="flex:1;min-width:0;">' +
-            '<p style="margin:0;font-size:0.72rem;color:var(--muted);letter-spacing:.08em;font-weight:700;text-transform:uppercase;">' + typeLabel + '</p>' +
+            '<p style="margin:0;font-size:0.72rem;color:var(--muted);letter-spacing: 0.08em;font-weight:700;text-transform:uppercase;">' + typeLabel + '</p>' +
             '<p style="margin:0;font-size: 0.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + title + '</p>' +
           '</div>' +
           statusHtml +
@@ -14235,12 +14235,12 @@ var LEVEL_THEMES = {
       ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.88);z-index:10000;display:flex;align-items:flex-start;justify-content:center;padding:max(24px,env(safe-area-inset-top)) 16px 24px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
       var opts = quiz.options || [];
       ov.innerHTML =
-        '<div style="background:var(--bg);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:20px;max-width:500px;width:100%;box-shadow: var(--shadow-3);max-height:90vh;overflow-y:auto;">' +
-          '<div style="font-size: 0.72rem;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,.35);margin-bottom:14px;text-transform:uppercase;">✋ Quick check</div>' +
+        '<div style="background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:20px;max-width:500px;width:100%;box-shadow: var(--shadow-3);max-height:90vh;overflow-y:auto;">' +
+          '<div style="font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;color:rgba(255,255,255,.35);margin-bottom:14px;text-transform:uppercase;">✋ Quick check</div>' +
           '<p style="font-size:1rem;font-weight:600;margin:0 0 20px;line-height:1.5;color:#fff;">' + safeText(quiz.question) + '</p>' +
           '<div id="_lmsVqOpts" style="display:grid;gap:10px;">' +
             opts.map(function(o, i) {
-              return '<button onclick="_lmsVqPick(' + i + ')" style="text-align:left;padding:12px 16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius: 8px;color:#fff;font-size: 0.9rem;cursor:pointer;">' + safeText(o) + '</button>';
+              return '<button onclick="_lmsVqPick(' + i + ')" style="text-align:left;padding:12px 16px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius: 8px;color:#fff;font-size: 0.9rem;cursor:pointer;">' + safeText(o) + '</button>';
             }).join('') +
           '</div>' +
           '<div id="_lmsVqMsg" style="margin-top:16px;min-height:20px;font-size: 0.82rem;"></div>' +
@@ -14320,7 +14320,7 @@ var LEVEL_THEMES = {
         '<img src="https://img.youtube.com/vi/' + ytId + '/maxresdefault.jpg" ' +
              'onerror="this.src=\'https://img.youtube.com/vi/' + ytId + '/hqdefault.jpg\'" ' +
              'style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:8px;" draggable="false">' +
-        '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:68px;height:46px;background:rgba(220,20,20,.92);border-radius:12px;display:flex;align-items:center;justify-content:center;box-shadow: var(--shadow-2);transition:transform .15s;" ' +
+        '<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:68px;height:46px;background:rgba(220,20,20,.92);border-radius:12px;display:flex;align-items:center;justify-content:center;box-shadow: var(--shadow-2);transition:transform 0.15s var(--ease);" ' +
              'onmouseenter="this.style.transform=\'scale(1.1)\'" onmouseleave="this.style.transform=\'scale(1)\'">' +
           '<div style="width:0;height:0;border-top:12px solid transparent;border-bottom:12px solid transparent;border-left:20px solid #fff;margin-left:5px;"></div>' +
         '</div>' +
@@ -14402,14 +14402,14 @@ var LEVEL_THEMES = {
         (ex.options || []).forEach(function(opt, oi) {
           body += '<button id="gr-' + safeText(ex.exerciseId) + '-' + oi + '" class="gram-opt" ' + dis +
             ' onclick="if(!this.disabled)_lmsGrSelect(this,\'' + safeText(ex.exerciseId) + '\',' + oi + ')"' +
-            ' style="text-align:left;padding:9px 14px;border:1px solid var(--line);border-radius: 4px;background:var(--panel);color:var(--text);font-size: 0.82rem;cursor:pointer;transition:background .12s,border-color .12s;">' +
+            ' style="text-align:left;padding:9px 14px;border:1px solid var(--line);border-radius: 4px;background:var(--panel);color:var(--text);font-size: 0.82rem;cursor:pointer;transition:background 0.15s var(--ease), border-color 0.15s var(--ease);">' +
             '<span style="font-weight:700;margin-right:8px;color:var(--muted);">' + String.fromCharCode(65+oi) + '.</span>' + safeText(opt) +
           '</button>';
         });
         body += '</div>';
       }
       return '<div id="grwrap-' + safeText(ex.exerciseId) + '" data-exid="' + safeText(ex.exerciseId) + '" data-type="' + safeText(ex.type) + '" data-answer="" style="padding:14px 16px;border:1px solid var(--line);border-radius:8px;background:var(--panel);margin-bottom:10px;">' +
-        '<div style="font-size: 0.72rem;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">Q' + (idx+1) + ' · ' + safeText(ex.type === 'fill_blank' ? 'Fill in the blank' : ex.type === 'error_id' ? 'Identify the error' : 'Multiple choice') + '</div>' +
+        '<div style="font-size: 0.72rem;font-weight:700;color:var(--muted);letter-spacing: 0.06em;text-transform:uppercase;margin-bottom:8px;">Q' + (idx+1) + ' · ' + safeText(ex.type === 'fill_blank' ? 'Fill in the blank' : ex.type === 'error_id' ? 'Identify the error' : 'Multiple choice') + '</div>' +
         body +
       '</div>';
     }
@@ -14675,7 +14675,7 @@ var LEVEL_THEMES = {
       var isActive = key === defaultSection;
       return '<button id="lmsTab-' + key + '" ' +
         (unlocked ? 'onclick="_lmsShowSection(\'' + key + '\')"' : 'disabled') +
-        ' style="display:flex;align-items:center;gap:7px;padding:12px 20px;border:none;border-bottom:3px solid ' + (isActive ? accent : 'transparent') + ';background:none;font-family:inherit;font-size: 0.9rem;font-weight:' + (isActive ? '700' : '500') + ';color:' + (isActive ? accent : 'var(--muted)') + ';cursor:' + (unlocked ? 'pointer' : 'default') + ';white-space:nowrap;transition:color .15s;">' +
+        ' style="display:flex;align-items:center;gap:7px;padding:12px 20px;border:none;border-bottom:3px solid ' + (isActive ? accent : 'transparent') + ';background:none;font-family:inherit;font-size: 0.9rem;font-weight:' + (isActive ? '700' : '500') + ';color:' + (isActive ? accent : 'var(--muted)') + ';cursor:' + (unlocked ? 'pointer' : 'default') + ';white-space:nowrap;transition:color 0.15s var(--ease);">' +
           '<span>' + icon + '</span>' +
           '<span>' + label + '</span>' +
           (completed ? '<span style="font-size: 0.62rem;color:var(--green);">✓</span>' : '') +
@@ -14702,7 +14702,7 @@ var LEVEL_THEMES = {
       return '<div id="lmsPanel-' + key + '" style="display:' + (isActive ? 'block' : 'none') + ';">' +
         '<div style="display:flex;align-items:center;gap:7px;padding:7px 16px;background:var(--panel-soft);border-bottom:1px solid var(--line);">' +
           '<span style="font-size: 0.82rem;">' + meta.icon + '</span>' +
-          '<span style="font-size: 0.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;">Section ' + meta.num + ' · ' + meta.label + '</span>' +
+          '<span style="font-size: 0.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing: 0.12em;">Section ' + meta.num + ' · ' + meta.label + '</span>' +
           (completed ? '<span style="margin-left:auto;font-size: 0.62rem;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 7px;border-radius:8px;">✓ Done</span>' : (!unlocked ? '<span style="margin-left:auto;font-size: 0.82rem;">🔒</span>' : '')) +
         '</div>' +
         (unlocked ? bodyHtml :
@@ -14716,14 +14716,14 @@ var LEVEL_THEMES = {
     // ── Right panel: compact progress outline ──
     function outlineItem(sectionKey, typeIcon, ytUrl, title, done, unlocked, isNext) {
       return '<div onclick="' + (unlocked ? '_lmsShowSection(\'' + sectionKey + '\')' : '') + '" ' +
-        'style="display:flex;align-items:center;gap:9px;padding:7px 14px 7px 20px;border-bottom:1px solid var(--line);cursor:' + (unlocked?'pointer':'default') + ';' + (!unlocked?'opacity:0.4;':'') + (isNext?'background:rgba(14,165,233,.07);':'') + 'transition:background .12s;" ' +
+        'style="display:flex;align-items:center;gap:9px;padding:7px 14px 7px 20px;border-bottom:1px solid var(--line);cursor:' + (unlocked?'pointer':'default') + ';' + (!unlocked?'opacity:0.4;':'') + (isNext?'background:rgba(14,165,233,.07);':'') + 'transition:background 0.15s var(--ease);" ' +
         (unlocked ? 'onmouseenter="this.style.background=\'rgba(14,165,233,.12)\'" onmouseleave="this.style.background=\'' + (isNext?'rgba(14,165,233,.07)':'') + '\'"' : '') + '>' +
         '<div style="width:16px;height:16px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size: 0.62rem;font-weight:800;' +
           (done ? 'background:var(--green);color:#fff;' : isNext ? 'background:var(--cyan);color:#000;' : 'background:var(--panel-soft);border:1.5px solid var(--line);color:var(--muted);') + '">' +
           (done ? '✓' : isNext ? '▶' : typeIcon.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim() || '·') +
         '</div>' +
         '<span style="font-size: 0.82rem;font-weight:' + (isNext?'700':'400') + ';color:' + (done ? 'var(--green)' : isNext ? 'var(--cyan)' : 'var(--text)') + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">' + safeText(title) + '</span>' +
-        (isNext ? '<span style="font-size: 0.72rem;font-weight:800;letter-spacing:.05em;color:var(--cyan);white-space:nowrap;flex-shrink:0;">UP NEXT →</span>' : '') +
+        (isNext ? '<span style="font-size: 0.72rem;font-weight:800;letter-spacing: 0.06em;color:var(--cyan);white-space:nowrap;flex-shrink:0;">UP NEXT →</span>' : '') +
       '</div>';
     }
 
@@ -14945,7 +14945,7 @@ var LEVEL_THEMES = {
       '<div style="width:36px;height:36px;border-radius:50%;background:' + bg + ';border:2px solid ' + color + ';display:flex;align-items:center;justify-content:center;font-size: 0.72rem;font-weight:700;color:' + (completed ? '#fff' : 'var(--muted)') + ';margin:0 auto 6px;">' +
         (completed ? '✓' : num) +
       '</div>' +
-      '<span style="font-size: 0.62rem;color:' + (unlocked ? 'var(--text)' : 'var(--muted)') + ';letter-spacing:.03em;">' + label + '</span>' +
+      '<span style="font-size: 0.62rem;color:' + (unlocked ? 'var(--text)' : 'var(--muted)') + ';letter-spacing: 0.02em;">' + label + '</span>' +
     '</div>';
   }
 
@@ -14966,7 +14966,7 @@ var LEVEL_THEMES = {
     var inputs = questions.map(function(q, i) {
       var opts = (q.options || []).map(function(opt, j) {
         var inputId = formId + '_q' + i + '_o' + j;
-        return '<label for="' + inputId + '" class="quiz-opt" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:11px 14px;border-radius:8px;border:1.5px solid var(--line);margin-bottom:6px;transition:border-color .15s,background .15s;">' +
+        return '<label for="' + inputId + '" class="quiz-opt" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:11px 14px;border-radius:8px;border:1.5px solid var(--line);margin-bottom:6px;transition:border-color 0.15s var(--ease), background 0.15s var(--ease);">' +
           '<input id="' + inputId + '" type="radio" name="' + formId + '_q' + i + '" value="' + j + '" style="margin-top:2px;accent-color:var(--cyan);flex-shrink:0;">' +
           '<span style="font-size: 0.9rem;line-height:1.45;">' + safeText(opt) + '</span>' +
         '</label>';
@@ -14974,7 +14974,7 @@ var LEVEL_THEMES = {
 
       return '<div style="background:var(--panel);border:1px solid var(--line);border-radius: 8px;padding:18px;margin-bottom:10px;">' +
         '<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">' +
-          '<span style="font-size: 0.72rem;font-weight:800;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;">Question ' + (i+1) + ' of ' + questions.length + '</span>' +
+          '<span style="font-size: 0.72rem;font-weight:800;color:var(--muted);letter-spacing: 0.12em;text-transform:uppercase;white-space:nowrap;">Question ' + (i+1) + ' of ' + questions.length + '</span>' +
         '</div>' +
         '<p style="margin:0 0 14px;font-size: 0.9rem;font-weight:600;line-height:1.45;">' + safeText(q.question) + '</p>' +
         '<input type="hidden" class="qid-field" value="' + q.questionId + '">' +
@@ -15311,7 +15311,7 @@ var LEVEL_THEMES = {
 
       var opts = (q.options || []).map(function(opt, j) {
         var inputId = 'evalQ_' + i + '_o' + j;
-        return '<label for="' + inputId + '" class="quiz-opt" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:11px 14px;border-radius:8px;border:1.5px solid var(--line);margin-bottom:6px;transition:border-color .15s,background .15s;">' +
+        return '<label for="' + inputId + '" class="quiz-opt" style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:11px 14px;border-radius:8px;border:1.5px solid var(--line);margin-bottom:6px;transition:border-color 0.15s var(--ease), background 0.15s var(--ease);">' +
           '<input id="' + inputId + '" type="radio" name="evalQ_' + i + '" value="' + j + '" style="margin-top:2px;accent-color:var(--cyan);flex-shrink:0;">' +
           '<span style="font-size: 0.9rem;line-height:1.45;">' + safeText(opt) + '</span>' +
         '</label>';
@@ -15319,8 +15319,8 @@ var LEVEL_THEMES = {
 
       return '<div style="background:var(--panel);border:1px solid var(--line);border-radius: 8px;padding:18px;margin-bottom:10px;">' +
         '<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">' +
-          '<span style="font-size: 0.72rem;font-weight:800;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;">Question ' + (i+1) + ' of ' + qs.length + '</span>' +
-          (isListening ? '<span style="font-size: 0.62rem;font-weight:800;color:var(--cyan);letter-spacing:.08em;text-transform:uppercase;background:rgba(14,165,233,.1);padding:1px 6px;border-radius:4px;">🔊 Listening</span>' : '') +
+          '<span style="font-size: 0.72rem;font-weight:800;color:var(--muted);letter-spacing: 0.12em;text-transform:uppercase;white-space:nowrap;">Question ' + (i+1) + ' of ' + qs.length + '</span>' +
+          (isListening ? '<span style="font-size: 0.62rem;font-weight:800;color:var(--cyan);letter-spacing: 0.08em;text-transform:uppercase;background:rgba(14,165,233,.1);padding:1px 6px;border-radius:4px;">🔊 Listening</span>' : '') +
         '</div>' +
         audioPart +
         '<p style="margin:0 0 14px;font-size: 0.9rem;font-weight:600;line-height:1.45;">' + safeText(q.question) + '</p>' +
@@ -15332,7 +15332,7 @@ var LEVEL_THEMES = {
     return '<div style="padding:16px 20px;">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding:10px 16px;background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.2);border-radius:8px;">' +
         '<span style="font-size:0.82rem;font-weight:700;color:var(--text);">ICAO Language Proficiency Test</span>' +
-        '<span id="evalTimerDisplay" style="font-size: 1.15rem;font-weight:800;font-variant-numeric:tabular-nums;color:var(--cyan);letter-spacing:.04em;">--:--</span>' +
+        '<span id="evalTimerDisplay" style="font-size: 1.15rem;font-weight:800;font-variant-numeric:tabular-nums;color:var(--cyan);letter-spacing: 0.04em;">--:--</span>' +
       '</div>' +
       '<div>' + inputs + '</div>' +
       '<div style="display:flex;align-items:center;gap:14px;margin-top:20px;">' +
@@ -15844,7 +15844,7 @@ var LEVEL_THEMES = {
       var barColor = val >= 85 ? 'var(--green)' : val >= 60 ? 'var(--yellow)' : 'var(--red)';
       return '<div style="display:flex;align-items:center;gap:6px;">' +
         '<div style="flex:1;height:6px;background:var(--line);border-radius: 4px;overflow:hidden;">' +
-          '<div style="width:' + pct + '%;height:100%;background:' + barColor + ';border-radius: 4px;transition:width .4s;"></div>' +
+          '<div style="width:' + pct + '%;height:100%;background:' + barColor + ';border-radius: 4px;transition:width 0.4s var(--ease);"></div>' +
         '</div>' +
         '<span style="font-size: 0.72rem;font-weight:700;color:' + barColor + ';width:28px;text-align:right;">' + val + '%</span>' +
       '</div>';
@@ -15864,7 +15864,7 @@ var LEVEL_THEMES = {
         '<td style="padding:12px;text-align:center;"><span style="font-size:0.72rem;font-weight:700;color:' + statusColor + ';">' + statusLabel + '</span></td>' +
         skills.map(function(s) {
           return '<td style="padding:12px;min-width:110px;">' +
-            '<div style="font-size: 0.62rem;color:var(--muted);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;">' + s.label + '</div>' +
+            '<div style="font-size: 0.62rem;color:var(--muted);margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing: 0.06em;">' + s.label + '</div>' +
             scoreBar(m[s.key]) +
           '</td>';
         }).join('') +
@@ -15877,15 +15877,15 @@ var LEVEL_THEMES = {
         // Summary bar
         '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:24px;">' +
           '<div style="flex:1;min-width:140px;padding:16px 20px;background:var(--panel-soft);border:1px solid var(--line);border-radius: 8px;">' +
-            '<div style="font-size: 0.72rem;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">Total Active Time</div>' +
+            '<div style="font-size: 0.72rem;font-weight:700;color:var(--muted);letter-spacing: 0.12em;text-transform:uppercase;margin-bottom:6px;">Total Active Time</div>' +
             '<div style="font-size: 1.6rem;font-weight:800;color:var(--text);">' + timeStr + '</div>' +
           '</div>' +
           '<div style="flex:1;min-width:140px;padding:16px 20px;background:var(--panel-soft);border:1px solid var(--line);border-radius: 8px;">' +
-            '<div style="font-size: 0.72rem;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">Modules Completed</div>' +
+            '<div style="font-size: 0.72rem;font-weight:700;color:var(--muted);letter-spacing: 0.12em;text-transform:uppercase;margin-bottom:6px;">Modules Completed</div>' +
             '<div style="font-size: 1.6rem;font-weight:800;color:var(--text);">' + completedCount + ' <span style="font-size:1rem;color:var(--muted);">/ ' + mods.length + '</span></div>' +
           '</div>' +
           '<div style="flex:1;min-width:140px;padding:16px 20px;background:var(--panel-soft);border:1px solid var(--line);border-radius: 8px;">' +
-            '<div style="font-size: 0.72rem;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">Overall Progress</div>' +
+            '<div style="font-size: 0.72rem;font-weight:700;color:var(--muted);letter-spacing: 0.12em;text-transform:uppercase;margin-bottom:6px;">Overall Progress</div>' +
             '<div style="font-size: 1.6rem;font-weight:800;color:' + (overallPct >= 85 ? 'var(--green)' : overallPct >= 50 ? 'var(--yellow)' : 'var(--text)') + ';">' + overallPct + '%</div>' +
           '</div>' +
           '<div style="flex:0;display:flex;align-items:center;">' +
@@ -15951,10 +15951,10 @@ var LEVEL_THEMES = {
       '.sub{font-size: 0.82rem;color: var(--muted);margin-bottom:28px;}' +
       '.summary{display:flex;gap:16px;margin-bottom:28px;}' +
       '.card{flex:1;padding:14px 18px;border:1px solid var(--text);border-radius:8px;}' +
-      '.card-label{font-size: 0.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;}' +
+      '.card-label{font-size: 0.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing: 0.08em;margin-bottom:6px;}' +
       '.card-value{font-size: 1.6rem;font-weight:800;color: var(--muted);}' +
       'table{width:100%;border-collapse:collapse;}' +
-      'thead th{padding:10px 12px;text-align:left;font-size: 0.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid var(--text);}' +
+      'thead th{padding:10px 12px;text-align:left;font-size: 0.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing: 0.06em;border-bottom:2px solid var(--text);}' +
       '@media print{body{padding:20px;}button{display:none!important;}}' +
       '</style></head><body>' +
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;">' +
@@ -16031,15 +16031,15 @@ var LEVEL_THEMES = {
     var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>aerocomms Progress Report</title>' +
       '<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,Helvetica,sans-serif;color:#111;background:#fff;padding:40px 48px;}' +
       'h1{font-size: 1.15rem;font-weight:800;color: var(--muted);margin:0;}' +
-      'h2{font-size: 0.82rem;font-weight:800;color: var(--muted);letter-spacing:.06em;text-transform:uppercase;margin:0 0 14px;}' +
+      'h2{font-size: 0.82rem;font-weight:800;color: var(--muted);letter-spacing: 0.06em;text-transform:uppercase;margin:0 0 14px;}' +
       '.sub{font-size: 0.72rem;color: var(--muted);margin-top:4px;}' +
       '.section{margin-bottom:32px;}' +
       '.stats{display:flex;gap:12px;margin-bottom:18px;}' +
       '.card{flex:1;padding:12px 16px;border:1px solid var(--text);border-radius:8px;}' +
-      '.card-label{font-size: 0.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;}' +
+      '.card-label{font-size: 0.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing: 0.08em;margin-bottom:5px;}' +
       '.card-value{font-size: 1.35rem;font-weight:800;}' +
       'table{width:100%;border-collapse:collapse;}' +
-      'thead th{padding:9px 12px;text-align:left;font-size: 0.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid var(--text);}' +
+      'thead th{padding:9px 12px;text-align:left;font-size: 0.62rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing: 0.06em;border-bottom:2px solid var(--text);}' +
       'hr{border:none;border-top:1px solid var(--text);margin:28px 0;}' +
       '@media print{body{padding:20px 24px;}button{display:none!important;}}' +
       '</style></head><body>' +
@@ -16047,12 +16047,12 @@ var LEVEL_THEMES = {
       // ── Report header ──────────────────────────────────────────────
       '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:32px;">' +
         '<div>' +
-          '<div style="font-size: 0.62rem;font-weight:800;letter-spacing:2px;color:var(--muted);margin-bottom:6px;">aerocomms</div>' +
+          '<div style="font-size: 0.62rem;font-weight:800;letter-spacing: 0.2em;color:var(--muted);margin-bottom:6px;">aerocomms</div>' +
           '<h1>Progress Report</h1>' +
           (name ? '<div class="sub">' + name + '</div>' : '') +
           '<div class="sub">Generated ' + dateStr + '</div>' +
         '</div>' +
-        '<button onclick="window.print()" style="padding:9px 20px;background:var(--bg);color:#fff;border:none;border-radius: 4px;font-size: 0.72rem;font-weight:700;cursor:pointer;letter-spacing:.04em;">Print / Save PDF</button>' +
+        '<button onclick="window.print()" style="padding:9px 20px;background:var(--bg);color:#fff;border:none;border-radius: 4px;font-size: 0.72rem;font-weight:700;cursor:pointer;letter-spacing: 0.04em;">Print / Save PDF</button>' +
       '</div>' +
 
       // ── ATC Training section ───────────────────────────────────────
@@ -16227,7 +16227,7 @@ var LEVEL_THEMES = {
     var tabHtml = tabs.map(function(t) {
       var isActive = t.key === activeTab;
       return '<button onclick="' + t.fn + '(\'' + moduleId + '\',\'' + safeJs(title) + '\')" ' +
-        'style="padding:7px 14px;border:none;border-bottom:2px solid ' + (isActive ? 'var(--cyan)' : 'transparent') + ';background:none;font-family:inherit;font-size:0.82rem;font-weight:' + (isActive ? '700' : '400') + ';color:' + (isActive ? 'var(--cyan)' : 'var(--muted)') + ';cursor:pointer;white-space:nowrap;transition:color .15s;">' +
+        'style="padding:7px 14px;border:none;border-bottom:2px solid ' + (isActive ? 'var(--cyan)' : 'transparent') + ';background:none;font-family:inherit;font-size:0.82rem;font-weight:' + (isActive ? '700' : '400') + ';color:' + (isActive ? 'var(--cyan)' : 'var(--muted)') + ';cursor:pointer;white-space:nowrap;transition:color 0.15s var(--ease);">' +
         t.label + '</button>';
     }).join('');
     return '<div style="margin-bottom:20px;">' +
@@ -16438,9 +16438,9 @@ var LEVEL_THEMES = {
       '<div class="panel">' +
         renderAdminTabs('modules') +
         _moduleBuilderSubnav(moduleId, moduleTitle, 'videos', '+ Add Video', 'adminShowVideoForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',null,\'\',\'intro\',\'\',0)') +
-        '<h4 style="color:var(--muted);font-size: 0.82rem;letter-spacing:.06em;margin-bottom:8px;">INTRODUCTION (1 video)</h4>' +
+        '<h4 style="color:var(--muted);font-size: 0.82rem;letter-spacing: 0.06em;margin-bottom:8px;">INTRODUCTION (1 video)</h4>' +
         videoTable(introVideos.map(videoRow).join('') || '<tr><td colspan="5" style="padding:12px;color:var(--muted);">No intro video yet.</td></tr>') +
-        '<h4 style="color:var(--muted);font-size: 0.82rem;letter-spacing:.06em;margin-bottom:8px;">EXPLANATION (2-3 videos)</h4>' +
+        '<h4 style="color:var(--muted);font-size: 0.82rem;letter-spacing: 0.06em;margin-bottom:8px;">EXPLANATION (2-3 videos)</h4>' +
         videoTable(expVideos.map(videoRow).join('') || '<tr><td colspan="5" style="padding:12px;color:var(--muted);">No explanation videos yet.</td></tr>') +
         '<button class="btn primary" onclick="adminShowVideoForm(\'' + moduleId + '\',\'' + safeJs(moduleTitle) + '\',null,\'\',\'intro\',\'\',0)">+ Add Video</button>' +
         '<div id="videoFormArea" style="margin-top:16px;"></div>' +
@@ -16808,7 +16808,7 @@ var LEVEL_THEMES = {
         _moduleBuilderSubnav(moduleId, moduleTitle, 'scenarios') +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">' +
           '<div>' +
-            '<h4 style="color:var(--muted);font-size: 0.82rem;letter-spacing:.06em;margin-bottom:8px;">LINKED (' + linked.length + ' / need 3+)</h4>' +
+            '<h4 style="color:var(--muted);font-size: 0.82rem;letter-spacing: 0.06em;margin-bottom:8px;">LINKED (' + linked.length + ' / need 3+)</h4>' +
             '<table style="width:100%;border-collapse:collapse;">' +
               '<thead><tr style="border-bottom:1px solid var(--line);">' +
                 '<th style="padding:8px 12px;text-align:left;">Scenario</th><th style="padding:8px 12px;text-align:left;">Level</th><th></th>' +
@@ -16817,7 +16817,7 @@ var LEVEL_THEMES = {
             '</table>' +
           '</div>' +
           '<div>' +
-            '<h4 style="color:var(--muted);font-size: 0.82rem;letter-spacing:.06em;margin-bottom:8px;">AVAILABLE</h4>' +
+            '<h4 style="color:var(--muted);font-size: 0.82rem;letter-spacing: 0.06em;margin-bottom:8px;">AVAILABLE</h4>' +
             '<input class="input" style="margin-bottom:8px;width:100%;" placeholder="Filter..." oninput="filterScenarioTable(this.value)">' +
             '<table id="availScenariosTable" style="width:100%;border-collapse:collapse;">' +
               '<thead><tr style="border-bottom:1px solid var(--line);">' +
@@ -17147,7 +17147,7 @@ var LEVEL_THEMES = {
           '<label style="font-size: 0.82rem;color:var(--muted);display:block;margin-bottom:4px;">Script (TTS will read this aloud)</label>' +
           '<textarea class="input" id="lstScript" rows="5" style="width:100%;resize:vertical;">' + (clip ? safeText(clip.script) : '') + '</textarea>' +
         '</div>' +
-        '<h5 style="margin:0 0 10px;color:var(--muted);font-size: 0.82rem;letter-spacing:.06em;text-transform:uppercase;">Comprehension Questions</h5>' +
+        '<h5 style="margin:0 0 10px;color:var(--muted);font-size: 0.82rem;letter-spacing: 0.06em;text-transform:uppercase;">Comprehension Questions</h5>' +
         '<div id="lstQsArea">' + qsHtml + '</div>' +
         '<button class="btn secondary" style="font-size: 0.82rem;margin-bottom:16px;" onclick="adminAddLstQ()">+ Add Question</button>' +
         '<div style="display:flex;gap:10px;">' +
@@ -17434,12 +17434,12 @@ var LEVEL_THEMES = {
       return '<div style="padding:20px 24px;background:var(--panel-soft);border-top:1px solid var(--line);border-bottom:1px solid var(--line);">' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px;">' +
           '<div>' +
-            '<h5 style="margin:0 0 8px;font-size: 0.82rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;">Prompt</h5>' +
+            '<h5 style="margin:0 0 8px;font-size: 0.82rem;color:var(--muted);letter-spacing: 0.06em;text-transform:uppercase;">Prompt</h5>' +
             (s.imageUrl ? '<img src="' + safeText(s.imageUrl) + '" style="max-width:100%;border-radius: 4px;max-height:180px;object-fit:cover;margin-bottom:10px;">' : '') +
             '<p style="margin:0;font-size: 0.9rem;color:var(--text);">' + safeText(s.promptText) + '</p>' +
           '</div>' +
           '<div>' +
-            '<h5 style="margin:0 0 8px;font-size: 0.82rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;">Student Response</h5>' +
+            '<h5 style="margin:0 0 8px;font-size: 0.82rem;color:var(--muted);letter-spacing: 0.06em;text-transform:uppercase;">Student Response</h5>' +
             '<div style="padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:8px;font-size: 0.82rem;line-height:1.6;white-space:pre-wrap;">' + safeText(s.responseText) + '</div>' +
           '</div>' +
         '</div>' +
@@ -19155,8 +19155,8 @@ var LEVEL_THEMES = {
       '</div>';
 
     // ── Per-student table ──────────────────────────────────────
-    var thS = 'padding:9px 12px;font-size: 0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;';
-    var tdS = 'padding:10px 12px;vertical-align:middle;border-bottom:1px solid rgba(255,255,255,0.04);font-size: 0.82rem;';
+    var thS = 'padding:9px 12px;font-size: 0.72rem;font-weight:700;text-transform:uppercase;letter-spacing: 0.06em;color:var(--muted);border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;';
+    var tdS = 'padding:10px 12px;vertical-align:middle;border-bottom:1px solid var(--line);font-size: 0.82rem;';
 
     var tableRows = users.length ? users.map(function(u, i) {
       var rankColor = i === 0 ? 'var(--yellow)' : i === 1 ? 'var(--muted)' : i === 2 ? 'var(--yellow)' : 'var(--muted)';
@@ -19362,7 +19362,7 @@ var LEVEL_THEMES = {
       '</div>' +
       stats +
       '<div style="margin-top:18px;">' +
-        '<div style="font-size: 0.72rem;letter-spacing:.12em;text-transform:uppercase;' +
+        '<div style="font-size: 0.72rem;letter-spacing: 0.12em;text-transform:uppercase;' +
           'color:var(--muted);margin-bottom:9px;">Descriptors \u00B7 most recent sitting</div>' +
         bars +
       '</div>' +
@@ -19425,7 +19425,7 @@ var LEVEL_THEMES = {
           '<span class="prog-skill-avg-label">' + r.label + '</span>' +
           '<strong class="prog-skill-avg-value" style="color:' + color + '">' + (r.avg !== null ? r.avg + '%' : '—') + '</strong>' +
           (r.avg !== null
-            ? '<div class="prog-skill-avg-bar"><div style="width:' + r.avg + '%;height:100%;background:' + color + ';border-radius: 4px;transition:width .5s ease;"></div></div>'
+            ? '<div class="prog-skill-avg-bar"><div style="width:' + r.avg + '%;height:100%;background:' + color + ';border-radius: 4px;transition:width 0.4s var(--ease);"></div></div>'
             : '') +
           '<small class="prog-skill-avg-sub">' + sublabel + '</small>' +
         '</div>';
@@ -19462,7 +19462,7 @@ var LEVEL_THEMES = {
           ? 'color:var(--green);background:rgba(34,197,94,0.10);border:1px solid rgba(34,197,94,0.25);'
           : inProg
             ? 'color:var(--accent);background:rgba(14,165,233,0.10);border:1px solid rgba(14,165,233,0.25);'
-            : 'color:var(--muted);background:rgba(155,155,155,0.07);border:1px solid rgba(155,155,155,0.18);';
+            : 'color:var(--muted);background:rgba(155,155,155,0.07);border:1px solid var(--line-strong);';
         return '<div class="prog-route-card" style="--tier-color:' + tierColor + '">' +
           '<div class="prog-route-card-header">' +
             '<div>' +
@@ -19474,7 +19474,7 @@ var LEVEL_THEMES = {
           '<div class="prog-lms-skills-grid">' +
             skills.map(function(s) {
               return '<div>' +
-                '<div style="font-size:0.62rem;color:var(--muted);margin-bottom:5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">' + s.label + '</div>' +
+                '<div style="font-size:0.62rem;color:var(--muted);margin-bottom:5px;font-weight:700;text-transform:uppercase;letter-spacing: 0.06em;">' + s.label + '</div>' +
                 '<div style="display:flex;align-items:center;gap:5px;">' + skillBar(m[s.key]) + '</div>' +
               '</div>';
             }).join('') +
@@ -20635,8 +20635,8 @@ var LEVEL_THEMES = {
     var phases   = res.phaseBreakdown || [];
     var sum      = res.summary       || {};
 
-    var thS = 'padding:9px 12px;font-size: 0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;';
-    var tdS = 'padding:10px 12px;vertical-align:middle;border-bottom:1px solid rgba(255,255,255,0.04);font-size: 0.82rem;';
+    var thS = 'padding:9px 12px;font-size: 0.72rem;font-weight:700;text-transform:uppercase;letter-spacing: 0.06em;color:var(--muted);border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;';
+    var tdS = 'padding:10px 12px;vertical-align:middle;border-bottom:1px solid var(--line);font-size: 0.82rem;';
 
     var filterKey = phaseFilter !== 'all' ? 'byPhase' : levelFilter !== 'all' ? 'byLevel' : null;
     var filterVal = phaseFilter !== 'all' ? phaseFilter : levelFilter !== 'all' ? levelFilter : null;
@@ -20830,8 +20830,8 @@ var LEVEL_THEMES = {
   };
 
   function _buildScenarioDifficultyHtml(comparisons) {
-    var thS = 'padding:9px 12px;font-size: 0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);border-bottom:1px solid rgba(255,255,255,0.08);text-align:left;white-space:nowrap;';
-    var tdS = 'padding:10px 12px;vertical-align:middle;border-bottom:1px solid rgba(255,255,255,0.04);font-size: 0.82rem;';
+    var thS = 'padding:9px 12px;font-size: 0.72rem;font-weight:700;text-transform:uppercase;letter-spacing: 0.06em;color:var(--muted);border-bottom:1px solid var(--line);text-align:left;white-space:nowrap;';
+    var tdS = 'padding:10px 12px;vertical-align:middle;border-bottom:1px solid var(--line);font-size: 0.82rem;';
 
     if (!comparisons || !comparisons.length) {
       return '<div class="mgmt-section" style="margin-top:24px;">' +
@@ -21852,7 +21852,7 @@ var LEVEL_THEMES = {
     return (
       '<div class="demo-card">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">' +
-          '<p style="margin:0;font-size: 0.62rem;color:var(--muted);font-weight:700;letter-spacing:1.2px;">AVIATION ENGLISH INTERACTIVE CAMPUS &middot; HOW IT WORKS</p>' +
+          '<p style="margin:0;font-size: 0.62rem;color:var(--muted);font-weight:700;letter-spacing: 0.08em;">AVIATION ENGLISH INTERACTIVE CAMPUS &middot; HOW IT WORKS</p>' +
           '<button onclick="window._demoClose()" style="background:none;border:none;color: var(--muted);cursor:pointer;font-size: 1.15rem;line-height:1;padding:0 4px;">&times;</button>' +
         '</div>' +
         '<div class="demo-progress">' + dots + '</div>' +
@@ -21882,7 +21882,7 @@ var LEVEL_THEMES = {
       '<p style="color:var(--muted);margin:0 0 12px;font-size: 0.82rem;">In every session the controller transmits first. Listen before reading — just like real radio.</p>' +
       '<div class="demo-callout">Press play to hear the ATC transmission</div>' +
       '<div class="demo-atc-box">' +
-        '<p style="margin:0 0 10px;font-size: 0.72rem;color:var(--muted);font-weight:700;letter-spacing:1px;">STARTUP PHASE &middot; LEVEL 1 &middot; USA</p>' +
+        '<p style="margin:0 0 10px;font-size: 0.72rem;color:var(--muted);font-weight:700;letter-spacing: 0.08em;">STARTUP PHASE &middot; LEVEL 1 &middot; USA</p>' +
         '<button id="demoPlayBtn" class="demo-play-btn' + (ready ? ' pulse' : '') + '" onclick="window._demoPlay()"' + (ready ? '' : ' disabled') + '>' +
           '<span id="demoPlayIcon">&#9654;</span> ' + (ready ? 'Play ATC transmission' : 'Loading audio&hellip;') +
         '</button>' +
@@ -21902,7 +21902,7 @@ var LEVEL_THEMES = {
       '<h3 style="margin:0 0 6px;color:var(--text);">Step 2 &mdash; Read the transmission</h3>' +
       '<p style="color:var(--muted);margin:0 0 12px;font-size: 0.82rem;">After listening, you can reveal the text. In practice, always try audio first.</p>' +
       '<div class="demo-atc-box">' +
-        '<p style="margin:0 0 8px;font-size: 0.72rem;color:var(--muted);font-weight:700;letter-spacing:1px;">ATC SAID:</p>' +
+        '<p style="margin:0 0 8px;font-size: 0.72rem;color:var(--muted);font-weight:700;letter-spacing: 0.08em;">ATC SAID:</p>' +
         '<p class="demo-atc-text">' + _esc(ATC_TEXT) + '</p>' +
       '</div>' +
       '<div class="demo-callout">Your readback must confirm: the instruction &plus; all numbers &plus; your callsign at the end.</div>' +
@@ -21952,7 +21952,7 @@ var LEVEL_THEMES = {
           '</div>' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">' + kwHtml + '</div>' +
-        '<p style="margin:0 0 4px;font-size: 0.72rem;color:var(--muted);font-weight:700;letter-spacing:1px;">MODEL ANSWER</p>' +
+        '<p style="margin:0 0 4px;font-size: 0.72rem;color:var(--muted);font-weight:700;letter-spacing: 0.08em;">MODEL ANSWER</p>' +
         '<p style="margin:0;font-size:0.82rem;color:var(--muted);font-style:italic;">&ldquo;' + _esc(EXPECTED) + '&rdquo;</p>' +
       '</div>' +
       (!allOk ? '<div class="demo-callout" style="background:linear-gradient(135deg,#4c1d95,var(--accent));">No worries — the real sessions let you retry as many times as you need.</div>' : '') +
@@ -21970,7 +21970,7 @@ var LEVEL_THEMES = {
         '<h2 style="margin:0 0 10px;color:var(--text);font-size: 1.35rem;">You&apos;ve got it!</h2>' +
         '<p style="color:var(--muted);margin:0 0 20px;line-height:1.6;">ICAO Trainer works in 4 steps: <strong style="color:var(--text);">listen &rarr; read &rarr; respond &rarr; improve</strong>. Every route uses real ATC voices with authentic regional accents.</p>' +
         '<div style="background:var(--panel-soft);border-radius:12px;padding:16px 18px;text-align:left;margin-bottom:22px;">' +
-          '<p style="margin:0 0 8px;font-size: 0.72rem;color:var(--muted);font-weight:700;letter-spacing:1px;">WHAT&apos;S NEXT</p>' +
+          '<p style="margin:0 0 8px;font-size: 0.72rem;color:var(--muted);font-weight:700;letter-spacing: 0.08em;">WHAT&apos;S NEXT</p>' +
           '<ul style="margin:0;padding-left:18px;color:var(--muted);font-size: 0.82rem;line-height:1.9;">' +
             '<li>Pick a country and level from the <strong style="color:var(--text);">Simulator</strong></li>' +
             '<li>Complete all phases of a route to unlock the next level</li>' +
@@ -22542,7 +22542,7 @@ var LEVEL_THEMES = {
       'padding:12px 18px;border-radius: 8px;font-size:0.82rem;font-weight:600;' +
       'color:#fff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);' +
       'box-shadow: var(--shadow-2);pointer-events:none;' +
-      'opacity:0;transform:translateY(6px);transition:opacity .3s ease,transform .3s ease;' +
+      'opacity:0;transform:translateY(6px);transition:opacity 0.25s var(--ease), transform 0.25s var(--ease);' +
       'background:' + (type === 'err' ? 'rgba(239,68,68,.9)' : 'rgba(0,229,160,.85)') + ';';
     t.textContent = msg;
     document.body.appendChild(t);
@@ -22723,7 +22723,7 @@ var LEVEL_THEMES = {
       return;
     }
     var fallbackNote = res.fallback
-      ? '<div style="padding:8px 16px 0;font-size: 0.72rem;color:var(--muted);letter-spacing:0.03em;">Season 1 in progress — CP based on current progress</div>'
+      ? '<div style="padding:8px 16px 0;font-size: 0.72rem;color:var(--muted);letter-spacing: 0.02em;">Season 1 in progress — CP based on current progress</div>'
       : '';
     var myEmail = _gam.myEmail ? _gam.myEmail.toLowerCase() : '';
     var medals  = ['🥇', '🥈', '🥉'];
@@ -22829,7 +22829,7 @@ var LEVEL_THEMES = {
     var maxXp = 1;
     res.data.forEach(function(p) { if ((p.mergedXp || 0) > maxXp) maxXp = p.mergedXp; });
 
-    var html = '<div style="font-size: 0.72rem;font-weight:700;letter-spacing:.08em;color:rgba(255,255,255,.35);text-align:center;margin-bottom:8px;text-transform:uppercase;">This week\'s ranking · resets Monday</div>';
+    var html = '<div style="font-size: 0.72rem;font-weight:700;letter-spacing: 0.08em;color:rgba(255,255,255,.35);text-align:center;margin-bottom:8px;text-transform:uppercase;">This week\'s ranking · resets Monday</div>';
 
     GAM_TIERS.forEach(function(tier) {
       var pilots = groups[tier.key];
@@ -22861,7 +22861,7 @@ var LEVEL_THEMES = {
         }
 
         var nameTag = crownMkp + _gEsc(p.name) +
-          (isMe ? ' <span style="color:var(--gam-green);font-size:0.72rem;font-weight:700;margin-left:5px;letter-spacing:0.05em;">YOU</span>' : '') +
+          (isMe ? ' <span style="color:var(--gam-green);font-size:0.72rem;font-weight:700;margin-left:5px;letter-spacing: 0.06em;">YOU</span>' : '') +
           streakMkp;
 
         if (isMe) _gam.myWeeklyLevels = p.weeklyXp || 0;
@@ -23682,17 +23682,17 @@ var LEVEL_THEMES = {
 
       var ov = document.createElement('div');
       ov.id = '_examPassedOv';
-      ov.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0);transition:background .35s;cursor:pointer;overflow:hidden;';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0);transition:background 0.4s var(--ease);cursor:pointer;overflow:hidden;';
 
       ov.innerHTML =
         '<div style="position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 50% 48%,' + color + '22 0%,transparent 70%);pointer-events:none;"></div>' +
         '<button onclick="event.stopPropagation();_examPassedDismiss();" style="position:absolute;top:20px;right:24px;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.5);font-size: 1.15rem;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;">&#x2715;</button>' +
-        '<div id="_examPassedCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform .55s cubic-bezier(0.34,1.56,0.64,1),opacity .4s ease;padding:0 20px;pointer-events:none;max-width:min(480px,calc(100vw - 32px));">' +
-          '<div style="font-size: 0.72rem;font-weight:800;letter-spacing:.2em;color:' + color + ';text-transform:uppercase;margin-bottom:20px;">Checkpoint ' + examNum + ' Cleared</div>' +
+        '<div id="_examPassedCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1),opacity 0.4s ease;padding:0 20px;pointer-events:none;max-width:min(480px,calc(100vw - 32px));">' +
+          '<div style="font-size: 0.72rem;font-weight:800;letter-spacing: 0.2em;color:' + color + ';text-transform:uppercase;margin-bottom:20px;">Checkpoint ' + examNum + ' Cleared</div>' +
           '<div style="font-size:clamp(3.2rem,14vw,5rem);line-height:1;margin-bottom:16px;filter:drop-shadow(0 0 32px ' + color + ');">&#10003;</div>' +
-          '<div style="font-size:clamp(3rem,13vw,4.5rem);font-weight: 800;color:#fff;line-height:1;letter-spacing:-0.02em;text-shadow:0 0 40px ' + color + ',0 0 80px ' + color + '44;margin-bottom:4px;">' + score + '<span style="font-size:clamp(1.05rem,4.5vw,1.5rem);color:rgba(255,255,255,.35);font-weight:600;"> / 100</span></div>' +
+          '<div style="font-size:clamp(3rem,13vw,4.5rem);font-weight: 800;color:#fff;line-height:1;letter-spacing: -0.02em;text-shadow:0 0 40px ' + color + ',0 0 80px ' + color + '44;margin-bottom:4px;">' + score + '<span style="font-size:clamp(1.05rem,4.5vw,1.5rem);color:rgba(255,255,255,.35);font-weight:600;"> / 100</span></div>' +
           '<div style="font-size: 0.9rem;color:rgba(255,255,255,.45);margin-bottom:52px;font-weight: 600;margin-top:10px;">ICAO Language Proficiency Test passed</div>' +
-          '<div style="font-size: 0.72rem;font-weight:700;letter-spacing:.12em;color:rgba(255,255,255,.18);text-transform:uppercase;">Tap anywhere to continue</div>' +
+          '<div style="font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;color:rgba(255,255,255,.18);text-transform:uppercase;">Tap anywhere to continue</div>' +
         '</div>' +
         '<div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.06);">' +
           '<div id="_examPassedBar" style="height:3px;width:100%;background:' + color + ';transition:width 5s linear;"></div>' +
@@ -23968,7 +23968,7 @@ var LEVEL_THEMES = {
           '<span class="exam-phase-num">Phase ' + (idx + 1) + ' / ' + total + '</span>' +
           '<span class="exam-phase-name">' + _esc(phase.phaseName || phase.phaseCode) + '</span>' +
         '</div>' +
-        '<div style="text-align:center;margin-bottom:6px;font-size:0.72rem;color:#6b7280;letter-spacing:0.06em;text-transform:uppercase;">' + roundLabel + '</div>' +
+        '<div style="text-align:center;margin-bottom:6px;font-size:0.72rem;color:#6b7280;letter-spacing: 0.06em;text-transform:uppercase;">' + roundLabel + '</div>' +
         '<div class="exam-dots">' + dots + '</div>' +
         '<div class="exam-phase-body">' +
           '<div class="exam-play-area">' +
@@ -24119,7 +24119,7 @@ var LEVEL_THEMES = {
 
     o.innerHTML =
       '<div class="exam-card-overlay exam-result">' +
-        '<div class="exam-result-header exam-result-pass" style="font-size: 1rem;letter-spacing:0.04em;">Placement Complete</div>' +
+        '<div class="exam-result-header exam-result-pass" style="font-size: 1rem;letter-spacing: 0.04em;">Placement Complete</div>' +
         '<div class="exam-result-body">' +
           '<div style="font-size: 2rem;margin:10px 0 6px;">&#127919;</div>' +
           '<p style="font-size: 2rem;font-weight: 800;color:#fff;margin:0 0 4px;">Level ' + level + '</p>' +
@@ -25231,7 +25231,7 @@ var LEVEL_THEMES = {
         host.appendChild(box);
       }
       box.innerHTML =
-        '<p style="margin:0 0 6px;font-size: 0.62rem;font-weight:800;letter-spacing:.14em;' +
+        '<p style="margin:0 0 6px;font-size: 0.62rem;font-weight:800;letter-spacing: 0.12em;' +
         'text-transform:uppercase;color:#eab308;">Examiner \u00b7 audio unavailable</p>' +
         '<p style="margin:0;font-size: 0.9rem;line-height:1.55;color:var(--text,#cacaca);">' +
         _esc(String(text || '')) + '</p>';
@@ -25823,7 +25823,7 @@ var LEVEL_THEMES = {
         '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;">' +
           TEA_IMAGES.map(function(img, i) {
             return '<div style="flex:1 1 46%;min-width:180px;">' +
-              '<div style="font-size:0.62rem;letter-spacing:.1em;color:#5b7690;' +
+              '<div style="font-size:0.62rem;letter-spacing: 0.12em;color:#5b7690;' +
                 'text-transform:uppercase;margin-bottom:4px;">Image ' + (i + 1) + '</div>' +
               (img.src
                 ? '<img src="' + _esc(img.src) + '" alt="Image ' + (i + 1) + '" ' +
@@ -26498,7 +26498,7 @@ var LEVEL_THEMES = {
       urls.map(function (u, i) {
         return '<figure style="margin:0;">' +
           (many ? '<figcaption style="margin:0 0 4px;font-size: 0.62rem;font-weight:700;' +
-                  'letter-spacing:.1em;text-transform:uppercase;color:#4a6280;">Image ' + (i + 1) + '</figcaption>' : '') +
+                  'letter-spacing: 0.12em;text-transform:uppercase;color:#4a6280;">Image ' + (i + 1) + '</figcaption>' : '') +
           '<img src="' + _esc(u) + '" alt="' + _esc(step.label || ('Image ' + (i + 1))) + '" ' +
           'style="width:100%;max-height:' + (many ? '30vh' : '46vh') + ';object-fit:contain;border-radius: 12px;">' +
         '</figure>';
@@ -26780,7 +26780,7 @@ var LEVEL_THEMES = {
             (ready ? 'onclick="window._teaSelectVersion(\'' + _esc(bank) + '\')"' : 'disabled') + ' ' +
             'style="flex:1;min-width:104px;padding:10px 8px;border-radius:12px;cursor:' +
               (ready ? 'pointer' : 'not-allowed') + ';font-family:inherit;' +
-            'border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.02);' +
+            'border:1px solid var(--line);background:rgba(255,255,255,0.02);' +
             'color:' + (ready ? '#8fa3bb' : '#3d4d5c') + ';text-align:center;">' +
               '<div style="font-size:1.15rem;line-height:1.2;">' + flag + '</div>' +
               '<div style="font-size: 0.82rem;font-weight:700;margin-top:3px;">' + _esc(title) + '</div>' +
@@ -26795,7 +26795,7 @@ var LEVEL_THEMES = {
         // candidate who believed they had chosen the Indian paper sat the American
         // one without a word on screen. Every paper is now a deliberate tap.
         host2.innerHTML =
-          '<p style="margin:0 0 8px;font-size:0.72rem;font-weight:700;letter-spacing:0.12em;' +
+          '<p style="margin:0 0 8px;font-size:0.72rem;font-weight:700;letter-spacing: 0.12em;' +
             'text-transform:uppercase;color:#4a6280;text-align:center;">Choose your paper</p>' +
           '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">' +
             res.versions.map(function (v) {
@@ -26842,7 +26842,7 @@ var LEVEL_THEMES = {
   function _teaPickerNote(msg) {
     return '<p style="margin:0;padding:8px 10px;border-radius: 8px;text-align:center;' +
       'font-size:0.72rem;line-height:1.45;color:#8fa3bb;' +
-      'background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.10);">' +
+      'background:rgba(255,255,255,0.02);border:1px solid var(--line);">' +
       _esc(msg) + '</p>';
   }
 
@@ -26868,8 +26868,8 @@ var LEVEL_THEMES = {
     var el = document.createElement('div');
     el.id = 'teaVersionBadge';
     el.style.cssText = 'margin:0 16px 10px;padding:7px 12px;border-radius: 8px;' +
-      'font-size:0.72rem;letter-spacing:0.04em;color:#8fa3bb;text-align:center;' +
-      'background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.10);';
+      'font-size:0.72rem;letter-spacing: 0.04em;color:#8fa3bb;text-align:center;' +
+      'background:rgba(255,255,255,0.02);border:1px solid var(--line);';
     el.innerHTML = 'Sitting ' + _esc(name) + (drawn ? ' \u00b7 drawn at random' : '');
     cards.parentNode.insertBefore(el, cards);
   }
@@ -27215,7 +27215,7 @@ var LEVEL_THEMES = {
       html += '<div class="tea-score-descriptor-header">';
       html += '<span class="tea-score-descriptor-name">' + d.charAt(0).toUpperCase() + d.slice(1) + '</span>';
       html += '<span class="tea-score-badge" style="background:' + sc + ';' +
-              (na ? 'font-size:0.62rem;padding:3px 9px;letter-spacing:.06em;' : '') + '">' +
+              (na ? 'font-size:0.62rem;padding:3px 9px;letter-spacing: 0.06em;' : '') + '">' +
               (na ? 'NOT ASSESSED' : s) + '</span>';
       html += '</div>';
       // Only the not-assessed cases carry text. The report is the bands; the
@@ -27559,7 +27559,7 @@ var LEVEL_THEMES = {
                 '<div style="position:absolute;inset:0;display:flex;flex-direction:column;' +
                   'align-items:center;justify-content:center;text-align:center;padding:24px;">' +
                   '<div style="background:var(--panel,rgba(18,18,18,.97));border-radius:16px;' +
-                    'border:1px solid var(--line,rgba(186,186,186,.12));padding:22px 24px;' +
+                    'border:1px solid var(--line);padding:22px 24px;' +
                     'max-width:380px;box-shadow: var(--shadow-3);">' +
                     '<p class="eyebrow" style="margin:0 0 8px;">Your result is ready</p>' +
                     '<h3 style="margin:0 0 10px;font-size:1.15rem;color:var(--white,#fff);">' +
@@ -27619,7 +27619,7 @@ var LEVEL_THEMES = {
 
     function head(title, sub) {
       return '<div style="margin:22px 0 10px;">' +
-        '<div style="font-size: 0.72rem;letter-spacing:.14em;color:#4a6280;text-transform:uppercase;">' + title + '</div>' +
+        '<div style="font-size: 0.72rem;letter-spacing: 0.12em;color:#4a6280;text-transform:uppercase;">' + title + '</div>' +
         (sub ? '<div style="font-size: 0.72rem;color:#3a4a5a;margin-top:3px;">' + sub + '</div>' : '') +
       '</div>';
     }
@@ -27631,7 +27631,7 @@ var LEVEL_THEMES = {
         return '<div style="width:44px;height:44px;border-radius:12px;flex-shrink:0;display:flex;' +
           'align-items:center;justify-content:center;font-size: 1rem;' +
           'background:rgba(255,255,255,0.05);color:var(--muted,#808080);' +
-          'border:1px solid var(--line,rgba(186,186,186,.12));">\u{1F512}</div>';
+          'border:1px solid var(--line);">\u{1F512}</div>';
       }
       return _bandChipNumber(b);
     }
@@ -27647,7 +27647,7 @@ var LEVEL_THEMES = {
     function _lockedBars() {
       return _TEA_DESCRIPTORS.map(function (k) {
         return '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;">' +
-          '<div style="width:92px;font-size:0.62rem;letter-spacing:.05em;color:#4a6280;' +
+          '<div style="width:92px;font-size:0.62rem;letter-spacing: 0.06em;color:#4a6280;' +
             'text-transform:uppercase;">' + k + '</div>' +
           '<div style="flex:1;height:5px;border-radius: 4px;background:rgba(255,255,255,0.05);"></div>' +
           '<div style="width:16px;font-size:0.62rem;color:#3a4a5a;text-align:right;">&#8226;</div>' +
@@ -27691,7 +27691,7 @@ var LEVEL_THEMES = {
       return _TEA_DESCRIPTORS.map(function(k) {
         var v = Number(scores[k]) || 0;
         return '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;">' +
-          '<div style="width:92px;font-size:0.62rem;letter-spacing:.05em;color:#4a6280;text-transform:uppercase;">' + k + '</div>' +
+          '<div style="width:92px;font-size:0.62rem;letter-spacing: 0.06em;color:#4a6280;text-transform:uppercase;">' + k + '</div>' +
           '<div style="flex:1;height:5px;background:#161f2b;border-radius: 4px;overflow:hidden;">' +
             '<div style="height:100%;width:' + (v > 0 ? (v / 6) * 100 : 0) + '%;background:' + _teaBandColorFor(v) + ';"></div>' +
           '</div>' +
@@ -28144,13 +28144,13 @@ var LEVEL_THEMES = {
     ];
     var _sectionPicker = _isAdmin
       ? '<div style="margin-top:18px;text-align:center;">' +
-          '<div style="font-size: 0.72rem;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">' +
+          '<div style="font-size: 0.72rem;letter-spacing: 0.12em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">' +
             'Test a single section' +
           '</div>' +
           '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:340px;">' +
             _sections.map(function(sc) {
               return '<button onclick="window._teaBegin(\'' + sc[0] + '\')" ' +
-                'style="padding:7px 12px;background:transparent;border:1px solid var(--panel);' +
+                'style="padding:7px 12px;background:transparent;border:1px solid var(--line);' +
                 'color:var(--accent);border-radius:8px;font-size:0.72rem;cursor:pointer;">' +
                 sc[1] + '</button>';
             }).join('') +
@@ -28160,7 +28160,7 @@ var LEVEL_THEMES = {
 
     var _debugBtn = _isAdmin
       ? '<button onclick="window._teaRunTest()" ' +
-          'style="margin-top:4px;padding:8px 20px;background:transparent;border:1px solid var(--panel);' +
+          'style="margin-top:4px;padding:8px 20px;background:transparent;border:1px solid var(--line);' +
           'color:var(--accent);border-radius:8px;font-size: 0.82rem;cursor:pointer;">' +
           '&var(--accent); Run pipeline test (no exam needed)' +
         '</button>'
@@ -28174,7 +28174,7 @@ var LEVEL_THEMES = {
           'This is a full ICAO aviation English proficiency exam.<br>The examiner will speak. Respond via microphone.' +
         '</div>' +
         '<button onclick="window._teaMyResults()" ' +
-          'style="padding:9px 22px;background:transparent;border:1px solid var(--panel);' +
+          'style="padding:9px 22px;background:transparent;border:1px solid var(--line);' +
           'color:var(--muted);border-radius: 8px;font-size:0.82rem;cursor:pointer;">' +
           'My results' +
         '</button>' +
@@ -28187,7 +28187,7 @@ var LEVEL_THEMES = {
           'Choose a paper above' +
         '</button>' +
         '<button onclick="window._teaBegin()" ' +
-          'style="padding:8px 18px;background:transparent;border:1px solid var(--panel);' +
+          'style="padding:8px 18px;background:transparent;border:1px solid var(--line);' +
           'color: var(--muted);border-radius: 8px;font-size: 0.72rem;cursor:pointer;">' +
           'Conversational exam (legacy)' +
         '</button>' +
@@ -28401,7 +28401,7 @@ var LEVEL_THEMES = {
             '</div>' +
             _renderScoreJSON(d) +
             '<button onclick="renderTeaExam()" style="margin:20px 0;padding:10px 24px;' +
-            'background:transparent;border:1px solid var(--panel);color:var(--muted);border-radius:8px;cursor:pointer;">' +
+            'background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;cursor:pointer;">' +
             '← Back to exam</button>' +
           '</div>';
       } else {
@@ -29127,7 +29127,7 @@ function _aeroShowInstallBar(mode) {
     'border-radius: 12px;padding:14px 16px;color:#fff;' +
     'box-shadow: var(--shadow-2);' +
     'backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);' +
-    'opacity:0;transform:translateY(10px);transition:opacity .3s ease,transform .3s ease;';
+    'opacity:0;transform:translateY(10px);transition:opacity 0.25s var(--ease), transform 0.25s var(--ease);';
 
   var shareGlyph =
     '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#0af" ' +
@@ -29276,7 +29276,7 @@ function _aeroRenderInstallPage() {
     }
   } catch (e) {}
   if (!logo) {
-    logo = '<h2 style="margin:0 0 18px;font-size: 1.6rem;letter-spacing:.06em;">aerocomms</h2>';
+    logo = '<h2 style="margin:0 0 18px;font-size: 1.6rem;letter-spacing: 0.06em;">aerocomms</h2>';
   }
 
   var share =
@@ -29289,7 +29289,7 @@ function _aeroRenderInstallPage() {
     return '' +
       '<li style="display:flex;gap:12px;align-items:flex-start;text-align:left;margin-bottom:14px;">' +
         '<span style="flex:0 0 26px;width:26px;height:26px;border-radius:50%;' +
-        'background:rgba(255,255,255,.08);border:1px solid var(--line,rgba(186,186,186,.12));' +
+        'background:rgba(255,255,255,.08);border:1px solid var(--line);' +
         'font-size: 0.82rem;font-weight:800;line-height:25px;text-align:center;color:var(--white,#fff);">' +
         n + '</span>' +
         '<span style="flex:1;font-size:0.9rem;line-height:1.55;color:var(--text,var(--muted));">' + html + '</span>' +
@@ -29339,7 +29339,7 @@ function _aeroRenderInstallPage() {
       '<p style="margin:0 0 22px;font-size: 0.9rem;line-height:1.6;color:var(--muted,var(--line));">' +
         'Opens full screen, works without signal, and keeps you signed in.</p>' +
       '<div id="_aeroPageStep" style="background:var(--panel,rgba(18,18,18,.97));' +
-        'border:1px solid var(--line,rgba(186,186,186,.12));border-radius:16px;padding:20px 18px;">' +
+        'border:1px solid var(--line);border-radius:16px;padding:20px 18px;">' +
         inner +
       '</div>' +
       (note ? '<p style="margin:14px 0 0;font-size: 0.82rem;color:var(--muted,var(--line));">' + note + '</p>' : '') +
