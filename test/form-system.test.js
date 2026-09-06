@@ -93,6 +93,33 @@ ok('and keeps measuring while the textarea grows', /new ResizeObserver\(apply\)/
 ok('with a path for Safari versions that lack one', /bar\.addEventListener\('input', apply\)/.test(S));
 ok('it starts when the cockpit draws', /_simTrackAnswerHeight\(\);/.test(S));
 
+console.log('--- a grid that becomes a flex column resets its alignment ---');
+// .sim-cockpit is a two-column grid on a desktop, with align-items: start to
+// top-align the columns. The phone rule turns it into a flex column and did not
+// touch align-items — where the same value stops meaning "align to the top" and
+// starts meaning "shrink to your content and sit on the left". So the header and
+// the flight rail took the width of the words "Exercise 1 of 8" plus two buttons,
+// about 78% of the screen, while the cards below reached the edge because their
+// text happens to be longer. Two elements disagreeing with a whole screen, from
+// one property that changed meaning under them.
+const rules = [...C.matchAll(/([^{}@]+)\{([^{}]*)\}/g)]
+  .map(m => [m[1].trim().split('\n').pop().trim(), m[2]]);
+const gridStart = new Set(rules
+  .filter(([, b]) => /display:\s*grid/.test(b) && /align-items:\s*(start|flex-start|end)/.test(b))
+  .map(([sel]) => sel));
+const trapped = rules.filter(([sel, b]) =>
+  gridStart.has(sel) && /display:\s*flex/.test(b) &&
+  /flex-direction:\s*column/.test(b) && !/align-items:/.test(b)).map(([sel]) => sel);
+if (trapped.length) console.log('    ' + trapped.join('  '));
+ok('no grid becomes a flex column still carrying its grid alignment', trapped.length === 0);
+// Anchored on what the rule contains rather than on the breakpoint above it:
+// there is more than one @media (max-width: 768px) in the file, and the first one
+// is nowhere near this. The dvh height is unique to the phone cockpit.
+const dvh = C.indexOf('max-height: calc(100dvh');
+const cockpitRule = C.slice(C.lastIndexOf('.sim-cockpit {', dvh), dvh);
+ok('the cockpit stretches its children explicitly',
+   /align-items: stretch;/.test(cockpitRule));
+
 console.log('--- eight steps of letter-spacing ---');
 const ls = distinct(/letter-spacing:\s*([^;"'}<]+)/g);
 console.log('    ' + [...ls].sort().join('  '));

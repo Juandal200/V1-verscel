@@ -2161,9 +2161,10 @@
 
 .atc-accent-name { font-weight: 700; }
 
-@media (max-width: 420px) {
-  /* On the narrowest phones the flag carries it and the word steps aside, rather
-   * than the row wrapping and moving everything below it. */
+@media (max-width: 340px) {
+  /* A last resort, not the normal case. This was 420px — and nearly every phone in
+   * use is 390 to 430 CSS pixels, so it fired on all of them and the word never
+   * appeared. The flag carries it alone only where there is genuinely no room. */
   .atc-accent-name { display: none; }
 }
 
@@ -12398,6 +12399,12 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
        behind the cards. Flex gives it the leftover space instead of all of it. */
     display: flex;
     flex-direction: column;
+    /* stretch, explicitly. The base rule sets align-items: start to top-align the
+       two grid columns, and in a flex COLUMN that same value means "shrink to your
+       content and sit on the left" — so the header and the rail took the width of
+       the words "Exercise 1 of 8" plus two buttons, about 78% of the screen, while
+       the cards below reached the edge because their text is longer. */
+    align-items: stretch;
     gap: 8px;
     /* Minus the top bar, the bottom nav, and the safe areas at both ends.
        Installed, this is the whole screen: standalone has no URL bar and no Safari

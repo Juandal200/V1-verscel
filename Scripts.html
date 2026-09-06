@@ -8824,9 +8824,10 @@ var LEVEL_THEMES = {
     var active = getPhaseIndexForScenario(scenario);
     var DRAW_PHASES = PHASES.filter(function(p) { return p.code !== 'STARTUP'; });
     var drawActive = active > 0 ? active - 1 : 0;
-    // Was a flat 48 each side, which left the rail occupying about seventy per cent
-    // of the pill it sits in. It only has to keep the end dots off the rounded edge.
-    var padX = Math.max(20, Math.min(34, W * 0.055));
+    // Was a flat 48, which left the rail at about seventy per cent of the pill; then
+    // 5.5% with a floor of 20, which put the aircraft on the pill's own corner — the
+    // radius is 16, and the marker is twelve wide. The floor has to clear both.
+    var padX = Math.max(28, Math.min(40, W * 0.07));
     var lineY = H / 2 + 6;
     var step = (W - padX * 2) / (DRAW_PHASES.length - 1);
 
@@ -8873,11 +8874,20 @@ var LEVEL_THEMES = {
         ctx.font = (isNow ? '700 ' : '') + (roomForAll ? '11px ' : '12px ') + T.instrument;
         ctx.textAlign = 'center';
         ctx.fillStyle = isNow ? T.text : isDone ? T.muted : T.strong;
-        // Clamped by the word's own width rather than a flat 34px, which was tuned
-        // to the old inset and would now clip "Approach" at either end.
-        var half = ctx.measureText(phase.label).width / 2 + 6;
+        // Clamped by the word's own width, plus the corner it would otherwise sit in.
+        //
+        // The pill's radius is 16. At the height the label is drawn the border has
+        // curved about ten pixels inward, so a word clamped to its half-width alone
+        // starts underneath the border and loses its first letter — which is what
+        // "Taxi Out" was doing. And on a 38px canvas lineY - 18 puts the baseline at
+        // 7, riding the top edge; it needs a floor of its own.
+        var half   = ctx.measureText(phase.label).width / 2 + 6;
+        var corner = 14;
+        var labelY = Math.max(13, lineY - 18);
         ctx.fillText(phase.label,
-                     roomForAll ? x : Math.max(half, Math.min(W - half, x)), lineY - 18);
+                     roomForAll ? x
+                                : Math.max(half + corner, Math.min(W - half - corner, x)),
+                     labelY);
       }
 
       ctx.beginPath();
