@@ -15,6 +15,25 @@ const cat = C.slice(C.indexOf('var _PLAN_CATALOG_'), C.indexOf('var _PLAN_DAYS')
 ok('it holds exactly the plans on sale', /basic:/.test(cat) && /full:/.test(cat));
 ok('and no retired plan',                !/15d:/.test(cat) && !/'3m':/.test(cat));
 
+console.log('--- how far a tier reaches is computed once ---');
+// maxLevel in ACCESS_PLANS_ is a deliberately generous CEILING — FULL is 99 so that
+// publishing level 21 needs no edit there. What a tier OPENS is read from the
+// catalogue. That arithmetic existed twice: the gate computed it, and the
+// subscription screen read the raw constant, so the Full card sold "99 levels of
+// the ATC simulator" on the one page where somebody decides whether to pay. The
+// function's own docstring claimed a card could not drift out of step with the
+// catalogue; it could, because they were two pieces of code doing the same sum.
+ok('one function answers it', /function planReach_\(planKey\)/.test(C));
+ok('the gate calls it',       /var reach = planReach_\(planKey\);/.test(C));
+ok('and so does the shop',    /maxLevel:\s*planReach_\(p\.entitlement\)/.test(C));
+ok('nothing sells the ceiling directly',
+   !/maxLevel:\s*ent\.maxLevel/.test(C));
+// A tier that cannot read the catalogue has to under-promise. Selling 99 because a
+// sheet read failed is worse than selling nothing.
+const reach = C.slice(C.indexOf('function planReach_'), C.indexOf('function _accessFor_'));
+ok('a failed read under-promises rather than over-promises',
+   /catch \(e\) \{[\s\S]*?return planKey === 'BASIC' \? plan\.maxLevel : 0;/.test(reach));
+
 console.log('--- the shop reads it rather than repeating it ---');
 const shop = S.slice(S.indexOf('function _shopFillPlanCard'), S.indexOf('function purchaseStreakFreeze'));
 ok('the shop asks the server for plans',   /apiGetWompiPlans/.test(shop));

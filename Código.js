@@ -214,22 +214,35 @@ var ACCESS_PLANS_ = {
   STAFF: { maxLevel: 999, examAllowance: 999, emergencies: true, label: 'Staff' }
 };
 
+/**
+ * How far a tier actually reaches.
+ *
+ * maxLevel in ACCESS_PLANS_ is a deliberately generous CEILING, not a promise —
+ * FULL is 99 so that publishing level 21 needs no edit there. What a tier opens is
+ * read from the content: Basic to the end of the foundation group, Full to whatever
+ * is published.
+ *
+ * This was written out twice. The gate computed it; the subscription screen read the
+ * raw constant instead, and sold "99 levels of the ATC simulator" on the one page
+ * where somebody decides whether to pay. The docstring on that function even said a
+ * card could not drift out of step with the catalogue. It could, because the two
+ * were separate pieces of code doing the same arithmetic.
+ */
+function planReach_(planKey) {
+  var plan = ACCESS_PLANS_[planKey] || ACCESS_PLANS_.FREE;
+  if (planKey !== 'BASIC' && planKey !== 'FULL') return plan.maxLevel;
+  try {
+    var caps = levelCapsFromContent_();
+    return Math.min(plan.maxLevel, planKey === 'BASIC' ? caps.basic : caps.full);
+  } catch (e) {
+    // A tier that cannot read the catalogue under-promises rather than over-promises.
+    return planKey === 'BASIC' ? plan.maxLevel : 0;
+  }
+}
+
 function _accessFor_(planKey, extra) {
   var plan = ACCESS_PLANS_[planKey] || ACCESS_PLANS_.FREE;
-
-  // How far the tier reaches is read from the content, not from the number above.
-  //
-  // FULL said twenty while ten levels existed, and nothing compared them, so the app
-  // promised eleven levels it did not have. Basic stops at the end of the foundation
-  // group and Full reaches whatever is published, which means adding level 21 needs no
-  // edit here — the day its scenarios land, Full covers it.
-  var reach = plan.maxLevel;
-  try {
-    if (planKey === 'BASIC' || planKey === 'FULL') {
-      var caps = levelCapsFromContent_();
-      reach = Math.min(plan.maxLevel, planKey === 'BASIC' ? caps.basic : caps.full);
-    }
-  } catch (e) {}
+  var reach = planReach_(planKey);
 
   var out = {
     status:        planKey === 'FREE' ? 'free' : 'active',
@@ -8576,8 +8589,11 @@ function apiGetWompiCheckoutData(sessionToken, plan) {
 /**
  * The plans on sale. Carries what each one GRANTS as well as what it costs, so
  * the subscription screen states the entitlement from the same source the gates
- * enforce it from — a card promising twenty levels cannot drift out of step with
- * the catalogue that only opens ten.
+ * enforce it from.
+ *
+ * It said that before and was not doing it: this read ent.maxLevel, the raw ceiling,
+ * so the Full card advertised 99 levels of a catalogue that has fifteen. It calls
+ * planReach_ now, which is the function the gate itself uses.
  */
 function apiGetWompiPlans(sessionToken) {
   try {
@@ -8590,7 +8606,7 @@ function apiGetWompiPlans(sessionToken) {
         label:         p.label,
         days:          p.days,
         cents:         parseInt(props.getProperty(p.prop) || p.defaultCents, 10),
-        maxLevel:      ent.maxLevel,
+        maxLevel:      planReach_(p.entitlement),
         examAllowance: ent.examAllowance,
         emergencies:   ent.emergencies === true
       };

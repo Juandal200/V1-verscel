@@ -405,3 +405,47 @@ function checkCatalogSpeed() {
   Logger.log(msg);
   return msg;
 }
+
+/**
+ * What the two plan cards will say, and why.
+ *
+ * Run this from LevelService.gs whenever a level is published or retired. It prints
+ * the number each card will show and the level it came from, so the sales copy can
+ * be checked against the catalogue without opening the shop.
+ *
+ * The Full card said 99 for as long as apiGetWompiPlans read the ceiling instead of
+ * the reach — a number nobody would have noticed was wrong by looking at the code,
+ * because the constant is meant to be generous.
+ */
+function checkPlanReach() {
+  clearLevelCapsCache();
+  var caps = levelCapsFromContent_();
+  var rows = [];
+  try {
+    dbReadAll_(LEVELS_SHEET_).forEach(function(r) {
+      if (String(r.isActive).toUpperCase() === 'FALSE') return;
+      var n = Number(r.level || 0);
+      if (n) rows.push({ level: n, group: String(r.groupKey || '').trim().toUpperCase(),
+                         name: String(r.name || '') });
+    });
+  } catch (e) {}
+  rows.sort(function(a, b) { return a.level - b.level; });
+
+  var out = ['LEVELS PUBLISHED: ' + rows.length];
+  rows.forEach(function(r) {
+    out.push('  ' + ('  ' + r.level).slice(-3) + '  ' + (r.group || '(no group)').padEnd(12) + r.name);
+  });
+  out.push('');
+  out.push('COMPUTED CAPS   foundation ' + caps.basic + '   overall ' + caps.full);
+  out.push('');
+  ['BASIC', 'FULL'].forEach(function(k) {
+    var ceiling = ACCESS_PLANS_[k].maxLevel;
+    var reach   = planReach_(k);
+    out.push(k.padEnd(6) + ' card will say "' + reach + ' levels"' +
+             '   (ceiling ' + ceiling + ', capped by the catalogue' +
+             (reach === ceiling ? ' — NOT capped, check the sheet' : '') + ')');
+  });
+  var msg = out.join('\n');
+  Logger.log(msg);
+  return msg;
+}
