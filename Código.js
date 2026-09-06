@@ -2258,7 +2258,17 @@ function apiGetTrainingCatalogV5_HARD(sessionToken) {
   try {
     var user = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
 
-    var catalog = buildTrainingCatalogV5Hard_(user, 10);
+    // Not a hardcoded ten.
+    //
+    // The level map showed at most ten levels while the subscription card sold
+    // whatever the catalogue holds — fifteen — so a student could pay for Full and
+    // find five of the levels they bought simply absent from the map. The cap is
+    // what the catalogue publishes, which is the same number planReach_ gives the
+    // shop and the gate. A generous ceiling on top of it, so a sheet that grows
+    // does not need an edit here either.
+    var _published = 10;
+    try { _published = Math.max(Number(levelCapsFromContent_().full) || 0, 1); } catch (e) {}
+    var catalog = buildTrainingCatalogV5Hard_(user, Math.max(_published, 10));
 
     return {
       ok: true,

@@ -736,7 +736,20 @@ function _icaoAnswerSecs_(row) {
 function apiGetIcaoTestScript(sessionToken, bank) {
   try {
     AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    return _icaoBuildScript_(bank);
+  } catch (err) {
+    return apiError_('apiGetIcaoTestScript', err);
+  }
+}
 
+/**
+ * The sitting itself, without the session check.
+ *
+ * Split out so a diagnostic can build a paper the way the exam builds it, rather
+ * than approximating it and reporting on something the candidate will never see.
+ */
+function _icaoBuildScript_(bank) {
+  try {
     var rows;
     try {
       rows = dbReadAll_(ICAO_ITEMS_SHEET_);
@@ -901,7 +914,7 @@ function apiGetIcaoTestScript(sessionToken, bank) {
       unrendered: missing
     };
   } catch (err) {
-    return apiError_('apiGetIcaoTestScript', err);
+    return apiError_('_icaoBuildScript_', err);
   }
 }
 
@@ -1561,3 +1574,54 @@ function setIcaoImages(bank, first, second) {
   Logger.log(msg);
   return msg;
 }
+
+/**
+ * Questions that open no microphone.
+ *
+ * A step is only given an answer window when answerSeconds is above zero or it
+ * carries a picture. LINE and AUDIO default to zero on purpose — a transition is
+ * not answered and a recording is listened to — but a QUESTION whose cell is blank
+ * and whose section has no structural default inherits that zero, and is then
+ * spoken and skipped. The candidate is not told, and the sitting is one question
+ * shorter than the paper it claims to be.
+ *
+ * Run this from IcaoTestItemService.gs after editing the item bank. It builds each
+ * version the way the exam does and reports any step that asks something and then
+ * waits for nothing.
+ */
+function checkAnswerWindows() {
+  var out = [];
+  var banks = {};
+  try {
+    dbReadAll_(ICAO_ITEMS_SHEET_).forEach(function (r) {
+      if (String(r.isActive).toUpperCase() === 'FALSE') return;
+      banks[String(r.bank || ICAO_ITEMS_BANK_).trim().toUpperCase()] = true;
+    });
+  } catch (e) {}
+
+  Object.keys(banks).sort().forEach(function (bank) {
+    var res = _icaoBuildScript_(bank);
+    if (!res || !res.ok) {
+      out.push(bank + '  could not be built: ' + ((res && res.error) || 'unknown'));
+      return;
+    }
+    var silent = (res.steps || []).filter(function (st) {
+      // A step that asks a question: it is not a transition, not a recording, and
+      // it is not carrying a picture that opens the window on its own.
+      var isQuestion = String(st.kind || '') !== 'AUDIO' && !st.imageUrl &&
+                       /\?|describe|tell me|what|why|how/i.test(String(st.text || st.script || ''));
+      return isQuestion && !(Number(st.answerSeconds || 0) > 0);
+    });
+    out.push(bank + '  ' + (res.steps || []).length + ' steps, ' +
+             silent.length + ' that ask and then wait for nothing');
+    silent.forEach(function (st) {
+      out.push('     ' + (st.id || '?') + '  section ' + (st.section || '?') + '  "' +
+               String(st.text || st.script || '').slice(0, 60) + '"');
+    });
+  });
+
+  var msg = out.length ? out.join('\n') : 'No item banks found.';
+  Logger.log(msg);
+  return msg;
+}
+

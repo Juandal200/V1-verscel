@@ -2181,6 +2181,30 @@
 .chip-glyph { margin-right: 4px; vertical-align: -2px; }
 .chip-glyph--gap { margin-left: 8px; }
 
+/* A line at the top of the cockpit, for something worth saying and not worth
+   stopping for — a level whose settings could not be loaded, say. A dialog in the
+   middle of an exercise is worse than the thing it is warning about. */
+.sim-toast {
+  position: fixed;
+  left: 50%;
+  top: calc(12px + env(safe-area-inset-top));
+  transform: translateX(-50%);
+  z-index: 60;
+  max-width: min(92vw, 460px);
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-2);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+  transition: opacity 0.4s var(--ease), transform 0.4s var(--ease);
+}
+.sim-toast.out { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+
 .flag-shell {
   display: inline-grid;
   place-items: center;

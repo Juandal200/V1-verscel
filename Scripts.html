@@ -4663,7 +4663,14 @@
     streak: '<path d="M12 3s5 4.2 5 9a5 5 0 0 1-10 0c0-1.6.7-3 1.6-4.2.3 1.3 1 2.1 1.9 2.4' +
             'C10.2 8.4 12 6.2 12 3z"/>',
     freeze: '<path d="M12 3v18"/><path d="M4.2 7.5l15.6 9"/><path d="M19.8 7.5l-15.6 9"/>' +
-            '<path d="M9.5 5.2L12 7.6l2.5-2.4"/><path d="M9.5 18.8L12 16.4l2.5 2.4"/>'
+            '<path d="M9.5 5.2L12 7.6l2.5-2.4"/><path d="M9.5 18.8L12 16.4l2.5 2.4"/>',
+    // The four states a checkpoint can be in. They were a padlock, a tick, a
+    // recycle arrow and a warning triangle — four colour emoji from four different
+    // hands, on the card that decides whether a student may go further.
+    locked: '<rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/>' +
+            '<path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
+    passed: '<circle cx="12" cy="12" r="8.5"/><path d="M8.2 12.2l2.6 2.6 5-5.4"/>',
+    retry:  '<path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4.5h-4.5"/>'
   };
 
   /* 1.6 at 24 is the same optical weight as the interface's 700 text at 0.82rem,
@@ -4907,21 +4914,21 @@
 
     var icon, heading, sub, btnLabel, btnCls, btnAction, badgeCls, badgeText;
     if (status === 'locked') {
-      icon = '🔒'; heading = 'Checkpoint ' + examNum; sub = 'Complete Levels ' + prereqs + ' to unlock';
+      icon = uiIcon('locked', 26); heading = 'Checkpoint ' + examNum; sub = 'Complete Levels ' + prereqs + ' to unlock';
       btnLabel = 'Locked'; btnCls = 'secondary'; btnAction = 'disabled';
       badgeCls = 'exam-badge-locked'; badgeText = 'LOCKED';
     } else if (status === 'passed') {
-      icon = '✅'; heading = 'Checkpoint ' + examNum + ' — Passed';
+      icon = uiIcon('passed', 26); heading = 'Checkpoint ' + examNum + ' — Passed';
       sub = 'Score: ' + (info && info.score !== null ? info.score + '/100' : '—');
       btnLabel = 'View Result'; btnCls = 'secondary'; btnAction = 'onclick="window._examViewResult && window._examViewResult(' + examNum + ')"';
       badgeCls = 'exam-badge-passed'; badgeText = 'PASSED';
     } else if (status === 'replay_required') {
-      icon = '🔄'; heading = 'Checkpoint ' + examNum + ' — Review Required';
+      icon = uiIcon('retry', 26); heading = 'Checkpoint ' + examNum + ' — Review Required';
       sub = 'Replay Levels ' + prereqs + ' to retry';
       btnLabel = 'Review Levels'; btnCls = 'secondary'; btnAction = 'onclick="renderSimulatorPlaceholder()"';
       badgeCls = 'exam-badge-replay'; badgeText = 'REVIEW';
     } else if (status === 'failed_once') {
-      icon = '⚠️'; heading = 'Checkpoint ' + examNum;
+      icon = uiIcon('alert', 26); heading = 'Checkpoint ' + examNum;
       sub = 'Score: ' + (info && info.score !== null ? info.score + '/100' : '—') + ' · 1 attempt left';
       btnLabel = 'Retry Exam'; btnCls = 'primary'; btnAction = 'onclick="window._examOpen && window._examOpen(' + examNum + ')"';
       badgeCls = 'exam-badge-warn'; badgeText = '1 LEFT';
@@ -5634,6 +5641,17 @@ var LEVEL_THEMES = {
     var level     = Number(levelItem && levelItem.level || 1);
     var cards     = '';
 
+    /* A screen with one card on it is a tap, not a choice.
+     *
+     * Levels have had one country each since the curriculum was restructured, so
+     * every entry into every level cost an extra screen offering nothing. The
+     * screen stays for any level that grows a second country — the moment one
+     * does, the choice comes back on its own. */
+    if (countries.length === 1) {
+      startCountryTraining(countries[0].country || '', level);
+      return;
+    }
+
     countries.forEach(function (countryItem) {
       var country   = countryItem.country || '';
       var meta      = getCountryUi(country);
@@ -5904,16 +5922,7 @@ var LEVEL_THEMES = {
       return;
     }
 
-    // Find the index of the first scenario in this group within the full route
     var firstScenario = group.scenarios[0];
-    var startIdx = 0;
-    var allScenarios = route.scenarios || [];
-    for (var i = 0; i < allScenarios.length; i++) {
-      if (allScenarios[i].scenarioId === firstScenario.scenarioId) {
-        startIdx = i;
-        break;
-      }
-    }
 
     AppState.training.activeConfig = {
       level:        AppState.training.selectedLevel,
@@ -5924,20 +5933,55 @@ var LEVEL_THEMES = {
 
     console.log('[ICAO] launchOperationalScenario:', AppState.training.activeConfig);
 
-    // Signal renderScenarioRoute to start from the right phase
-    AppState.training._launchIndex = startIdx;
-    renderScenarioRoute(route);
+    /* The flight, not the level.
+     *
+     * The card says "8 phases" and then handed renderScenarioRoute the WHOLE level
+     * with an index pointing at this group's first phase — so the header counted
+     * every scenario in the level ("Exercise 1 of 24"), the phase rail drew all of
+     * them, and every phase before the launch point was pre-marked complete to stop
+     * the debrief gate objecting. Phases the student never flew were recorded as
+     * flown, and the number on the card was not the number on the screen.
+     *
+     * A flight is the unit: the card promises its phases, the route delivers exactly
+     * those, and nothing has to be pre-marked because nothing is being skipped. */
+    AppState.training._launchIndex = 0;
+    AppState.training._activeGroupIdx = groupIdx;
+    renderScenarioRoute({
+      level:     route.level,
+      country:   route.country,
+      scenarios: group.scenarios.slice()
+    });
   }
 
   var SIM_STATE_KEY = 'icao_sim_state';
   var SIM_STATE_TTL = 48 * 60 * 60 * 1000;
 
+  /* A position is not an index.
+   *
+   * This stored level, country and a number. Coming back, that number was trusted
+   * as far as a bounds check — so a route whose scenarios an admin had reordered
+   * resumed on a different exercise, and every phase below the number was marked
+   * complete without ever having been flown.
+   *
+   * What is stored now identifies the thing being resumed: which flight, which
+   * scenario the cursor is actually on, which phases the SERVER confirmed, and the
+   * session those confirmations belong to — so the run continues as one sitting
+   * rather than starting a second one that scores on half a route. */
   function _simStateSave() {
+    var scns = AppState.training.scenarios || [];
+    var idx  = Number(AppState.training.currentIndex || 0);
+    var cur  = scns[idx] || {};
+    var confirmed = Object.keys(AppState.training.serverConfirmedIds || {});
     var state = {
-      level: AppState.training.selectedLevel,
-      country: AppState.training.selectedCountry,
-      currentIndex: AppState.training.currentIndex || 0,
-      savedAt: Date.now()
+      level:        AppState.training.selectedLevel,
+      country:      AppState.training.selectedCountry,
+      groupIdx:     AppState.training._activeGroupIdx,
+      currentIndex: idx,
+      scenarioId:   String(cur.scenarioId || ''),
+      phaseCount:   scns.length,
+      confirmedIds: confirmed,
+      sessionId:    AppState.training.sessionId || '',
+      savedAt:      Date.now()
     };
     try { localStorage.setItem(SIM_STATE_KEY, JSON.stringify(state)); } catch(e) {}
   }
@@ -5950,6 +5994,12 @@ var LEVEL_THEMES = {
       if (!s || !s.level || !s.country) return null;
       if (Number(s.level) !== Number(level) || String(s.country) !== String(country)) return null;
       if (s.savedAt && Date.now() - s.savedAt > SIM_STATE_TTL) {
+        localStorage.removeItem(SIM_STATE_KEY);
+        return null;
+      }
+      // Written before a position carried what it is a position IN. Resuming on
+      // the number alone is what this stopped doing.
+      if (!s.scenarioId || s.groupIdx == null) {
         localStorage.removeItem(SIM_STATE_KEY);
         return null;
       }
@@ -6015,34 +6065,49 @@ var LEVEL_THEMES = {
 
         AppState.training.loadedRoute = route;
 
-        // Check for resume state before overwriting
-        var _resumeState = _simStateLoad(selectedLevel, selectedCountry);
-        var _resumeIndex = (_resumeState && _resumeState.currentIndex > 0) ? _resumeState.currentIndex : 0;
-        if (!_resumeState) {
-          try { localStorage.setItem(SIM_STATE_KEY, JSON.stringify({ level: selectedLevel, country: selectedCountry, currentIndex: 0, savedAt: Date.now() })); } catch(e) {}
+        /* Resume, or don't.
+         *
+         * A saved position is honoured only if it still points at the same flight
+         * AND the same scenario. An admin who reorders or republishes a level moves
+         * every index under it, and the old check — a bounds test on a number —
+         * happily resumed somebody onto a different exercise. */
+        var _groups   = _groupScenariosByFlight(route.scenarios || []);
+        var _resume   = _simStateLoad(selectedLevel, selectedCountry);
+        var _resumeOk = false;
+        if (_resume && _resume.currentIndex > 0 && _groups[_resume.groupIdx]) {
+          var _g = _groups[_resume.groupIdx].scenarios || [];
+          var _at = _g[_resume.currentIndex];
+          _resumeOk = !!_at && String(_at.scenarioId) === String(_resume.scenarioId)
+                            && _g.length === Number(_resume.phaseCount);
+          if (!_resumeOk) {
+            console.warn('[ICAO] saved position no longer matches the route; starting from the list');
+            try { localStorage.removeItem(SIM_STATE_KEY); } catch (e) {}
+          }
         }
 
-        // Load level config (replay threshold) then show selector or resume
+        function _openRoute() {
+          if (!_resumeOk) { renderScenarioSelector(route, selectedLevel, selectedCountry); return; }
+          AppState.training._activeGroupIdx     = _resume.groupIdx;
+          AppState.training._launchIndex        = _resume.currentIndex;
+          AppState.training._resumeConfirmedIds = _resume.confirmedIds || [];
+          AppState.training._resumeSessionId    = _resume.sessionId || '';
+          renderScenarioRoute({
+            level:     route.level,
+            country:   route.country,
+            scenarios: _groups[_resume.groupIdx].scenarios.slice()
+          });
+        }
+
         google.script.run
           .withSuccessHandler(function(cfg) {
-            AppState.training.replayThreshold = (cfg && cfg.ok && cfg.replayThreshold >= 1)
-              ? Number(cfg.replayThreshold) : 2;
-            if (_resumeIndex > 0 && _resumeIndex < (route.scenarios || []).length) {
-              AppState.training._launchIndex = _resumeIndex;
-              renderScenarioRoute(route);
-            } else {
-              renderScenarioSelector(route, selectedLevel, selectedCountry);
+            if (cfg && cfg.ok && cfg.replayThreshold >= 1) {
+              AppState.training.replayThreshold = Number(cfg.replayThreshold);
+              _openRoute();
+              return;
             }
+            _replayThresholdUnavailable(_openRoute);
           })
-          .withFailureHandler(function() {
-            AppState.training.replayThreshold = 2;
-            if (_resumeIndex > 0 && _resumeIndex < (route.scenarios || []).length) {
-              AppState.training._launchIndex = _resumeIndex;
-              renderScenarioRoute(route);
-            } else {
-              renderScenarioSelector(route, selectedLevel, selectedCountry);
-            }
-          })
+          .withFailureHandler(function() { _replayThresholdUnavailable(_openRoute); })
           .apiGetLevelConfig(AppState.sessionToken, selectedLevel);
       })
       .withFailureHandler(function (err) {
@@ -6052,6 +6117,52 @@ var LEVEL_THEMES = {
       .apiGetTrainingRouteV7_ROUTE_ADMIN(AppState.sessionToken, {
         level: selectedLevel, country: selectedCountry
       });
+  }
+
+  /* The replay threshold IS the difficulty.
+   *
+   * How many times a clearance may be heard before the text unlocks is the single
+   * thing that makes level 9 harder than level 2. When apiGetLevelConfig failed
+   * this fell back to 2 without a word, so a level configured for four listens ran
+   * as a two-listen level and the student's score was not comparable with anybody
+   * else's on that level.
+   *
+   * One retry, then the student is told and chooses. The default is still there —
+   * refusing to let somebody train because a config call failed would be worse —
+   * but it is now a decision rather than a silence. */
+  function _replayThresholdUnavailable(andThen) {
+    if (AppState.training._thresholdRetried) {
+      AppState.training.replayThreshold = 2;
+      console.warn('[ICAO] level config unavailable; running at the default threshold of 2');
+      _simToast('Using the default difficulty — the level settings could not be loaded.');
+      andThen();
+      return;
+    }
+    AppState.training._thresholdRetried = true;
+    google.script.run
+      .withSuccessHandler(function (cfg) {
+        if (cfg && cfg.ok && cfg.replayThreshold >= 1) {
+          AppState.training.replayThreshold = Number(cfg.replayThreshold);
+          andThen();
+          return;
+        }
+        _replayThresholdUnavailable(andThen);
+      })
+      .withFailureHandler(function () { _replayThresholdUnavailable(andThen); })
+      .apiGetLevelConfig(AppState.sessionToken, AppState.training.selectedLevel);
+  }
+
+  /* A line of text at the top of the cockpit. Not a modal — nothing here is worth
+   * stopping for, and a dialog in the middle of an exercise is. */
+  function _simToast(msg) {
+    try {
+      var el = document.createElement('div');
+      el.className = 'sim-toast';
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function () { el.classList.add('out'); }, 4200);
+      setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 4800);
+    } catch (e) {}
   }
 
   function normalizeRouteScenarios(data) {
@@ -6093,9 +6204,21 @@ var LEVEL_THEMES = {
     // Optimistic pre-mark so the progress bar reads correctly straight away.
     // It is NOT authority: serverConfirmedIds stays empty until the seed below
     // returns, so nothing can be advanced past on the strength of this alone.
-    for (var _pri = 0; _pri < (AppState.training.currentIndex || 0); _pri++) {
-      AppState.training.completedScenarioIds['i' + _pri] = true;
+    /* Phases before the cursor used to be marked complete here so the debrief gate
+     * would open. They had no attempt rows behind them, so the gate was being told
+     * something the server had never confirmed — and the run scored on fewer phases
+     * than it claimed to cover.
+     *
+     * A resumed route now carries the ids the server actually confirmed, put there
+     * by _simStateLoad. An empty list means nothing is claimed. */
+    var _resumeDone = AppState.training._resumeConfirmedIds;
+    if (_resumeDone && _resumeDone.length) {
+      _resumeDone.forEach(function (id) {
+        AppState.training.completedScenarioIds[id] = true;
+        AppState.training.serverConfirmedIds[id]   = true;
+      });
     }
+    AppState.training._resumeConfirmedIds = null;
 
     // Seed the confirmed set from what the database actually holds. Without this a
     // resuming student would be unable to finish, because the advance gate now
@@ -6129,11 +6252,18 @@ var LEVEL_THEMES = {
     AppState.training.lastProgress = null;
     AppState.training.vrBonusEarned = null;
     AppState.training._prefetchedVoice = {};
-    // One id per run of the route. The server groups attempts by it so a retry
-    // is scored as a whole session and only replaces the stored result when the
-    // whole run beats it — a partial redo can never lower a completed route.
-    AppState.training.sessionId = 'SES-' + Date.now() + '-' +
-      Math.floor(Math.random() * 1e6).toString(36);
+    /* One id per run of the route. The server groups attempts by it so a retry is
+     * scored as a whole session and only replaces the stored result when the whole
+     * run beats it — a partial redo can never lower a completed route.
+     *
+     * A RESUMED run keeps the id it started with. Minting a new one made the second
+     * half of a route look like a session of its own: three phases covered where the
+     * gate wants eight, so a route somebody actually finished scored nothing at all
+     * and the phases they had already answered belonged to a run that was never
+     * completed. Continuing means continuing. */
+    AppState.training.sessionId = AppState.training._resumeSessionId ||
+      ('SES-' + Date.now() + '-' + Math.floor(Math.random() * 1e6).toString(36));
+    AppState.training._resumeSessionId = null;
 
     console.log(
       '[ICAO] renderScenarioRoute: level=' + data.level +
@@ -9451,8 +9581,18 @@ var LEVEL_THEMES = {
       expectedAnswer: scenario.expectedReadback || '',
       progress: AppState.training.lastProgress || null
     });
-    // Instant XP animation — chip flies immediately when client confirms correct
-    if (clientEval.correct) _showXpFloat(25);
+    /* The XP waits for the server. The feedback does not.
+     *
+     * Instant feedback is right — a student should not watch a spinner to find out
+     * whether they said the right thing. But the chip flew on the CLIENT's verdict,
+     * and when the server disagreed the panel changed underneath a student who had
+     * already watched twenty-five points award themselves. An animation cannot be
+     * un-played, so it does not play until the award is real.
+     *
+     * Every disagreement is logged. If they never disagree, the round trip is not
+     * earning its keep; if they disagree often, the client grader is what to fix.
+     * Either way it is a number rather than a guess. */
+    AppState.training._pendingClientCorrect = clientEval.correct;
 
     // Background server save — syncs real XP total and triggers rank-up check
     var _capturedIndex = index;
@@ -9475,6 +9615,33 @@ var LEVEL_THEMES = {
             _fromServer:    true
           });
         }
+        // The award, now that it is real.
+        if (Number(AppState.training.currentIndex || 0) === _capturedIndex &&
+            res.attempt && res.attempt.correct) {
+          _showXpFloat(25);
+        }
+        var _clientSaid = AppState.training._pendingClientCorrect;
+        AppState.training._pendingClientCorrect = null;
+        if (res.attempt && _clientSaid != null &&
+            Boolean(res.attempt.correct) !== Boolean(_clientSaid)) {
+          console.warn('[ICAO] grader disagreement | scenario=' +
+                       (scenario.scenarioId || '?') + ' client=' + _clientSaid +
+                       ' server=' + res.attempt.correct);
+          try {
+            google.script.run
+              .withSuccessHandler(function () {})
+              .withFailureHandler(function () {})
+              .apiLogGraderDisagreement(AppState.sessionToken, {
+                scenarioId: String(scenario.scenarioId || ''),
+                level:      AppState.training.selectedLevel,
+                country:    AppState.training.selectedCountry,
+                answer:     String(answer || '').slice(0, 500),
+                clientSaid: Boolean(_clientSaid),
+                serverSaid: Boolean(res.attempt.correct)
+              });
+          } catch (e) {}
+        }
+
         if (res.attempt && res.attempt.correct) {
           var _oldTotal = (window._lmsSimXp || 0) + (window._lmsLmsXp || 0);
           if (res.lmsXpTotal !== undefined) {
@@ -27202,6 +27369,23 @@ var LEVEL_THEMES = {
       '</div>';
   }
 
+  /* Give the sitting back.
+   *
+   * A hold costs no attempt and expires after forty-five minutes on its own, so
+   * nothing is lost by leaving it — except that the next Begin says "an
+   * examination is already running" and the student has to find the Release
+   * button. A failure of ours should not read as a mistake of theirs. */
+  function _scReleaseHold() {
+    if (!_sc.reserved) return;
+    _sc.reserved = false;
+    try {
+      google.script.run
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function () {})
+        .apiReleaseIcaoExam(AppState.sessionToken);
+    } catch (e) {}
+  }
+
   function _teaStartScripted(bank) {
     window._teaStarting = true;
 
@@ -27268,6 +27452,7 @@ var LEVEL_THEMES = {
             window._teaBegin(bank);
             return;
           }
+          _scReleaseHold();
           _scStage('<div class="panel" style="margin:16px;"><h3>Could not start</h3><p>' +
             _esc((res && res.error) || 'The item bank is unavailable.') + '</p></div>');
           return;
