@@ -702,7 +702,7 @@ var TourService = (function () {
       to:       email,
       subject:  '[TEST PREVIEW] aerocomms — Tour ' + tour.weekNumber + ' · New Scenarios Available',
       htmlBody: _emailWrap_(
-        '<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 16px;margin-bottom:20px;font-size:12px;color:#f59e0b;font-weight:700;letter-spacing:0.5px;">TEST PREVIEW — This is how the weekly email looks to your students</div>' +
+        '<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 16px;margin-bottom:20px;font-size:12px;color:' + EC_.amber + ';font-weight:700;letter-spacing:0.5px;">TEST PREVIEW — This is how the weekly email looks to your students</div>' +
         _buildWeeklyEmail_(name, stats, entries.length || 1, tour, appUrl, isDoubleXp, String(user.profession || 'PILOT').toUpperCase())
       ),
       inlineImages: { aerocommsLogo: testLogoBlob }
@@ -810,7 +810,7 @@ var TourService = (function () {
     var prof = PROFESSION_TIER_LABELS_[String(profession || '').toUpperCase()] || PROFESSION_TIER_LABELS_['PILOT'];
     if (n >= 10) return { label: prof.chief,      color: '#990011', bg: '#1a0305' };
     if (n >= 7)  return { label: prof.instructor, color: '#DAA520', bg: '#1a1400' };
-    if (n >= 4)  return { label: prof.senior,     color: '#C0C7D1', bg: '#141c24' };
+    if (n >= 4)  return { label: prof.senior,     color: '' + EC_.muted + '', bg: '' + EC_.panel + '' };
     return               { label: prof.junior,    color: '#0E65F4', bg: '#051228' };
   }
 
@@ -823,8 +823,8 @@ var TourService = (function () {
     var logoBlock =
       '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">' +
         '<tr><td align="center">' +
-          '<img src="cid:aerocommsLogo" alt="aerocomms" style="width:160px;height:93px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.35);display:block;margin:0 auto;">' +
-          '<div style="padding-top:8px;font-size:11px;color:#4a6280;letter-spacing:1.5px;font-family:Arial,Helvetica,sans-serif;">AVIATION ENGLISH INTERACTIVE CAMPUS</div>' +
+          '<img src="cid:aerocommsLogo" alt="aerocomms" style="width:160px;height:93px;border-radius:8px;object-fit:contain;background:#000;border:2px solid ' + EC_.edge + ';display:block;margin:0 auto;">' +
+          '<div style="padding-top:8px;font-size:11px;color:' + EC_.faint + ';letter-spacing:1.5px;font-family:Arial,Helvetica,sans-serif;">AVIATION ENGLISH INTERACTIVE CAMPUS</div>' +
         '</td></tr>' +
       '</table>';
 
@@ -846,25 +846,25 @@ var TourService = (function () {
       statsBlock =
         '<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">' +
           '<tr>' +
-            '<td width="48%" align="center" style="background:#111111;border:1px solid #222222;border-radius:10px;padding:16px 10px;">' +
-              '<div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#4a6280;text-transform:uppercase;font-family:Arial,Helvetica,sans-serif;margin-bottom:6px;">Experience Points</div>' +
-              '<div style="font-size:34px;font-weight:900;color:#ffffff;font-family:\'Courier New\',Courier,monospace;">' + stats.totalXp + '</div>' +
-              '<div style="font-size:10px;color:#4a6280;font-family:Arial,Helvetica,sans-serif;margin-top:2px;">XP this tour</div>' +
+            '<td width="48%" align="center" style="background:' + EC_.panel + ';border:1px solid ' + EC_.edge + ';border-radius:10px;padding:16px 10px;">' +
+              '<div style="font-size:10px;font-weight:700;letter-spacing:2px;color:' + EC_.faint + ';text-transform:uppercase;font-family:Arial,Helvetica,sans-serif;margin-bottom:6px;">Experience Points</div>' +
+              '<div style="font-size:34px;font-weight:900;color:' + EC_.accent + ';font-family:\'Courier New\',Courier,monospace;">' + stats.totalXp + '</div>' +
+              '<div style="font-size:10px;color:' + EC_.faint + ';font-family:Arial,Helvetica,sans-serif;margin-top:2px;">XP this tour</div>' +
             '</td>' +
             '<td width="4%"></td>' +
-            '<td width="48%" align="center" style="background:#111111;border:1px solid #222222;border-radius:10px;padding:16px 10px;">' +
-              '<div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#4a6280;text-transform:uppercase;font-family:Arial,Helvetica,sans-serif;margin-bottom:6px;">Position</div>' +
+            '<td width="48%" align="center" style="background:' + EC_.panel + ';border:1px solid ' + EC_.edge + ';border-radius:10px;padding:16px 10px;">' +
+              '<div style="font-size:10px;font-weight:700;letter-spacing:2px;color:' + EC_.faint + ';text-transform:uppercase;font-family:Arial,Helvetica,sans-serif;margin-bottom:6px;">Position</div>' +
               '<div style="font-size:34px;font-weight:900;color:' + posColor + ';font-family:\'Courier New\',Courier,monospace;">' + medal + '</div>' +
-              '<div style="font-size:10px;color:#4a6280;font-family:Arial,Helvetica,sans-serif;margin-top:2px;">of ' + totalRanked + ' pilots</div>' +
+              '<div style="font-size:10px;color:' + EC_.faint + ';font-family:Arial,Helvetica,sans-serif;margin-top:2px;">of ' + totalRanked + ' pilots</div>' +
             '</td>' +
           '</tr>' +
         '</table>';
     } else {
       statsBlock =
         '<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">' +
-          '<tr><td align="center" style="background:#111111;border:1px solid #222222;border-radius:10px;padding:18px 20px;">' +
+          '<tr><td align="center" style="background:' + EC_.panel + ';border:1px solid ' + EC_.edge + ';border-radius:10px;padding:18px 20px;">' +
             '<div style="font-size:22px;margin-bottom:8px;">&#128747;</div>' +
-            '<div style="font-size:13px;color:#8fa3bb;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">You weren\'t on the board last week.<br>This week is a fresh start &mdash; every level earns XP.</div>' +
+            '<div style="font-size:13px;color:' + EC_.muted + ';line-height:1.6;font-family:Arial,Helvetica,sans-serif;">You weren\'t on the board last week.<br>This week is a fresh start &mdash; every level earns XP.</div>' +
           '</td></tr>' +
         '</table>';
     }
@@ -873,25 +873,25 @@ var TourService = (function () {
     var dxpBanner = isDoubleXp
       ? '<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">' +
           '<tr><td align="center" style="background:#0d0a00;border:1px solid #DAA520;border-radius:10px;padding:12px 16px;">' +
-            '<span style="font-size:13px;font-weight:800;color:#f59e0b;letter-spacing:1px;font-family:Arial,Helvetica,sans-serif;">&#9889; 2&times; XP WEEK &mdash; Double career points on every completed level</span>' +
+            '<span style="font-size:13px;font-weight:800;color:' + EC_.amber + ';letter-spacing:1px;font-family:Arial,Helvetica,sans-serif;">&#9889; 2&times; XP WEEK &mdash; Double career points on every completed level</span>' +
           '</td></tr>' +
         '</table>'
       : '';
 
     return (
       logoBlock +
-      '<p style="margin:0 0 6px;font-size:16px;font-weight:700;color:#dde6f0;font-family:Arial,Helvetica,sans-serif;">Hi ' + firstName + ',</p>' +
-      '<p style="margin:0 0 20px;font-size:13px;color:#8fa3bb;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">' +
-        'Tour <strong style="color:#dde6f0;">' + tour.weekNumber + '</strong> is live. ' +
-        '<strong style="color:#ffffff;">New scenarios are now available.</strong> ' +
+      '<p style="margin:0 0 6px;font-size:16px;font-weight:700;color:' + EC_.text + ';font-family:Arial,Helvetica,sans-serif;">Hi ' + firstName + ',</p>' +
+      '<p style="margin:0 0 20px;font-size:13px;color:' + EC_.muted + ';line-height:1.6;font-family:Arial,Helvetica,sans-serif;">' +
+        'Tour <strong style="color:' + EC_.text + ';">' + tour.weekNumber + '</strong> is live. ' +
+        '<strong style="color:' + EC_.accent + ';">New scenarios are now available.</strong> ' +
         'Complete levels, earn XP, and climb the rankings before the week ends.' +
       '</p>' +
       dxpBanner +
       tierBadge +
       statsBlock +
       '<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">' +
-        '<tr><td style="background:#111111;border:1px solid #222222;border-radius:10px;padding:14px 20px;">' +
-          '<p style="margin:0;font-size:12px;color:#8fa3bb;line-height:1.8;font-family:Arial,Helvetica,sans-serif;">' +
+        '<tr><td style="background:' + EC_.panel + ';border:1px solid ' + EC_.edge + ';border-radius:10px;padding:14px 20px;">' +
+          '<p style="margin:0;font-size:12px;color:' + EC_.muted + ';line-height:1.8;font-family:Arial,Helvetica,sans-serif;">' +
             '&#10003;&nbsp; New scenarios unlocked&nbsp;&nbsp;' +
             '&#10003;&nbsp; Weekly XP reset to zero&nbsp;&nbsp;' +
             '&#10003;&nbsp; Career Points carry forward' +
@@ -900,10 +900,10 @@ var TourService = (function () {
       '</table>' +
       '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:8px;">' +
         '<tr><td align="center">' +
-          '<a href="' + appUrl + '" style="display:inline-block;background:#101d33;color:#000000;font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;padding:14px 36px;border-radius:10px;text-decoration:none;">Launch Simulator &#8594;</a>' +
+          '<a href="' + appUrl + '" style="display:inline-block;background:' + EC_.panel + ';color:#000000;font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;padding:14px 36px;border-radius:10px;text-decoration:none;">Launch Simulator &#8594;</a>' +
         '</td></tr>' +
       '</table>' +
-      '<p style="margin:8px 0 0;font-size:11px;color:#2d4a63;text-align:center;font-family:Arial,Helvetica,sans-serif;">Tour ' + tour.weekNumber + ' &nbsp;&middot;&nbsp; 7 days remaining</p>'
+      '<p style="margin:8px 0 0;font-size:11px;color:' + EC_.faint + ';text-align:center;font-family:Arial,Helvetica,sans-serif;">Tour ' + tour.weekNumber + ' &nbsp;&middot;&nbsp; 7 days remaining</p>'
     );
   }
 

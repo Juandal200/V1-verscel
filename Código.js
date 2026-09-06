@@ -6859,20 +6859,20 @@ function _sendInviteEmail_(user) {
 
   var htmlBody = _emailWrap_(
     '<table width="100%" cellpadding="0" cellspacing="0" style="text-align:center;margin-bottom:28px;">' +
-      '<tr><td><img src="cid:aerocommsLogo" alt="aerocomms" style="width:160px;height:93px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.35);"></td></tr>' +
-      '<tr><td style="padding-top:14px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:#00d48e;">aerocomms</td></tr>' +
-      '<tr><td style="padding-top:4px;font-size:12px;color:#4a6280;letter-spacing:1px;">Aviation English Interactive Campus</td></tr>' +
+      '<tr><td><img src="cid:aerocommsLogo" alt="aerocomms" style="width:160px;height:93px;border-radius:8px;object-fit:contain;background:#000;border:2px solid ' + EC_.edge + ';"></td></tr>' +
+      '<tr><td style="padding-top:14px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:' + EC_.accent + ';">aerocomms</td></tr>' +
+      '<tr><td style="padding-top:4px;font-size:12px;color:' + EC_.faint + ';letter-spacing:1px;">Aviation English Interactive Campus</td></tr>' +
     '</table>' +
-    '<div style="background:rgba(0,212,142,0.07);border:1px solid rgba(0,212,142,0.2);border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">' +
+    '<div style="background:' + EC_.panel + ';border:1px solid ' + EC_.edge + ';border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">' +
       '<div style="font-size:28px;margin-bottom:8px;">&#9992;</div>' +
-      '<div style="font-size:16px;font-weight:700;color:#00d48e;">You\'ve been invited</div>' +
+      '<div style="font-size:16px;font-weight:700;color:' + EC_.accent + ';">You\'ve been invited</div>' +
     '</div>' +
-    '<p style="margin:0 0 8px;font-size:15px;color:#dde6f0;">Hello, <strong>' + _escapeHtmlInline_(firstName) + '</strong></p>' +
-    '<p style="margin:0 0 24px;font-size:14px;color:#8fa3bb;line-height:1.7;">Your account on <strong>' + CONFIG.APP_NAME + '</strong> is ready. Sign in with your Google account (<strong>' + _escapeHtmlInline_(user.email) + '</strong>) to get started.</p>' +
-    '<table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;"><tr><td style="background:#00d48e;border-radius:9px;">' +
-      '<a href="' + appUrl + '" style="display:inline-block;padding:13px 28px;font-size:13px;font-weight:800;color:#07101e;text-decoration:none;letter-spacing:0.5px;">Open ' + CONFIG.APP_NAME + ' &#8594;</a>' +
+    '<p style="margin:0 0 8px;font-size:15px;color:' + EC_.text + ';">Hello, <strong>' + _escapeHtmlInline_(firstName) + '</strong></p>' +
+    '<p style="margin:0 0 24px;font-size:14px;color:' + EC_.muted + ';line-height:1.7;">Your account on <strong>' + CONFIG.APP_NAME + '</strong> is ready. Sign in with your Google account (<strong>' + _escapeHtmlInline_(user.email) + '</strong>) to get started.</p>' +
+    '<table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;"><tr><td style="background:' + EC_.accent + ';border-radius:9px;">' +
+      '<a href="' + appUrl + '" style="display:inline-block;padding:13px 28px;font-size:13px;font-weight:800;color:' + EC_.ink + ';text-decoration:none;letter-spacing:0.5px;">Open ' + CONFIG.APP_NAME + ' &#8594;</a>' +
     '</td></tr></table>' +
-    '<p style="margin:0;font-size:12px;color:#2d4a63;text-align:center;">If you were not expecting this invitation, you can safely ignore this email.</p>'
+    '<p style="margin:0;font-size:12px;color:' + EC_.faint + ';text-align:center;">If you were not expecting this invitation, you can safely ignore this email.</p>'
   );
 
   var logoBase64Si = getLogoDataUrl().split(',')[1];
@@ -7327,6 +7327,8 @@ function apiAdminSendProgressReport(sessionToken, payload) {
     var studentEmail= String(publicUser.email || '');
     var levelLabel  = publicUser.currentLevel ? 'Level ' + publicUser.currentLevel : '';
 
+    var R = EMAIL_PALETTE_.report;
+
     // Build attention list (performance < 60)
     var attentionRoutes = [];
     progress.forEach(function(row) {
@@ -7337,7 +7339,7 @@ function apiAdminSendProgressReport(sessionToken, payload) {
     });
 
     // Table rows
-    var thS = 'padding:10px 14px;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#6b7280;background:#f9fafb;border-bottom:2px solid #e5e7eb;text-align:';
+    var thS = 'padding:10px 14px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:' + R.faint + ';background:' + R.cell + ';border-bottom:2px solid ' + R.rule + ';text-align:';
     var tableRows = '';
     progress.sort(function(a,b){ return Number(a.level||0)-Number(b.level||0); }).forEach(function(row) {
       var s    = Number(row.scoreAvg || 0);
@@ -7346,45 +7348,45 @@ function apiAdminSendProgressReport(sessionToken, payload) {
       var done = row.completed === true || String(row.completed).toUpperCase() === 'TRUE';
       var routeKey = String(row.level||'') + '|' + String(row.country||'').toUpperCase();
       var routeTime = _formatTimeSec_(timeByRoute[routeKey] || 0);
-      var sc = s >= 80 ? '#16a34a' : s >= 60 ? '#d97706' : (s > 0 ? '#dc2626' : '#9ca3af');
-      var pc = perf !== null ? (perf >= 80 ? '#16a34a' : perf >= 60 ? '#d97706' : '#dc2626') : '#9ca3af';
+      var sc = s >= 80 ? R.good : s >= 60 ? R.warn : (s > 0 ? R.bad : R.dim);
+      var pc = perf !== null ? (perf >= 80 ? R.good : perf >= 60 ? R.warn : R.bad) : R.dim;
       var statusTxt = done ? '&#10003; Complete' : (Number(row.progressPct||0) + '% done');
-      var statusColor = done ? '#16a34a' : '#6b7280';
+      var statusColor = done ? R.good : R.faint;
       tableRows +=
-        '<tr style="border-bottom:1px solid #f3f4f6;">' +
-          '<td style="padding:11px 14px;font-weight:600;color:#111827;">Level ' + _he(String(row.level)) + ' &mdash; ' + _he(String(row.country||'')) + '</td>' +
+        '<tr style="border-bottom:1px solid ' + R.hair + ';">' +
+          '<td style="padding:11px 14px;font-weight:600;color:' + R.text + ';">Level ' + _he(String(row.level)) + ' &mdash; ' + _he(String(row.country||'')) + '</td>' +
           '<td style="padding:11px 14px;text-align:center;font-weight:700;color:' + sc + '">' + (s>0?s+'%':'&mdash;') + '</td>' +
-          '<td style="padding:11px 14px;text-align:center;color:#374151;">' + (far!==null?far+'%':'&mdash;') + '</td>' +
+          '<td style="padding:11px 14px;text-align:center;color:' + R.body + ';">' + (far!==null?far+'%':'&mdash;') + '</td>' +
           '<td style="padding:11px 14px;text-align:center;font-weight:700;color:' + pc + '">' + (perf!==null?perf+'%':'&mdash;') + '</td>' +
-          '<td style="padding:11px 14px;text-align:center;color:#374151;">' + routeTime + '</td>' +
+          '<td style="padding:11px 14px;text-align:center;color:' + R.body + ';">' + routeTime + '</td>' +
           '<td style="padding:11px 14px;text-align:center;font-weight:700;color:' + statusColor + '">' + statusTxt + '</td>' +
         '</tr>';
     });
 
     var attentionBlock = attentionRoutes.length
       ? '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">' +
-          '<tr><td style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:14px 18px;">' +
-            '<p style="margin:0 0 6px;font-size:0.82rem;font-weight:700;color:#c2410c;">&#9888; Routes that need attention</p>' +
-            '<p style="margin:0;font-size:0.82rem;color:#92400e;">' + attentionRoutes.map(function(r){ return _he(r); }).join(' &nbsp;&bull;&nbsp; ') + '</p>' +
+          '<tr><td style="background:' + R.noticeBg + ';border:1px solid ' + R.noticeEdge + ';border-radius:8px;padding:14px 18px;">' +
+            '<p style="margin:0 0 6px;font-size:13px;font-weight:700;color:' + R.noticeInk + ';">&#9888; Routes that need attention</p>' +
+            '<p style="margin:0;font-size:13px;color:' + R.noticeBody + ';">' + attentionRoutes.map(function(r){ return _he(r); }).join(' &nbsp;&bull;&nbsp; ') + '</p>' +
           '</td></tr>' +
         '</table>'
       : '';
 
     var html =
-      '<!DOCTYPE html><html><body style="margin:0;padding:24px 12px;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">' +
+      '<!DOCTYPE html><html><body style="margin:0;padding:24px 12px;background:' + R.page + ';font-family:Arial,Helvetica,sans-serif;">' +
       '<div style="max-width:660px;margin:0 auto;">' +
 
         // Header
-        '<div style="background:#0d0d0d;border-radius:12px 12px 0 0;padding:28px 32px;">' +
+        '<div style="background:' + R.header + ';border-radius:12px 12px 0 0;padding:28px 32px;">' +
           '<table cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:0;">' +
             '<tr>' +
               '<td style="vertical-align:middle;width:64px;padding-right:18px;">' +
-                '<img src="cid:aerocommsLogo" alt="aerocomms" style="width:56px;height:56px;border-radius:10px;object-fit:contain;background:#111;border:2px solid rgba(0,212,142,0.4);display:block;">' +
+                '<img src="cid:aerocommsLogo" alt="aerocomms" style="width:56px;height:56px;border-radius:10px;object-fit:contain;background:' + R.header + ';border:2px solid rgba(255,255,255,0.22);display:block;">' +
               '</td>' +
               '<td style="vertical-align:middle;">' +
-                '<p style="margin:0 0 4px;font-size:0.68rem;font-weight:700;letter-spacing:0.14em;color:rgba(255,255,255,0.5);">aerocomms &mdash; Aviation English Training</p>' +
-                '<h1 style="margin:0 0 6px;color:#fff;font-size:1.35rem;font-weight:700;line-height:1.2;">' + _he(studentName) + '</h1>' +
-                '<p style="margin:0;color:rgba(255,255,255,0.65);font-size:0.85rem;">' + _he(studentEmail) +
+                '<p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:0.14em;color:rgba(255,255,255,0.5);">aerocomms &mdash; Aviation English Training</p>' +
+                '<h1 style="margin:0 0 6px;color:' + R.sheet + ';font-size:22px;font-weight:700;line-height:1.2;">' + _he(studentName) + '</h1>' +
+                '<p style="margin:0;color:rgba(255,255,255,0.65);font-size:14px;">' + _he(studentEmail) +
                   (levelLabel ? ' &nbsp;&bull;&nbsp; ' + _he(levelLabel) : '') +
                   ' &nbsp;&bull;&nbsp; Report date: ' + reportDate +
                 '</p>' +
@@ -7394,35 +7396,35 @@ function apiAdminSendProgressReport(sessionToken, payload) {
         '</div>' +
 
         // Body
-        '<div style="background:#ffffff;border-radius:0 0 12px 12px;padding:28px 32px;box-shadow:0 4px 16px rgba(0,0,0,0.08);">' +
+        '<div style="background:' + R.sheet + ';border-radius:0 0 12px 12px;padding:28px 32px;box-shadow:0 4px 16px rgba(0,0,0,0.08);">' +
 
           // Intro sentence
-          '<p style="margin:0 0 24px;font-size:0.92rem;color:#374151;line-height:1.55;">' +
+          '<p style="margin:0 0 24px;font-size:15px;color:' + R.body + ';line-height:1.55;">' +
             _he(studentName) + ' has completed <strong>' + completedRoutes + ' of ' + progress.length + ' route' + (progress.length!==1?'s':'') + '</strong>' +
             (levelLabel ? ' at <strong>' + _he(levelLabel) + '</strong>' : '') +
-            ' with an overall score of <strong style="color:' + (avgScore>=80?'#16a34a':avgScore>=60?'#d97706':'#dc2626') + '">' + avgScore + '%</strong>' +
+            ' with an overall score of <strong style="color:' + (avgScore>=80?R.good:avgScore>=60?R.warn:R.bad) + '">' + avgScore + '%</strong>' +
             ' and a total training time of <strong>' + _formatTimeSec_(totalTimeSec) + '</strong>.' +
           '</p>' +
 
           // KPI row
           '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">' +
             '<tr>' +
-              _emailStatCell_('Overall Score',  avgScore+'%',                    avgScore>=80?'#16a34a':avgScore>=60?'#d97706':'#dc2626') +
+              _emailStatCell_('Overall Score',  avgScore+'%',                    avgScore>=80?R.good:avgScore>=60?R.warn:R.bad) +
               '<td width="10"></td>' +
-              _emailStatCell_('Pass Rate',       passRate+'%',                   passRate>=80?'#16a34a':passRate>=60?'#d97706':'#dc2626') +
+              _emailStatCell_('Pass Rate',       passRate+'%',                   passRate>=80?R.good:passRate>=60?R.warn:R.bad) +
               '<td width="10"></td>' +
-              _emailStatCell_('Time Trained',    _formatTimeSec_(totalTimeSec),  '#00d48e') +
+              _emailStatCell_('Time Trained',    _formatTimeSec_(totalTimeSec),  R.header) +
               '<td width="10"></td>' +
-              _emailStatCell_('Routes Done',     completedRoutes+'/'+progress.length, completedRoutes===progress.length&&progress.length>0?'#16a34a':'#6b7280') +
+              _emailStatCell_('Routes Done',     completedRoutes+'/'+progress.length, completedRoutes===progress.length&&progress.length>0?R.good:R.faint) +
             '</tr>' +
           '</table>' +
 
           attentionBlock +
 
           // Route table
-          '<h2 style="margin:0 0 10px;font-size:0.85rem;font-weight:700;color:#111827;text-transform:uppercase;letter-spacing:0.06em;">Training Route Breakdown</h2>' +
+          '<h2 style="margin:0 0 10px;font-size:14px;font-weight:700;color:' + R.text + ';text-transform:uppercase;letter-spacing:0.06em;">Training Route Breakdown</h2>' +
           (tableRows
-            ? '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:0.84rem;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">' +
+            ? '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;border:1px solid ' + R.rule + ';border-radius:8px;overflow:hidden;">' +
                 '<thead><tr>' +
                   '<th style="' + thS + 'left;">Route</th>' +
                   '<th style="' + thS + 'center;">Score</th>' +
@@ -7433,17 +7435,17 @@ function apiAdminSendProgressReport(sessionToken, payload) {
                 '</tr></thead>' +
                 '<tbody>' + tableRows + '</tbody>' +
               '</table>'
-            : '<p style="color:#9ca3af;font-size:0.85rem;">No training data available yet.</p>') +
+            : '<p style="color:' + R.dim + ';font-size:14px;">No training data available yet.</p>') +
 
           // Column legend
-          '<p style="margin:14px 0 0;font-size:0.72rem;color:#9ca3af;line-height:1.6;">' +
+          '<p style="margin:14px 0 0;font-size:12px;color:' + R.dim + ';line-height:1.6;">' +
             '<strong>Score</strong> = average readback accuracy &nbsp;&bull;&nbsp; ' +
             '<strong>1st Attempt</strong> = % of exercises passed without retrying &nbsp;&bull;&nbsp; ' +
             '<strong>Performance</strong> = score adjusted for audio replays used' +
           '</p>' +
 
           // Footer
-          '<p style="margin:24px 0 0;padding-top:16px;border-top:1px solid #f3f4f6;font-size:0.72rem;color:#9ca3af;">' +
+          '<p style="margin:24px 0 0;padding-top:16px;border-top:1px solid ' + R.hair + ';font-size:12px;color:' + R.dim + ';">' +
             'Sent by ' + _he(String(admin.name || admin.email || '')) + ' via aerocomms &nbsp;&bull;&nbsp; ' + reportDate +
           '</p>' +
         '</div>' +
@@ -7488,9 +7490,10 @@ function _formatTimeSec_(sec) {
 }
 
 function _emailStatCell_(label, value, color) {
-  return '<td style="background:#f8fafc;border-radius:8px;padding:14px 18px;text-align:center;">' +
-    '<div style="font-size:1.4rem;font-weight:700;color:' + color + ';">' + value + '</div>' +
-    '<div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;margin-top:4px;">' + label + '</div>' +
+  var R = EMAIL_PALETTE_.report;
+  return '<td style="background:' + R.cell + ';border-radius:8px;padding:14px 18px;text-align:center;">' +
+    '<div style="font-size:22px;font-weight:700;color:' + color + ';">' + value + '</div>' +
+    '<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:' + R.dim + ';margin-top:4px;">' + label + '</div>' +
   '</td>';
 }
 

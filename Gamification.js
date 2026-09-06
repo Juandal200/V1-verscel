@@ -210,20 +210,20 @@ function sendRequest(sessionToken, friendEmail) {
         htmlBody: _emailWrap_(
           '<table width="100%" cellpadding="0" cellspacing="0" style="text-align:center;margin-bottom:24px;">' +
             '<tr><td>' +
-              '<img src="' + getLogoDataUrl() + '" alt="aerocomms" style="width:64px;height:64px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.35);">' +
+              '<img src="' + getLogoDataUrl() + '" alt="aerocomms" style="width:64px;height:64px;border-radius:8px;object-fit:contain;background:#000;border:2px solid ' + EC_.edge + ';">' +
             '</td></tr>' +
-            '<tr><td style="padding-top:12px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:#ffffff;">aerocomms</td></tr>' +
-            '<tr><td style="padding-top:3px;font-size:12px;color:#4a6280;">Aviation English Interactive Campus</td></tr>' +
+            '<tr><td style="padding-top:12px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:' + EC_.accent + ';">aerocomms</td></tr>' +
+            '<tr><td style="padding-top:3px;font-size:12px;color:' + EC_.faint + ';">Aviation English Interactive Campus</td></tr>' +
           '</table>' +
-          '<div style="background:rgba(0,212,142,0.07);border:1px solid rgba(0,212,142,0.18);border-radius:12px;padding:18px 20px;margin:0 0 20px;text-align:center;">' +
+          '<div style="background:' + EC_.panel + ';border:1px solid ' + EC_.edge + ';border-radius:12px;padding:18px 20px;margin:0 0 20px;text-align:center;">' +
             '<div style="font-size:22px;margin-bottom:6px;">&#9992;</div>' +
-            '<div style="font-size:15px;font-weight:700;color:#ffffff;">Squadron Invitation</div>' +
+            '<div style="font-size:15px;font-weight:700;color:' + EC_.accent + ';">Squadron Invitation</div>' +
           '</div>' +
-          '<p style="margin:0 0 12px;font-size:14px;color:#dde6f0;line-height:1.6;">' +
-            '<strong style="color:#dde6f0;">' + fromName + '</strong> wants to add you to their squadron on aerocomms.' +
+          '<p style="margin:0 0 12px;font-size:14px;color:' + EC_.text + ';line-height:1.6;">' +
+            '<strong style="color:' + EC_.text + ';">' + fromName + '</strong> wants to add you to their squadron on aerocomms.' +
           '</p>' +
-          '<p style="margin:0 0 24px;font-size:13px;color:#8fa3bb;line-height:1.6;">Log in and open the <strong style="color:#dde6f0;">Squadron</strong> tab to accept or decline the invitation.</p>' +
-          '<p style="margin:0;font-size:12px;color:#2d4a63;">Sent from ' + myEmail + '</p>'
+          '<p style="margin:0 0 24px;font-size:13px;color:' + EC_.muted + ';line-height:1.6;">Log in and open the <strong style="color:' + EC_.text + ';">Squadron</strong> tab to accept or decline the invitation.</p>' +
+          '<p style="margin:0;font-size:12px;color:' + EC_.faint + ';">Sent from ' + myEmail + '</p>'
         )
       });
     } catch (mailErr) {
@@ -382,22 +382,22 @@ function sendChallenge(sessionToken, targetEmail, scenarioName, myScore) {
             '<tr><td>' +
               '<img src="' + getLogoDataUrl() + '" alt="aerocomms" style="width:64px;height:64px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(245,158,11,0.4);">' +
             '</td></tr>' +
-            '<tr><td style="padding-top:12px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:#f59e0b;">aerocomms</td></tr>' +
-            '<tr><td style="padding-top:3px;font-size:12px;color:#4a6280;">Aviation English Interactive Campus</td></tr>' +
+            '<tr><td style="padding-top:12px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:' + EC_.amber + ';">aerocomms</td></tr>' +
+            '<tr><td style="padding-top:3px;font-size:12px;color:' + EC_.faint + ';">Aviation English Interactive Campus</td></tr>' +
           '</table>' +
           '<div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.22);border-radius:12px;padding:18px 20px;margin:0 0 20px;text-align:center;">' +
             '<div style="font-size:22px;margin-bottom:6px;">&#127942;</div>' +
-            '<div style="font-size:15px;font-weight:700;color:#f59e0b;">Flight Duel Challenge</div>' +
+            '<div style="font-size:15px;font-weight:700;color:' + EC_.amber + ';">Flight Duel Challenge</div>' +
           '</div>' +
-          '<p style="margin:0 0 12px;font-size:14px;color:#dde6f0;line-height:1.6;">' +
-            '<strong style="color:#dde6f0;">' + chalName + '</strong> has challenged you to the <strong style="color:#dde6f0;">' + scenarioName + '</strong> scenario.' +
-            (scoreValue !== '' ? ' Their score to beat: <strong style="color:#f59e0b;">' + scoreValue + '</strong>.' : '') +
+          '<p style="margin:0 0 12px;font-size:14px;color:' + EC_.text + ';line-height:1.6;">' +
+            '<strong style="color:' + EC_.text + ';">' + chalName + '</strong> has challenged you to the <strong style="color:' + EC_.text + ';">' + scenarioName + '</strong> scenario.' +
+            (scoreValue !== '' ? ' Their score to beat: <strong style="color:' + EC_.amber + ';">' + scoreValue + '</strong>.' : '') +
           '</p>' +
-          '<p style="margin:0 0 20px;font-size:13px;color:#8fa3bb;line-height:1.6;">Open the <strong style="color:#dde6f0;">Squadron</strong> tab to accept or decline the challenge.</p>' +
+          '<p style="margin:0 0 20px;font-size:13px;color:' + EC_.muted + ';line-height:1.6;">Open the <strong style="color:' + EC_.text + ';">Squadron</strong> tab to accept or decline the challenge.</p>' +
           '<div style="text-align:center;margin-bottom:20px;">' +
-            '<a href="' + ScriptApp.getService().getUrl() + '" style="display:inline-block;background:#f59e0b;color:#07101e;font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;padding:14px 36px;border-radius:10px;text-decoration:none;">Accept Challenge →</a>' +
+            '<a href="' + ScriptApp.getService().getUrl() + '" style="display:inline-block;background:' + EC_.amber + ';color:' + EC_.ink + ';font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;padding:14px 36px;border-radius:10px;text-decoration:none;">Accept Challenge →</a>' +
           '</div>' +
-          '<p style="margin:0;font-size:12px;color:#2d4a63;">Sent from ' + myEmail + '</p>'
+          '<p style="margin:0;font-size:12px;color:' + EC_.faint + ';">Sent from ' + myEmail + '</p>'
         )
       });
     } catch (mailErr) {

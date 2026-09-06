@@ -254,41 +254,41 @@ var UserService = {
         '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">' +
           '<tr>' +
             '<td style="vertical-align:middle;padding-right:16px;">' +
-              '<img src="cid:aerocommsLogo" alt="aerocomms" style="width:140px;height:82px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.3);display:block;">' +
+              '<img src="cid:aerocommsLogo" alt="aerocomms" style="width:140px;height:82px;border-radius:8px;object-fit:contain;background:#000;border:2px solid ' + EC_.edge + ';display:block;">' +
             '</td>' +
             '<td style="vertical-align:middle;">' +
-              '<div style="font-size:10px;font-weight:800;letter-spacing:2px;color:#ffffff;margin-bottom:3px;">aerocomms</div>' +
-              '<div style="font-size:18px;font-weight:700;color:#dde6f0;">New pilot registered</div>' +
+              '<div style="font-size:10px;font-weight:800;letter-spacing:2px;color:' + EC_.accent + ';margin-bottom:3px;">aerocomms</div>' +
+              '<div style="font-size:18px;font-weight:700;color:' + EC_.text + ';">New pilot registered</div>' +
             '</td>' +
           '</tr>' +
         '</table>' +
-        '<p style="margin:0 0 20px;font-size:14px;color:#8fa3bb;line-height:1.6;">A new user registered. Their account is active on the free tier — no approval needed.</p>' +
+        '<p style="margin:0 0 20px;font-size:14px;color:' + EC_.muted + ';line-height:1.6;">A new user registered. Their account is active on the free tier — no approval needed.</p>' +
         '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 24px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;overflow:hidden;">' +
           '<tr style="border-bottom:1px solid rgba(255,255,255,0.06);">' +
-            '<td style="padding:10px 16px;font-size:12px;color:#4a6280;white-space:nowrap;">Name</td>' +
-            '<td style="padding:10px 16px;font-size:13px;font-weight:600;color:#dde6f0;">' + this.escapeHtml_(user.name || '') + '</td>' +
+            '<td style="padding:10px 16px;font-size:12px;color:' + EC_.faint + ';white-space:nowrap;">Name</td>' +
+            '<td style="padding:10px 16px;font-size:13px;font-weight:600;color:' + EC_.text + ';">' + this.escapeHtml_(user.name || '') + '</td>' +
           '</tr>' +
           '<tr style="border-bottom:1px solid rgba(255,255,255,0.06);">' +
-            '<td style="padding:10px 16px;font-size:12px;color:#4a6280;white-space:nowrap;">Email</td>' +
-            '<td style="padding:10px 16px;font-size:13px;font-weight:600;color:#dde6f0;">' + this.escapeHtml_(user.email || '') + '</td>' +
+            '<td style="padding:10px 16px;font-size:12px;color:' + EC_.faint + ';white-space:nowrap;">Email</td>' +
+            '<td style="padding:10px 16px;font-size:13px;font-weight:600;color:' + EC_.text + ';">' + this.escapeHtml_(user.email || '') + '</td>' +
           '</tr>' +
           '<tr style="border-bottom:1px solid rgba(255,255,255,0.06);">' +
-            '<td style="padding:10px 16px;font-size:12px;color:#4a6280;white-space:nowrap;">Role</td>' +
-            '<td style="padding:10px 16px;font-size:13px;font-weight:600;color:#dde6f0;">' + this.escapeHtml_(user.role || '') + '</td>' +
+            '<td style="padding:10px 16px;font-size:12px;color:' + EC_.faint + ';white-space:nowrap;">Role</td>' +
+            '<td style="padding:10px 16px;font-size:13px;font-weight:600;color:' + EC_.text + ';">' + this.escapeHtml_(user.role || '') + '</td>' +
           '</tr>' +
           '<tr style="border-bottom:1px solid rgba(255,255,255,0.06);">' +
-            '<td style="padding:10px 16px;font-size:12px;color:#4a6280;white-space:nowrap;">Status</td>' +
-            '<td style="padding:10px 16px;font-size:13px;font-weight:700;color:#f59e0b;">' + this.escapeHtml_(user.status || '') + '</td>' +
+            '<td style="padding:10px 16px;font-size:12px;color:' + EC_.faint + ';white-space:nowrap;">Status</td>' +
+            '<td style="padding:10px 16px;font-size:13px;font-weight:700;color:' + EC_.amber + ';">' + this.escapeHtml_(user.status || '') + '</td>' +
           '</tr>' +
           '<tr>' +
-            '<td style="padding:10px 16px;font-size:12px;color:#4a6280;white-space:nowrap;">Registered</td>' +
-            '<td style="padding:10px 16px;font-size:13px;font-weight:600;color:#dde6f0;">' + this.escapeHtml_(user.createdAt || '') + '</td>' +
+            '<td style="padding:10px 16px;font-size:12px;color:' + EC_.faint + ';white-space:nowrap;">Registered</td>' +
+            '<td style="padding:10px 16px;font-size:13px;font-weight:600;color:' + EC_.text + ';">' + this.escapeHtml_(user.createdAt || '') + '</td>' +
           '</tr>' +
         '</table>' +
         (appUrl
-          ? '<table cellpadding="0" cellspacing="0"><tr><td style="background:#101d33;border-radius:9px;"><a href="' + this.escapeHtml_(appUrl) + '" style="display:inline-block;padding:12px 24px;font-size:13px;font-weight:800;color:#07101e;text-decoration:none;letter-spacing:0.5px;">Open admin panel &#8594;</a></td></tr></table>'
+          ? '<table cellpadding="0" cellspacing="0"><tr><td style="background:' + EC_.panel + ';border-radius:9px;"><a href="' + this.escapeHtml_(appUrl) + '" style="display:inline-block;padding:12px 24px;font-size:13px;font-weight:800;color:' + EC_.ink + ';text-decoration:none;letter-spacing:0.5px;">Open admin panel &#8594;</a></td></tr></table>'
           : '') +
-        '<p style="margin:20px 0 0;font-size:12px;color:#2d4a63;">Approve or block this user from Admin &gt; Users.</p>'
+        '<p style="margin:20px 0 0;font-size:12px;color:' + EC_.faint + ';">Approve or block this user from Admin &gt; Users.</p>'
       );
 
       var logoBase64 = getLogoDataUrl().split(',')[1];
@@ -467,22 +467,22 @@ var UserService = {
         return '<tr><td style="padding:0 0 14px;">' +
           '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"><tr>' +
             '<td width="26" valign="top" style="font-size:16px;line-height:1.4;">' + icon + '</td>' +
-            '<td valign="top" style="font-size:14px;line-height:1.55;color:#c8d3e0;">' +
-              '<strong style="color:#ffffff;">' + title + '</strong><br>' +
-              '<span style="color:#8fa3bb;">' + text + '</span>' +
+            '<td valign="top" style="font-size:14px;line-height:1.55;color:' + EC_.text + ';">' +
+              '<strong style="color:' + EC_.accent + ';">' + title + '</strong><br>' +
+              '<span style="color:' + EC_.muted + ';">' + text + '</span>' +
             '</td>' +
           '</tr></table></td></tr>';
       }
 
       var htmlBody = _emailWrap_(
         '<p style="margin:0 0 4px;font-size:11px;font-weight:800;letter-spacing:2.5px;' +
-          'color:#ffffff;text-align:center;">aerocomms</p>' +
-        '<p style="margin:0 0 22px;font-size:12px;color:#7d8ea3;letter-spacing:1px;' +
+          'color:' + EC_.accent + ';text-align:center;">aerocomms</p>' +
+        '<p style="margin:0 0 22px;font-size:12px;color:' + EC_.faint + ';letter-spacing:1px;' +
           'text-align:center;">Aviation English Interactive Campus</p>' +
 
-        '<h1 style="margin:0 0 10px;font-size:22px;line-height:1.3;color:#ffffff;">' +
+        '<h1 style="margin:0 0 10px;font-size:22px;line-height:1.3;color:' + EC_.accent + ';">' +
           greeting + '</h1>' +
-        '<p style="margin:0 0 22px;font-size:15px;line-height:1.6;color:#c8d3e0;">' +
+        '<p style="margin:0 0 22px;font-size:15px;line-height:1.6;color:' + EC_.text + ';">' +
           'Your account is ready — there is nothing to approve and nothing to pay. ' +
           'Here is what you can do right now:</p>' +
 
@@ -493,33 +493,33 @@ var UserService = {
               'The complete examination, marked against all six ICAO descriptors.') +
         '</table>' +
 
-        '<p style="margin:18px 0 22px;font-size:13px;line-height:1.6;color:#8fa3bb;">' +
+        '<p style="margin:18px 0 22px;font-size:13px;line-height:1.6;color:' + EC_.muted + ';">' +
           'The free plan does not expire. Take your time.</p>' +
 
         '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" ' +
-          'style="background:#101d33;border:1px solid #1d2f4d;border-radius:12px;margin:0 0 22px;">' +
+          'style="background:' + EC_.panel + ';border:1px solid ' + EC_.edge + ';border-radius:12px;margin:0 0 22px;">' +
           '<tr><td style="padding:18px 20px;">' +
-            '<p style="margin:0 0 6px;font-size:15px;font-weight:700;color:#ffffff;">' +
+            '<p style="margin:0 0 6px;font-size:15px;font-weight:700;color:' + EC_.accent + ';">' +
               'Put it on your phone</p>' +
-            '<p style="margin:0 0 14px;font-size:13px;line-height:1.6;color:#8fa3bb;">' +
+            '<p style="margin:0 0 14px;font-size:13px;line-height:1.6;color:' + EC_.muted + ';">' +
               'Opens full screen, works without signal, and remembers you. Two taps.</p>' +
             '<a href="' + installUrl + '" ' +
-              'style="display:inline-block;background:#ffffff;color:#0b1220;text-decoration:none;' +
+              'style="display:inline-block;background:' + EC_.accent + ';color:' + EC_.card + ';text-decoration:none;' +
               'font-size:14px;font-weight:800;padding:12px 24px;border-radius:10px;">' +
               'Add aerocomms to my phone</a>' +
           '</td></tr>' +
         '</table>' +
 
-        '<p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#8fa3bb;">' +
+        '<p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:' + EC_.muted + ';">' +
           'When you are ready for more, the paid plans open the rest of the levels, ' +
           'add emergency scenarios and give you more attempts at the mock test. ' +
           'You will find them inside the app — no rush.</p>' +
 
-        '<p style="margin:22px 0 0;font-size:13px;line-height:1.6;color:#8fa3bb;">' +
+        '<p style="margin:22px 0 0;font-size:13px;line-height:1.6;color:' + EC_.muted + ';">' +
           'Reply to this email if anything is unclear. A person reads it.</p>' +
 
         '<p style="margin:26px 0 0;text-align:center;">' +
-          '<a href="' + appUrl + '" style="color:#ffffff;text-decoration:none;font-size:14px;' +
+          '<a href="' + appUrl + '" style="color:' + EC_.accent + ';text-decoration:none;font-size:14px;' +
             'font-weight:700;">Open aerocomms →</a></p>'
       );
 
@@ -573,21 +573,21 @@ var UserService = {
       var htmlBody = _emailWrap_(
         '<table width="100%" cellpadding="0" cellspacing="0" style="text-align:center;margin-bottom:28px;">' +
           '<tr><td>' +
-            '<img src="cid:aerocommsLogo" alt="aerocomms" style="width:160px;height:93px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.35);">' +
+            '<img src="cid:aerocommsLogo" alt="aerocomms" style="width:160px;height:93px;border-radius:8px;object-fit:contain;background:#000;border:2px solid ' + EC_.edge + ';">' +
           '</td></tr>' +
-          '<tr><td style="padding-top:14px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:#ffffff;">aerocomms</td></tr>' +
-          '<tr><td style="padding-top:4px;font-size:12px;color:#4a6280;letter-spacing:1px;">Aviation English Interactive Campus</td></tr>' +
+          '<tr><td style="padding-top:14px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:' + EC_.accent + ';">aerocomms</td></tr>' +
+          '<tr><td style="padding-top:4px;font-size:12px;color:' + EC_.faint + ';letter-spacing:1px;">Aviation English Interactive Campus</td></tr>' +
         '</table>' +
-        '<div style="background:rgba(0,212,142,0.07);border:1px solid rgba(0,212,142,0.2);border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">' +
+        '<div style="background:' + EC_.panel + ';border:1px solid ' + EC_.edge + ';border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">' +
           '<div style="font-size:28px;margin-bottom:8px;">&#10003;</div>' +
-          '<div style="font-size:16px;font-weight:700;color:#ffffff;">Account Approved</div>' +
+          '<div style="font-size:16px;font-weight:700;color:' + EC_.accent + ';">Account Approved</div>' +
         '</div>' +
-        '<p style="margin:0 0 8px;font-size:15px;color:#dde6f0;">Hello, <strong>' + this.escapeHtml_(user.name || user.email) + '</strong></p>' +
-        '<p style="margin:0 0 24px;font-size:14px;color:#8fa3bb;line-height:1.7;">Your account has been approved by an administrator. You can now log in and start practising your ATC phraseology on the ICAO Simulator.</p>' +
+        '<p style="margin:0 0 8px;font-size:15px;color:' + EC_.text + ';">Hello, <strong>' + this.escapeHtml_(user.name || user.email) + '</strong></p>' +
+        '<p style="margin:0 0 24px;font-size:14px;color:' + EC_.muted + ';line-height:1.7;">Your account has been approved by an administrator. You can now log in and start practising your ATC phraseology on the ICAO Simulator.</p>' +
         (appUrl
-          ? '<table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;"><tr><td style="background:#101d33;border-radius:9px;"><a href="' + this.escapeHtml_(appUrl) + '" style="display:inline-block;padding:13px 28px;font-size:13px;font-weight:800;color:#07101e;text-decoration:none;letter-spacing:0.5px;">Open ICAO Trainer &#8594;</a></td></tr></table>'
+          ? '<table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;"><tr><td style="background:' + EC_.panel + ';border-radius:9px;"><a href="' + this.escapeHtml_(appUrl) + '" style="display:inline-block;padding:13px 28px;font-size:13px;font-weight:800;color:' + EC_.ink + ';text-decoration:none;letter-spacing:0.5px;">Open ICAO Trainer &#8594;</a></td></tr></table>'
           : '') +
-        '<p style="margin:0;font-size:12px;color:#2d4a63;text-align:center;">If you did not register for this service, you can safely ignore this email.</p>'
+        '<p style="margin:0;font-size:12px;color:' + EC_.faint + ';text-align:center;">If you did not register for this service, you can safely ignore this email.</p>'
       );
 
       var logoBase64Act = getLogoDataUrl().split(',')[1];
@@ -789,26 +789,26 @@ function bulkInviteUsers() {
       var htmlBody = _emailWrap_(
         '<table width="100%" cellpadding="0" cellspacing="0" style="text-align:center;margin-bottom:28px;">' +
           '<tr><td>' +
-            '<img src="cid:aerocommsLogo" alt="aerocomms" style="width:160px;height:93px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(0,212,142,0.35);">' +
+            '<img src="cid:aerocommsLogo" alt="aerocomms" style="width:160px;height:93px;border-radius:8px;object-fit:contain;background:#000;border:2px solid ' + EC_.edge + ';">' +
           '</td></tr>' +
-          '<tr><td style="padding-top:14px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:#ffffff;">aerocomms</td></tr>' +
-          '<tr><td style="padding-top:4px;font-size:12px;color:#4a6280;letter-spacing:1px;">Aviation English Interactive Campus</td></tr>' +
+          '<tr><td style="padding-top:14px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:' + EC_.accent + ';">aerocomms</td></tr>' +
+          '<tr><td style="padding-top:4px;font-size:12px;color:' + EC_.faint + ';letter-spacing:1px;">Aviation English Interactive Campus</td></tr>' +
         '</table>' +
-        '<div style="background:rgba(0,212,142,0.07);border:1px solid rgba(0,212,142,0.2);border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">' +
+        '<div style="background:' + EC_.panel + ';border:1px solid ' + EC_.edge + ';border-radius:12px;padding:20px 24px;margin:0 0 24px;text-align:center;">' +
           '<div style="font-size:28px;margin-bottom:8px;">&#9992;</div>' +
-          '<div style="font-size:16px;font-weight:700;color:#ffffff;">You\'ve been invited</div>' +
+          '<div style="font-size:16px;font-weight:700;color:' + EC_.accent + ';">You\'ve been invited</div>' +
         '</div>' +
-        '<p style="margin:0 0 8px;font-size:15px;color:#dde6f0;">Hello, <strong>' + UserService.escapeHtml_(name) + '</strong></p>' +
-        '<p style="margin:0 0 24px;font-size:14px;color:#8fa3bb;line-height:1.7;">' +
+        '<p style="margin:0 0 8px;font-size:15px;color:' + EC_.text + ';">Hello, <strong>' + UserService.escapeHtml_(name) + '</strong></p>' +
+        '<p style="margin:0 0 24px;font-size:14px;color:' + EC_.muted + ';line-height:1.7;">' +
           'Your account on <strong>' + CONFIG.APP_NAME + '</strong> is ready. ' +
           'Sign in with your Google account (<strong>' + UserService.escapeHtml_(email) + '</strong>) to get started.' +
         '</p>' +
         (appUrl
-          ? '<table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;"><tr><td style="background:#101d33;border-radius:9px;">' +
-              '<a href="' + UserService.escapeHtml_(appUrl) + '" style="display:inline-block;padding:13px 28px;font-size:13px;font-weight:800;color:#07101e;text-decoration:none;letter-spacing:0.5px;">Open ' + CONFIG.APP_NAME + ' &#8594;</a>' +
+          ? '<table cellpadding="0" cellspacing="0" style="margin:0 auto 24px;"><tr><td style="background:' + EC_.panel + ';border-radius:9px;">' +
+              '<a href="' + UserService.escapeHtml_(appUrl) + '" style="display:inline-block;padding:13px 28px;font-size:13px;font-weight:800;color:' + EC_.ink + ';text-decoration:none;letter-spacing:0.5px;">Open ' + CONFIG.APP_NAME + ' &#8594;</a>' +
             '</td></tr></table>'
           : '') +
-        '<p style="margin:0;font-size:12px;color:#2d4a63;text-align:center;">If you were not expecting this invitation, you can safely ignore this email.</p>'
+        '<p style="margin:0;font-size:12px;color:' + EC_.faint + ';text-align:center;">If you were not expecting this invitation, you can safely ignore this email.</p>'
       );
 
       var logoBase64Inv = getLogoDataUrl().split(',')[1];
