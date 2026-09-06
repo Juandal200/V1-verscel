@@ -21,6 +21,21 @@
      * themes. It is the one neutral here that does not flip. */
     --lift-rgb: 255, 255, 255;
     --scrim-rgb: 0, 0, 0;
+
+    /* A field is paper.
+     *
+     * Every text input in the app is a light box on a dark ground — a deliberate
+     * inversion, and the right one: you can see what you have typed. But it was
+     * written as rgba(232,232,232,0.96) at each field, so the lift pass read it as
+     * a white film and gave it a token that flips. On the light theme that made a
+     * black box with a black placeholder in it.
+     *
+     * Paper does not invert, so this does not either. What changes is only that the
+     * ink is now stated: it was var(--muted), which is #808080 on near-white — 3.3:1,
+     * under the 4.5:1 a reader needs, in every input in the product. */
+    --field: rgba(232, 232, 232, 0.96);
+    --field-ink: #1c1c1a;
+    --field-muted: rgba(18, 18, 18, 0.55);
     --text: #cacaca;
     --muted: #808080;
     --cyan: #aaaaaa;
@@ -105,6 +120,9 @@
     --line-strong: rgba(0, 0, 0, 0.20);
     --lift-rgb: 0, 0, 0;
     --scrim-rgb: 0, 0, 0;
+    --field: rgba(255, 254, 252, 0.98);
+    --field-ink: #1c1c1a;
+    --field-muted: rgba(18, 18, 18, 0.55);
     --text: #1c1c1a;
     --muted: #5c5c58;
     --cyan: #4a4a46;
@@ -136,11 +154,11 @@
   }
 
   [data-theme="light"] .app-topnav {
-    background: rgba(var(--lift-rgb), 0.65);
+    background: rgba(244, 243, 238, 0.97);
   }
 
   [data-theme="light"] .btn.secondary {
-    background: rgba(var(--lift-rgb), 0.65);
+    background: rgba(210, 209, 204, 0.85);
   }
 
   [data-theme="light"] #appScreen {
@@ -161,7 +179,7 @@
     box-shadow:
       0 24px 80px rgba(var(--scrim-rgb), 0.1),
       0 0 0 1px rgba(var(--scrim-rgb), 0.06),
-      inset 0 1px 0 rgba(var(--lift-rgb), 0.65);
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
   }
 
   [data-theme="light"] .input {
@@ -483,8 +501,8 @@
   .input {
     width: 100%;
     border: 1px solid var(--line);
-    background: rgba(var(--lift-rgb), 0.65);
-    color: var(--muted);
+    background: var(--field);
+    color: var(--field-ink);
     border-radius: 12px;
     padding: 13px 14px;
     outline: none;
@@ -492,7 +510,7 @@
   }
 
   .input::placeholder {
-    color: rgba(var(--scrim-rgb), 0.65);
+    color: var(--field-muted);
   }
 
   .input:focus {
@@ -1138,8 +1156,8 @@
     border-radius: 16px;
     padding: 16px;
     outline: none;
-    background: rgba(var(--lift-rgb), 0.65);
-    color: var(--muted);
+    background: var(--field);
+    color: var(--field-ink);
     font-size: 1rem;
     line-height: 1.5;
     font-family: inherit;
@@ -2433,8 +2451,8 @@
   border-radius: 16px;
   padding: 16px;
   border: 1px solid var(--line-strong);
-  background: rgba(var(--lift-rgb), 0.65);
-  color: var(--muted);
+  background: var(--field);
+  color: var(--field-ink);
   resize: vertical;
   font-size: 1rem;
   line-height: 1.55;
@@ -5563,9 +5581,9 @@ body.sim-focus-mode .topbar-avatar {
 
 /* Hero primary — solid bright fill, highest contrast */
 .hero-btn-primary {
-  background: rgba(var(--lift-rgb), 0.65) !important;
+  background: var(--accent) !important;
   border-color: transparent !important;
-  color: var(--muted) !important;
+  color: var(--accent-ink) !important;
   box-shadow: var(--shadow-2);
 }
 .hero-btn-primary:hover {
@@ -5685,7 +5703,7 @@ body.sim-focus-mode .topbar-avatar {
   width: 4px;
   height: 16px;
   border-radius: 999px;
-  background: rgba(var(--lift-rgb), 0.65);
+  background: rgba(232, 232, 232, 0.58);
   transform: translateX(-50%);
   animation: welcomeRunwayLights 1.8s linear infinite;
 }
@@ -8241,7 +8259,7 @@ button, .btn, .nav-item, input, textarea, select {
   background: rgba(var(--lift-rgb), 0.16);
   border-radius: 999px;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(var(--lift-rgb), 0.42); }
+::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
 
 /* ── 1100px — large tablet landscape ────────────────────────── */
 @media (max-width: 1100px) {
@@ -9120,7 +9138,7 @@ p, li, td, th, h1, h2, h3, h4,
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(var(--lift-rgb), 0.65);
+  background: rgba(var(--lift-rgb), 0.42);
   display: inline-block;
   animation: gas-blink 0.9s step-end infinite;
 }
@@ -11118,7 +11136,7 @@ p, li, td, th, h1, h2, h3, h4,
 
 /* Light theme overrides */
 [data-theme="light"] .mobile-bottom-nav {
-  background: rgba(var(--lift-rgb), 0.65);
+  background: rgba(252, 252, 252, 0.97);
   border-top-color: rgba(var(--scrim-rgb), 0.06);
 }
 [data-theme="light"] .mob-nav-btn { color: rgba(var(--scrim-rgb), 0.26); }

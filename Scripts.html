@@ -266,7 +266,7 @@
           '<p style="font-size:2rem;margin:0 0 12px;">⚙️</p>' +
           '<h3 style="color:var(--text,var(--text));margin:0 0 8px;font-size: 1.15rem;font-weight:700;">Something went wrong</h3>' +
           '<p style="color:var(--muted,var(--line));font-size: 0.82rem;margin:0 0 6px;line-height:1.5;">An unexpected error occurred. Your progress is saved.</p>' +
-          (msg ? '<p style="color:var(--muted,var(--line));font-size:0.72rem;margin:0 0 24px;opacity:0.6;font-family:monospace;word-break:break-word;">' + String(msg).slice(0, 120) + '</p>' : '<div style="margin-bottom:24px;"></div>') +
+          (msg ? '<p style="color:var(--muted,var(--line));font-size:0.72rem;margin:0 0 24px;opacity:0.6;font-family:var(--font-instrument);word-break:break-word;">' + String(msg).slice(0, 120) + '</p>' : '<div style="margin-bottom:24px;"></div>') +
           '<button onclick="location.reload()" style="width:100%;padding:12px;background:var(--accent);color:var(--accent-ink);border:none;border-radius: 8px;font-weight:700;font-size:0.9rem;cursor:pointer;margin-bottom:10px;font-family:inherit;">Reload app</button>' +
           '<button onclick="document.getElementById(\'_crashOverlay\').remove();try{renderHome();}catch(e){}" style="width:100%;padding:10px;background:transparent;color:var(--muted,var(--line));border:1px solid var(--line);border-radius: 8px;font-size: 0.82rem;cursor:pointer;font-family:inherit;">Try going home</button>' +
         '</div>';
@@ -3212,7 +3212,7 @@
             var mark   = r.behaviorOk ? '<span style="color:var(--green);">✓</span>' : '<b style="color:var(--red);">✗</b>';
             html +=
               '<tr style="border-bottom:1px solid var(--line);' + rowBg + '">' +
-                '<td style="padding:5px 8px;font-family:monospace;white-space:nowrap;">' + (i === 0 ? safeText(scId) : '') + '</td>' +
+                '<td style="padding:5px 8px;font-family:var(--font-instrument);white-space:nowrap;">' + (i === 0 ? safeText(scId) : '') + '</td>' +
                 '<td style="padding:5px 8px;">' + (i === 0 ? safeText(String(r.level)) : '') + '</td>' +
                 '<td style="padding:5px 8px;">' + (i === 0 ? safeText(r.country) : '') + '</td>' +
                 '<td style="padding:5px 8px;white-space:nowrap;">' + mark + ' ' + safeText(r.label) + '</td>' +
@@ -10639,12 +10639,12 @@ var LEVEL_THEMES = {
           '<div style="font-size:0.72rem;font-weight:800;letter-spacing: 0.12em;color:' + vrColor + ';margin-bottom:8px;">' + safeText(vrLabel) + ' — BONUS CONFIRMED</div>' +
           '<div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;">' +
             '<div>' +
-              '<div style="font-size:2rem;font-weight: 800;color:' + vrColor + ';font-family:\'Courier New\',monospace;line-height:1;">+' + safeText(vrBonus.bonusXp) + '</div>' +
+              '<div style="font-size:2rem;font-weight: 800;color:' + vrColor + ';font-family:var(--font-instrument);line-height:1;">+' + safeText(vrBonus.bonusXp) + '</div>' +
               '<div style="font-size:0.72rem;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing: 0.06em;">Bonus XP</div>' +
             '</div>' +
             '<div style="width:1px;background:' + vrColor + '30;"></div>' +
             '<div>' +
-              '<div style="font-size:2rem;font-weight: 800;color:' + vrColor + ';font-family:\'Courier New\',monospace;line-height:1;">+' + safeText(vrBonus.bonusCp) + '</div>' +
+              '<div style="font-size:2rem;font-weight: 800;color:' + vrColor + ';font-family:var(--font-instrument);line-height:1;">+' + safeText(vrBonus.bonusCp) + '</div>' +
               '<div style="font-size:0.72rem;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing: 0.06em;">Bonus CP</div>' +
             '</div>' +
           '</div>' +
@@ -11945,7 +11945,7 @@ var LEVEL_THEMES = {
         '<h2 style="margin:0 0 6px;">Send Invites</h2>' +
         '<p class="subtitle" style="margin:0 0 20px;">One user per line. Format: <code>email, Full Name</code> — name is optional (email only also works).</p>' +
 
-        '<textarea id="inviteListInput" style="width:100%;height:200px;background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);border-radius: 8px;color:var(--text);font-size: 0.82rem;font-family:\'Courier New\',monospace;padding:12px;resize:vertical;outline:none;line-height:1.6;" placeholder="juan@example.com, Juan Pérez&#10;maria@example.com&#10;carlos@airline.com, Carlos Ruiz"></textarea>' +
+        '<textarea id="inviteListInput" style="width:100%;height:200px;background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);border-radius: 8px;color:var(--text);font-size: 0.82rem;font-family:var(--font-instrument);padding:12px;resize:vertical;outline:none;line-height:1.6;" placeholder="juan@example.com, Juan Pérez&#10;maria@example.com&#10;carlos@airline.com, Carlos Ruiz"></textarea>' +
 
         '<div id="inviteParsePreview" style="margin-top:12px;"></div>' +
 
@@ -12344,7 +12344,7 @@ var LEVEL_THEMES = {
           return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(var(--lift-rgb), 0.03);border-radius:8px;margin-bottom:6px;' + (expired ? 'opacity:0.45;' : '') + '">' +
             '<span style="min-width:70px;font-weight:700;color:var(--text);">Level ' + safeText(p.level) + '</span>' +
             '<span style="flex:1;font-size: 0.82rem;">' + safeText(eventLabels[p.type] || p.type) + '</span>' +
-            '<span style="font-size: 0.72rem;color:var(--muted);font-family:monospace;">' + (p.until ? 'until ' + safeText(p.until) : 'permanent') + (expired ? ' · EXPIRED' : '') + '</span>' +
+            '<span style="font-size: 0.72rem;color:var(--muted);font-family:var(--font-instrument);">' + (p.until ? 'until ' + safeText(p.until) : 'permanent') + (expired ? ' · EXPIRED' : '') + '</span>' +
             '<button class="btn secondary" style="padding:4px 10px;font-size:0.72rem;" onclick="adminVrRemovePin(' + i + ')">Remove</button>' +
           '</div>';
         }).join('')
@@ -12396,7 +12396,7 @@ var LEVEL_THEMES = {
             return '<div>' +
               '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
                 '<span style="font-size: 0.82rem;color:' + colors[k] + ';font-weight:700;">' + safeText(eventLabels[k]) + '</span>' +
-                '<span id="vrW_' + k + 'Val" style="font-size: 0.82rem;color:var(--text);font-family:monospace;">' + (w[k] || 0) + '%</span>' +
+                '<span id="vrW_' + k + 'Val" style="font-size: 0.82rem;color:var(--text);font-family:var(--font-instrument);">' + (w[k] || 0) + '%</span>' +
               '</div>' +
               '<input type="range" id="vrW_' + k + '" min="0" max="100" value="' + (w[k] || 0) + '" style="width:100%;accent-color:' + colors[k] + ';" oninput="byId(\'vrW_' + k + 'Val\').textContent=this.value+\'%\';_vrWeightSum()">' +
             '</div>';
@@ -12539,7 +12539,7 @@ var LEVEL_THEMES = {
         '<div style="flex:1;height:14px;background:rgba(var(--lift-rgb), 0.06);border-radius:4px;overflow:hidden;">' +
           '<div style="height:100%;width:' + Math.min(100,Math.round(n/20*100)) + '%;background:' + (colors[k]||'var(--text)') + ';border-radius:4px;"></div>' +
         '</div>' +
-        '<span style="width:30px;text-align:right;font-size: 0.82rem;color:var(--muted);font-family:monospace;">' + n + '</span>' +
+        '<span style="width:30px;text-align:right;font-size: 0.82rem;color:var(--muted);font-family:var(--font-instrument);">' + n + '</span>' +
       '</div>';
     }).join('');
 
@@ -15917,6 +15917,26 @@ var LEVEL_THEMES = {
 
   // ── PDF Report ────────────────────────────────────────────────────────────────
 
+  /* A printed report is a document of its own.
+   *
+   * Both of these open a blank window and document.write() into it, so nothing from
+   * the app's :root reaches them. Fifty-nine token references in the two of them
+   * resolved to nothing at all — which does not fail, it just drops the declaration.
+   * Borders vanished, and a score's colour coding with them: good, borderline and
+   * failing all printed the same inherited black.
+   *
+   * Rather than write the colours out again, the document carries the tokens with it.
+   * They are the app's light theme, so a page that is printed looks like the app it
+   * came from. */
+  var REPORT_TOKENS =
+    ':root{' +
+      '--bg:#f2f1ec;--panel:rgba(255,254,252,0.98);' +
+      '--line:rgba(0,0,0,0.09);--line-strong:rgba(0,0,0,0.20);' +
+      '--text:#1c1c1a;--muted:#5c5c58;--accent:#14304d;--accent-ink:#ffffff;' +
+      '--green:#166534;--yellow:#92400e;--red:#b91c1c;' +
+      '--font-ui:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Arial,sans-serif;' +
+    '}';
+
   function _downloadProgressPdf() {
     var res = _lastProgressReportData;
     if (!res) return;
@@ -15950,7 +15970,7 @@ var LEVEL_THEMES = {
 
     var html = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
       '<title>aerocomms Progress Report</title>' +
-      '<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,sans-serif;color:#111;background:#fff;padding:40px;}' +
+      '<style>' + REPORT_TOKENS + '*{margin:0;padding:0;box-sizing:border-box;}body{font-family:var(--font-ui);color:var(--text);background:var(--panel);padding:40px;}' +
       'h1{font-size: 1.35rem;font-weight:800;color: var(--muted);margin-bottom:4px;}' +
       '.sub{font-size: 0.82rem;color: var(--muted);margin-bottom:28px;}' +
       '.summary{display:flex;gap:16px;margin-bottom:28px;}' +
@@ -16033,7 +16053,7 @@ var LEVEL_THEMES = {
     }).join('') : '<tr><td colspan="6" style="padding:20px;text-align:center;color:var(--muted);font-size: 0.72rem;">No modules attempted yet.</td></tr>';
 
     var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>aerocomms Progress Report</title>' +
-      '<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Arial,Helvetica,sans-serif;color:#111;background:#fff;padding:40px 48px;}' +
+      '<style>' + REPORT_TOKENS + '*{margin:0;padding:0;box-sizing:border-box;}body{font-family:var(--font-ui);color:var(--text);background:var(--panel);padding:40px 48px;}' +
       'h1{font-size: 1.15rem;font-weight:800;color: var(--muted);margin:0;}' +
       'h2{font-size: 0.82rem;font-weight:800;color: var(--muted);letter-spacing: 0.06em;text-transform:uppercase;margin:0 0 14px;}' +
       '.sub{font-size: 0.72rem;color: var(--muted);margin-top:4px;}' +
@@ -21199,7 +21219,7 @@ var LEVEL_THEMES = {
     if (!rows || !rows.length) return '<p class="b2b-empty">No data yet — will populate as B2B tenants onboard.</p>';
     var html = '<table><thead><tr><th>' + colLabel + '</th><th>Events</th></tr></thead><tbody>';
     rows.forEach(function(r) {
-      html += '<tr><td style="font-family:monospace;font-size:0.82rem;">' + h(r.id) + '</td><td>' + h(r.events) + '</td></tr>';
+      html += '<tr><td style="font-family:var(--font-instrument);font-size:0.82rem;">' + h(r.id) + '</td><td>' + h(r.events) + '</td></tr>';
     });
     return html + '</tbody></table>';
   }

@@ -94,6 +94,39 @@ ok('the level cards are made of panel tokens',
    /LEVEL_CARD_SURFACE = 'linear-gradient\(145deg, var\(--panel\), var\(--panel-soft\)\)'/.test(S));
 ok('and every level uses it', (S.match(/LEVEL_CARD_SURFACE/g) || []).length >= 11);
 
+console.log('--- a theme block writes its own value, and is left to ---');
+// Inside [data-theme="light"] the author has ALREADY chosen the light colour. A
+// token that inverts flips it a second time, so the sweep turned four rules from
+// white to black: the top bar, the secondary button, the bottom navigation and the
+// login card's inner highlight. A literal is the honest value inside a theme block.
+const lightBlocks = [...C.matchAll(/(\[data-theme="light"\][^{}]{0,120})\{([^{}]{0,700})\}/g)];
+const flipped = lightBlocks.flatMap(m =>
+  [...m[2].matchAll(/rgba\(var\(--lift-rgb\)[^)]*\)/g)].map(c => m[1].trim().slice(0, 46)));
+if (flipped.length) console.log('    ' + flipped.slice(0, 5).join('  '));
+ok('nothing inside a light-theme block uses a token that inverts', flipped.length === 0);
+
+console.log('--- a field is paper in either theme ---');
+// Every text input is a light box on a dark ground, which is the right inversion:
+// you can see what you have typed. Written as rgba(232,232,232,0.96) at each field
+// it read as a white film, and the lift pass gave it a token that flips — a black
+// box with a black placeholder in it on the light theme.
+ok('--field is declared in both themes',
+   /--field:/.test(dark0) && /--field:/.test(light0));
+ok('and it does not invert: paper is light either way',
+   /--field:\s*rgba\(2\d\d, 2\d\d, 2\d\d/.test(dark0) &&
+   /--field:\s*rgba\(2\d\d, 2\d\d, 2\d\d/.test(light0));
+ok('its ink is stated rather than borrowed from --muted',
+   /--field-ink:/.test(dark0) && /--field-ink:/.test(light0));
+// --muted on that ground is #808080 on near-white: 3.28:1, in every input.
+const fieldInk = (dark0.match(/--field-ink:\s*(#[0-9a-fA-F]{6})/) || [])[1];
+const fieldBg  = '#e8e8e8';
+ok(`ink on paper is ${cr(fieldInk, fieldBg).toFixed(1)}:1`, cr(fieldInk, fieldBg) >= 4.5);
+['.input', '.textarea', '.sim-readback-input'].forEach(sel => {
+  // The unscoped rule, not [data-theme="light"] .input, which comes first in the file.
+  const i = C.search(new RegExp('(?:^|\\n)\\s*\\' + sel + '\\s*\\{'));
+  ok(sel + ' is paper', i > 0 && /var\(--field\)/.test(C.slice(i, i + 400)));
+});
+
 console.log('--- the brand accent is still stated once ---');
 ok('no teal survives anywhere',
    !/00d48e/i.test(S + C) && !/0\s*,\s*212\s*,\s*142/.test(S + C));
