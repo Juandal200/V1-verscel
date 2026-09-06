@@ -105,7 +105,7 @@
   function _resetBtn(btn) {
     if (!btn) return;
     btn.classList.remove('listening', 'processing');
-    btn.innerHTML = '&var(--green); Tap to speak';
+    btn.innerHTML = '&#127908; Tap to speak';
     btn.disabled  = false;
   }
 
@@ -2785,7 +2785,7 @@
 
             '<div class="cabina-card">' +
               '<div class="cabina-card-header">' +
-                '<span class="cabina-card-label">&var(--green); Radio ATC &nbsp;&bull;&nbsp; FREQ 119.1 MHz</span>' +
+                '<span class="cabina-card-label">&#128225; Radio ATC &nbsp;&bull;&nbsp; FREQ 119.1 MHz</span>' +
                 '<span class="cabina-led amber"></span>' +
               '</div>' +
               '<div class="cabina-radio-display">' +
@@ -2822,7 +2822,7 @@
 
           '<div class="cabina-card">' +
             '<div class="cabina-card-header">' +
-              '<span class="cabina-card-label">&var(--accent); Answers &bull; Level 1 &bull; USA</span>' +
+              '<span class="cabina-card-label">&#127381; Answers &bull; Level 1 &bull; USA</span>' +
               '<span style="font-size: 0.72rem; color:var(--muted);">8 FASES</span>' +
             '</div>' +
             '<div class="cabina-readbacks" id="cabinaReadbackList">' +
@@ -4609,7 +4609,7 @@
   function _simTabStrip(active) {
     var tabs = [
       { id: 'flight',   label: '<svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg> Flight Simulator' },
-      { id: 'modules',  label: '&var(--green); LMS Modules'    }
+      { id: 'modules',  label: '&#128218; LMS Modules'    }
     ];
     return '<div class="sim-subtab-strip">' +
       tabs.map(function(t) {
@@ -4874,7 +4874,7 @@
       var lvl = ps.placedAtLevel || 1;
       return '<article class="level-card-pro placement-card placement-card-taken">' +
         '<div class="level-card-top">' +
-          '<div class="level-icon-pro">&var(--green);</div>' +
+          '<div class="level-icon-pro">&#127919;</div>' +
           '<div class="level-title-block">' +
             '<p class="eyebrow">Placement</p>' +
             '<h3>Placement Test &mdash; Complete</h3>' +
@@ -4889,7 +4889,7 @@
     }
     return '<article class="level-card-pro placement-card">' +
       '<div class="level-card-top">' +
-        '<div class="level-icon-pro">&var(--green);</div>' +
+        '<div class="level-icon-pro">&#127919;</div>' +
         '<div class="level-title-block">' +
           '<p class="eyebrow">Optional &middot; One-Time</p>' +
           '<h3>Placement Test</h3>' +
@@ -6495,7 +6495,7 @@ var LEVEL_THEMES = {
         el.classList.remove('atc-text-revealed');
         el.innerHTML =
           '<div class="atc-hidden-mask">' +
-            '<span class="atc-hidden-icon">&var(--green);</span>' +
+            '<span class="atc-hidden-icon">&#127911;</span>' +
             '<span class="atc-hidden-copy">ATC text hidden — unlocks after ' + _threshold + ' listen' + (_threshold !== 1 ? 's' : '') + '.</span>' +
           '</div>';
       }
@@ -8580,7 +8580,7 @@ var LEVEL_THEMES = {
               var h = byId('simVisualHost');
               if (h) h.innerHTML =
                 '<div class="sim-video-frame" style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--muted);font-size:0.82rem;">' +
-                  '<span style="font-size: 1.6rem;">&var(--green);</span>' +
+                  '<span style="font-size: 1.6rem;">&#128225;</span>' +
                   '<span>Video unavailable</span>' +
                   '<span style="font-size:0.72rem;opacity:0.6;">Training continues without visual</span>' +
                 '</div>';
@@ -9884,7 +9884,7 @@ var LEVEL_THEMES = {
         '<div class="icao-test-radio-card icao-readback-card">' +
           '<p class="icao-test-radio-label">Your read-back</p>' +
           '<textarea id="icaoReadback" class="sim-readback-priority-input" placeholder="Type your pilot read-back here..." style="margin-bottom:10px;"></textarea>' +
-          '<button id="icaoMicBtn" class="demo-mic-btn" style="margin-bottom:10px;" onclick="startMicInput(\'icaoReadback\',\'icaoMicBtn\')">&var(--green); Tap to speak</button>' +
+          '<button id="icaoMicBtn" class="demo-mic-btn" style="margin-bottom:10px;" onclick="startMicInput(\'icaoReadback\',\'icaoMicBtn\')">&#127908; Tap to speak</button>' +
           '<div id="icaoTestFeedback"></div>' +
           '<div style="display:flex;gap:10px;margin-top:8px;">' +
             '<button class="btn primary big-action" id="icaoSubmitBtn" onclick="icaoTestSubmitAnswer()">Submit read-back</button>' +
@@ -11223,8 +11223,8 @@ var LEVEL_THEMES = {
           '<button class="btn danger"     id="tourResetBtn"     onclick="adminConfirmResetTour()">Close Tour &amp; Reset Weekly XP</button>' +
           '<button class="btn primary"    id="tourEmailBtn"     onclick="adminConfirmSendEmails()">Send Weekly Email to All Students</button>' +
           '<button class="btn secondary"  id="tourTestEmailBtn" onclick="adminSendTestEmail()">Send Test Email to Me</button>' +
-          '<button class="btn secondary"  id="tourEmailLogBtn"  onclick="adminShowEmailLog()">&var(--accent); Email Log</button>' +
-          '<button class="btn secondary"  id="tourTtsDiagBtn"   onclick="adminDiagnoseTts()">&var(--green); Voice Check</button>' +
+          '<button class="btn secondary"  id="tourEmailLogBtn"  onclick="adminShowEmailLog()">&#128196; Email Log</button>' +
+          '<button class="btn secondary"  id="tourTtsDiagBtn"   onclick="adminDiagnoseTts()">&#127908; Voice Check</button>' +
         '</div>' +
         '<div id="tourResetMsg" style="margin-top:8px;"></div>' +
         '<div id="tourEmailLogPanel" style="margin-top:20px;display:none;"></div>' +
@@ -11786,11 +11786,11 @@ var LEVEL_THEMES = {
           var flagsRow =
             '<p style="margin:0 0 6px;font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;color:var(--muted);text-transform:uppercase;">Acentos incluidos</p>' +
             '<div style="display:flex;justify-content:center;gap:6px;margin-bottom:16px;">' +
-              '<span title="USA" style="font-size: 1.35rem;">&var(--accent);&var(--accent);</span>' +
-              '<span title="UK"  style="font-size: 1.35rem;">&var(--accent);&var(--accent);</span>' +
-              '<span title="Australia" style="font-size: 1.35rem;">&var(--green);&var(--accent);</span>' +
-              '<span title="Canada" style="font-size: 1.35rem;">&var(--accent);&var(--green);</span>' +
-              '<span title="India" style="font-size: 1.35rem;">&var(--accent);&var(--accent);</span>' +
+              '<span title="USA" style="font-size: 1.35rem;">&#127482;&#127480;</span>' +
+              '<span title="UK"  style="font-size: 1.35rem;">&#127468;&#127463;</span>' +
+              '<span title="Australia" style="font-size: 1.35rem;">&#127462;&#127482;</span>' +
+              '<span title="Canada" style="font-size: 1.35rem;">&#127464;&#127462;</span>' +
+              '<span title="India" style="font-size: 1.35rem;">&#127470;&#127475;</span>' +
             '</div>';
 
           // What you get, as a list rather than buried in a sentence. The two
@@ -11821,20 +11821,20 @@ var LEVEL_THEMES = {
 
           var featureList =
             '<ul style="list-style:none;margin:0 0 18px;padding:0;">' +
-              _feat('&var(--green);', '<strong>' + plan.maxLevel + ' levels</strong> of the ATC simulator', true) +
-              _feat('&var(--green);', '<strong>' + plan.examAllowance + ' attempts</strong> at the ICAO mock test', true) +
+              _feat('&#127918;', '<strong>' + plan.maxLevel + ' levels</strong> of the ATC simulator', true) +
+              _feat('&#128221;', '<strong>' + plan.examAllowance + ' attempts</strong> at the ICAO mock test', true) +
               (plan.emergencies
-                ? _feat('&var(--accent);', '<strong>Emergency simulation</strong>', true) +
-                  _feat('&var(--accent);', 'Engine failure, smoke and fire on board') +
-                  _feat('&var(--accent);', 'Severe weather, wind shear and turbulence') +
-                  _feat('&var(--accent);', 'Technical failures: hydraulics, pressurisation, landing gear') +
-                  _feat('&var(--green);', 'Medical emergencies and disruptive passengers')
-                : _missing('&var(--accent);', 'Emergency simulation')) +
-              _feat('&var(--green);', 'Evaluaci&oacute;n por IA en la escala OACI, banda por descriptor') +
-              _feat('&var(--green);', 'Downloadable certificate for each level') +
-              _feat('&var(--green);', 'Anal&iacute;tica detallada de tu progreso') +
+                ? _feat('&#128680;', '<strong>Emergency simulation</strong>', true) +
+                  _feat('&#128293;', 'Engine failure, smoke and fire on board') +
+                  _feat('&#127786;', 'Severe weather, wind shear and turbulence') +
+                  _feat('&#128295;', 'Technical failures: hydraulics, pressurisation, landing gear') +
+                  _feat('&#128657;', 'Medical emergencies and disruptive passengers')
+                : _missing('&#128680;', 'Emergency simulation')) +
+              _feat('&#129302;', 'Evaluaci&oacute;n por IA en la escala OACI, banda por descriptor') +
+              _feat('&#127942;', 'Downloadable certificate for each level') +
+              _feat('&#128202;', 'Anal&iacute;tica detallada de tu progreso') +
               (plan.id === 'full'
-                ? _feat('&var(--green);', 'Operational levels as they are published', true)
+                ? _feat('&#128640;', 'Operational levels as they are published', true)
                 : '') +
             '</ul>';
 
@@ -12558,7 +12558,7 @@ var LEVEL_THEMES = {
     var modules = [
       { id: 'engines',      icon: '&#9881;',  title: 'Aircraft Engines',       desc: 'Match key engine terms to their definitions.',        status: 'available' },
       { id: 'nonroutine',   icon: '&#9888;',  title: 'Non-Routine Operations', desc: 'Scenario-based recognition of abnormal procedures.',  status: 'available' },
-      { id: 'humanfactors', icon: '&var(--green);', title: 'Human Factors',         desc: 'Core CRM and threat & error management concepts.',    status: 'available' }
+      { id: 'humanfactors', icon: '&#129504;', title: 'Human Factors',         desc: 'Core CRM and threat & error management concepts.',    status: 'available' }
     ];
 
     var cards = modules.map(function(m) {
@@ -12582,7 +12582,7 @@ var LEVEL_THEMES = {
     var placementTaken = (ps.status === 'taken');
     var placementCard =
       '<article class="lms-module-card">' +
-        '<div class="lms-module-icon">&var(--green);</div>' +
+        '<div class="lms-module-icon">&#127919;</div>' +
         '<div class="lms-module-body">' +
           '<h4 class="lms-module-title">Placement Test</h4>' +
           '<p class="lms-module-desc">' + (placementTaken
@@ -12599,7 +12599,7 @@ var LEVEL_THEMES = {
     // Build ICAO test card as lms-module-card
     var icaoCard =
       '<article class="lms-module-card">' +
-        '<div class="lms-module-icon">&var(--green);</div>' +
+        '<div class="lms-module-icon">&#128203;</div>' +
         '<div class="lms-module-body">' +
           '<h4 class="lms-module-title">ICAO Comprehension Test</h4>' +
           '<p class="lms-module-desc">10 scenarios &middot; 5 accents &middot; Band 1&ndash;6 rating</p>' +
@@ -12908,9 +12908,9 @@ var LEVEL_THEMES = {
   function renderNonRoutineModule() {
     setActiveNav('Simulator');
     var zones = [
-      { id: 'Health',      icon: '&var(--green);', color: 'var(--yellow)', sub: 'Passenger or crew health events'     },
+      { id: 'Health',      icon: '&#128138;', color: 'var(--yellow)', sub: 'Passenger or crew health events'     },
       { id: 'Maintenance', icon: '&#9881;',   color: 'var(--accent)', sub: 'Aircraft system or technical failures' },
-      { id: 'Legal',       icon: '&var(--accent);', color: 'var(--accent)', sub: 'Threat, disruptive passenger or breach' }
+      { id: 'Legal',       icon: '&#128274;', color: 'var(--accent)', sub: 'Threat, disruptive passenger or breach' }
     ];
 
     var zonesHtml = zones.map(function(z) {
@@ -13128,11 +13128,11 @@ var LEVEL_THEMES = {
         '</div>' +
       '</div>' +
       '<div style="background:rgba(168,85,247,0.06);border:1px solid rgba(168,85,247,0.18);border-radius: 8px;padding:14px 18px;font-size: 0.82rem;color:var(--muted);margin-bottom:22px;display:flex;align-items:flex-start;gap:12px;">' +
-        '<span style="font-size: 1rem;flex-shrink:0;">&var(--green);</span>' +
+        '<span style="font-size: 1rem;flex-shrink:0;">&#129504;</span>' +
         '<span>Review each concept and its description. Click <strong>Play Audio</strong> to hear the concept read aloud via text-to-speech.</span>' +
       '</div>' +
       '<div style="position:relative;margin-bottom:20px;">' +
-        '<span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size: 0.9rem;color:var(--muted);pointer-events:none;">&var(--green);</span>' +
+        '<span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size: 0.9rem;color:var(--muted);pointer-events:none;">&#128269;</span>' +
         '<input class="hf-search-input" id="hfSearchInput" type="text" placeholder="Search concepts…" oninput="_hfFilter()" />' +
       '</div>' +
       '<div id="hfGrid"><div style="text-align:center;padding:48px 20px;color:var(--muted);">' +
@@ -13784,7 +13784,7 @@ var LEVEL_THEMES = {
         '<div style="position:absolute;inset:0;background:radial-gradient(ellipse 55% 50% at 50% 50%,' + ORANGE + '22 0%,transparent 70%);pointer-events:none;"></div>' +
         '<button onclick="event.stopPropagation();_streakDismiss();" style="position:absolute;top:20px;right:24px;background:rgba(var(--lift-rgb), 0.06);border:none;color:var(--muted);font-size: 1.15rem;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;">&#10005;</button>' +
         '<div id="_streakCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1),opacity 0.4s ease;padding:0 20px;pointer-events:none;max-width:min(420px,calc(100vw - 32px));">' +
-          '<div id="_streakFlame" style="font-size:clamp(2.6rem,11vw,3.6rem);line-height:1;margin-bottom:14px;filter:drop-shadow(0 0 26px ' + ORANGE + ');transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);">&var(--accent);</div>' +
+          '<div id="_streakFlame" style="font-size:clamp(2.6rem,11vw,3.6rem);line-height:1;margin-bottom:14px;filter:drop-shadow(0 0 26px ' + ORANGE + ');transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);">&#128293;</div>' +
           '<div style="font-size:0.72rem;font-weight:800;letter-spacing: 0.2em;color:' + ORANGE_LT + ';text-transform:uppercase;margin-bottom:10px;">' + safeText(headline) + '</div>' +
           '<div style="font-size:clamp(3.2rem,15vw,5rem);font-weight: 800;color:#fff;letter-spacing: -0.02em;line-height:1;text-shadow:0 0 44px ' + ORANGE + ',0 0 90px ' + ORANGE + '55;">' + days + '</div>' +
           '<div style="font-size: 0.82rem;font-weight:800;letter-spacing: 0.12em;text-transform:uppercase;color:var(--muted);margin-top:6px;">' + (days === 1 ? 'day' : 'days') + ' in a row</div>' +
@@ -21944,7 +21944,7 @@ var LEVEL_THEMES = {
       '<div class="demo-callout">Include: the clearance &plus; QNH value &plus; your callsign</div>' +
       '<div style="margin:12px 0 4px;">' +
         '<textarea id="demoAnswerInput" class="demo-answer" placeholder="Type your readback here&hellip;"></textarea>' +
-        '<button id="demoMicBtn" class="demo-mic-btn" onclick="window._demoMic()">&var(--green); Tap to speak</button>' +
+        '<button id="demoMicBtn" class="demo-mic-btn" onclick="window._demoMic()">&#127908; Tap to speak</button>' +
         '<p style="margin:5px 0 0;font-size: 0.72rem;color:var(--text);"><em>Hint: ' + _esc(HINT) + '</em></p>' +
       '</div>' +
       '<div class="demo-footer">' +
@@ -21990,7 +21990,7 @@ var LEVEL_THEMES = {
   function _s5() {
     return (
       '<div style="text-align:center;padding:8px 0 4px;">' +
-        '<div style="font-size: 2rem;margin-bottom:14px;">&var(--green);</div>' +
+        '<div style="font-size: 2rem;margin-bottom:14px;">&#127919;</div>' +
         '<h2 style="margin:0 0 10px;color:var(--text);font-size: 1.35rem;">You&apos;ve got it!</h2>' +
         '<p style="color:var(--muted);margin:0 0 20px;line-height:1.6;">ICAO Trainer works in 4 steps: <strong style="color:var(--text);">listen &rarr; read &rarr; respond &rarr; improve</strong>. Every route uses real ATC voices with authentic regional accents.</p>' +
         '<div style="background:var(--panel-soft);border-radius:12px;padding:16px 18px;text-align:left;margin-bottom:22px;">' +
@@ -23116,9 +23116,9 @@ var LEVEL_THEMES = {
       '<div class="ff-card ff-card-guided">' +
         '<div class="ff-guided-header">' +
           '<div class="ff-mission-tag">GROUND CONTROL</div>' +
-          '<div class="ff-country-flag">&var(--accent);&var(--accent); USA GROUND</div>' +
+          '<div class="ff-country-flag">&#127482;&#127480; USA GROUND</div>' +
         '</div>' +
-        '<div class="ff-instruction">&var(--green);&nbsp; Press <strong>Play</strong> to hear the ATC, then type what the pilot says back.</div>' +
+        '<div class="ff-instruction">&#128266;&nbsp; Press <strong>Play</strong> to hear the ATC, then type what the pilot says back.</div>' +
         '<div class="ff-sim-area">' +
           '<div class="ff-play-area">' +
             '<button id="ffPlayBtn" class="ff-play-btn" onclick="window._ffPlay()">' +
@@ -23493,7 +23493,7 @@ var LEVEL_THEMES = {
           '<div class="exam-readback-area">' +
             '<label class="exam-readback-label">Your Readback</label>' +
             '<textarea id="examReadbackInput" class="exam-readback-input" rows="3" placeholder="' + (phase.callsign ? 'Callsign: ' + _esc(phase.callsign) + ' — type the pilot readback' : 'Type the pilot readback...') + '"></textarea>' +
-            '<button id="examMicBtn" class="demo-mic-btn" style="margin-top:8px;" onclick="startMicInput(\'examReadbackInput\',\'examMicBtn\')">&var(--green); Tap to speak</button>' +
+            '<button id="examMicBtn" class="demo-mic-btn" style="margin-top:8px;" onclick="startMicInput(\'examReadbackInput\',\'examMicBtn\')">&#127908; Tap to speak</button>' +
           '</div>' +
           '<button class="btn primary exam-next-btn" onclick="window._examNext()">' +
             (isLast ? 'Submit Exam' : 'Next Phase &rarr;') +
@@ -28186,7 +28186,7 @@ var LEVEL_THEMES = {
       ? '<button onclick="window._teaRunTest()" ' +
           'style="margin-top:4px;padding:8px 20px;background:transparent;border:1px solid var(--line);' +
           'color:var(--accent);border-radius:8px;font-size: 0.82rem;cursor:pointer;">' +
-          '&var(--accent); Run pipeline test (no exam needed)' +
+          '&#128295; Run pipeline test (no exam needed)' +
         '</button>'
       : '';
 
@@ -28268,7 +28268,7 @@ var LEVEL_THEMES = {
         '<div id="teaCards" class="tea-cards"></div>' +
         '<div class="tea-input-bar">' +
           '<button id="teaMic" class="tea-mic-btn" ' +
-            'onclick="window._teaMicToggle()">&var(--green);</button>' +
+            'onclick="window._teaMicToggle()">&#127908;</button>' +
           '<textarea id="teaInput" class="tea-textarea" rows="1" ' +
             'placeholder="Speak via mic or type and press Enter..."></textarea>' +
         '</div>' +

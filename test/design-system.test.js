@@ -53,7 +53,10 @@ ok('three elevations are defined',
 ok('glows are left alone', [...shadows].some(v => /^0\s+0\s/.test(v)));
 
 console.log('--- colour ---');
-const hexes = new Set([...ALL.matchAll(/#[0-9a-fA-F]{6}\b/g)].map(m => m[0].toLowerCase()));
+// (?<!&) — the same blind spot that ate the marks. &#127908; is a microphone, and
+// 127908 is six valid hex digits, so this was counting entities as colours: the
+// count read 58 while they were broken and 88 once they were restored.
+const hexes = new Set([...ALL.matchAll(/(?<![&\w])#[0-9a-fA-F]{6}\b/g)].map(m => m[0].toLowerCase()));
 ok(`${hexes.size} distinct hex colours (was 153 in the stylesheet alone, ceiling 60)`,
    hexes.size <= 60);
 ok('the eight tokens carry the work',
@@ -74,6 +77,22 @@ misuse.forEach(([label, re]) => {
   if (n) console.log('      ' + n + ' found');
   ok('no ' + label, n === 0);
 });
+
+console.log('--- a colour sweep cannot eat a character ---');
+// &#127908; is a microphone and &#10003; is a tick. To a regex looking for colours
+// the part after the & is a number that looks like a hex literal, and forty-nine of
+// them were replaced with a token — so the shop's feature list, the mic button, the
+// country flags and the level icons all rendered the literal text &var(--green);
+// on screen. It survived a full colour pass, a type pass and a form pass, because
+// nothing was looking at entities.
+const eaten = [...ALL.matchAll(/&[a-z-]*\(?--[a-z-]+\)?;/g)].map(m => m[0]);
+if (eaten.length) console.log('    ' + [...new Set(eaten)].slice(0, 6).join('  '));
+ok('no entity has had its number replaced', eaten.length === 0);
+const ents = [...ALL.matchAll(/&#(\d{3,7});/g)].map(m => Number(m[1]));
+console.log('    ' + ents.length + ' character entities, all intact');
+ok('and the marks are still there', ents.length > 140);
+ok('every one of them is a real code point',
+   ents.every(n => n > 0 && n <= 0x10FFFF));
 
 console.log(fails?('\n'+fails+' FAILING'):'\nall green');
 process.exit(fails?1:0);
