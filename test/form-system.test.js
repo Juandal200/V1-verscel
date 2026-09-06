@@ -79,6 +79,20 @@ ok('no border is painted with a surface token',
 ok('and none carries a dead fallback for a token that is now always defined',
    !/var\(--line\s*,/.test(ALL));
 
+console.log('--- the pinned answer leaves room for itself ---');
+// The answer bar is fixed to the bottom of a phone, and the cockpit reserved a flat
+// 150px for it. The bar is 118px empty and 162 once the textarea has grown, and it
+// sits 50px above the bottom — so the reserve was short by eighty to a hundred and
+// ten pixels and the card behind it could never scroll clear of it.
+ok('the reserve is measured, not guessed',
+   /--answer-h/.test(C) && /padding-bottom: calc\(var\(--answer-h/.test(C));
+ok('and it counts the navigation the bar sits above',
+   /var\(--answer-h[^)]*\)\s*\+\s*50px/.test(C));
+ok('something measures it', /function _simTrackAnswerHeight\(\)/.test(S));
+ok('and keeps measuring while the textarea grows', /new ResizeObserver\(apply\)/.test(S));
+ok('with a path for Safari versions that lack one', /bar\.addEventListener\('input', apply\)/.test(S));
+ok('it starts when the cockpit draws', /_simTrackAnswerHeight\(\);/.test(S));
+
 console.log('--- eight steps of letter-spacing ---');
 const ls = distinct(/letter-spacing:\s*([^;"'}<]+)/g);
 console.log('    ' + [...ls].sort().join('  '));

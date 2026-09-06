@@ -88,9 +88,17 @@ ok('every feature names an icon instead',
 const set = S.slice(S.indexOf('var UI_ICONS = {'), S.indexOf('function uiIcon'));
 const names = [...set.matchAll(/^\s{4}([a-z]+):/gm)].map(m => m[1]);
 console.log('    ' + names.join('  '));
-ok(`${names.length} icons in the set`, names.length >= 12);
-ok('every icon the cards ask for exists',
-   [...shop.matchAll(/uiIcon\('([a-z]+)'/g)].every(m => names.includes(m[1])));
+ok(`${names.length} icons in the set`, names.length >= 17);
+// This checked the shop's own slice only, which is how five marks the cockpit and
+// the top bar ask for went missing without a word: uiIcon returns '' for a name it
+// does not know, so a button is simply empty and nothing is thrown. Every call site
+// in the file, not the ones nearest the assertion.
+const asked = [...new Set([...S.matchAll(/uiIcon\('([a-z]+)'/g)].map(m => m[1]))];
+const missing = asked.filter(a => !names.includes(a));
+if (missing.length) console.log('    asked for but not drawn: ' + missing.join('  '));
+ok(`all ${asked.length} icons asked for anywhere in the client exist`, missing.length === 0);
+ok('and nothing in the set is drawn and never used',
+   names.filter(nm => !asked.includes(nm)).length === 0);
 // 1.6 at 24 is the same optical weight as the interface's 700 text at 0.82rem,
 // which is what lets an icon sit in a line rather than on top of it. The one
 // exception is the score chart's baseline, which is an axis rule and not an icon.
@@ -105,6 +113,37 @@ ok('and take the colour of the line they sit in, so they follow the theme',
    /stroke="currentColor"/.test(S) && !/<svg[^>]*stroke="#/.test(S));
 // A drawing carries no meaning to a screen reader, and the words beside it already do.
 ok('they are hidden from assistive technology', /aria-hidden="true"/.test(set + S.slice(S.indexOf('function uiIcon'), S.indexOf('function uiIcon') + 700)));
+
+console.log('--- the streak and the transport controls are drawn too ---');
+// The pause button was &#9208;, which iOS renders as a blue colour emoji — the
+// loudest thing in a cockpit that is otherwise black and white. The flame and the
+// ice cube were dimmed with a CSS filter over somebody else's artwork, which is
+// why they never sat right on the card behind them.
+[['\u{1F525}', 'flame'], ['\u{1F9CA}', 'ice cube']].forEach(([ch, what]) => {
+  ok('no ' + what + ' emoji anywhere', !S.includes(ch));
+});
+// Comments stripped first — the note explaining the fault quotes the fault.
+const src = S.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/[^\n]*/g, '$1');
+ok('the pause glyph is drawn',  !/&#9208;/.test(src) && /uiIcon\('pause'/.test(src));
+ok('the menu glyph is drawn',   !/&#9776;/.test(src) && /uiIcon\('menu'/.test(src));
+ok('and resume shows play, not pause again', /uiIcon\('play'/.test(src));
+ok('and the streak has a mark of its own', /uiIcon\('streak'/.test(S));
+// A drawn mark takes a colour; it does not need a filter over artwork it did not draw.
+ok('no filter is being used to recolour a glyph', !/filter:'\s*\+\s*flameFilter/.test(S));
+
+console.log('--- Full is sorted by colour, Basic is not ---');
+// The marks take currentColor, so tinting one sets the colour of its cell and the
+// drawing is untouched. Only the emergency block is tinted, because that block is
+// what Full has and Basic does not — colour doing the sorting, not the decorating.
+const feat = S.slice(S.indexOf('function _feat(icon, text, strong, tone)'),
+                     S.indexOf('function _missing'));
+ok('the feature row takes a tone', /tone === 'danger'/.test(feat) && /tone === 'warn'/.test(feat));
+ok('and defaults to the accent',   /: 'var\(--accent\)';/.test(feat));
+const list = S.slice(S.indexOf('var featureList ='), S.indexOf('var featureList =') + 2400);
+ok('the emergency lines are the tinted ones',
+   (list.match(/'danger'\)/g) || []).length === 3 && (list.match(/'warn'\)/g) || []).length === 2);
+ok('and everything both plans share is not',
+   !/uiIcon\('(tower|paper|bands|seal|chart)'\)[^)]*'(danger|warn)'/.test(list));
 
 console.log('--- the accent is a flag, not two lines of text ---');
 // "INDIAN ATC" wrapped and pushed the Replay button off centre. A flag says it at

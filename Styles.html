@@ -2167,6 +2167,19 @@
   .atc-accent-name { display: none; }
 }
 
+/* A drawn glyph inside a button sits on the text baseline the way a character did.
+   These were &#9208; and &#9776; — iOS renders the first as a blue colour emoji, so
+   the loudest thing in the cockpit was the pause button. */
+.btn-glyph,
+.chip-glyph {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: -3px;
+}
+.btn-glyph { margin-right: 1px; }
+.chip-glyph { margin-right: 4px; vertical-align: -2px; }
+.chip-glyph--gap { margin-left: 8px; }
+
 .flag-shell {
   display: inline-grid;
   place-items: center;
@@ -12665,8 +12678,13 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 
     .sim-cockpit {
       position: relative;
-      /* Room for the pinned answer, plus the home indicator underneath it. */
-      padding-bottom: calc(150px + env(safe-area-inset-bottom)) !important;
+      /* Room for the pinned answer, the navigation it sits above, and the home
+         indicator under that. --answer-h is measured from the bar itself, because
+         its height changes as the textarea grows: a fixed reserve was 150px against
+         a bar that reaches 162 before the 50px of navigation is counted, so the card
+         behind it could never scroll clear. */
+      padding-bottom: calc(var(--answer-h, 150px) + 50px +
+                           env(safe-area-inset-bottom) + 14px) !important;
     }
 
     .sim-cockpit-header {

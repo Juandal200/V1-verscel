@@ -1424,7 +1424,12 @@
     if (streakChip) {
       var sd = streakDays || 0;
       var _freezes = window._lmsStreakFreezes || 0;
-      streakChip.textContent = '🔥 ' + (sd || 0) + 'd' + (_freezes > 0 ? '  🧊 ' + _freezes : '');
+      // textContent, because a drawn mark is markup. The flame and the ice cube were
+      // the only two colour emoji left in the top bar.
+      streakChip.innerHTML =
+        '<span class="chip-glyph">' + uiIcon('streak', 13) + '</span>' + (sd || 0) + 'd' +
+        (_freezes > 0 ? '<span class="chip-glyph chip-glyph--gap">' + uiIcon('freeze', 13) +
+                        '</span>' + _freezes : '');
       streakChip.style.display = '';
     }
 
@@ -1860,6 +1865,10 @@
           ? 'linear-gradient(160deg,var(--bg) 0%,#7f1d1d 55%,#450a0a 100%)'
           : 'linear-gradient(160deg,var(--bg) 0%,#9a3412 55%,#431407 100%)';
         // The dimmed flame reads as "your streak is dying". Only true if it is.
+        // Was a filter on an emoji: saturate() over somebody else's artwork, which
+        // is why it never sat right on the card. A drawn mark just takes a colour.
+        var flameInk = (hour >= 19 && !_doneToday) ? 'var(--red)'
+                     : hour >= 12 ? 'var(--yellow)' : 'var(--accent)';
         var flameFilter = (hour >= 19 && !_doneToday)
           ? 'saturate(0.2) brightness(0.6)'
           : hour >= 12 ? 'saturate(0.65) brightness(0.88)' : 'saturate(1) brightness(1)';
@@ -1868,7 +1877,10 @@
           : '';
         streakCard = flicker +
           '<div onclick="_navTo(renderSimulatorPlaceholder)" class="streak-hero-card" style="flex:1;min-width:280px;cursor:pointer;background:' + gradient + ';border-radius: 12px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 24px 28px;text-align:center;">' +
-            '<div style="font-size: 2rem;line-height:1;margin-bottom:14px;filter:' + flameFilter + ';transition:filter 0.4s var(--ease);' + (hour >= 19 ? 'animation:_lmsFlicker 1.6s ease-in-out infinite;' : '') + '">🔥</div>' +
+            '<div style="display:flex;justify-content:center;margin-bottom:14px;color:' + flameInk + ';' +
+              'transition:color 0.4s var(--ease);' +
+              (hour >= 19 ? 'animation:_lmsFlicker 1.6s ease-in-out infinite;' : '') + '">' +
+              uiIcon('streak', 32) + '</div>' +
             '<div style="font-size: 2rem;font-weight: 800;color:#fff;line-height:1;letter-spacing: -0.02em;">' + days + '</div>' +
             '<div style="font-size:1rem;font-weight:700;color:var(--text);margin-top:2px;margin-bottom:6px;">day streak</div>' +
             '<div style="font-size: 0.72rem;font-weight:800;letter-spacing: 0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:28px;">' + _leftLabel + '</div>' +
@@ -4639,7 +4651,19 @@
     none:   '<circle cx="12" cy="12" r="8.5"/><path d="M6.5 6.5l11 11"/>',
     // iOS Share, which is the gesture that installs the app.
     share:  '<path d="M12 16V3"/><path d="M8 7l4-4 4 4"/>' +
-            '<path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>'
+            '<path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>',
+    // The transport controls and the menu. These were &#9208; and &#9776;, which iOS
+    // renders as a blue colour emoji and a glyph heavier than anything around it —
+    // so the loudest thing in the cockpit was the pause button.
+    pause:  '<path d="M9.5 5v14"/><path d="M14.5 5v14"/>',
+    play:   '<path d="M8 5.5l10 6.5-10 6.5z"/>',
+    menu:   '<path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/>',
+    // A streak is consecutive days. It was a flame emoji dimmed with a CSS filter,
+    // which is saturate() over artwork we did not draw — a drawn mark takes a colour.
+    streak: '<path d="M12 3s5 4.2 5 9a5 5 0 0 1-10 0c0-1.6.7-3 1.6-4.2.3 1.3 1 2.1 1.9 2.4' +
+            'C10.2 8.4 12 6.2 12 3z"/>',
+    freeze: '<path d="M12 3v18"/><path d="M4.2 7.5l15.6 9"/><path d="M19.8 7.5l-15.6 9"/>' +
+            '<path d="M9.5 5.2L12 7.6l2.5-2.4"/><path d="M9.5 18.8L12 16.4l2.5 2.4"/>'
   };
 
   /* 1.6 at 24 is the same optical weight as the interface's 700 text at 0.82rem,
@@ -7315,11 +7339,13 @@ var LEVEL_THEMES = {
       // innerHTML, not textContent: the label lives in a span so a narrow screen can
       // drop the words and keep the glyph, and setting textContent would delete that
       // span the first time anybody paused.
-      btn.innerHTML = '\u25b6<span class="btn-label"> Resume</span>';
+      btn.innerHTML = '<span class="btn-glyph">' + uiIcon('play', 16) + '</span>' +
+                      '<span class="btn-label"> Resume</span>';
         btn.classList.remove('secondary');
         btn.classList.add('primary');
       } else {
-        btn.innerHTML = '\u23f8<span class="btn-label"> Pause all</span>';
+        btn.innerHTML = '<span class="btn-glyph">' + uiIcon('pause', 16) + '</span>' +
+                        '<span class="btn-label"> Pause all</span>';
         btn.classList.remove('primary');
         btn.classList.add('secondary');
       }
@@ -7815,9 +7841,11 @@ var LEVEL_THEMES = {
               // The label is wrapped so a narrow screen can drop the words and keep
               // the glyph. Both buttons were taking a full row each for a word that
               // the symbol already says.
-              '&#9208;<span class="btn-label"> Pause all</span></button>' +
+              '<span class="btn-glyph">' + uiIcon('pause', 16) + '</span>' +
+              '<span class="btn-label"> Pause all</span></button>' +
             '<button class="btn secondary" onclick="disableSimulatorFocusMode()">' +
-              '&#9776;<span class="btn-label"> Menu</span></button>' +
+              '<span class="btn-glyph">' + uiIcon('menu', 16) + '</span>' +
+              '<span class="btn-label"> Menu</span></button>' +
           '</div>' +
         '</div>' +
         '<canvas id="flight-progress-canvas" class="flight-progress-canvas pro"></canvas>' +
@@ -8741,7 +8769,41 @@ var LEVEL_THEMES = {
     return { type: 'native', url: clean };
   }
 
+  /* The reserve under the pinned answer, taken from the bar rather than guessed.
+   *
+   * The bar is fixed to the bottom on a phone, and the cockpit reserved a flat 150px
+   * of padding for it. But the bar is 118px with an empty textarea and 162 once it
+   * has grown, and it sits 50px above the bottom of the screen — so the reserve was
+   * short by between eighty and a hundred and ten pixels, and the card behind it
+   * could not scroll clear. It overlapped whatever happened to be last.
+   *
+   * ResizeObserver because the textarea grows as you type, which is exactly when the
+   * card behind it matters. */
+  var _answerRO = null;
+  function _simTrackAnswerHeight() {
+    var bar = document.querySelector('.sim-readback-priority-card');
+    var pit = document.querySelector('.sim-cockpit');
+    if (!bar || !pit) return;
+
+    var apply = function () {
+      var h = Math.ceil(bar.getBoundingClientRect().height);
+      if (h > 0) pit.style.setProperty('--answer-h', h + 'px');
+    };
+    apply();
+
+    if (_answerRO) { try { _answerRO.disconnect(); } catch (e) {} }
+    if (window.ResizeObserver) {
+      _answerRO = new ResizeObserver(apply);
+      _answerRO.observe(bar);
+    } else {
+      // Older Safari. The two moments the height actually changes.
+      bar.addEventListener('input', apply);
+      window.addEventListener('resize', apply);
+    }
+  }
+
   function drawImmersiveFlightProgressCanvas(scenario) {
+    _simTrackAnswerHeight();
     var canvas = byId('flight-progress-canvas');
     if (!canvas) return;
 
@@ -8762,7 +8824,9 @@ var LEVEL_THEMES = {
     var active = getPhaseIndexForScenario(scenario);
     var DRAW_PHASES = PHASES.filter(function(p) { return p.code !== 'STARTUP'; });
     var drawActive = active > 0 ? active - 1 : 0;
-    var padX = 48;
+    // Was a flat 48 each side, which left the rail occupying about seventy per cent
+    // of the pill it sits in. It only has to keep the end dots off the rounded edge.
+    var padX = Math.max(20, Math.min(34, W * 0.055));
     var lineY = H / 2 + 6;
     var step = (W - padX * 2) / (DRAW_PHASES.length - 1);
 
@@ -8809,8 +8873,11 @@ var LEVEL_THEMES = {
         ctx.font = (isNow ? '700 ' : '') + (roomForAll ? '11px ' : '12px ') + T.instrument;
         ctx.textAlign = 'center';
         ctx.fillStyle = isNow ? T.text : isDone ? T.muted : T.strong;
-        // Clamped inside the canvas so the first and last phases keep their names.
-        ctx.fillText(phase.label, roomForAll ? x : Math.max(34, Math.min(W - 34, x)), lineY - 18);
+        // Clamped by the word's own width rather than a flat 34px, which was tuned
+        // to the old inset and would now clip "Approach" at either end.
+        var half = ctx.measureText(phase.label).width / 2 + 6;
+        ctx.fillText(phase.label,
+                     roomForAll ? x : Math.max(half, Math.min(W - half, x)), lineY - 18);
       }
 
       ctx.beginPath();
@@ -11700,7 +11767,7 @@ var LEVEL_THEMES = {
 
           // ── Streak Freeze card ───────────────────────────────────────────
           '<div class="shop-card">' +
-            '<div class="shop-card-icon">🧊</div>' +
+            '<div class="shop-card-icon">' + uiIcon('freeze', 26) + '</div>' +
             '<h3 class="shop-card-title">Streak Freeze</h3>' +
             '<p class="shop-card-desc">Protects your streak if you miss a day. Activates automatically.</p>' +
             '<div class="shop-card-count" id="shopFreezeCount">' +
@@ -11758,7 +11825,7 @@ var LEVEL_THEMES = {
         var newMerged = (window._lmsLmsXp || 0) + (window._lmsSimXp || 0);
         _renderTopbarRank(newMerged, window._lmsStreakDays || 0);
         _aeroSaveCache && _aeroSaveCache();
-        _gToast('🧊 Streak freeze purchased!', 'ok');
+        _gToast('Streak freeze purchased', 'ok');
         // Re-render card to reflect new count
         renderShop();
       })
@@ -11904,12 +11971,20 @@ var LEVEL_THEMES = {
           // paragraphs and subtracting.
           // An icon per line rather than a column of identical ticks — the eye can
           // pick out "6 intentos" and the emergency block without reading.
-          function _feat(icon, text, strong) {
+          // The mark takes currentColor, so tinting one is setting the colour of the
+          // cell it sits in — the drawing itself does not change. Only the emergency
+          // block is tinted, because that block is what Full has and Basic does not,
+          // and colour is doing the sorting rather than the decorating. Everything
+          // both plans share stays on the accent.
+          function _feat(icon, text, strong, tone) {
+            var ink = tone === 'danger' ? 'var(--red)'
+                    : tone === 'warn'   ? 'var(--yellow)'
+                    : 'var(--accent)';
             return '<li style="display:flex;gap:9px;align-items:flex-start;text-align:left;' +
                    'margin-bottom:9px;font-size:0.82rem;line-height:1.45;' +
                    'color:' + (strong ? 'var(--text)' : 'var(--muted)') + ';">' +
                      '<span style="flex-shrink:0;display:flex;align-items:center;justify-content:center;'
-                       + 'width:18px;height:21px;color:var(--accent);opacity:.9;">' +
+                       + 'width:18px;height:21px;color:' + ink + ';opacity:.92;">' +
                        icon + '</span>' +
                      '<span>' + text + '</span>' +
                    '</li>';
@@ -11930,11 +12005,11 @@ var LEVEL_THEMES = {
               _feat(uiIcon('tower'), '<strong>' + plan.maxLevel + ' levels</strong> of the ATC simulator', true) +
               _feat(uiIcon('paper'), '<strong>' + plan.examAllowance + ' attempts</strong> at the ICAO mock test', true) +
               (plan.emergencies
-                ? _feat(uiIcon('alert'), '<strong>Emergency simulation</strong>', true) +
-                  _feat(uiIcon('fire'), 'Engine failure, smoke and fire on board') +
-                  _feat(uiIcon('wx'), 'Severe weather, wind shear and turbulence') +
-                  _feat(uiIcon('tools'), 'Technical failures: hydraulics, pressurisation, landing gear') +
-                  _feat(uiIcon('medic'), 'Medical emergencies and disruptive passengers')
+                ? _feat(uiIcon('alert'), '<strong>Emergency simulation</strong>', true, 'danger') +
+                  _feat(uiIcon('fire'), 'Engine failure, smoke and fire on board', false, 'danger') +
+                  _feat(uiIcon('wx'), 'Severe weather, wind shear and turbulence', false, 'warn') +
+                  _feat(uiIcon('tools'), 'Technical failures: hydraulics, pressurisation, landing gear', false, 'warn') +
+                  _feat(uiIcon('medic'), 'Medical emergencies and disruptive passengers', false, 'danger')
                 : _missing(uiIcon('none'), 'Emergency simulation')) +
               _feat(uiIcon('bands'), 'Scored on the ICAO scale, a band for each of the six descriptors') +
               _feat(uiIcon('seal'), 'Downloadable certificate for each level') +
@@ -22873,7 +22948,8 @@ var LEVEL_THEMES = {
         ? ' <span style="color:var(--gam-green);font-size:0.72rem;font-weight:700;margin-left:5px;">YOU</span>'
         : '');
       var streakTxt = p.maxStreak >= 2
-        ? '<span class="gam-streak-chip">🔥 ' + p.maxStreak + '</span>' : '';
+        ? '<span class="gam-streak-chip"><span class="chip-glyph">' + uiIcon('streak', 12) +
+          '</span>' + p.maxStreak + '</span>' : '';
 
       html +=
         '<div class="gam-lb-row' + rowCls + '">' +
@@ -22987,7 +23063,9 @@ var LEVEL_THEMES = {
         var streakMkp = '';
         if (p.streakDays && p.streakDays > 0) {
           var shield = p.streakProtected ? '&nbsp;🛡️' : '';
-          streakMkp = '<span style="font-size: 0.72rem;margin-left:5px;opacity:.85;" title="' + p.streakDays + '-day streak">🔥' + p.streakDays + 'd' + shield + '</span>';
+          streakMkp = '<span style="font-size: 0.72rem;margin-left:5px;opacity:.85;display:inline-flex;' +
+                      'align-items:center;gap:3px;" title="' + p.streakDays + '-day streak">' +
+                      uiIcon('streak', 12) + p.streakDays + 'd' + shield + '</span>';
         }
 
         var nameTag = crownMkp + _gEsc(p.name) +
@@ -23084,7 +23162,7 @@ var LEVEL_THEMES = {
           ' title="' + title + '"' +
           ' style="background:' + bg + ';border-color:' + border + ';">' +
           (m.isDoubleXp ? '<span class="gam-med-icon">⚡</span>' :
-           m.isComeback ? '<span class="gam-med-icon">🔥</span>' : '') +
+           m.isComeback ? '<span class="gam-med-icon">' + uiIcon('streak', 20) + '</span>' : '') +
         '</span>';
     });
 
@@ -23096,7 +23174,8 @@ var LEVEL_THEMES = {
     var chip = _gEl('gamStreakChip');
     if (!chip) return;
     if (!streak || streak < 2) { chip.style.display = 'none'; return; }
-    chip.textContent    = '🔥 ' + streak + '-week streak · +' + bonusPct + '% CP';
+    chip.innerHTML      = '<span class="chip-glyph">' + uiIcon('streak', 13) + '</span>' +
+                          streak + '-week streak \u00b7 +' + bonusPct + '% CP';
     chip.style.display  = '';
   }
 
@@ -28914,14 +28993,16 @@ function _dcShowCompletion(res) {
       '<h2 class="dc-complete-title">Challenge Complete!</h2>' +
       (res.xpAwarded ? '<div class="dc-complete-xp">+' + res.xpAwarded + ' XP</div>' : '') +
       (res.newStreakDays ? '<div class="dc-complete-streak">Streak: <strong>' + res.newStreakDays + ' days</strong></div>' : '') +
-      (res.freezeAwarded ? '<div class="dc-complete-badge" style="color:var(--muted);">🧊 Streak freeze earned!</div>' : '') +
+      (res.freezeAwarded ? '<div class="dc-complete-badge" style="color:var(--muted);' +
+        'display:flex;align-items:center;justify-content:center;gap:6px;">' +
+        uiIcon('freeze', 14) + 'Streak freeze earned</div>' : '') +
       '<p class="dc-complete-msg">Come back tomorrow for a new challenge.</p>' +
       '<button class="btn primary" style="margin-top:24px;min-width:180px;" onclick="_navTo(renderHome)">← Home</button>' +
     '</div>';
   try { window.scrollTo(0, 0); byId('contentArea').scrollTop = 0; } catch(e) {}
 
   if (res.xpAwarded)    setTimeout(function() { _gToast('+' + res.xpAwarded + ' XP earned!', 'ok'); }, 300);
-  if (res.freezeAwarded) setTimeout(function() { _gToast('🧊 Streak freeze earned!', 'ok'); }, 900);
+  if (res.freezeAwarded) setTimeout(function() { _gToast('Streak freeze earned', 'ok'); }, 900);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
