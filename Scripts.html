@@ -4589,6 +4589,70 @@
    * SIMULATOR LEVEL MAP
    ***********************/
 
+  /* A drawn set, in one weight.
+   *
+   * The plan cards carried eleven colour emoji — a rocket, a robot, an ambulance —
+   * each drawn by a different designer at a different weight in a different palette,
+   * on a page that is otherwise black, white and one accent. They are the loudest
+   * thing on the screen where somebody decides whether to pay, and they say
+   * "assembled" rather than "made".
+   *
+   * These are one stroke weight, one corner treatment, and currentColor — so they
+   * take the colour of the line they sit in, dim when the line is struck through,
+   * and invert with the theme. Nothing here needs a font to render, which also
+   * means they look the same on every phone.
+   */
+  var UI_ICONS = {
+    // A control tower: the thing on the other end of the radio.
+    tower:  '<path d="M12 3v7"/><path d="M8.5 21l3-11 3 11"/><path d="M7 21h10"/>' +
+            '<path d="M6.5 6.5a7 7 0 0 1 11 0"/><path d="M4 4a10.5 10.5 0 0 1 16 0"/>',
+    // A sheet with a line of writing and a tick: the test.
+    paper:  '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>' +
+            '<path d="M9 12h6"/><path d="M9 16l1.5 1.5L14 14"/>',
+    // The warning triangle every cockpit already uses.
+    alert:  '<path d="M12 4L2.5 20h19z"/><path d="M12 10v4.5"/><path d="M12 17.4v.1"/>',
+    // Flame.
+    fire:   '<path d="M12 3s5 4.2 5 9a5 5 0 0 1-10 0c0-1.6.7-3 1.6-4.2.3 1.3 1 2.1 1.9 2.4' +
+            'C10.2 8.4 12 6.2 12 3z"/>',
+    // Cloud and shear lines.
+    wx:     '<path d="M7 15a3.6 3.6 0 0 1 .3-7.1 5.2 5.2 0 0 1 9.9 1.3A3.4 3.4 0 0 1 17 15z"/>' +
+            '<path d="M8 18.5h5"/><path d="M15.5 18.5h1.5"/><path d="M9.5 21h7"/>',
+    // Spanner.
+    tools:  '<path d="M14.7 6.3a3.9 3.9 0 0 0 5 5l-8.4 8.4a2.4 2.4 0 0 1-3.4-3.4z"/>' +
+            '<path d="M6.5 17.5v.1"/>',
+    // The cross on an aid kit.
+    medic:  '<rect x="3" y="6.5" width="18" height="13" rx="2.5"/>' +
+            '<path d="M9 6.5V5a1.5 1.5 0 0 1 1.5-1.5h3A1.5 1.5 0 0 1 15 5v1.5"/>' +
+            '<path d="M12 10.5v5"/><path d="M9.5 13h5"/>',
+    // Six bars rising: a band per descriptor, which is what the score is.
+    bands:  '<path d="M4 20V16"/><path d="M7.6 20v-6.5"/><path d="M11.2 20v-9"/>' +
+            '<path d="M14.8 20V8"/><path d="M18.4 20V5.5"/><path d="M2.5 20h19"/>',
+    // A seal with a ribbon.
+    seal:   '<circle cx="12" cy="9.5" r="5.5"/><path d="M9 14.4L8 21l4-2 4 2-1-6.6"/>' +
+            '<path d="M12 7v5"/>',
+    // A trend line over an axis.
+    chart:  '<path d="M4 20V4"/><path d="M4 20h16"/>' +
+            '<path d="M7.5 16l3.5-4 3 2.5L19 8"/>',
+    // A wing climbing away: what an operational level is.
+    climb:  '<path d="M3 19h18"/><path d="M5 15.5l5.5-1.5 3-6.5 2 .6-1.3 5.4 4.8-1.3.7 2.3z"/>',
+    // Struck through on the plan that does not have it.
+    none:   '<circle cx="12" cy="12" r="8.5"/><path d="M6.5 6.5l11 11"/>',
+    // iOS Share, which is the gesture that installs the app.
+    share:  '<path d="M12 16V3"/><path d="M8 7l4-4 4 4"/>' +
+            '<path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>'
+  };
+
+  /* 1.6 at 24 is the same optical weight as the interface's 700 text at 0.82rem,
+   * which is what makes an icon sit in a line rather than on top of it. */
+  function uiIcon(name, size) {
+    var d = UI_ICONS[name];
+    if (!d) return '';
+    return '<svg viewBox="0 0 24 24" width="' + (size || 18) + '" height="' + (size || 18) + '" ' +
+           'fill="none" stroke="currentColor" stroke-width="1.6" ' +
+           'stroke-linecap="round" stroke-linejoin="round" ' +
+           'aria-hidden="true" focusable="false" style="display:block;">' + d + '</svg>';
+  }
+
   function getCountryUi(country) {
     var raw = String(country || '').trim();
     var key = raw.toUpperCase();
@@ -7454,11 +7518,24 @@ var LEVEL_THEMES = {
     if (!el) return;
     var meta = null;
     try { if (country) meta = getCountryUi(country); } catch (e) {}
-    el.textContent = (meta && meta.accent) ? meta.accent
-                   : (voiceName === 'text only' ? 'Text only'
-                   : (voiceName ? 'ATC' : 'Loading\u2026'));
+
+    // The flag says the accent faster than the word does, and it says it in one
+    // line — "INDIAN ATC" wrapped to two and pushed the Replay button off centre.
+    // getFlagHtml serves a real flag and falls back to the character if the image
+    // does not load, so this degrades to what it used to be rather than to nothing.
+    if (meta && meta.accent) {
+      var nationality = meta.accent.replace(/\s*ATC$/, '');
+      el.innerHTML = '<span class="atc-accent-flag">' +
+                       getFlagHtml(country, 'flag-badge') +
+                     '</span><span class="atc-accent-name">' +
+                       safeText(nationality) + '</span>';
+    } else {
+      el.textContent = voiceName === 'text only' ? 'Text only'
+                     : (voiceName ? 'ATC' : 'Loading\u2026');
+    }
     // Kept for us, out of the student's way.
-    el.title = String(voiceName || '') + (cached ? ' (cached)' : '');
+    el.title = ((meta && meta.label) ? meta.label + ' \u2014 ' : '') +
+               String(voiceName || '') + (cached ? ' (cached)' : '');
   }
 
   // opts.levelRamp === false for anything that is not a training scenario.
@@ -7770,7 +7847,7 @@ var LEVEL_THEMES = {
               '<div class="sim-section-title"><span>ATC RADIO</span>' +
                 '<div style="display:flex;gap:6px;align-items:center;">' +
                   '<span class="sim-live-dot" id="simAtcLiveDot" style="display:none;">PLAYING</span>' +
-                  '<span id="atcVoiceBadge" style="font-size:0.72rem;color:var(--muted);letter-spacing: 0.02em;align-self:center;">loading…</span>' +
+                  '<span id="atcVoiceBadge" class="atc-accent-badge">loading…</span>' +
                   '<button class="btn primary" id="atcReplayBtn" onclick="immersivePlayAtcAudio(event)">&#8635; Replay ATC</button>' +
                 '</div>' +
               '</div>' +
@@ -10379,7 +10456,7 @@ var LEVEL_THEMES = {
       '<p class="score-chart-title">Score by phase</p>' +
       '<svg class="score-chart-svg" viewBox="0 0 ' + VW + ' ' + (VH + 22) + '">' +
         '<line x1="0" y1="' + VH + '" x2="' + VW + '" y2="' + VH +
-          '" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>' +
+          '" stroke="var(--line)" stroke-width="1"/>' +
         bars +
       '</svg>' +
     '</div>';
@@ -11831,7 +11908,8 @@ var LEVEL_THEMES = {
             return '<li style="display:flex;gap:9px;align-items:flex-start;text-align:left;' +
                    'margin-bottom:9px;font-size:0.82rem;line-height:1.45;' +
                    'color:' + (strong ? 'var(--text)' : 'var(--muted)') + ';">' +
-                     '<span style="flex-shrink:0;width:18px;text-align:center;font-size: 0.9rem;">' +
+                     '<span style="flex-shrink:0;display:flex;align-items:center;justify-content:center;'
+                       + 'width:18px;height:21px;color:var(--accent);opacity:.9;">' +
                        icon + '</span>' +
                      '<span>' + text + '</span>' +
                    '</li>';
@@ -11841,28 +11919,28 @@ var LEVEL_THEMES = {
           function _missing(icon, text) {
             return '<li style="display:flex;gap:9px;align-items:flex-start;text-align:left;' +
                    'margin-bottom:9px;font-size:0.82rem;line-height:1.45;color:var(--muted);">' +
-                     '<span style="flex-shrink:0;width:18px;text-align:center;font-size: 0.9rem;' +
-                       'filter:grayscale(1);opacity:.5;">' + icon + '</span>' +
+                     '<span style="flex-shrink:0;display:flex;align-items:center;justify-content:center;' +
+                       'width:18px;height:21px;opacity:.45;">' + icon + '</span>' +
                      '<span style="text-decoration:line-through;">' + text + '</span>' +
                    '</li>';
           }
 
           var featureList =
             '<ul style="list-style:none;margin:0 0 18px;padding:0;">' +
-              _feat('&#127918;', '<strong>' + plan.maxLevel + ' levels</strong> of the ATC simulator', true) +
-              _feat('&#128221;', '<strong>' + plan.examAllowance + ' attempts</strong> at the ICAO mock test', true) +
+              _feat(uiIcon('tower'), '<strong>' + plan.maxLevel + ' levels</strong> of the ATC simulator', true) +
+              _feat(uiIcon('paper'), '<strong>' + plan.examAllowance + ' attempts</strong> at the ICAO mock test', true) +
               (plan.emergencies
-                ? _feat('&#128680;', '<strong>Emergency simulation</strong>', true) +
-                  _feat('&#128293;', 'Engine failure, smoke and fire on board') +
-                  _feat('&#127786;', 'Severe weather, wind shear and turbulence') +
-                  _feat('&#128295;', 'Technical failures: hydraulics, pressurisation, landing gear') +
-                  _feat('&#128657;', 'Medical emergencies and disruptive passengers')
-                : _missing('&#128680;', 'Emergency simulation')) +
-              _feat('&#129302;', 'Scored on the ICAO scale, a band for each of the six descriptors') +
-              _feat('&#127942;', 'Downloadable certificate for each level') +
-              _feat('&#128202;', 'Your progress, broken down by level and by descriptor') +
+                ? _feat(uiIcon('alert'), '<strong>Emergency simulation</strong>', true) +
+                  _feat(uiIcon('fire'), 'Engine failure, smoke and fire on board') +
+                  _feat(uiIcon('wx'), 'Severe weather, wind shear and turbulence') +
+                  _feat(uiIcon('tools'), 'Technical failures: hydraulics, pressurisation, landing gear') +
+                  _feat(uiIcon('medic'), 'Medical emergencies and disruptive passengers')
+                : _missing(uiIcon('none'), 'Emergency simulation')) +
+              _feat(uiIcon('bands'), 'Scored on the ICAO scale, a band for each of the six descriptors') +
+              _feat(uiIcon('seal'), 'Downloadable certificate for each level') +
+              _feat(uiIcon('chart'), 'Your progress, broken down by level and by descriptor') +
               (plan.id === 'full'
-                ? _feat('&#128640;', 'Operational levels as they are published', true)
+                ? _feat(uiIcon('climb'), 'Operational levels as they are published', true)
                 : '') +
             '</ul>';
 
@@ -29182,10 +29260,8 @@ function _aeroShowInstallBar(mode) {
     'opacity:0;transform:translateY(10px);transition:opacity 0.25s var(--ease), transform 0.25s var(--ease);';
 
   var shareGlyph =
-    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#0af" ' +
-    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ' +
-    'style="vertical-align:-3px;margin:0 2px;"><path d="M12 16V3"/><path d="M8 7l4-4 4 4"/>' +
-    '<path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>';
+    '<span style="display:inline-block;vertical-align:-3px;margin:0 2px;color:var(--accent);">' +
+      uiIcon('share', 15) + '</span>';
 
   var body, action;
   if (mode === 'ios') {
@@ -29332,10 +29408,8 @@ function _aeroRenderInstallPage() {
   }
 
   var share =
-    '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="var(--accent)" stroke-width="2" ' +
-    'stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px;">' +
-    '<path d="M12 16V3"/><path d="M8 7l4-4 4 4"/>' +
-    '<path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>';
+    '<span style="display:inline-block;vertical-align:-4px;color:var(--accent);">' +
+      uiIcon('share', 17) + '</span>';
 
   function step(n, html) {
     return '' +

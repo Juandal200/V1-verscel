@@ -90,7 +90,10 @@ if (eaten.length) console.log('    ' + [...new Set(eaten)].slice(0, 6).join('  '
 ok('no entity has had its number replaced', eaten.length === 0);
 const ents = [...ALL.matchAll(/&#(\d{3,7});/g)].map(m => Number(m[1]));
 console.log('    ' + ents.length + ' character entities, all intact');
-ok('and the marks are still there', ents.length > 140);
+// A floor rather than a target: this catches a sweep deleting them, not a
+// deliberate replacement. It fell from 151 to 139 when the plan cards' eleven
+// colour emoji became drawn icons, which is the direction of travel.
+ok('and the marks are still there', ents.length > 120);
 ok('every one of them is a real code point',
    ents.every(n => n > 0 && n <= 0x10FFFF));
 

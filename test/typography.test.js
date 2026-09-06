@@ -74,6 +74,48 @@ console.log('--- values that change are monospaced and tabular ---');
 ok('digits are tabular, so a column does not shift',
    /font-variant-numeric:\s*tabular-nums/.test(C));
 
+console.log('--- the plan cards are drawn, not typed ---');
+// Eleven colour emoji — a rocket, a robot, an ambulance — each drawn by a different
+// designer at a different weight in a different palette, on the page where somebody
+// decides whether to pay. They were the loudest thing on a screen that is otherwise
+// black, white and one accent.
+const shop = S.slice(S.indexOf('var featureList ='), S.indexOf('var featureList =') + 2200);
+const emojiInShop = [...shop.matchAll(/&#(1\d{5});/g)].map(m => m[1]);
+if (emojiInShop.length) console.log('    ' + emojiInShop.join('  '));
+ok('no colour emoji left in the plan features', emojiInShop.length === 0);
+ok('every feature names an icon instead',
+   (shop.match(/uiIcon\('/g) || []).length >= 11);
+const set = S.slice(S.indexOf('var UI_ICONS = {'), S.indexOf('function uiIcon'));
+const names = [...set.matchAll(/^\s{4}([a-z]+):/gm)].map(m => m[1]);
+console.log('    ' + names.join('  '));
+ok(`${names.length} icons in the set`, names.length >= 12);
+ok('every icon the cards ask for exists',
+   [...shop.matchAll(/uiIcon\('([a-z]+)'/g)].every(m => names.includes(m[1])));
+// 1.6 at 24 is the same optical weight as the interface's 700 text at 0.82rem,
+// which is what lets an icon sit in a line rather than on top of it. The one
+// exception is the score chart's baseline, which is an axis rule and not an icon.
+const strokes = [...S.matchAll(/stroke-width="([\d.]+)"/g)].map(m => m[1]);
+console.log('    stroke weights: ' + [...new Set(strokes)].join('  '));
+ok('the icons are one stroke weight',
+   /stroke-width="1\.6"/.test(S) &&
+   strokes.filter(w => w !== '1.6' && w !== '1').length === 0);
+ok('and the share glyph is not written out a second time at another weight',
+   (S.match(/M12 16V3/g) || []).length === 1);
+ok('and take the colour of the line they sit in, so they follow the theme',
+   /stroke="currentColor"/.test(S) && !/<svg[^>]*stroke="#/.test(S));
+// A drawing carries no meaning to a screen reader, and the words beside it already do.
+ok('they are hidden from assistive technology', /aria-hidden="true"/.test(set + S.slice(S.indexOf('function uiIcon'), S.indexOf('function uiIcon') + 700)));
+
+console.log('--- the accent is a flag, not two lines of text ---');
+// "INDIAN ATC" wrapped and pushed the Replay button off centre. A flag says it at
+// a glance and in one line, and getFlagHtml falls back to the character if the
+// image will not load.
+ok('the badge serves a flag',
+   /getFlagHtml\(country, 'flag-badge'\)/.test(S));
+ok('with the nationality beside it, since a flag alone is a quiz',
+   /atc-accent-name/.test(S) && /replace\(\/\\s\*ATC\$\/, ''\)/.test(S));
+ok('and the country is still named for a screen reader', /meta\.label \+ '/.test(S));
+
 console.log('--- the aircraft is drawn, not typed ---');
 ok('no aeroplane character remains', !/&#9992;/.test(S));
 ok('a drawn mark replaces it',       /class="aero-mark"/.test(S));
