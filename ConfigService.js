@@ -181,8 +181,11 @@ var DB_SCHEMA = {
     'avgReplays',
     'performanceScore',
     'trendScore',
-    'trendLabel'
-  ],
+    'trendLabel',
+    // Share of phases answered correctly first time in the run that set scoreAvg.
+    // Appended, never inserted: dbAppend_ writes by column index.
+    'sessionFirstTryPct'
+],
 
   LearningTime: [
     'sessionId',

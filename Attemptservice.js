@@ -489,15 +489,35 @@ var ProgressService = {
     // only when the entire run beats the previous one.
     // Legacy rows predate sessionId; bucket those by calendar day so they group
     // into plausible runs instead of collapsing into one giant session.
+    // A phase scores what the student got the FIRST time they heard it in that run.
+    //
+    // This took the BEST score per scenario per session, and a student cannot advance
+    // without answering correctly — correct means every keyword, which means a score of
+    // 100. So the best score for any completed phase was always 100, every finished
+    // route averaged 100, and scoreAvg could not tell a clean run from one that took
+    // four goes at every phase. It was a number that always agreed with you.
+    //
+    // The first answer is the only one that measures comprehension. Everything after it
+    // measures persistence, which is worth having and is what progressPct records.
+    //
+    // Ordered by time rather than by attemptNumber: that column counts LIFETIME
+    // attempts at a scenario, so on a second run of the same route nothing is attempt 1
+    // and the entire run would score zero.
     var sessions = {};
-    attempts.forEach(function(row) {
+    attempts.slice().sort(function(a, b) {
+      return tsMs_(a.createdAt) - tsMs_(b.createdAt);
+    }).forEach(function(row) {
       var key = String(row.sessionId || '').trim() ||
                 ('legacy:' + String(row.createdAt || '').slice(0, 10));
       var sid = String(row.scenarioId || row.phaseCode || '_');
-      var s   = Number(row.score || 0);
       if (!sessions[key]) sessions[key] = {};
-      if (sessions[key][sid] === undefined || s > sessions[key][sid]) {
-        sessions[key][sid] = s;
+      // First writer wins. Later attempts at the same phase in the same run are the
+      // retries, and they are deliberately not counted here.
+      if (sessions[key][sid] === undefined) {
+        sessions[key][sid] = {
+          score: Number(row.score || 0),
+          firstTry: String(row.correct).toUpperCase() === 'TRUE' || row.correct === true
+        };
       }
     });
 
@@ -509,11 +529,18 @@ var ProgressService = {
     // figure still reflects real work instead of collapsing to zero.
     var sessionStats = Object.keys(sessions).map(function(key) {
       var sKeys = Object.keys(sessions[key]);
+      var sum = 0, firstTry = 0;
+      sKeys.forEach(function(k) {
+        sum += sessions[key][k].score;
+        if (sessions[key][k].firstTry) firstTry++;
+      });
       return {
         covered: sKeys.length,
-        avg: sKeys.length
-          ? Math.round(sKeys.reduce(function(sum, k) { return sum + sessions[key][k]; }, 0) / sKeys.length)
-          : 0
+        avg: sKeys.length ? Math.round(sum / sKeys.length) : 0,
+        // How many phases were right first time in that run. The average says how
+        // CLOSE they were; this says how often they were simply right, and the two
+        // answer different questions about the same afternoon.
+        firstTryPct: sKeys.length ? Math.round((firstTry / sKeys.length) * 100) : 0
       };
     }).filter(function(st) { return st.covered > 0; });
 
@@ -524,9 +551,15 @@ var ProgressService = {
       ? totalScenarios
       : maxCovered;
 
-    var scoreAvg = sessionStats.reduce(function(best, st) {
-      return (st.covered >= qualifyingCover && st.avg > best) ? st.avg : best;
-    }, 0);
+    // The best qualifying run, and the first-try figure FROM THAT RUN — not the best
+    // first-try figure across all runs, which would let the two numbers describe two
+    // different afternoons and quietly contradict each other.
+    var bestRun = sessionStats.reduce(function(best, st) {
+      if (st.covered < qualifyingCover) return best;
+      return (!best || st.avg > best.avg) ? st : best;
+    }, null);
+    var scoreAvg           = bestRun ? bestRun.avg : 0;
+    var sessionFirstTryPct = bestRun ? bestRun.firstTryPct : 0;
 
     // ── New performance metrics ────────────────────────────────────────────
     // Use only the FIRST attempt per scenario (attemptNumber === 1) so retries
@@ -638,6 +671,7 @@ var ProgressService = {
       totalScenarios: totalScenarios,
       progressPct: progressPct,
       scoreAvg: scoreAvg,
+      sessionFirstTryPct: sessionFirstTryPct,
       unlocked: true,
       completed: completed,
       completedAt: completed

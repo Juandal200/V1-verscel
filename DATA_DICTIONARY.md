@@ -67,7 +67,8 @@ So these two measure attention while speaking, not the ability to reach an altit
 | Column | Range | Means |
 |---|---|---|
 | `progressPct` | 0–100 | Share of that route's phases completed. |
-| `scoreAvg` | 0–100 | Mean `Attempts.score` for that route. |
+| `scoreAvg` | 0–100 | Mean of the **first** answer to each phase, in the best complete run of that route. **Changed 5 Sep 2026** — it used to take the best score per phase, and since a student cannot advance without answering correctly, that made every finished route read 100. Values recorded before that date are not comparable with values after it. |
+| `sessionFirstTryPct` | 0–100 | Share of phases answered correctly first time, in the same run that set `scoreAvg`. The average says how close they were; this says how often they were simply right. |
 | `consistencyScore` | 0–100 | Derived. Not comparable to `scoreAvg`. |
 | `performanceScore` | 0–100 | Derived. Not comparable to `scoreAvg`. |
 | `trendScore` | 0–100 | Derived, direction of travel. Not a percentage of anything. |
