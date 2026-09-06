@@ -1363,14 +1363,14 @@
       document.head.appendChild(s);
     }
     var overlay = document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;';
+    overlay.style.cssText = 'position:fixed;inset:0;background:var(--panel);z-index:999999;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;';
     var stripes = window._gamStripesSvg(tier.stripes, tier.color) + '&nbsp;' + window._gamStripesSvg(tier.stripes, tier.color);
     overlay.innerHTML =
       '<div style="text-align:center;animation:_ruPop .65s cubic-bezier(.34,1.56,.64,1) both;">' +
         '<div style="font-size:0.9rem;font-weight: 800;letter-spacing: 0.2em;color:' + tier.color + ';animation:_ruGlow 1.8s ease-in-out infinite;margin-bottom:22px;text-transform:uppercase;">Rank Up</div>' +
         '<div style="margin-bottom:18px;font-size: 1.35rem;">' + stripes + '</div>' +
         '<div style="font-size: 2rem;font-weight: 800;color:#fff;line-height:1;letter-spacing: 0.02em;">' + tier.label.toUpperCase() + '</div>' +
-        '<div style="font-size: 0.82rem;color:rgba(255,255,255,.38);margin-top:32px;letter-spacing: 0.12em;">TAP TO CONTINUE</div>' +
+        '<div style="font-size: 0.82rem;color:var(--muted);margin-top:32px;letter-spacing: 0.12em;">TAP TO CONTINUE</div>' +
       '</div>';
     var dismiss = function() {
       overlay.style.transition = 'opacity .3s';
@@ -1802,10 +1802,10 @@
         return '<div class="home-feature-card" role="button" tabindex="0" onclick="' + opts.onClick + '" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();' + opts.onClick + '}" style="flex:1;min-width:280px;">' +
           // image header — reduced to 28% on narrow phones via .home-card-img CSS override
           '<div class="home-card-img" style="position:relative;background:' + opts.gradient + ';overflow:hidden;">' +
-            '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 55%);"></div>' +
+            '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(var(--scrim-rgb), 0.65) 0%,transparent 55%);"></div>' +
             '<div style="position:absolute;bottom:12px;left:14px;display:flex;align-items:center;gap:10px;">' +
               '<div style="width:38px;height:38px;border-radius:50%;background:' + opts.icon.bg + ';border:2px solid var(--line-strong);display:flex;align-items:center;justify-content:center;font-size: 1.15rem;">' + opts.icon.emoji + '</div>' +
-              '<span style="font-size: 0.72rem;font-weight:800;letter-spacing: 0.12em;color:rgba(255,255,255,.75);text-transform:uppercase;">' + opts.badge + '</span>' +
+              '<span style="font-size: 0.72rem;font-weight:800;letter-spacing: 0.12em;color:var(--text);text-transform:uppercase;">' + opts.badge + '</span>' +
             '</div>' +
             opts.statusHtml +
           '</div>' +
@@ -1870,8 +1870,8 @@
           '<div onclick="_navTo(renderSimulatorPlaceholder)" class="streak-hero-card" style="flex:1;min-width:280px;cursor:pointer;background:' + gradient + ';border-radius: 12px;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 24px 28px;text-align:center;">' +
             '<div style="font-size: 2rem;line-height:1;margin-bottom:14px;filter:' + flameFilter + ';transition:filter 0.4s var(--ease);' + (hour >= 19 ? 'animation:_lmsFlicker 1.6s ease-in-out infinite;' : '') + '">🔥</div>' +
             '<div style="font-size: 2rem;font-weight: 800;color:#fff;line-height:1;letter-spacing: -0.02em;">' + days + '</div>' +
-            '<div style="font-size:1rem;font-weight:700;color:rgba(255,255,255,.75);margin-top:2px;margin-bottom:6px;">day streak</div>' +
-            '<div style="font-size: 0.72rem;font-weight:800;letter-spacing: 0.12em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-bottom:28px;">' + _leftLabel + '</div>' +
+            '<div style="font-size:1rem;font-weight:700;color:var(--text);margin-top:2px;margin-bottom:6px;">day streak</div>' +
+            '<div style="font-size: 0.72rem;font-weight:800;letter-spacing: 0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:28px;">' + _leftLabel + '</div>' +
             '<button class="btn primary" style="width:100%;font-size: 0.82rem;" onclick="event.stopPropagation();_navTo(renderSimulatorPlaceholder)">' +
               (_doneToday ? 'Keep training \u2192' : 'Protect streak \u2192') + '</button>' +
             pushBtn +
@@ -4924,16 +4924,20 @@
   //
   // The exception that would earn a colour back is a state — locked, current, complete
   // — because that is information the card cannot otherwise show.
+  // One surface for all nine, so a level is identified by its number, its name and
+  // its icon — which are on the card — rather than by a colour of its own.
+  var LEVEL_CARD_SURFACE = 'linear-gradient(145deg, var(--panel), var(--panel-soft))';
+
 var LEVEL_THEMES = {
-    1:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))',  border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: '📡', tag: 'ATC Basics',             phases: ['GROUND','PUSHBACK','TAXI'],         desc: 'Master the fundamentals of aeronautical radio — callsigns, readbacks and ground comms.' },
-    2:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))',  border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: '🛫', tag: 'Taxi & Departure',        phases: ['TAXI OUT','DELIVERY','IFR CLR'],    desc: 'Navigate complex taxiway routes and secure IFR clearances before departure.' },
-    3:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))',  border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: '🚀', tag: 'Takeoff & Climb',         phases: ['TAKEOFF','DEPARTURE','CLIMB'],      desc: 'Coordinate takeoff clearances and initial climb with departure control at high workload.' },
-    4:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))',  border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: '✈️', tag: 'En-Route',                phases: ['CLIMB','CRUISE','HANDOFF'],         desc: 'Manage altitude changes, route amendments and frequency transfers across sectors.' },
-    5:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))', border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: '🌐', tag: 'Oceanic & International', phases: ['OCEANIC','CRUISE','SELCAL'],        desc: 'Cross oceanic airspace and handle international frequency protocols.' },
-    6:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))', border: 'rgba(var(--accent-rgb), 0.22)',accent: 'var(--accent)', icon: '🌩️',tag: 'Weather Operations',       phases: ['DEVIATION','SIGMET','HOLD'],        desc: 'Coordinate weather deviations, SIGMET alerts and holding patterns under IMC.' },
-    7:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))', border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: '🛬', tag: 'Approach & Descent',      phases: ['DESCEND','APPROACH','ILS'],         desc: 'Execute ILS approaches and STAR arrivals at complex, high-traffic airports.' },
-    8:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))',  border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: '🏁', tag: 'Landing & Go-Around',     phases: ['LANDING','GO-AROUND','VACATE'],     desc: 'Master landing clearances, go-around procedures and runway vacating instructions.' },
-    9:  { gradient: 'linear-gradient(145deg,rgba(24,24,24,0.98),rgba(12,12,12,0.98))',   border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: '🚨', tag: 'Emergency Procedures',    phases: ['PAN-PAN','MAYDAY','DISTRESS'],      desc: 'Declare and handle aircraft emergencies — MAYDAY, PAN-PAN and distress communications.' }
+    1:  { gradient: LEVEL_CARD_SURFACE,  border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: '📡', tag: 'ATC Basics',             phases: ['GROUND','PUSHBACK','TAXI'],         desc: 'Master the fundamentals of aeronautical radio — callsigns, readbacks and ground comms.' },
+    2:  { gradient: LEVEL_CARD_SURFACE,  border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: '🛫', tag: 'Taxi & Departure',        phases: ['TAXI OUT','DELIVERY','IFR CLR'],    desc: 'Navigate complex taxiway routes and secure IFR clearances before departure.' },
+    3:  { gradient: LEVEL_CARD_SURFACE,  border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: '🚀', tag: 'Takeoff & Climb',         phases: ['TAKEOFF','DEPARTURE','CLIMB'],      desc: 'Coordinate takeoff clearances and initial climb with departure control at high workload.' },
+    4:  { gradient: LEVEL_CARD_SURFACE,  border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: '✈️', tag: 'En-Route',                phases: ['CLIMB','CRUISE','HANDOFF'],         desc: 'Manage altitude changes, route amendments and frequency transfers across sectors.' },
+    5:  { gradient: LEVEL_CARD_SURFACE, border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: '🌐', tag: 'Oceanic & International', phases: ['OCEANIC','CRUISE','SELCAL'],        desc: 'Cross oceanic airspace and handle international frequency protocols.' },
+    6:  { gradient: LEVEL_CARD_SURFACE, border: 'rgba(var(--accent-rgb), 0.22)',accent: 'var(--accent)', icon: '🌩️',tag: 'Weather Operations',       phases: ['DEVIATION','SIGMET','HOLD'],        desc: 'Coordinate weather deviations, SIGMET alerts and holding patterns under IMC.' },
+    7:  { gradient: LEVEL_CARD_SURFACE, border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: '🛬', tag: 'Approach & Descent',      phases: ['DESCEND','APPROACH','ILS'],         desc: 'Execute ILS approaches and STAR arrivals at complex, high-traffic airports.' },
+    8:  { gradient: LEVEL_CARD_SURFACE,  border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: '🏁', tag: 'Landing & Go-Around',     phases: ['LANDING','GO-AROUND','VACATE'],     desc: 'Master landing clearances, go-around procedures and runway vacating instructions.' },
+    9:  { gradient: LEVEL_CARD_SURFACE,   border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: '🚨', tag: 'Emergency Procedures',    phases: ['PAN-PAN','MAYDAY','DISTRESS'],      desc: 'Declare and handle aircraft emergencies — MAYDAY, PAN-PAN and distress communications.' }
   };
 
   // Level identities from the Levels sheet, when it has been set up.
@@ -4967,8 +4971,8 @@ var LEVEL_THEMES = {
     if (m && m.name) {
       var base = LEVEL_THEMES[n] || {};
       return {
-        gradient:  base.gradient || 'linear-gradient(145deg,rgba(28,28,28,0.97),rgba(14,14,14,0.97))',
-        border:    base.border   || 'rgba(148,148,148,0.22)',
+        gradient:  base.gradient || LEVEL_CARD_SURFACE,
+        border:    base.border   || 'var(--line-strong)',
         accent:    m.accent || base.accent || 'var(--muted)',
         icon:      m.icon   || base.icon   || '\u2708\uFE0F',
         tag:       m.tag    || m.name,
@@ -4983,8 +4987,8 @@ var LEVEL_THEMES = {
 
   function _lcThemeBuiltIn(levelNum) {
     return LEVEL_THEMES[Number(levelNum)] || {
-      gradient: 'linear-gradient(145deg,rgba(28,28,28,0.97),rgba(14,14,14,0.97))',
-      border: 'rgba(148,148,148,0.22)', accent: 'var(--muted)',
+      gradient: LEVEL_CARD_SURFACE,
+      border: 'var(--line-strong)', accent: 'var(--muted)',
       icon: '✈️', tag: 'Training Level', phases: [], desc: ''
     };
   }
@@ -5233,7 +5237,7 @@ var LEVEL_THEMES = {
               '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
                 '<span class="vr-event-badge">' + vr.icon + ' ' + vr.label + '</span>' +
                 '<span style="display:flex;gap:5px;flex-shrink:0;">' +
-                  '<span style="font-size: 0.72rem;font-weight:800;background:rgba(255,255,255,0.12);border-radius:4px;padding:2px 6px;letter-spacing: 0.04em;">' + vr.xpLabel + '</span>' +
+                  '<span style="font-size: 0.72rem;font-weight:800;background:rgba(var(--lift-rgb), 0.1);border-radius:4px;padding:2px 6px;letter-spacing: 0.04em;">' + vr.xpLabel + '</span>' +
                   '<span style="font-size: 0.72rem;font-weight:800;background:rgba(255,215,0,0.18);color:var(--yellow);border-radius:4px;padding:2px 6px;letter-spacing: 0.04em;">+' + vr.cp + ' CP</span>' +
                 '</span>' +
               '</div>' +
@@ -5390,7 +5394,7 @@ var LEVEL_THEMES = {
             '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
               '<span class="vr-event-badge">' + olVr.icon + ' ' + olVr.label + '</span>' +
               '<span style="display:flex;gap:5px;flex-shrink:0;">' +
-                '<span style="font-size: 0.72rem;font-weight:800;background:rgba(255,255,255,0.12);border-radius:4px;padding:2px 6px;letter-spacing: 0.04em;">' + olVr.xpLabel + '</span>' +
+                '<span style="font-size: 0.72rem;font-weight:800;background:rgba(var(--lift-rgb), 0.1);border-radius:4px;padding:2px 6px;letter-spacing: 0.04em;">' + olVr.xpLabel + '</span>' +
                 '<span style="font-size: 0.72rem;font-weight:800;background:rgba(255,215,0,0.18);color:var(--yellow);border-radius:4px;padding:2px 6px;letter-spacing: 0.04em;">+' + olVr.cp + ' CP</span>' +
               '</span>' +
             '</div>' +
@@ -10982,7 +10986,7 @@ var LEVEL_THEMES = {
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;">' +
         [6,5,4,3,2,1].map(function(b) {
           return '<span style="padding:5px 12px;border-radius: 22px;font-size: 0.82rem;font-weight:700;' +
-            'background:rgba(148,148,148,0.1);color:var(--muted);">' +
+            'background:rgba(var(--lift-rgb), 0.1);color:var(--muted);">' +
             'Band ' + b + ': ' + (bandCounts[b] || 0) + ' student' + ((bandCounts[b] || 0) !== 1 ? 's' : '') +
           '</span>';
         }).join('') +
@@ -11072,7 +11076,7 @@ var LEVEL_THEMES = {
           '<thead><tr><th></th><th>Name / Role</th><th>Stars</th><th>Testimonial</th><th>Status</th><th>Order</th><th>Actions</th></tr></thead>' +
           '<tbody>' + rows + '</tbody>' +
         '</table></div>' +
-        '<div class="panel" style="background:rgba(255,255,255,0.04);border:1px solid var(--line);padding:20px;" id="tmFormWrap">' +
+        '<div class="panel" style="background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);padding:20px;" id="tmFormWrap">' +
           _renderTmForm(null) +
         '</div>' +
       '</div>';
@@ -11941,7 +11945,7 @@ var LEVEL_THEMES = {
         '<h2 style="margin:0 0 6px;">Send Invites</h2>' +
         '<p class="subtitle" style="margin:0 0 20px;">One user per line. Format: <code>email, Full Name</code> — name is optional (email only also works).</p>' +
 
-        '<textarea id="inviteListInput" style="width:100%;height:200px;background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius: 8px;color:var(--text);font-size: 0.82rem;font-family:\'Courier New\',monospace;padding:12px;resize:vertical;outline:none;line-height:1.6;" placeholder="juan@example.com, Juan Pérez&#10;maria@example.com&#10;carlos@airline.com, Carlos Ruiz"></textarea>' +
+        '<textarea id="inviteListInput" style="width:100%;height:200px;background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);border-radius: 8px;color:var(--text);font-size: 0.82rem;font-family:\'Courier New\',monospace;padding:12px;resize:vertical;outline:none;line-height:1.6;" placeholder="juan@example.com, Juan Pérez&#10;maria@example.com&#10;carlos@airline.com, Carlos Ruiz"></textarea>' +
 
         '<div id="inviteParsePreview" style="margin-top:12px;"></div>' +
 
@@ -12079,7 +12083,7 @@ var LEVEL_THEMES = {
         '<h2 style="margin:0 0 20px;">Subscription Management</h2>' +
 
         // ── Pricing ──
-        '<div style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:24px;">' +
+        '<div style="background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:24px;">' +
           '<p style="margin:0 0 14px;font-size: 0.82rem;font-weight:700;letter-spacing: 0.08em;color:var(--muted);">PRICE SETTINGS (COP)</p>' +
           '<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">' +
             // The two plans that are actually for sale.
@@ -12093,13 +12097,13 @@ var LEVEL_THEMES = {
             '<div>' +
               '<label style="display:block;font-size: 0.72rem;color:var(--muted);margin-bottom:6px;">Basic \u00b7 30 days</label>' +
               '<input id="subPriceBasic" type="number" min="0" step="100" ' +
-                'style="background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 12px;width:130px;" ' +
+                'style="background:rgba(var(--lift-rgb), 0.06);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 12px;width:130px;" ' +
                 'placeholder="29900">' +
             '</div>' +
             '<div>' +
               '<label style="display:block;font-size: 0.72rem;color:var(--muted);margin-bottom:6px;">Full \u00b7 30 days</label>' +
               '<input id="subPriceFull" type="number" min="0" step="100" ' +
-                'style="background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 12px;width:130px;" ' +
+                'style="background:rgba(var(--lift-rgb), 0.06);border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 12px;width:130px;" ' +
                 'placeholder="49900">' +
             '</div>' +
             '<button class="btn primary" onclick="adminSubSavePrices()">Save Prices</button>' +
@@ -12108,19 +12112,19 @@ var LEVEL_THEMES = {
         '</div>' +
 
         // ── Manual grant ──
-        '<div style="background:rgba(255,255,255,0.03);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:24px;">' +
+        '<div style="background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:24px;">' +
           '<p style="margin:0 0 14px;font-size: 0.82rem;font-weight:700;letter-spacing: 0.08em;color:var(--muted);">GRANT FREE ACCESS</p>' +
           '<div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">' +
             '<div>' +
               '<label style="display:block;font-size: 0.72rem;color:var(--muted);margin-bottom:6px;">User email</label>' +
               '<input id="subGrantEmail" type="email" ' +
-                'style="background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:8px;color:var(--text);font-size: 0.9rem;padding:8px 12px;width:240px;outline:none;" ' +
+                'style="background:rgba(var(--lift-rgb), 0.06);border:1px solid var(--line);border-radius:8px;color:var(--text);font-size: 0.9rem;padding:8px 12px;width:240px;outline:none;" ' +
                 'placeholder="student@example.com">' +
             '</div>' +
             '<div>' +
               '<label style="display:block;font-size: 0.72rem;color:var(--muted);margin-bottom:6px;">Days</label>' +
               '<input id="subGrantDays" type="number" min="1" max="365" value="30" ' +
-                'style="background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:8px;color:var(--text);font-size: 0.9rem;padding:8px 12px;width:90px;outline:none;">' +
+                'style="background:rgba(var(--lift-rgb), 0.06);border:1px solid var(--line);border-radius:8px;color:var(--text);font-size: 0.9rem;padding:8px 12px;width:90px;outline:none;">' +
             '</div>' +
             '<button class="btn primary" onclick="adminSubGrant()">Grant Access</button>' +
           '</div>' +
@@ -12291,7 +12295,7 @@ var LEVEL_THEMES = {
         var vrLabels = { double:'⚡ Double XP', critical:'🔴 Critical', priority:'🚨 Priority', hot:'📡 Hot' };
         var vrColors = { double:'var(--yellow)', critical:'var(--red)', priority:'var(--yellow)', hot:'var(--accent)' };
         if (!keys.length) {
-          banner.innerHTML = '<div style="padding:10px 14px;background:rgba(255,255,255,0.04);border-radius: 8px;font-size: 0.82rem;">No VR events active today' + (!res.enabled ? ' (system disabled)' : '') + '.</div>';
+          banner.innerHTML = '<div style="padding:10px 14px;background:rgba(var(--lift-rgb), 0.03);border-radius: 8px;font-size: 0.82rem;">No VR events active today' + (!res.enabled ? ' (system disabled)' : '') + '.</div>';
           return;
         }
         var chips = keys.map(function(lvl) {
@@ -12302,7 +12306,7 @@ var LEVEL_THEMES = {
           '</span>';
         }).join('');
         banner.innerHTML =
-          '<div style="padding:10px 14px;background:rgba(255,255,255,0.04);border-radius: 8px;">' +
+          '<div style="padding:10px 14px;background:rgba(var(--lift-rgb), 0.03);border-radius: 8px;">' +
             '<div style="font-size: 0.72rem;font-weight:700;letter-spacing: 0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Today\'s Live Assignments (' + safeText(res.date) + ')</div>' +
             chips +
             '<div style="font-size: 0.72rem;color:var(--muted);margin-top:8px;">These are what every student currently sees on their level map. Regenerates daily or when config is saved.</div>' +
@@ -12337,7 +12341,7 @@ var LEVEL_THEMES = {
     var pinsHtml = pins.length
       ? pins.map(function(p, i) {
           var expired = p.until && p.until < new Date().toISOString().slice(0,10);
-          return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(255,255,255,0.04);border-radius:8px;margin-bottom:6px;' + (expired ? 'opacity:0.45;' : '') + '">' +
+          return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(var(--lift-rgb), 0.03);border-radius:8px;margin-bottom:6px;' + (expired ? 'opacity:0.45;' : '') + '">' +
             '<span style="min-width:70px;font-weight:700;color:var(--text);">Level ' + safeText(p.level) + '</span>' +
             '<span style="flex:1;font-size: 0.82rem;">' + safeText(eventLabels[p.type] || p.type) + '</span>' +
             '<span style="font-size: 0.72rem;color:var(--muted);font-family:monospace;">' + (p.until ? 'until ' + safeText(p.until) : 'permanent') + (expired ? ' · EXPIRED' : '') + '</span>' +
@@ -12350,7 +12354,7 @@ var LEVEL_THEMES = {
       // ── Master toggle + rates ──────────────────────────────────────────
       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:28px;">' +
 
-        '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:12px;padding:16px;">' +
+        '<div style="background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);border-radius:12px;padding:16px;">' +
           '<div style="font-size:0.72rem;font-weight:700;letter-spacing: 0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">System</div>' +
           '<label style="display:flex;align-items:center;gap:10px;cursor:pointer;">' +
             '<input type="checkbox" id="vrEnabled"' + (cfg.enabled ? ' checked' : '') + ' style="width:18px;height:18px;cursor:pointer;">' +
@@ -12358,19 +12362,19 @@ var LEVEL_THEMES = {
           '</label>' +
         '</div>' +
 
-        '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:12px;padding:16px;">' +
+        '<div style="background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);border-radius:12px;padding:16px;">' +
           '<div style="font-size:0.72rem;font-weight:700;letter-spacing: 0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Fire Rate <span id="vrFireRateVal" style="color:var(--accent);">' + (cfg.fireRate || 65) + '%</span></div>' +
           '<input type="range" id="vrFireRate" min="0" max="100" value="' + (cfg.fireRate || 65) + '" style="width:100%;" oninput="byId(\'vrFireRateVal\').textContent=this.value+\'%\'">' +
           '<div style="font-size: 0.72rem;color:var(--muted);margin-top:6px;">Chance any event fires per page load</div>' +
         '</div>' +
 
-        '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:12px;padding:16px;">' +
+        '<div style="background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);border-radius:12px;padding:16px;">' +
           '<div style="font-size:0.72rem;font-weight:700;letter-spacing: 0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Secondary Rate <span id="vrSecondaryVal" style="color:var(--accent);">' + (cfg.secondaryRate || 18) + '%</span></div>' +
           '<input type="range" id="vrSecondaryRate" min="0" max="50" value="' + (cfg.secondaryRate || 18) + '" style="width:100%;" oninput="byId(\'vrSecondaryVal\').textContent=this.value+\'%\'">' +
           '<div style="font-size: 0.72rem;color:var(--muted);margin-top:6px;">Chance a 2nd level also gets a Hot Sector</div>' +
         '</div>' +
 
-        '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:12px;padding:16px;">' +
+        '<div style="background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);border-radius:12px;padding:16px;">' +
           '<div style="font-size:0.72rem;font-weight:700;letter-spacing: 0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Slot Window</div>' +
           '<div style="display:flex;gap:8px;align-items:center;">' +
             '<input type="number" id="vrSlotMin" value="' + (cfg.slotMin || 22) + '" min="5" max="120" style="width:60px;background:var(--panel-soft);border:1px solid var(--line);border-radius: 4px;padding:5px 8px;color:var(--text);font-size: 0.82rem;">' +
@@ -12384,7 +12388,7 @@ var LEVEL_THEMES = {
       '</div>' +
 
       // ── Event type weights ────────────────────────────────────────────
-      '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:28px;">' +
+      '<div style="background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:28px;">' +
         '<div style="font-size:0.72rem;font-weight:700;letter-spacing: 0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">Event Type Weights <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);">(must sum to 100)</span></div>' +
         '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;">' +
           ['double','critical','priority','hot'].map(function(k) {
@@ -12402,7 +12406,7 @@ var LEVEL_THEMES = {
       '</div>' +
 
       // ── Pinned events ────────────────────────────────────────────────
-      '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:28px;">' +
+      '<div style="background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:28px;">' +
         '<div style="font-size:0.72rem;font-weight:700;letter-spacing: 0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Pinned Events</div>' +
         '<p style="font-size: 0.82rem;color:var(--muted);margin:0 0 14px;">Force a specific level to always show a specific event type. Pinned events bypass the fire rate and are guaranteed to appear until the expiry date.</p>' +
         '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">' +
@@ -12532,7 +12536,7 @@ var LEVEL_THEMES = {
       var n = counts[k];
       return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
         '<span style="width:120px;font-size: 0.82rem;color:' + (colors[k]||'var(--text)') + ';font-weight:700;">' + (eventLabels[k]||k) + '</span>' +
-        '<div style="flex:1;height:14px;background:rgba(255,255,255,0.05);border-radius:4px;overflow:hidden;">' +
+        '<div style="flex:1;height:14px;background:rgba(var(--lift-rgb), 0.06);border-radius:4px;overflow:hidden;">' +
           '<div style="height:100%;width:' + Math.min(100,Math.round(n/20*100)) + '%;background:' + (colors[k]||'var(--text)') + ';border-radius:4px;"></div>' +
         '</div>' +
         '<span style="width:30px;text-align:right;font-size: 0.82rem;color:var(--muted);font-family:monospace;">' + n + '</span>' +
@@ -12541,7 +12545,7 @@ var LEVEL_THEMES = {
 
     var out = byId('vrPreviewResult');
     if (out) out.innerHTML =
-      '<div style="background:rgba(255,255,255,0.04);border:1px solid var(--line);border-radius:12px;padding:16px;">' +
+      '<div style="background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);border-radius:12px;padding:16px;">' +
         '<div style="font-size:0.72rem;font-weight:700;letter-spacing: 0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Simulation — 20 page loads with current settings</div>' +
         rows +
         '<div style="font-size:0.72rem;color:var(--muted);margin-top:10px;">Each event count = how many of the 20 simulated loads produced that type. Pinned events always fire regardless of fire rate.</div>' +
@@ -12666,7 +12670,7 @@ var LEVEL_THEMES = {
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size: 0.72rem;color:var(--muted,var(--accent));">' +
         '<span>Progress</span><span id="lmsProgressPct">0%</span>' +
       '</div>' +
-      '<div style="height:4px;background:rgba(255,255,255,0.06);border-radius:4px;margin-bottom:24px;overflow:hidden;">' +
+      '<div style="height:4px;background:rgba(var(--lift-rgb), 0.06);border-radius:4px;margin-bottom:24px;overflow:hidden;">' +
         '<div id="lmsProgressFill" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent));border-radius:4px;transition:width 0.4s var(--ease);"></div>' +
       '</div>' +
       '<div id="lmsBoard"><div style="text-align:center;padding:32px 20px;color:var(--muted);font-size: 0.82rem;"><div style="width:24px;height:24px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:hfSpin 0.8s linear infinite;margin:0 auto 12px;"></div>Loading exercises…</div></div>' +
@@ -12919,9 +12923,9 @@ var LEVEL_THEMES = {
           '<div><div style="font-size: 0.9rem;font-weight:700;color:var(--text);">' + z.id + '</div>' +
                '<div style="font-size: 0.72rem;color:var(--muted,var(--accent));">' + z.sub + '</div></div>' +
         '</div>' +
-        '<div style="height:1px;background:rgba(255,255,255,0.07);margin:0 -16px 12px;"></div>' +
+        '<div style="height:1px;background:rgba(var(--lift-rgb), 0.06);margin:0 -16px 12px;"></div>' +
         '<div id="nrzone-cards-' + z.id + '" style="display:flex;flex-direction:column;gap:8px;flex:1;"></div>' +
-        '<div id="nrzone-ph-' + z.id + '" style="font-size: 0.72rem;color:rgba(255,255,255,0.18);font-style:italic;text-align:center;padding:16px 0;">Drop here</div>' +
+        '<div id="nrzone-ph-' + z.id + '" style="font-size: 0.72rem;color:var(--muted);font-style:italic;text-align:center;padding:16px 0;">Drop here</div>' +
       '</div>';
     }).join('');
 
@@ -12938,7 +12942,7 @@ var LEVEL_THEMES = {
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size: 0.72rem;color:var(--muted,var(--accent));">' +
         '<span>Progress</span><span id="nrProgressPct">0%</span>' +
       '</div>' +
-      '<div style="height:4px;background:rgba(255,255,255,0.06);border-radius:4px;margin-bottom:24px;overflow:hidden;">' +
+      '<div style="height:4px;background:rgba(var(--lift-rgb), 0.06);border-radius:4px;margin-bottom:24px;overflow:hidden;">' +
         '<div id="nrProgressFill" style="height:100%;width:0%;background:linear-gradient(90deg,var(--yellow),var(--accent));border-radius:4px;transition:width 0.4s var(--ease);"></div>' +
       '</div>' +
       '<div class="nr-layout">' +
@@ -13662,23 +13666,23 @@ var LEVEL_THEMES = {
       } catch(e) {}
 
       var ov = document.createElement('div');
-      ov.style.cssText = 'position:fixed;inset:0;z-index:99998;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0);transition:background 0.4s var(--ease);cursor:pointer;overflow:hidden;';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:99998;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(var(--scrim-rgb), 0.03);transition:background 0.4s var(--ease);cursor:pointer;overflow:hidden;';
 
       ov.innerHTML =
         // Radial glow background
         '<div style="position:absolute;inset:0;background:radial-gradient(ellipse 60% 55% at 50% 48%,' + color + '18 0%,transparent 70%);pointer-events:none;"></div>' +
         // Close button
-        '<button onclick="event.stopPropagation();_rankUpDismiss();" style="position:absolute;top:20px;right:24px;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.5);font-size: 1.15rem;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;">✕</button>' +
+        '<button onclick="event.stopPropagation();_rankUpDismiss();" style="position:absolute;top:20px;right:24px;background:rgba(var(--lift-rgb), 0.06);border:none;color:var(--muted);font-size: 1.15rem;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;">✕</button>' +
         // Content
         '<div id="_rankUpCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1),opacity 0.4s ease;padding:0 20px;pointer-events:none;max-width:min(460px,calc(100vw - 32px));">' +
           '<div style="font-size: 0.72rem;font-weight:800;letter-spacing: 0.2em;color:' + color + ';text-transform:uppercase;margin-bottom:18px;">Rank Up</div>' +
           (stripes ? '<div style="display:flex;justify-content:center;margin-bottom:22px;gap:6px;">' + stripes + '</div>' : '') +
           '<div style="font-size:clamp(1.7rem,8.5vw,4rem);font-weight: 800;color:#fff;letter-spacing: -0.02em;line-height:1.05;text-wrap:balance;text-shadow:0 0 40px ' + color + ',0 0 80px ' + color + '55;margin-bottom:12px;">' + label.toUpperCase() + '</div>' +
-          '<div style="font-size:1rem;color:rgba(255,255,255,.45);margin-bottom:52px;font-weight: 600;">You\'ve earned your wings</div>' +
-          '<div style="font-size:0.72rem;font-weight:700;letter-spacing: 0.12em;color:rgba(255,255,255,.2);text-transform:uppercase;">Tap anywhere to continue</div>' +
+          '<div style="font-size:1rem;color:var(--muted);margin-bottom:52px;font-weight: 600;">You\'ve earned your wings</div>' +
+          '<div style="font-size:0.72rem;font-weight:700;letter-spacing: 0.12em;color:var(--muted);text-transform:uppercase;">Tap anywhere to continue</div>' +
         '</div>' +
         // Countdown bar
-        '<div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.06);">' +
+        '<div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(var(--lift-rgb), 0.06);">' +
           '<div id="_rankUpBar" style="height:3px;width:100%;background:' + color + ';transition:width 4s linear;"></div>' +
         '</div>';
 
@@ -13756,7 +13760,7 @@ var LEVEL_THEMES = {
 
       var ov = document.createElement('div');
       ov.style.cssText = 'position:fixed;inset:0;z-index:99998;display:flex;align-items:center;' +
-        'justify-content:center;background:rgba(0,0,0,0);transition:background 0.4s var(--ease);cursor:pointer;overflow:hidden;';
+        'justify-content:center;background:rgba(var(--scrim-rgb), 0.03);transition:background 0.4s var(--ease);cursor:pointer;overflow:hidden;';
 
       var headline = isMilestone
         ? days + '-day streak'
@@ -13778,19 +13782,19 @@ var LEVEL_THEMES = {
 
       ov.innerHTML =
         '<div style="position:absolute;inset:0;background:radial-gradient(ellipse 55% 50% at 50% 50%,' + ORANGE + '22 0%,transparent 70%);pointer-events:none;"></div>' +
-        '<button onclick="event.stopPropagation();_streakDismiss();" style="position:absolute;top:20px;right:24px;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.5);font-size: 1.15rem;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;">&#10005;</button>' +
+        '<button onclick="event.stopPropagation();_streakDismiss();" style="position:absolute;top:20px;right:24px;background:rgba(var(--lift-rgb), 0.06);border:none;color:var(--muted);font-size: 1.15rem;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;">&#10005;</button>' +
         '<div id="_streakCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1),opacity 0.4s ease;padding:0 20px;pointer-events:none;max-width:min(420px,calc(100vw - 32px));">' +
           '<div id="_streakFlame" style="font-size:clamp(2.6rem,11vw,3.6rem);line-height:1;margin-bottom:14px;filter:drop-shadow(0 0 26px ' + ORANGE + ');transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);">&var(--accent);</div>' +
           '<div style="font-size:0.72rem;font-weight:800;letter-spacing: 0.2em;color:' + ORANGE_LT + ';text-transform:uppercase;margin-bottom:10px;">' + safeText(headline) + '</div>' +
           '<div style="font-size:clamp(3.2rem,15vw,5rem);font-weight: 800;color:#fff;letter-spacing: -0.02em;line-height:1;text-shadow:0 0 44px ' + ORANGE + ',0 0 90px ' + ORANGE + '55;">' + days + '</div>' +
-          '<div style="font-size: 0.82rem;font-weight:800;letter-spacing: 0.12em;text-transform:uppercase;color:rgba(255,255,255,.42);margin-top:6px;">' + (days === 1 ? 'day' : 'days') + ' in a row</div>' +
-          '<div style="margin-top:30px;height:6px;border-radius: 22px;background:rgba(255,255,255,.09);overflow:hidden;">' +
+          '<div style="font-size: 0.82rem;font-weight:800;letter-spacing: 0.12em;text-transform:uppercase;color:var(--muted);margin-top:6px;">' + (days === 1 ? 'day' : 'days') + ' in a row</div>' +
+          '<div style="margin-top:30px;height:6px;border-radius: 22px;background:rgba(var(--lift-rgb), 0.1);overflow:hidden;">' +
             '<div id="_streakCharge" style="height:6px;border-radius: 22px;width:' + fillFrom + '%;' +
               'background:linear-gradient(90deg,' + ORANGE + ',' + ORANGE_LT + ');' +
               'box-shadow:0 0 16px ' + ORANGE + 'aa;transition:width 1.1s var(--ease);"></div>' +
           '</div>' +
-          '<div style="font-size:0.72rem;color:rgba(255,255,255,.4);margin-top:12px;font-weight:600;">' + safeText(subline) + '</div>' +
-          '<div style="font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;color:rgba(255,255,255,.2);text-transform:uppercase;margin-top:34px;">Tap anywhere to continue</div>' +
+          '<div style="font-size:0.72rem;color:var(--muted);margin-top:12px;font-weight:600;">' + safeText(subline) + '</div>' +
+          '<div style="font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;color:var(--muted);text-transform:uppercase;margin-top:34px;">Tap anywhere to continue</div>' +
         '</div>';
 
       document.body.appendChild(ov);
@@ -13834,7 +13838,7 @@ var LEVEL_THEMES = {
       var color = isBonus ? 'var(--green)' : 'var(--green)';
       // Start scaled down and invisible — pops in at screen center
       chip.style.cssText = 'position:fixed;z-index:99999;pointer-events:none;font-size: 1.6rem;font-weight: 800;' +
-        'color:' + color + ';text-shadow:0 0 24px rgba(34,197,94,.8),0 2px 10px rgba(0,0,0,.9);' +
+        'color:' + color + ';text-shadow:0 0 24px rgba(34,197,94,.8),0 2px 10px rgba(var(--scrim-rgb), 0.65);' +
         'left:' + sx + 'px;top:' + sy + 'px;transform:translate(-50%,-50%) scale(0.5);' +
         'white-space:nowrap;opacity:0;transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1),opacity 0.15s;';
       document.body.appendChild(chip);
@@ -13918,16 +13922,16 @@ var LEVEL_THEMES = {
         '<div style="position:relative;padding-bottom:56.25%;' + thumbBg + 'overflow:hidden;">' +
           thumbInner +
           // Gradient overlay bottom-to-top
-          '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.65) 0%,transparent 50%);"></div>' +
+          '<div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(var(--scrim-rgb), 0.65) 0%,transparent 50%);"></div>' +
           // Module number badge — bottom-left
           '<div style="position:absolute;bottom:10px;left:12px;display:flex;align-items:center;gap:8px;">' +
             '<div style="width:34px;height:34px;border-radius:50%;background:' + accentColor + ';border:2px solid var(--line-strong);display:flex;align-items:center;justify-content:center;font-weight:800;font-size: 0.9rem;color:#fff;">' +
               (completed ? '✓' : String(idx+1)) +
             '</div>' +
-            '<span style="font-size: 0.72rem;font-weight:800;letter-spacing: 0.12em;color:rgba(255,255,255,.7);text-transform:uppercase;">Module</span>' +
+            '<span style="font-size: 0.72rem;font-weight:800;letter-spacing: 0.12em;color:var(--text);text-transform:uppercase;">Module</span>' +
           '</div>' +
           // Lock overlay
-          (locked ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2rem;background:rgba(0,0,0,.25);">🔒</div>' : '') +
+          (locked ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2rem;background:rgba(var(--scrim-rgb), 0.26);">🔒</div>' : '') +
           // Completed ribbon
           (completed ? '<div style="position:absolute;top:10px;right:10px;background:var(--green);border-radius: 22px;padding:2px 10px;font-size: 0.72rem;font-weight:800;letter-spacing: 0.08em;color:#fff;">✓ DONE</div>' : '') +
         '</div>';
@@ -14232,15 +14236,15 @@ var LEVEL_THEMES = {
       _lmsStartQuizMusic();
       var ov = document.createElement('div');
       ov.id = '_lmsVqOv';
-      ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.88);z-index:10000;display:flex;align-items:flex-start;justify-content:center;padding:max(24px,env(safe-area-inset-top)) 16px 24px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+      ov.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(var(--scrim-rgb), 0.65);z-index:10000;display:flex;align-items:flex-start;justify-content:center;padding:max(24px,env(safe-area-inset-top)) 16px 24px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
       var opts = quiz.options || [];
       ov.innerHTML =
         '<div style="background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:20px;max-width:500px;width:100%;box-shadow: var(--shadow-3);max-height:90vh;overflow-y:auto;">' +
-          '<div style="font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;color:rgba(255,255,255,.35);margin-bottom:14px;text-transform:uppercase;">✋ Quick check</div>' +
+          '<div style="font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;color:var(--muted);margin-bottom:14px;text-transform:uppercase;">✋ Quick check</div>' +
           '<p style="font-size:1rem;font-weight:600;margin:0 0 20px;line-height:1.5;color:#fff;">' + safeText(quiz.question) + '</p>' +
           '<div id="_lmsVqOpts" style="display:grid;gap:10px;">' +
             opts.map(function(o, i) {
-              return '<button onclick="_lmsVqPick(' + i + ')" style="text-align:left;padding:12px 16px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius: 8px;color:#fff;font-size: 0.9rem;cursor:pointer;">' + safeText(o) + '</button>';
+              return '<button onclick="_lmsVqPick(' + i + ')" style="text-align:left;padding:12px 16px;background:rgba(var(--lift-rgb), 0.06);border:1px solid var(--line);border-radius: 8px;color:#fff;font-size: 0.9rem;cursor:pointer;">' + safeText(o) + '</button>';
             }).join('') +
           '</div>' +
           '<div id="_lmsVqMsg" style="margin-top:16px;min-height:20px;font-size: 0.82rem;"></div>' +
@@ -14272,7 +14276,7 @@ var LEVEL_THEMES = {
           } catch(e) {}
           var xp = quiz.xpReward || 5;
           msg.innerHTML = '<span style="color:var(--green);font-weight:700;">✓ Correct! +' + xp + ' XP</span>' +
-            (quiz.explanation ? ' <span style="color:rgba(255,255,255,.45);">· ' + safeText(quiz.explanation) + '</span>' : '');
+            (quiz.explanation ? ' <span style="color:var(--muted);">· ' + safeText(quiz.explanation) + '</span>' : '');
           google.script.run
             .withSuccessHandler(function(res) {
               var earned = (res && res.xpAwarded) || quiz.xpReward || 5;
@@ -14295,7 +14299,7 @@ var LEVEL_THEMES = {
         } else {
           fired[quiz.quizId] = false;
           msg.innerHTML = '<span style="color:var(--red);font-weight:700;">✗ Not quite — rewinding 60 seconds</span>' +
-            (quiz.explanation ? '<br><span style="color:rgba(255,255,255,.45);">' + safeText(quiz.explanation) + '</span>' : '');
+            (quiz.explanation ? '<br><span style="color:var(--muted);">' + safeText(quiz.explanation) + '</span>' : '');
         }
         setTimeout(function() {
           _lmsStopQuizMusic();
@@ -19462,7 +19466,7 @@ var LEVEL_THEMES = {
           ? 'color:var(--green);background:rgba(34,197,94,0.10);border:1px solid rgba(34,197,94,0.25);'
           : inProg
             ? 'color:var(--accent);background:rgba(14,165,233,0.10);border:1px solid rgba(14,165,233,0.25);'
-            : 'color:var(--muted);background:rgba(155,155,155,0.07);border:1px solid var(--line-strong);';
+            : 'color:var(--muted);background:rgba(var(--lift-rgb), 0.06);border:1px solid var(--line-strong);';
         return '<div class="prog-route-card" style="--tier-color:' + tierColor + '">' +
           '<div class="prog-route-card-header">' +
             '<div>' +
@@ -22829,7 +22833,7 @@ var LEVEL_THEMES = {
     var maxXp = 1;
     res.data.forEach(function(p) { if ((p.mergedXp || 0) > maxXp) maxXp = p.mergedXp; });
 
-    var html = '<div style="font-size: 0.72rem;font-weight:700;letter-spacing: 0.08em;color:rgba(255,255,255,.35);text-align:center;margin-bottom:8px;text-transform:uppercase;">This week\'s ranking · resets Monday</div>';
+    var html = '<div style="font-size: 0.72rem;font-weight:700;letter-spacing: 0.08em;color:var(--muted);text-align:center;margin-bottom:8px;text-transform:uppercase;">This week\'s ranking · resets Monday</div>';
 
     GAM_TIERS.forEach(function(tier) {
       var pilots = groups[tier.key];
@@ -23682,19 +23686,19 @@ var LEVEL_THEMES = {
 
       var ov = document.createElement('div');
       ov.id = '_examPassedOv';
-      ov.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,0);transition:background 0.4s var(--ease);cursor:pointer;overflow:hidden;';
+      ov.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(var(--scrim-rgb), 0.03);transition:background 0.4s var(--ease);cursor:pointer;overflow:hidden;';
 
       ov.innerHTML =
         '<div style="position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 50% 48%,' + color + '22 0%,transparent 70%);pointer-events:none;"></div>' +
-        '<button onclick="event.stopPropagation();_examPassedDismiss();" style="position:absolute;top:20px;right:24px;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.5);font-size: 1.15rem;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;">&#x2715;</button>' +
+        '<button onclick="event.stopPropagation();_examPassedDismiss();" style="position:absolute;top:20px;right:24px;background:rgba(var(--lift-rgb), 0.06);border:none;color:var(--muted);font-size: 1.15rem;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;">&#x2715;</button>' +
         '<div id="_examPassedCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1),opacity 0.4s ease;padding:0 20px;pointer-events:none;max-width:min(480px,calc(100vw - 32px));">' +
           '<div style="font-size: 0.72rem;font-weight:800;letter-spacing: 0.2em;color:' + color + ';text-transform:uppercase;margin-bottom:20px;">Checkpoint ' + examNum + ' Cleared</div>' +
           '<div style="font-size:clamp(3.2rem,14vw,5rem);line-height:1;margin-bottom:16px;filter:drop-shadow(0 0 32px ' + color + ');">&#10003;</div>' +
-          '<div style="font-size:clamp(3rem,13vw,4.5rem);font-weight: 800;color:#fff;line-height:1;letter-spacing: -0.02em;text-shadow:0 0 40px ' + color + ',0 0 80px ' + color + '44;margin-bottom:4px;">' + score + '<span style="font-size:clamp(1.05rem,4.5vw,1.5rem);color:rgba(255,255,255,.35);font-weight:600;"> / 100</span></div>' +
-          '<div style="font-size: 0.9rem;color:rgba(255,255,255,.45);margin-bottom:52px;font-weight: 600;margin-top:10px;">ICAO Language Proficiency Test passed</div>' +
-          '<div style="font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;color:rgba(255,255,255,.18);text-transform:uppercase;">Tap anywhere to continue</div>' +
+          '<div style="font-size:clamp(3rem,13vw,4.5rem);font-weight: 800;color:#fff;line-height:1;letter-spacing: -0.02em;text-shadow:0 0 40px ' + color + ',0 0 80px ' + color + '44;margin-bottom:4px;">' + score + '<span style="font-size:clamp(1.05rem,4.5vw,1.5rem);color:var(--muted);font-weight:600;"> / 100</span></div>' +
+          '<div style="font-size: 0.9rem;color:var(--muted);margin-bottom:52px;font-weight: 600;margin-top:10px;">ICAO Language Proficiency Test passed</div>' +
+          '<div style="font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;color:var(--muted);text-transform:uppercase;">Tap anywhere to continue</div>' +
         '</div>' +
-        '<div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.06);">' +
+        '<div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(var(--lift-rgb), 0.06);">' +
           '<div id="_examPassedBar" style="height:3px;width:100%;background:' + color + ';transition:width 5s linear;"></div>' +
         '</div>';
 
@@ -25008,9 +25012,9 @@ var LEVEL_THEMES = {
     div.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:4px;margin:18px 0 10px;';
     div.innerHTML =
       '<div style="display:flex;align-items:center;gap:10px;width:100%;">' +
-        '<div style="flex:1;height:1px;background:rgba(255,255,255,0.08);"></div>' +
+        '<div style="flex:1;height:1px;background:rgba(var(--lift-rgb), 0.06);"></div>' +
         '<div class="tea-part-badge" style="font-size: 0.72rem;padding:4px 14px;white-space:nowrap;">' + meta.title + '</div>' +
-        '<div style="flex:1;height:1px;background:rgba(255,255,255,0.08);"></div>' +
+        '<div style="flex:1;height:1px;background:rgba(var(--lift-rgb), 0.06);"></div>' +
       '</div>' +
       '<div style="font-size:0.72rem;color:#4a6280;">' + meta.sub + '</div>';
     chat.appendChild(div); _scrollChat();
@@ -26780,7 +26784,7 @@ var LEVEL_THEMES = {
             (ready ? 'onclick="window._teaSelectVersion(\'' + _esc(bank) + '\')"' : 'disabled') + ' ' +
             'style="flex:1;min-width:104px;padding:10px 8px;border-radius:12px;cursor:' +
               (ready ? 'pointer' : 'not-allowed') + ';font-family:inherit;' +
-            'border:1px solid var(--line);background:rgba(255,255,255,0.02);' +
+            'border:1px solid var(--line);background:rgba(var(--lift-rgb), 0.03);' +
             'color:' + (ready ? '#8fa3bb' : '#3d4d5c') + ';text-align:center;">' +
               '<div style="font-size:1.15rem;line-height:1.2;">' + flag + '</div>' +
               '<div style="font-size: 0.82rem;font-weight:700;margin-top:3px;">' + _esc(title) + '</div>' +
@@ -26842,7 +26846,7 @@ var LEVEL_THEMES = {
   function _teaPickerNote(msg) {
     return '<p style="margin:0;padding:8px 10px;border-radius: 8px;text-align:center;' +
       'font-size:0.72rem;line-height:1.45;color:#8fa3bb;' +
-      'background:rgba(255,255,255,0.02);border:1px solid var(--line);">' +
+      'background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);">' +
       _esc(msg) + '</p>';
   }
 
@@ -26869,7 +26873,7 @@ var LEVEL_THEMES = {
     el.id = 'teaVersionBadge';
     el.style.cssText = 'margin:0 16px 10px;padding:7px 12px;border-radius: 8px;' +
       'font-size:0.72rem;letter-spacing: 0.04em;color:#8fa3bb;text-align:center;' +
-      'background:rgba(255,255,255,0.02);border:1px solid var(--line);';
+      'background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);';
     el.innerHTML = 'Sitting ' + _esc(name) + (drawn ? ' \u00b7 drawn at random' : '');
     cards.parentNode.insertBefore(el, cards);
   }
@@ -27558,7 +27562,7 @@ var LEVEL_THEMES = {
                 'user-select:none;" aria-hidden="true">' + _renderScoreJSON(_teaRedactScores(json)) + '</div>' +
                 '<div style="position:absolute;inset:0;display:flex;flex-direction:column;' +
                   'align-items:center;justify-content:center;text-align:center;padding:24px;">' +
-                  '<div style="background:var(--panel,rgba(18,18,18,.97));border-radius:16px;' +
+                  '<div style="background:var(--panel,var(--panel));border-radius:16px;' +
                     'border:1px solid var(--line);padding:22px 24px;' +
                     'max-width:380px;box-shadow: var(--shadow-3);">' +
                     '<p class="eyebrow" style="margin:0 0 8px;">Your result is ready</p>' +
@@ -27630,7 +27634,7 @@ var LEVEL_THEMES = {
       if (locked) {
         return '<div style="width:44px;height:44px;border-radius:12px;flex-shrink:0;display:flex;' +
           'align-items:center;justify-content:center;font-size: 1rem;' +
-          'background:rgba(255,255,255,0.05);color:var(--muted,#808080);' +
+          'background:rgba(var(--lift-rgb), 0.06);color:var(--muted,#808080);' +
           'border:1px solid var(--line);">\u{1F512}</div>';
       }
       return _bandChipNumber(b);
@@ -27649,7 +27653,7 @@ var LEVEL_THEMES = {
         return '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;">' +
           '<div style="width:92px;font-size:0.62rem;letter-spacing: 0.06em;color:#4a6280;' +
             'text-transform:uppercase;">' + k + '</div>' +
-          '<div style="flex:1;height:5px;border-radius: 4px;background:rgba(255,255,255,0.05);"></div>' +
+          '<div style="flex:1;height:5px;border-radius: 4px;background:rgba(var(--lift-rgb), 0.06);"></div>' +
           '<div style="width:16px;font-size:0.62rem;color:#3a4a5a;text-align:right;">&#8226;</div>' +
         '</div>';
       }).join('');
@@ -27676,7 +27680,7 @@ var LEVEL_THEMES = {
         '</div>' +
         '<div style="position:absolute;inset:0;display:flex;flex-direction:column;' +
           'align-items:center;justify-content:center;text-align:center;padding:16px;' +
-          'background:rgba(8,12,16,.55);">' +
+          'background:rgba(var(--scrim-rgb), 0.65);">' +
           '<p class="eyebrow" style="margin:0 0 6px;">' + _esc(when(r.date)) + '</p>' +
           '<div style="font-size: 0.9rem;font-weight:800;color:var(--white,#fff);margin-bottom:10px;">' +
             'Your result is ready</div>' +
@@ -29123,7 +29127,7 @@ function _aeroShowInstallBar(mode) {
     'position:fixed;z-index:99998;left:12px;right:12px;' +
     'bottom:' + (narrow ? 'calc(72px + env(safe-area-inset-bottom) + 12px)' : '24px') + ';' +
     (narrow ? '' : 'left:auto;right:24px;max-width:380px;') +
-    'background:rgba(18,18,18,.97);border:1px solid rgba(0,229,160,.35);' +
+    'background:var(--panel);border:1px solid rgba(0,229,160,.35);' +
     'border-radius: 12px;padding:14px 16px;color:#fff;' +
     'box-shadow: var(--shadow-2);' +
     'backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);' +
@@ -29272,7 +29276,7 @@ function _aeroRenderInstallPage() {
     if (hidden && hidden.src) {
       logo = '<img src="' + hidden.src + '" alt="aerocomms" ' +
              'style="width:300px;max-width:82%;height:auto;margin:0 auto 18px;display:block;' +
-             'object-fit:contain;filter:drop-shadow(0 0 32px rgba(255,255,255,.12));">';
+             'object-fit:contain;filter:drop-shadow(0 0 32px rgba(var(--lift-rgb), 0.1));">';
     }
   } catch (e) {}
   if (!logo) {
@@ -29289,7 +29293,7 @@ function _aeroRenderInstallPage() {
     return '' +
       '<li style="display:flex;gap:12px;align-items:flex-start;text-align:left;margin-bottom:14px;">' +
         '<span style="flex:0 0 26px;width:26px;height:26px;border-radius:50%;' +
-        'background:rgba(255,255,255,.08);border:1px solid var(--line);' +
+        'background:rgba(var(--lift-rgb), 0.06);border:1px solid var(--line);' +
         'font-size: 0.82rem;font-weight:800;line-height:25px;text-align:center;color:var(--white,#fff);">' +
         n + '</span>' +
         '<span style="flex:1;font-size:0.9rem;line-height:1.55;color:var(--text,var(--muted));">' + html + '</span>' +
@@ -29338,7 +29342,7 @@ function _aeroRenderInstallPage() {
         'Add aerocomms to your phone</h1>' +
       '<p style="margin:0 0 22px;font-size: 0.9rem;line-height:1.6;color:var(--muted,var(--line));">' +
         'Opens full screen, works without signal, and keeps you signed in.</p>' +
-      '<div id="_aeroPageStep" style="background:var(--panel,rgba(18,18,18,.97));' +
+      '<div id="_aeroPageStep" style="background:var(--panel,var(--panel));' +
         'border:1px solid var(--line);border-radius:16px;padding:20px 18px;">' +
         inner +
       '</div>' +

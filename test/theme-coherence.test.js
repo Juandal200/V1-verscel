@@ -17,7 +17,9 @@ function lum(h){const n=parseInt(h.slice(1),16);const r=(n>>16&255)/255,g=(n>>8&
   const f=c=>c<=.03928?c/12.92:Math.pow((c+.055)/1.055,2.4);return .2126*f(r)+.7152*f(g)+.0722*f(b);}
 const cr=(a,b)=>{const A=lum(a),B=lum(b);return (Math.max(A,B)+.05)/(Math.min(A,B)+.05);};
 function toks(block){const o={};for(const m of block.matchAll(/(--[a-z-]+):\s*(#[0-9a-fA-F]{6})\s*;/g))o[m[1]]=m[2];return o;}
-const dark  = toks(C.slice(C.indexOf(':root {'), C.indexOf('[data-theme="light"]')));
+const dark0 = C.slice(C.indexOf(':root {'), C.indexOf('[data-theme="light"]'));
+const light0 = C.slice(C.indexOf('[data-theme="light"]'), C.indexOf('[data-theme="light"]') + 2400);
+const dark  = toks(dark0);
 const light = toks(C.slice(C.indexOf('[data-theme="light"]'), C.indexOf('[data-theme="light"]') + 2400));
 
 console.log('--- every token is readable on its own ground ---');
@@ -63,6 +65,34 @@ ok('the onboarding tour',      !PALE.test(near('Welcome to ICAO Tr', 3000)));
 ok('the install prompt',       !PALE.test(near('Add to Home S', 200)));
 ok('the subscription price',   !PALE.test(near('font-size:2rem;font-weight:900', 200)));
 ok('the shop plan card',       !PALE.test(near('shopPlanNames', 400)));
+
+console.log('--- the lift inverts, the scrim does not ---');
+// 216 backgrounds were rgba(255,255,255,0.0x): a white film over a dark panel. It is
+// the commonest surface in the app and it could not invert, so on the light theme a
+// white film over an off-white ground was nothing at all and every panel lost its
+// edge. A scrim is the opposite — it darkens what is under it, in either theme.
+ok('the lift is white on dark and black on light',
+   /--lift-rgb:\s*255,\s*255,\s*255/.test(dark0) && /--lift-rgb:\s*0,\s*0,\s*0/.test(light0));
+ok('the scrim is black in both',
+   /--scrim-rgb:\s*0,\s*0,\s*0/.test(dark0) && /--scrim-rgb:\s*0,\s*0,\s*0/.test(light0));
+ok('and the lift is what surfaces are made of now',
+   ((S + C).match(/rgba\(var\(--lift-rgb\)/g) || []).length > 200);
+// A lift only works over a surface that follows the theme. Over a room that paints
+// its own fixed dark ground it would flip to black on black.
+const fixedDark = [];
+for (const m of C.matchAll(/([.#][^{}\n]{0,80})\{([^{}]{0,800})\}/g)) {
+  if (!/var\(--lift-rgb\)/.test(m[2])) continue;
+  const bg = /background(?:-color)?\s*:\s*#([0-9a-fA-F]{6})\b/.exec(m[2]);
+  if (bg) { const n = parseInt(bg[1], 16);
+    if (0.2126*(n>>16) + 0.7152*(n>>8&255) + 0.0722*(n&255) < 40) fixedDark.push(m[1].trim()); }
+}
+if (fixedDark.length) console.log('    ' + fixedDark.slice(0, 5).join('  '));
+ok('no lift sits on a room that stays dark either way', fixedDark.length === 0);
+// The nine level cards shared one gradient, written out nine times, and it was a dark
+// charcoal — so in light mode the level map was nine dark cards on a warm ground.
+ok('the level cards are made of panel tokens',
+   /LEVEL_CARD_SURFACE = 'linear-gradient\(145deg, var\(--panel\), var\(--panel-soft\)\)'/.test(S));
+ok('and every level uses it', (S.match(/LEVEL_CARD_SURFACE/g) || []).length >= 11);
 
 console.log('--- the brand accent is still stated once ---');
 ok('no teal survives anywhere',
