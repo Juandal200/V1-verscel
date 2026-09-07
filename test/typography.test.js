@@ -86,17 +86,26 @@ ok('no colour emoji left in the plan features', emojiInShop.length === 0);
 ok('every feature names an icon instead',
    (shop.match(/uiIcon\('/g) || []).length >= 11);
 const set = S.slice(S.indexOf('var UI_ICONS = {'), S.indexOf('function uiIcon'));
-const names = [...set.matchAll(/^\s{4}([a-z]+):/gm)].map(m => m[1]);
+// [a-zA-Z], not [a-z] — heartOn is the filled state of heart, and a lowercase-only
+// pattern read it as asked-for but never drawn. The one name in the set that is not
+// a single word is exactly the one a narrow pattern misses.
+const names = [...set.matchAll(/^\s{4}([a-zA-Z]+):/gm)].map(m => m[1]);
 console.log('    ' + names.join('  '));
 ok(`${names.length} icons in the set`, names.length >= 17);
 // This checked the shop's own slice only, which is how five marks the cockpit and
 // the top bar ask for went missing without a word: uiIcon returns '' for a name it
 // does not know, so a button is simply empty and nothing is thrown. Every call site
 // in the file, not the ones nearest the assertion.
-// uiIcon( and uiIconInline( — the second was added so a mark can sit in a line of
-// text, and a pattern anchored on "uiIcon(" matches neither it nor the icons only
-// it asks for. Six looked unused and were not.
-const asked = [...new Set([...S.matchAll(/uiIcon(?:Inline)?\('([a-z]+)'/g)].map(m => m[1]))];
+/* Every name quoted inside a uiIcon call, wherever it sits in the arguments.
+ *
+ * Anchoring on "uiIcon('" catches only the calls whose first argument is a plain
+ * literal, and misses the ones that choose: uiIconInline(liked ? 'heartOn' :
+ * 'heart'). Those icons then read as drawn-and-never-used, which is a fail on a
+ * check whose whole job is to notice something nobody is looking at. */
+const asked = [...new Set(
+  [...S.matchAll(/uiIcon(?:Inline)?\(([^)]*)\)/g)]
+    .flatMap(m => [...m[1].matchAll(/'([a-zA-Z]+)'/g)].map(q => q[1]))
+)];
 const missing = asked.filter(a => !names.includes(a));
 if (missing.length) console.log('    asked for but not drawn: ' + missing.join('  '));
 ok(`all ${asked.length} icons asked for anywhere in the client exist`, missing.length === 0);

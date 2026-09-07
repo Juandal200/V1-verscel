@@ -310,7 +310,7 @@
       d.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg,var(--bg));';
       d.innerHTML =
         '<div style="background:var(--panel,var(--bg));border:1px solid var(--line);border-radius: 22px;padding:36px 32px;max-width:340px;width:100%;text-align:center;box-shadow: var(--shadow-3);">' +
-          '<p style="font-size:2rem;margin:0 0 12px;">⚙️</p>' +
+          '<p style="font-size:2rem;margin:0 0 12px;color:var(--muted);">' + uiIcon('tools', 30) + '</p>' +
           '<h3 style="color:var(--text,var(--text));margin:0 0 8px;font-size: 1.15rem;font-weight:700;">Something went wrong</h3>' +
           '<p style="color:var(--muted,var(--line));font-size: 0.82rem;margin:0 0 6px;line-height:1.5;">An unexpected error occurred. Your progress is saved.</p>' +
           (msg ? '<p style="color:var(--muted,var(--line));font-size:0.72rem;margin:0 0 24px;opacity:0.6;font-family:var(--font-instrument);word-break:break-word;">' + String(msg).slice(0, 120) + '</p>' : '<div style="margin-bottom:24px;"></div>') +
@@ -1288,7 +1288,7 @@
     overlay.innerHTML =
       '<div class="session-expired-backdrop">' +
         '<div class="session-expired-card">' +
-          '<p style="font-size:2rem;margin:0 0 12px;">✈</p>' +
+          '<p style="font-size:2rem;margin:0 0 12px;color:var(--accent);">' + uiIcon('plane', 30) + '</p>' +
           '<h3>Session expired</h3>' +
           '<p>Your login session has timed out. Sign in again to continue — your progress is saved.</p>' +
           '<button class="btn primary full" onclick="document.getElementById(\'sessionExpiredOverlay\').remove();showScreen(\'loginScreen\');setLoginMessage(\'\');">Sign in again</button>' +
@@ -1757,7 +1757,7 @@
     area.innerHTML =
       '<div style="min-height:70vh;display:flex;align-items:center;justify-content:center;padding:32px 16px;">' +
         '<div style="max-width:480px;width:100%;text-align:center;">' +
-          '<div style="font-size: 2rem;margin-bottom:16px;">✈</div>' +
+          '<div style="font-size: 2rem;margin-bottom:16px;color:var(--accent);">' + uiIcon('plane', 30) + '</div>' +
           '<p class="eyebrow" style="margin-bottom:8px;">Aviation English Interactive Campus</p>' +
           '<h2 style="margin:0 0 10px;font-size: 1.6rem;">Choose your plan</h2>' +
           '<p class="subtitle" style="margin:0 0 28px;line-height:1.6;">Subscribe to keep practising. Get full access to all simulators, routes, evaluations and certificates.</p>' +
@@ -1883,7 +1883,7 @@
             if (!('Notification' in window) || !('PushManager' in window)) return '';
             if (Notification.permission === 'denied') return '';
             if (localStorage.getItem('_aeroPushSub')) return '';
-            return '<button class="btn secondary" style="width:100%;font-size: 0.82rem;margin-top:8px;opacity:0.8;" onclick="event.stopPropagation();_enablePushNotifications(this);">🔔 Enable streak reminders</button>';
+            return '<button class="btn secondary" style="width:100%;font-size: 0.82rem;margin-top:8px;opacity:0.8;" onclick="event.stopPropagation();_enablePushNotifications(this);">' + uiIconInline('bell') + 'Enable streak reminders</button>';
           } catch(e) { return ''; }
         })();
         // Time left in the STREAK day, taken from the server. Computing it here as
@@ -2157,7 +2157,7 @@
         '<button class="btn ' + (activeTab === 'evaltests'    ? 'primary' : 'secondary') + '" onclick="renderAdminReadbackTests()">Eval Tests</button>' +
         '<button class="btn ' + (activeTab === 'incentives'   ? 'primary' : 'secondary') + '" onclick="renderAdminIncentives()">⚡ Incentives</button>' +
         '<button class="btn ' + (activeTab === 'invites'      ? 'primary' : 'secondary') + '" onclick="renderAdminInvites()">✉ Invites</button>' +
-        '<button class="btn ' + (activeTab === 'subscriptions'? 'primary' : 'secondary') + '" onclick="renderAdminSubscriptions()">💳 Subscriptions</button>' +
+        '<button class="btn ' + (activeTab === 'subscriptions'? 'primary' : 'secondary') + '" onclick="renderAdminSubscriptions()">' + uiIconInline('card') + 'Subscriptions</button>' +
         '<button class="btn secondary" onclick="window.renderFirstFlight && window.renderFirstFlight()" title="Preview the First Flight onboarding screen">🛫 Preview First Flight</button>' +
         '<button class="btn ' + (activeTab === 'modules'       ? 'primary' : 'secondary') + '" onclick="renderAdminModules()">📚 Modules</button>' +
         '<button class="btn ' + (activeTab === 'speakingqueue' ? 'primary' : 'secondary') + '" onclick="renderAdminSpeakingQueue()">🎙 Speaking Queue</button>' +
@@ -4730,7 +4730,52 @@
     trophy: '<path d="M7.5 3.5h9v5a4.5 4.5 0 0 1-9 0z"/>' +
             '<path d="M7.5 5H5a2.5 2.5 0 0 0 2.5 2.5"/><path d="M16.5 5H19a2.5 2.5 0 0 1-2.5 2.5"/>' +
             '<path d="M12 13v3.5"/><path d="M8.5 20.5h7"/><path d="M10 16.5h4l.7 4h-5.4z"/>',
-    dot:    '<circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/>'
+    dot:    '<circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/>',
+
+    /* The rest of it. The nine level cards first, which are the ones a student
+     * meets before anything else — each is the phase of flight that level covers,
+     * so the map reads as a route rather than as nine unrelated pictures. */
+    taxi:    '<path d="M4 20h16"/><path d="M6.5 16.5h11"/>' +
+             '<path d="M8.5 16.5V8.5a3.5 3.5 0 0 1 7 0v8"/><path d="M12 5V3"/>',
+    descend: '<path d="M3 5.5l7 7"/><path d="M20.5 20.5h-17"/>' +
+             '<path d="M13 15.5l7.5-2-1.2-2.6-4.6 1.3-4.2-4.7-2 .7 2 4.6z"/>',
+    globe:   '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/>' +
+             '<path d="M12 3.5a13 13 0 0 1 0 17"/><path d="M12 3.5a13 13 0 0 0 0 17"/>',
+    chequer: '<path d="M6 21V4"/><path d="M6 5h13v9H6"/><path d="M12.5 5v9"/><path d="M6 9.5h13"/>',
+
+    /* Everything else, in one hand: the admin tabs, the module builder, the forum
+     * and the two theme marks. */
+    mail:    '<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M3.5 7l8.5 6 8.5-6"/>',
+    card:    '<rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 9.5h19"/>' +
+             '<path d="M6 14.5h4"/>',
+    book:    '<path d="M4 4.5h6a3 3 0 0 1 3 3v12a2.5 2.5 0 0 0-2.5-2.5H4z"/>' +
+             '<path d="M20 4.5h-6a3 3 0 0 0-3 3v12a2.5 2.5 0 0 1 2.5-2.5H20z"/>',
+    cap:     '<path d="M12 4l9.5 4.5L12 13 2.5 8.5z"/>' +
+             '<path d="M6.5 10.8V16c0 1.6 2.5 3 5.5 3s5.5-1.4 5.5-3v-5.2"/><path d="M21 9v5"/>',
+    video:   '<rect x="2.5" y="6" width="13" height="12" rx="2.5"/>' +
+             '<path d="M15.5 10.5l6-3v9l-6-3z"/>',
+    chat:    '<path d="M20.5 12.5a7.5 7.5 0 0 1-10.9 6.7L4 20.5l1.4-5.3A7.5 7.5 0 1 1 20.5 12.5z"/>',
+    target:  '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/>' +
+             '<circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>',
+    heart:   '<path d="M12 20.5S3.5 15.2 3.5 9.4A4.4 4.4 0 0 1 12 7.3a4.4 4.4 0 0 1 8.5 2.1' +
+             'c0 5.8-8.5 11.1-8.5 11.1z"/>',
+    heartOn: '<path d="M12 20.5S3.5 15.2 3.5 9.4A4.4 4.4 0 0 1 12 7.3a4.4 4.4 0 0 1 8.5 2.1' +
+             'c0 5.8-8.5 11.1-8.5 11.1z" fill="currentColor"/>',
+    moon:    '<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>',
+    sun:     '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4"/><path d="M12 19.1v2.4"/>' +
+             '<path d="M2.5 12h2.4"/><path d="M19.1 12h2.4"/><path d="M5.3 5.3l1.7 1.7"/>' +
+             '<path d="M17 17l1.7 1.7"/><path d="M18.7 5.3L17 7"/><path d="M7 17l-1.7 1.7"/>',
+    headset: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/>' +
+             '<rect x="2.5" y="14" width="4.5" height="6" rx="2"/>' +
+             '<rect x="17" y="14" width="4.5" height="6" rx="2"/>',
+    image:   '<rect x="3" y="4.5" width="18" height="15" rx="2.5"/>' +
+             '<circle cx="8.5" cy="9.5" r="1.8"/><path d="M3.5 17l5-5 4.5 4.5 3-2.5 4.5 4"/>',
+    eye:     '<path d="M2.5 12s3.6-6.5 9.5-6.5S21.5 12 21.5 12s-3.6 6.5-9.5 6.5S2.5 12 2.5 12z"/>' +
+             '<circle cx="12" cy="12" r="2.8"/>',
+    bell:    '<path d="M18 9a6 6 0 0 0-12 0c0 6-2.5 7.5-2.5 7.5h17S18 15 18 9z"/>' +
+             '<path d="M13.7 20a2 2 0 0 1-3.4 0"/>',
+    shield:  '<path d="M12 3l7.5 3v5.5c0 4.6-3.1 8-7.5 9.5-4.4-1.5-7.5-4.9-7.5-9.5V6z"/>' +
+             '<path d="M8.8 12l2.2 2.2 4.2-4.4"/>'
   };
 
   /* 1.6 at 24 is the same optical weight as the interface's 700 text at 0.82rem,
@@ -5097,15 +5142,15 @@
   var LEVEL_CARD_SURFACE = 'linear-gradient(145deg, var(--panel), var(--panel-soft))';
 
 var LEVEL_THEMES = {
-    1:  { gradient: LEVEL_CARD_SURFACE,  border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: '📡', tag: 'ATC Basics',             phases: ['GROUND','PUSHBACK','TAXI'],         desc: 'Master the fundamentals of aeronautical radio — callsigns, readbacks and ground comms.' },
-    2:  { gradient: LEVEL_CARD_SURFACE,  border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: '🛫', tag: 'Taxi & Departure',        phases: ['TAXI OUT','DELIVERY','IFR CLR'],    desc: 'Navigate complex taxiway routes and secure IFR clearances before departure.' },
-    3:  { gradient: LEVEL_CARD_SURFACE,  border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: '🚀', tag: 'Takeoff & Climb',         phases: ['TAKEOFF','DEPARTURE','CLIMB'],      desc: 'Coordinate takeoff clearances and initial climb with departure control at high workload.' },
-    4:  { gradient: LEVEL_CARD_SURFACE,  border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: '✈️', tag: 'En-Route',                phases: ['CLIMB','CRUISE','HANDOFF'],         desc: 'Manage altitude changes, route amendments and frequency transfers across sectors.' },
-    5:  { gradient: LEVEL_CARD_SURFACE, border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: '🌐', tag: 'Oceanic & International', phases: ['OCEANIC','CRUISE','SELCAL'],        desc: 'Cross oceanic airspace and handle international frequency protocols.' },
-    6:  { gradient: LEVEL_CARD_SURFACE, border: 'rgba(var(--accent-rgb), 0.22)',accent: 'var(--accent)', icon: '🌩️',tag: 'Weather Operations',       phases: ['DEVIATION','SIGMET','HOLD'],        desc: 'Coordinate weather deviations, SIGMET alerts and holding patterns under IMC.' },
-    7:  { gradient: LEVEL_CARD_SURFACE, border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: '🛬', tag: 'Approach & Descent',      phases: ['DESCEND','APPROACH','ILS'],         desc: 'Execute ILS approaches and STAR arrivals at complex, high-traffic airports.' },
-    8:  { gradient: LEVEL_CARD_SURFACE,  border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: '🏁', tag: 'Landing & Go-Around',     phases: ['LANDING','GO-AROUND','VACATE'],     desc: 'Master landing clearances, go-around procedures and runway vacating instructions.' },
-    9:  { gradient: LEVEL_CARD_SURFACE,   border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: '🚨', tag: 'Emergency Procedures',    phases: ['PAN-PAN','MAYDAY','DISTRESS'],      desc: 'Declare and handle aircraft emergencies — MAYDAY, PAN-PAN and distress communications.' }
+    1:  { gradient: LEVEL_CARD_SURFACE,  border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: uiIcon('tower', 22), tag: 'ATC Basics',             phases: ['GROUND','PUSHBACK','TAXI'],         desc: 'Master the fundamentals of aeronautical radio — callsigns, readbacks and ground comms.' },
+    2:  { gradient: LEVEL_CARD_SURFACE,  border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: uiIcon('taxi', 22), tag: 'Taxi & Departure',        phases: ['TAXI OUT','DELIVERY','IFR CLR'],    desc: 'Navigate complex taxiway routes and secure IFR clearances before departure.' },
+    3:  { gradient: LEVEL_CARD_SURFACE,  border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: uiIcon('climb', 22), tag: 'Takeoff & Climb',         phases: ['TAKEOFF','DEPARTURE','CLIMB'],      desc: 'Coordinate takeoff clearances and initial climb with departure control at high workload.' },
+    4:  { gradient: LEVEL_CARD_SURFACE,  border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: uiIcon('plane', 22), tag: 'En-Route',                phases: ['CLIMB','CRUISE','HANDOFF'],         desc: 'Manage altitude changes, route amendments and frequency transfers across sectors.' },
+    5:  { gradient: LEVEL_CARD_SURFACE, border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: uiIcon('globe', 22), tag: 'Oceanic & International', phases: ['OCEANIC','CRUISE','SELCAL'],        desc: 'Cross oceanic airspace and handle international frequency protocols.' },
+    6:  { gradient: LEVEL_CARD_SURFACE, border: 'rgba(var(--accent-rgb), 0.22)',accent: 'var(--accent)', icon: uiIcon('wx', 22),tag: 'Weather Operations',       phases: ['DEVIATION','SIGMET','HOLD'],        desc: 'Coordinate weather deviations, SIGMET alerts and holding patterns under IMC.' },
+    7:  { gradient: LEVEL_CARD_SURFACE, border: 'rgba(var(--accent-rgb), 0.22)', accent: 'var(--accent)', icon: uiIcon('descend', 22), tag: 'Approach & Descent',      phases: ['DESCEND','APPROACH','ILS'],         desc: 'Execute ILS approaches and STAR arrivals at complex, high-traffic airports.' },
+    8:  { gradient: LEVEL_CARD_SURFACE,  border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: uiIcon('chequer', 22), tag: 'Landing & Go-Around',     phases: ['LANDING','GO-AROUND','VACATE'],     desc: 'Master landing clearances, go-around procedures and runway vacating instructions.' },
+    9:  { gradient: LEVEL_CARD_SURFACE,   border: 'rgba(var(--accent-rgb), 0.22)',  accent: 'var(--accent)', icon: uiIcon('alert', 22), tag: 'Emergency Procedures',    phases: ['PAN-PAN','MAYDAY','DISTRESS'],      desc: 'Declare and handle aircraft emergencies — MAYDAY, PAN-PAN and distress communications.' }
   };
 
   // Level identities from the Levels sheet, when it has been set up.
@@ -5157,7 +5202,7 @@ var LEVEL_THEMES = {
     return LEVEL_THEMES[Number(levelNum)] || {
       gradient: LEVEL_CARD_SURFACE,
       border: 'var(--line-strong)', accent: 'var(--muted)',
-      icon: '✈️', tag: 'Training Level', phases: [], desc: ''
+      icon: uiIcon('plane', 22), tag: 'Training Level', phases: [], desc: ''
     };
   }
 
@@ -10320,10 +10365,10 @@ var LEVEL_THEMES = {
         '<h2>Comprehension Test</h2>' +
         '<p class="subtitle" style="margin-bottom:18px;">10 ATC transmissions across 5 different accents. Listen carefully and type the exact read-back a pilot would give. Replays are allowed but reduce your score.</p>' +
         '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:22px;">' +
-          '<div style="display:flex;gap:10px;align-items:center;font-size: 0.82rem;color:var(--muted);"><span>📡</span><span>10 scenarios — USA, UK, Australia, Canada, India</span></div>' +
-          '<div style="display:flex;gap:10px;align-items:center;font-size: 0.82rem;color:var(--muted);"><span>🔁</span><span>Each replay reduces your scenario score</span></div>' +
-          '<div style="display:flex;gap:10px;align-items:center;font-size: 0.82rem;color:var(--muted);"><span>🏅</span><span>Band 4 Operational (B2) requires ≥ 76%</span></div>' +
-          '<div style="display:flex;gap:10px;align-items:center;font-size: 0.82rem;color:var(--yellow);"><span>⚠️</span><span>This test can only be retaken if authorized by your instructor.</span></div>' +
+          '<div style="display:flex;gap:10px;align-items:center;font-size: 0.82rem;color:var(--muted);"><span>' + uiIconInline('tower') + '</span><span>10 scenarios — USA, UK, Australia, Canada, India</span></div>' +
+          '<div style="display:flex;gap:10px;align-items:center;font-size: 0.82rem;color:var(--muted);"><span>' + uiIconInline('retry') + '</span><span>Each replay reduces your scenario score</span></div>' +
+          '<div style="display:flex;gap:10px;align-items:center;font-size: 0.82rem;color:var(--muted);"><span>' + uiIconInline('seal') + '</span><span>Band 4 Operational (B2) requires ≥ 76%</span></div>' +
+          '<div style="display:flex;gap:10px;align-items:center;font-size: 0.82rem;color:var(--yellow);"><span>' + uiIconInline('alert') + '</span><span>This test can only be retaken if authorized by your instructor.</span></div>' +
         '</div>' +
         '<div style="display:flex;gap:10px;">' +
           '<button class="btn secondary" onclick="renderSimulatorPlaceholder()">Cancel</button>' +
@@ -10428,7 +10473,7 @@ var LEVEL_THEMES = {
     function _onDone() {
       if (_icaoTestGen !== myGen) return;
       var btn = byId('icaoPlayBtn');
-      if (btn) { btn.disabled = false; btn.textContent = '🔁 Replay'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'Replay'; }
       var badge = byId('icaoVoiceBadge');
       if (badge) badge.textContent = '';
       _icaoTestPrefetchNext();
@@ -10439,7 +10484,7 @@ var LEVEL_THEMES = {
       if (res && res.ok && res.audioBase64) {
         _ttsClientCache[cacheKey] = res;
         var badge = byId('icaoVoiceBadge');
-        if (badge) badge.textContent = (res.cached ? '⚡ ' : '') + (res.voiceName || '');
+        if (badge) badge.textContent = res.voiceName || '';
         // An exam is sat at the speed it was recorded at, whatever the candidate's
         // simulator level happens to be.
         _playAtcAudio(res, sc.atcText, country, _onDone, { levelRamp: false });
@@ -11232,7 +11277,7 @@ var LEVEL_THEMES = {
       })
       .withFailureHandler(function() {
         var el = byId('certSaveStatus');
-        if (el) { el.textContent = '⚠ Could not save certificate — contact your instructor'; el.style.color = 'var(--red)'; }
+        if (el) { el.textContent = 'Could not save certificate — contact your instructor'; el.style.color = 'var(--red)'; }
       })
       .apiSaveCertificate(AppState.sessionToken, {
         certificateId: certId,
@@ -11399,12 +11444,12 @@ var LEVEL_THEMES = {
     if (isLight) {
       html.removeAttribute('data-theme');
       try { localStorage.setItem('aerocomms-theme', 'dark'); } catch(e) {}
-      if (btn) btn.textContent = '☀';
+      if (btn) btn.innerHTML = uiIcon('sun', 17);
       if (metaTheme) metaTheme.setAttribute('content', 'var(--bg)');
     } else {
       html.setAttribute('data-theme', 'light');
       try { localStorage.setItem('aerocomms-theme', 'light'); } catch(e) {}
-      if (btn) btn.textContent = '🌙';
+      if (btn) btn.innerHTML = uiIcon('moon', 17);
       if (metaTheme) metaTheme.setAttribute('content', 'var(--text)');
     }
   }
@@ -11855,7 +11900,7 @@ var LEVEL_THEMES = {
     // Toggle off if already showing
     if (panel.style.display !== 'none') {
       panel.style.display = 'none';
-      if (btn) btn.textContent = '📄 Email Log';
+      if (btn) btn.textContent = 'Email Log';
       return;
     }
 
@@ -11865,7 +11910,7 @@ var LEVEL_THEMES = {
 
     google.script.run
       .withSuccessHandler(function(rows) {
-        if (btn) btn.textContent = '📄 Email Log';
+        if (btn) btn.textContent = 'Email Log';
         if (!panel) return;
         if (!rows || rows.length === 0) {
           panel.innerHTML = '<p style="color:var(--muted);font-size: 0.82rem;">No emails logged yet.</p>';
@@ -11909,7 +11954,7 @@ var LEVEL_THEMES = {
         panel.innerHTML = html;
       })
       .withFailureHandler(function() {
-        if (btn) btn.textContent = '📄 Email Log';
+        if (btn) btn.textContent = 'Email Log';
         if (panel) panel.innerHTML = '<span style="color:var(--red);">Could not load email log.</span>';
       })
       .apiAdminGetEmailLog(AppState.sessionToken);
@@ -12461,9 +12506,9 @@ var LEVEL_THEMES = {
         '<div id="inviteParsePreview" style="margin-top:12px;"></div>' +
 
         '<div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">' +
-          '<button class="btn secondary" onclick="adminInvitePreview()">👁 Preview List</button>' +
-          '<button class="btn secondary" onclick="adminInviteSendTest()">✉ Send Test to Myself</button>' +
-          '<button class="btn primary" id="adminInviteSendBtn" onclick="adminInviteSendAll()">🚀 Send All Invites</button>' +
+          '<button class="btn secondary" onclick="adminInvitePreview()">' + uiIconInline('eye') + 'Preview List</button>' +
+          '<button class="btn secondary" onclick="adminInviteSendTest()">' + uiIconInline('mail') + 'Send Test to Myself</button>' +
+          '<button class="btn primary" id="adminInviteSendBtn" onclick="adminInviteSendAll()">' + uiIconInline('climb') + 'Send All Invites</button>' +
         '</div>' +
 
         '<div id="inviteResultPanel" style="margin-top:20px;"></div>' +
@@ -12550,7 +12595,7 @@ var LEVEL_THEMES = {
 
     google.script.run
       .withSuccessHandler(function(res) {
-        if (btn) { btn.disabled = false; btn.textContent = '🚀 Send All Invites'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Send All Invites'; }
         if (!result) return;
         if (res && res.ok) {
           var html =
@@ -12574,7 +12619,7 @@ var LEVEL_THEMES = {
         }
       })
       .withFailureHandler(function(err) {
-        if (btn) { btn.disabled = false; btn.textContent = '🚀 Send All Invites'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Send All Invites'; }
         if (result) result.innerHTML = '<p style="color:var(--red);font-size: 0.82rem;">Error: ' + safeText(err && err.message ? err.message : String(err)) + '</p>';
       })
       .apiAdminBulkInvite(AppState.sessionToken, users);
@@ -13908,7 +13953,8 @@ var LEVEL_THEMES = {
     var nextText = (byId('topnavLevelsLabel') || {}).textContent || '';
 
     var isLight = document.documentElement.getAttribute('data-theme') === 'light';
-    var themeLabel = isLight ? '🌙 Dark mode' : '☀️ Light mode';
+    var themeLabel = isLight ? uiIconInline('moon') + 'Dark mode'
+                            : uiIconInline('sun')  + 'Light mode';
 
     var adminHtml = isAdmin ?
       '<div class="avm-divider"></div>' +
@@ -13957,7 +14003,7 @@ var LEVEL_THEMES = {
   // Sync icon on load in case theme was already active from localStorage
   (function() {
     var btn = document.getElementById('themeToggleBtn');
-    if (btn && document.documentElement.getAttribute('data-theme') === 'light') btn.textContent = '🌙';
+    if (btn && document.documentElement.getAttribute('data-theme') === 'light') btn.innerHTML = uiIcon('moon', 17);
   })();
 
   window.renderHome = renderHome;
@@ -14394,7 +14440,7 @@ var LEVEL_THEMES = {
     if (!modules.length) {
       var emptyHtml =
         '<div style="padding:60px 0;text-align:center;">' +
-          '<div style="font-size: 2rem;margin-bottom:16px;">📡</div>' +
+          '<div style="font-size: 2rem;margin-bottom:16px;color:var(--accent);">' + uiIcon('tower', 30) + '</div>' +
           '<h3 style="color:var(--muted);font-weight:400;">No modules available yet.</h3>' +
           '<p style="color:var(--muted);">Check back soon — training content is being prepared.</p>' +
         '</div>';
@@ -14855,7 +14901,7 @@ var LEVEL_THEMES = {
 
     if (introVid) {
       var videoWatched = lmsBool_(prog.introVideoWatched);
-      introBody += _lmsItem('📹', 'Video', safeText(introVid.title || 'Introduction Video'),
+      introBody += _lmsItem(uiIconInline('video'), 'Video', safeText(introVid.title || 'Introduction Video'),
         videoWatched ? _doneChip() : _todoChip('Watch'),
         _videoEmbed(introVid, videoWatched, m.moduleId));
     }
@@ -14866,7 +14912,7 @@ var LEVEL_THEMES = {
     var expBody = '';
     expVids.forEach(function(v, vi) {
       var watched = watchedIds.indexOf(v.videoId) !== -1;
-      expBody += _lmsItem('📹', 'Video ' + (vi+1), safeText(v.title || 'Lesson ' + (vi+1)),
+      expBody += _lmsItem(uiIconInline('video'), 'Video ' + (vi+1), safeText(v.title || 'Lesson ' + (vi+1)),
         watched ? _doneChip() : _todoChip('Watch'),
         _videoEmbed(v, watched, m.moduleId),
         vi === expVids.length - 1 && !expQs.length);
@@ -14935,7 +14981,7 @@ var LEVEL_THEMES = {
     }
 
     // ── Grammar station body ──
-    var grammarBody = _stationHead('1', '📝', 'Grammar Station', grammarPassed, false);
+    var grammarBody = _stationHead('1', uiIconInline('paper'), 'Grammar Station', grammarPassed, false);
 
     if (grammarPassed) {
       grammarBody += '<div style="padding:18px 20px;display:flex;align-items:center;gap:14px;background:rgba(22,163,74,.04);">' +
@@ -15032,7 +15078,7 @@ var LEVEL_THEMES = {
       return html;
     }
 
-    var listeningBody = _stationHead('2', '🎧', 'Listening Station', listeningDone, !grammarPassed);
+    var listeningBody = _stationHead('2', uiIconInline('headset'), 'Listening Station', listeningDone, !grammarPassed);
     if (!grammarPassed) {
       listeningBody += '<div style="padding:16px 20px;font-size: 0.9rem;color:var(--muted);">🔒 Complete Grammar Station to unlock.</div>';
     } else {
@@ -15092,7 +15138,7 @@ var LEVEL_THEMES = {
       return html;
     }
 
-    var productionBody = _stationHead('3', '🎙', 'Speaking Production', speakingGraded, !listeningUnlocked);
+    var productionBody = _stationHead('3', uiIconInline('mic'), 'Speaking Production', speakingGraded, !listeningUnlocked);
 
     if (!listeningUnlocked) {
       productionBody += '<div style="padding:16px 20px;font-size: 0.9rem;color:var(--muted);">🔒 Complete Listening Station to unlock.</div>';
@@ -15116,7 +15162,7 @@ var LEVEL_THEMES = {
     } else {
       productionBody += '<div id="speakingForm-' + safeText(m.moduleId) + '" style="padding:16px 20px;">' +
         '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.2);border-radius:8px;margin-bottom:16px;">' +
-          '<span>🎙</span>' +
+          '<span>' + uiIconInline('mic') + '</span>' +
           '<p style="margin:0;font-size: 0.82rem;color:var(--text);">Write your responses below. An instructor will review and grade each one using the ICAO rubric.</p>' +
         '</div>';
       speakingPrompts.forEach(function(prompt, idx) { productionBody += _spkPromptCard(prompt, idx, false); });
@@ -15162,16 +15208,16 @@ var LEVEL_THEMES = {
             '<div id="evalCoverCard" style="padding:28px 20px;">' +
               '<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px;">' +
                 '<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;font-size: 0.82rem;">' +
-                  '<span>📋</span><span><strong>' + evalQs.length + '</strong> questions</span>' +
+                  '<span>' + uiIconInline('paper') + '</span><span><strong>' + evalQs.length + '</strong> questions</span>' +
                 '</div>' +
                 '<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;font-size: 0.82rem;">' +
                   '<span>⏱</span><span><strong>' + timeLim + '</strong> minutes</span>' +
                 '</div>' +
                 '<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--panel-soft);border:1px solid var(--line);border-radius:8px;font-size: 0.82rem;">' +
-                  '<span>🎯</span><span>Pass: <strong>85%</strong></span>' +
+                  '<span>' + uiIconInline('target') + '</span><span>Pass: <strong>85%</strong></span>' +
                 '</div>' +
                 (hasListeningQ ? '<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:rgba(14,165,233,.06);border:1px solid rgba(14,165,233,.25);border-radius:8px;font-size: 0.82rem;color:var(--cyan);">' +
-                  '<span>🔊</span><span>Includes listening questions</span>' +
+                  '<span>' + uiIconInline('speaker') + '</span><span>Includes listening questions</span>' +
                 '</div>' : '') +
               '</div>' +
               (prog.evalAttempts > 0 ?
@@ -15186,7 +15232,7 @@ var LEVEL_THEMES = {
             '<div id="evalExamArea" style="display:none;"></div>' +
           '</div>';
       }
-      evalBody = _lmsItem('📝', 'Final Exam', 'ICAO Language Proficiency Test', evalStatusHtml, evalBody2, true);
+      evalBody = _lmsItem(uiIconInline('paper'), 'Final Exam', 'ICAO Language Proficiency Test', evalStatusHtml, evalBody2, true);
     }
 
     // ── Tab bar ──
@@ -15210,8 +15256,8 @@ var LEVEL_THEMES = {
     };
 
     var _sectionMeta = {
-      intro:       { icon: '📖', label: 'Introduction', num: '01' },
-      explanation: { icon: '🎓', label: 'Explanation',  num: '02' },
+      intro:       { icon: uiIconInline('book'), label: 'Introduction', num: '01' },
+      explanation: { icon: uiIconInline('cap'),  label: 'Explanation',  num: '02' },
       application: { icon: uiIconInline('climb'),  label: 'Application',  num: '03' },
       evaluation:  { icon: uiIconInline('trophy'), label: 'Evaluation',   num: '04' }
     };
@@ -15227,7 +15273,7 @@ var LEVEL_THEMES = {
         '</div>' +
         (unlocked ? bodyHtml :
           '<div style="padding:28px 24px;text-align:center;">' +
-            '<div style="font-size:2rem;margin-bottom:10px;">🔒</div>' +
+            '<div style="font-size:2rem;margin-bottom:10px;color:var(--muted);">' + uiIcon('locked', 30) + '</div>' +
             '<p style="margin:0;font-size: 0.82rem;font-weight:600;color:var(--muted);">' + (lockMsgs[key] || 'Locked') + '</p>' +
           '</div>') +
       '</div>';
@@ -15281,23 +15327,23 @@ var LEVEL_THEMES = {
 
     var outlineHtml =
       outlineSectionHead('intro', '1', 'Introduction', true, lmsBool_(prog.introCompleted)) +
-      (introVid ? outlineItem('intro', '📹', introVid.youtubeUrl, introVid.title || 'Introduction Video', lmsBool_(prog.introVideoWatched), true, _isNext(lmsBool_(prog.introVideoWatched), true)) : '') +
+      (introVid ? outlineItem('intro', uiIconInline('video'), introVid.youtubeUrl, introVid.title || 'Introduction Video', lmsBool_(prog.introVideoWatched), true, _isNext(lmsBool_(prog.introVideoWatched), true)) : '') +
 
       outlineSectionHead('explanation', '2', 'Explanation', expUnlocked, lmsBool_(prog.explanationCompleted), introForumNeeded) +
       expVids.map(function(v) {
         var watched = expWatched.indexOf(v.videoId) !== -1;
-        return outlineItem('explanation', '📹', v.youtubeUrl, v.title || 'Lesson Video', watched, expUnlocked, _isNext(watched, expUnlocked));
+        return outlineItem('explanation', uiIconInline('video'), v.youtubeUrl, v.title || 'Lesson Video', watched, expUnlocked, _isNext(watched, expUnlocked));
       }).join('') +
-      (expQs.length ? outlineItem('explanation', '📝', null, 'Section Quiz', lmsBool_(prog.quizPassed), expUnlocked, _isNext(lmsBool_(prog.quizPassed), expUnlocked)) : '') +
+      (expQs.length ? outlineItem('explanation', uiIconInline('paper'), null, 'Section Quiz', lmsBool_(prog.quizPassed), expUnlocked, _isNext(lmsBool_(prog.quizPassed), expUnlocked)) : '') +
 
       outlineSectionHead('application', '3', 'Application', appUnlocked, lmsBool_(prog.applicationCompleted), expForumNeeded) +
       scns.map(function(s) {
-        return outlineItem('application', '🛫', null, s.title || s.scenarioId, false, appUnlocked, _isNext(false, appUnlocked));
+        return outlineItem('application', uiIconInline('taxi'), null, s.title || s.scenarioId, false, appUnlocked, _isNext(false, appUnlocked));
       }).join('') +
-      (scns.length === 0 ? outlineItem('application', '🛫', null, 'ATC Scenarios', false, appUnlocked, _isNext(false, appUnlocked)) : '') +
+      (scns.length === 0 ? outlineItem('application', uiIconInline('taxi'), null, 'ATC Scenarios', false, appUnlocked, _isNext(false, appUnlocked)) : '') +
 
       outlineSectionHead('evaluation', '4', 'Evaluation', evalUnlocked, lmsBool_(prog.evalPassed)) +
-      (evalQs.length ? outlineItem('evaluation', '📝', null, 'Final Exam', lmsBool_(prog.evalPassed), evalUnlocked, _isNext(lmsBool_(prog.evalPassed), evalUnlocked)) : outlineItem('evaluation', '🏆', null, 'Final Evaluation', lmsBool_(prog.evalPassed), evalUnlocked, _isNext(lmsBool_(prog.evalPassed), evalUnlocked)));
+      (evalQs.length ? outlineItem('evaluation', uiIconInline('paper'), null, 'Final Exam', lmsBool_(prog.evalPassed), evalUnlocked, _isNext(lmsBool_(prog.evalPassed), evalUnlocked)) : outlineItem('evaluation', '🏆', null, 'Final Evaluation', lmsBool_(prog.evalPassed), evalUnlocked, _isNext(lmsBool_(prog.evalPassed), evalUnlocked)));
 
     // Right-panel toggle logic (defined here so it closes over moduleId + outlineHtml)
     var _rpModuleId = m.moduleId;
@@ -15417,7 +15463,7 @@ var LEVEL_THEMES = {
           '</div>' +
           // No-forum placeholder (shown for Application/Evaluation)
           '<div id="rpNoForum" style="display:none;flex:1;align-items:center;justify-content:center;text-align:center;padding:20px;flex-direction:column;gap:8px;">' +
-            '<span style="font-size:2rem;">🛫</span>' +
+            '<span style="font-size:2rem;color:var(--accent);">' + uiIcon('taxi', 28) + '</span>' +
             '<p style="margin:0;font-size:0.82rem;color:var(--muted);">No forum for this section.</p>' +
           '</div>' +
           // Posts list
@@ -15534,7 +15580,7 @@ var LEVEL_THEMES = {
     if (!posts.length) {
       el.innerHTML =
         '<div style="padding:24px 0;text-align:center;">' +
-          '<div style="font-size:2rem;margin-bottom:8px;">💬</div>' +
+          '<div style="font-size:2rem;margin-bottom:8px;color:var(--muted);">' + uiIcon('chat', 30) + '</div>' +
           '<p style="margin:0;font-size: 0.9rem;color:var(--muted);">No posts yet — be the first to share your thoughts.</p>' +
         '</div>';
       return;
@@ -15566,7 +15612,7 @@ var LEVEL_THEMES = {
       var likeCount = Number(p.likeCount || 0);
       var likedByMe = !!p.likedByMe;
       var likeColor = likedByMe ? 'var(--red)' : 'var(--muted)';
-      var likeIcon  = likedByMe ? '❤️' : '🤍';
+      var likeIcon  = uiIconInline(likedByMe ? 'heartOn' : 'heart', 14);
       var replyFormId = 'replyForm_' + safeJs(p.postId) + '_' + sfx;
 
       return '<div id="post_' + safeJs(p.postId) + '_' + sfx + '" style="' + (isReply ? 'margin-left:44px;border-left:2px solid var(--line);padding-left:12px;' : '') + 'padding:14px 0;border-bottom:1px solid var(--line);">' +
@@ -15585,7 +15631,7 @@ var LEVEL_THEMES = {
             // Actions row
             '<div style="display:flex;align-items:center;gap:14px;">' +
               // Like button — passes self (this) for optimistic update
-              '<button id="likeBtn_' + safeJs(p.postId) + '_' + sfx + '" onclick="moduleForumLike(\'' + safeJs(p.postId) + '\',\'' + safeJs(moduleId) + '\',\'' + containerId + '\',this)" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px;font-size: 0.82rem;color:' + likeColor + ';font-family:inherit;padding:0;">' +
+              '<button data-liked="' + (likedByMe ? '1' : '0') + '" id="likeBtn_' + safeJs(p.postId) + '_' + sfx + '" onclick="moduleForumLike(\'' + safeJs(p.postId) + '\',\'' + safeJs(moduleId) + '\',\'' + containerId + '\',this)" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:4px;font-size: 0.82rem;color:' + likeColor + ';font-family:inherit;padding:0;">' +
                 likeIcon + (likeCount > 0 ? ' ' + likeCount : '') +
               '</button>' +
               // Reply button (only on top-level posts)
@@ -15641,11 +15687,12 @@ var LEVEL_THEMES = {
   window.moduleForumLike = function(postId, moduleId, containerId, btn) {
     // Optimistic update: immediately toggle the like icon
     if (btn) {
-      var liked = btn.textContent.trim().startsWith('❤️');
-      var currentTxt = btn.textContent.trim();
-      var currentCount = parseInt(currentTxt.replace(/[^0-9]/g, ''), 10) || 0;
+      var liked = btn.getAttribute('data-liked') === '1';
+      var currentCount = parseInt(btn.textContent.replace(/[^0-9]/g, ''), 10) || 0;
       var newCount = liked ? Math.max(0, currentCount - 1) : currentCount + 1;
-      btn.textContent = (liked ? '🤍' : '❤️') + (newCount > 0 ? ' ' + newCount : '');
+      btn.setAttribute('data-liked', liked ? '0' : '1');
+      btn.innerHTML = uiIconInline(liked ? 'heart' : 'heartOn', 14) +
+                      (newCount > 0 ? newCount : '');
       btn.style.color = liked ? 'var(--muted)' : 'var(--red)';
       btn.disabled = true;
     }
@@ -15658,9 +15705,11 @@ var LEVEL_THEMES = {
       })
       .withFailureHandler(function() {
         if (btn) {
-          var liked2 = btn.textContent.trim().startsWith('❤️');
+          var liked2 = btn.getAttribute('data-liked') === '1';
           var n2 = parseInt(btn.textContent.replace(/[^0-9]/g, ''), 10) || 0;
-          btn.textContent = (liked2 ? '🤍' : '❤️') + (n2 > 0 ? ' ' + n2 : '');
+          btn.setAttribute('data-liked', liked2 ? '0' : '1');
+          btn.innerHTML = uiIconInline(liked2 ? 'heart' : 'heartOn', 14) +
+                          (n2 > 0 ? n2 : '');
           btn.style.color = liked2 ? 'var(--muted)' : 'var(--red)';
           btn.disabled = false;
         }
@@ -15927,11 +15976,11 @@ var LEVEL_THEMES = {
     container.innerHTML =
       '<div style="padding:40px 20px;text-align:center;">' +
         (passed
-          ? '<div style="font-size: 2rem;margin-bottom:16px;">🏆</div>' +
+          ? '<div style="font-size: 2rem;margin-bottom:16px;color:var(--accent);">' + uiIcon('trophy', 30) + '</div>' +
             '<h3 style="margin:0 0 8px;color:var(--green);">Passed!</h3>' +
             '<p style="margin:0 0 6px;color:var(--muted);">Score: <strong style="color:var(--text);font-size: 1.15rem;">' + score + '%</strong></p>' +
             '<p style="margin:0;font-size:0.82rem;color:var(--muted);">Module complete — badge awarded.</p>'
-          : '<div style="font-size: 2rem;margin-bottom:16px;">📋</div>' +
+          : '<div style="font-size: 2rem;margin-bottom:16px;color:var(--muted);">' + uiIcon('paper', 30) + '</div>' +
             '<h3 style="margin:0 0 8px;color:var(--red);">Score: ' + score + '%</h3>' +
             '<p style="margin:0 0 6px;color:var(--muted);">Need 85% to pass.</p>' +
             (res.cooldownUntil ? '<p style="margin:0;font-size:0.82rem;color:var(--yellow);">Next attempt available at ' + _fmtTime(res.cooldownUntil) + '</p>' : '')
@@ -15951,7 +16000,7 @@ var LEVEL_THEMES = {
     google.script.run
       .withSuccessHandler(function(res) {
         if (!res || !res.ok || !res.audioBase64) {
-          if (btn) { btn.disabled = false; btn.textContent = '🔊 Play Audio'; }
+          if (btn) { btn.disabled = false; btn.textContent = 'Play Audio'; }
           return;
         }
         var blob  = _b64ToBlob(res.audioBase64, res.mimeType || 'audio/mp3');
@@ -15960,12 +16009,12 @@ var LEVEL_THEMES = {
         audio.play().catch(function() {});
         if (btn) {
           btn.textContent = '▶ Playing...';
-          audio.onended = function() { btn.disabled = false; btn.textContent = '🔊 Play Again'; };
-          audio.onerror = function() { btn.disabled = false; btn.textContent = '🔊 Play Audio'; };
+          audio.onended = function() { btn.disabled = false; btn.textContent = 'Play Again'; };
+          audio.onerror = function() { btn.disabled = false; btn.textContent = 'Play Audio'; };
         }
       })
       .withFailureHandler(function() {
-        if (btn) { btn.disabled = false; btn.textContent = '🔊 Play Audio'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Play Audio'; }
       })
       .apiEvalGetQuestionAudio(AppState.sessionToken, questionId);
   }
@@ -17804,7 +17853,9 @@ var LEVEL_THEMES = {
 
   function _renderSpeakingBuilder(moduleId, moduleTitle, prompts) {
     function promptRow(p) {
-      var typeLabel = p.type === 'image_description' ? '🖼 Image' : '🎤 Interview';
+      var typeLabel = p.type === 'image_description'
+                      ? uiIconInline('image') + 'Image'
+                      : uiIconInline('mic')   + 'Interview';
       return '<tr>' +
         '<td style="padding:8px 12px;text-align:center;color:var(--muted);">' + p.promptOrder + '</td>' +
         '<td style="padding:8px 12px;font-size: 0.82rem;">' + typeLabel + '</td>' +
@@ -17942,7 +17993,10 @@ var LEVEL_THEMES = {
     var pending = submissions.filter(function(s) { return s.status === 'pending'; });
     var graded  = submissions.filter(function(s) { return s.status === 'graded'; });
 
-    function typeLabel(t) { return t === 'image_description' ? '🖼 Image' : '🎤 Interview'; }
+    function typeLabel(t) {
+      return t === 'image_description' ? uiIconInline('image') + 'Image'
+                                       : uiIconInline('mic')   + 'Interview';
+    }
 
     function _fmtDate(iso) {
       if (!iso) return '—';
@@ -22408,7 +22462,7 @@ var LEVEL_THEMES = {
   function _s0() {
     return (
       '<div style="text-align:center;padding:8px 0 4px;">' +
-        '<div style="font-size: 2rem;margin-bottom:14px;">✈</div>' +
+        '<div style="font-size: 2rem;margin-bottom:14px;color:var(--accent);">' + uiIcon('plane', 30) + '</div>' +
         '<h2 style="margin:0 0 10px;color:var(--text);font-size: 1.35rem;">Welcome to ICAO Trainer</h2>' +
         '<p style="color:var(--muted);margin:0 0 6px;line-height:1.6;">Practice real ATC radio communications with authentic voices and professional phraseology.</p>' +
         '<p style="color:var(--muted);font-size:0.82rem;margin:0 0 24px;">This 60-second walkthrough shows you exactly how a training session works.</p>' +
@@ -23015,7 +23069,7 @@ var LEVEL_THEMES = {
     if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending...'; }
     google.script.run
       .withSuccessHandler(function (res) {
-        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send Challenge ✈'; }
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send Challenge'; }
         if (res.status !== 'success') {
           _gToast(res.message || 'Could not send challenge.', 'err');
           return;
@@ -23026,7 +23080,7 @@ var LEVEL_THEMES = {
         _gToast('Challenge sent to ' + (_gam.targetName || _gam.targetEmail) + '!', 'ok');
       })
       .withFailureHandler(function () {
-        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send Challenge ✈'; }
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send Challenge'; }
         _gToast('Connection error. Try again.', 'err');
       })
       .sendChallenge(AppState.sessionToken, _gam.targetEmail, scenario, score);
@@ -23400,7 +23454,7 @@ var LEVEL_THEMES = {
         // Streak badge
         var streakMkp = '';
         if (p.streakDays && p.streakDays > 0) {
-          var shield = p.streakProtected ? '&nbsp;🛡️' : '';
+          var shield = p.streakProtected ? '&nbsp;' + uiIconInline('shield', 12) : '';
           streakMkp = '<span style="font-size: 0.72rem;margin-left:5px;opacity:.85;display:inline-flex;' +
                       'align-items:center;gap:3px;" title="' + p.streakDays + '-day streak">' +
                       uiIcon('streak', 12) + p.streakDays + 'd' + shield + '</span>';
@@ -23449,7 +23503,7 @@ var LEVEL_THEMES = {
     myRow.classList.add('gam-critical-flash');
     var badge = document.createElement('span');
     badge.className   = 'gam-critical-badge';
-    badge.textContent = '⚡ CRITICAL SCENARIO';
+    badge.textContent = 'CRITICAL SCENARIO';
     myRow.insertBefore(badge, myRow.firstChild);
     setTimeout(function () {
       myRow.classList.remove('gam-critical-flash');
@@ -28324,7 +28378,7 @@ var LEVEL_THEMES = {
              _esc((res && res.error) || 'Could not load your results.') + '</div>';
     } else if (!results.length && !sections.length) {
       body = '<div style="text-align:center;padding:48px 16px;">' +
-        '<div style="font-size:2rem;margin-bottom:10px;">🎧</div>' +
+        '<div style="font-size:2rem;margin-bottom:10px;color:var(--accent);">' + uiIcon('headset', 30) + '</div>' +
         '<div style="font-size: 0.9rem;color:#c8d8e8;font-weight:700;margin-bottom:6px;">No results yet</div>' +
         '<div style="font-size:0.82rem;color:#5b7690;max-width:380px;margin:0 auto;">' +
           'Sit the ICAO Language Proficiency Test and your band, your six descriptor ' +
