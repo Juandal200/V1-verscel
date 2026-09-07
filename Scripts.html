@@ -9982,47 +9982,6 @@ var LEVEL_THEMES = {
     return Math.round((done / scenarios.length) * 100);
   }
 
-  /* What kind of thing is missing, not what it was.
-   *
-   * The card printed the keywords verbatim — "Missing: runway 27, turn right heading
-   * 050, squawk 5501, report passing 4 000 feet" — directly above a Retry button.
-   * That is the answer key. Type those four in and you pass, and after the first
-   * attempt the exercise measures nothing.
-   *
-   * Saying nothing is not the answer either: a student who fails and is told nothing
-   * learns nothing. What they need is where to listen, which is the CATEGORY. "You
-   * missed a heading and a squawk code" sends them back to the transmission. "You
-   * missed heading 050" sends them to the keyboard.
-   *
-   * The full list is still written to the attempt row and still shown to an
-   * instructor. Only the student's screen changes. */
-  var _KW_CATEGORIES = [
-    [/^runway\b|^rwy\b/i,                          'the runway'],
-    [/\bheading\b|^hdg\b/i,                        'a heading'],
-    [/\bsquawk\b|^transponder\b/i,                 'the squawk code'],
-    [/\bflight level\b|^fl\s?\d/i,                 'a flight level'],
-    [/\bfeet\b|\baltitude\b|\bclimb\b|\bdescend\b/i, 'an altitude'],
-    [/\bqnh\b|\baltimeter\b/i,                     'the altimeter setting'],
-    [/\bcontact\b|\bfrequency\b|\d{3}\.\d/i,      'a frequency or a station'],
-    [/\btaxi\b|\bvia\b|\bhold short\b|\btaxiway\b/i, 'a taxi instruction'],
-    [/\bwind\b/i,                                  'the wind'],
-    [/\bcleared\b|\bapproved\b|\bline up\b/i,     'the clearance itself'],
-    [/\breport\b/i,                                'a reporting point'],
-    [/^[a-z]+\s?\d{2,4}[a-z]?$/i,                   'your callsign']
-  ];
-
-  function _missingCategories(missing) {
-    var seen = [], out = [];
-    (missing || []).forEach(function (kw) {
-      var label = 'an element of the clearance';
-      for (var i = 0; i < _KW_CATEGORIES.length; i++) {
-        if (_KW_CATEGORIES[i][0].test(String(kw))) { label = _KW_CATEGORIES[i][1]; break; }
-      }
-      if (seen.indexOf(label) === -1) { seen.push(label); out.push(label); }
-    });
-    return out;
-  }
-
   function renderAttemptFeedback(res) {
     var evaluation = res.evaluation || {};
     var missing = evaluation.keywordsMissing || [];
@@ -10060,10 +10019,24 @@ var LEVEL_THEMES = {
     var html =
       '<h3>' + (ok ? '✓ Read-back accepted' : '✗ Non-standard read-back') + '</h3>' +
       '<p><strong>Score:</strong> ' + safeText(evaluation.score || 0) + '/100</p>' +
+      /* A wrong answer is told that it is wrong, and nothing else.
+       *
+       * This printed the keywords verbatim — "Missing: runway 27, turn right heading
+       * 050, squawk 5501" — above a Retry button, which is an answer key. It was then
+       * changed to name the KIND of thing missed rather than its value, on the
+       * reasoning that a student who fails and is told nothing learns nothing.
+       *
+       * That reasoning was wrong, because the exercise already answers it. Four
+       * listens unlock the transmission in full. The path back from a failed
+       * read-back is to listen again, and the app is built to give exactly that.
+       * Naming the missing elements — even as categories — tells them which parts to
+       * stop listening for, and listening is the whole skill.
+       *
+       * So: the score, and nothing more. What was missed is still written to the
+       * attempt row and still visible to an instructor. The student is told they were
+       * wrong and sent back to the radio, which is where the answer is. */
       (missing.length
-        ? '<p><strong>You did not read back:</strong> ' +
-            safeText(_missingCategories(missing).join(', ')) +
-            '. <span style="opacity:.75;">Listen again and read the whole clearance.</span></p>'
+        ? ''
         : '<p style="color:var(--green);"><strong>✓ All required elements included.</strong></p>') +
       /* "This run", not "route progress".
        *

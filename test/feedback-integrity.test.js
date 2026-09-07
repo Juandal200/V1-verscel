@@ -53,31 +53,31 @@ ok('the optimistic view is still separate',
 ok('and only a server response writes the confirmed set',
    /if \(correct && completionKey && !res\._fromClient\) \{\s*\n\s*AppState\.training\.serverConfirmedIds/.test(S));
 
-console.log('--- the card does not hand over the answer ---');
-const src = S.slice(S.indexOf('  var _KW_CATEGORIES'), S.indexOf('  function renderAttemptFeedback'));
-const categorise = new Function(src + 'return _missingCategories;')();
-ok('the verbatim keyword list is gone',
-   !/<strong>Missing:<\/strong>' \+ safeText\(missing\.map/.test(S));
-ok('and what replaces it names a kind',
-   /You did not read back:/.test(S));
-
-// The exact list from the screenshot.
-const real = ['runway 27', 'turn right heading 050', 'squawk 5501', 'report passing 4 000 feet'];
-const said = categorise(real).join(', ');
-console.log('    ' + said);
-ok('it names every kind that was missed', categorise(real).length === 4);
-ok('and not one of the values',           !/\d/.test(said));
-[['QNH 1013', 'the altimeter setting'],
- ['contact tower 118.1', 'a frequency or a station'],
- ['taxi via alpha', 'a taxi instruction'],
- ['flight level 350', 'a flight level'],
- ['DESERTAIR 727', 'your callsign']].forEach(([kw, want]) => {
-  ok(`"${kw}" reads as ${want}`, categorise([kw])[0] === want);
-});
-ok('an unrecognised keyword still says something useful',
-   categorise(['wibble'])[0] === 'an element of the clearance');
-ok('the same kind twice is said once',
-   categorise(['heading 050', 'heading 270']).length === 1);
+console.log('--- the card hands over nothing at all ---');
+/* CHANGED 6 Sep 2026, twice in a day, and the second time was the right one.
+ *
+ * It printed the keywords verbatim above a Retry button, which is an answer key.
+ * That became the KIND of thing missed rather than its value, on the reasoning that
+ * a student who fails and is told nothing learns nothing.
+ *
+ * The reasoning was wrong, because the exercise already answers it: four listens
+ * unlock the transmission in full. The path back from a failed read-back is to
+ * listen again, and the app exists to give exactly that. Naming the missing
+ * elements — even as categories — tells a student which parts to stop listening
+ * for, and listening is the whole skill.
+ *
+ * So the card carries the score and nothing else. What was missed is still written
+ * to the attempt row and still visible to an instructor. */
+ok('no keyword list',            !/<strong>Missing:<\/strong>/.test(S));
+ok('no category list either',    !/You did not read back/.test(S));
+ok('and the classifier that built it is gone, not merely unused',
+   !/_missingCategories/.test(S) && !/_KW_CATEGORIES/.test(S));
+ok('a wrong answer shows its score',
+   /<strong>Score:<\/strong> ' \+ safeText\(evaluation\.score \|\| 0\)/.test(S));
+ok('and adds nothing when something is missing',
+   /\(missing\.length\s*\n?\s*\? ''/.test(S));
+ok('a right answer is still told it was right',
+   /All required elements included/.test(S));
 // The data is not what changed — only what the student is shown.
 ok('the attempt row still carries every keyword',
    /keywordsMissing:\s*\(la\.keywordsMissing\s*\|\|\s*\[\]\)\.join\('\|'\)/.test(S));
