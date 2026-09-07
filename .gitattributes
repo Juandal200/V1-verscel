@@ -1,0 +1,20 @@
+# Line endings, pinned.
+#
+# Git on Windows defaults to core.autocrlf=true and rewrites every line ending on
+# checkout. Several tests match exact multi-line strings, so a Windows clone of
+# this repo failed five suites — gas-proxy, results-paywall, locked-history,
+# no-duplicate-functions and email-palette — on a codebase that was fine. The
+# files were identical; only the invisible characters differed.
+#
+# This settles it in the repo rather than in each person's git config, so a clone
+# is the same on any machine whatever anyone has set locally.
+* text=auto eol=lf
+
+# Binary, so git never touches them.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.mp3  binary
+*.webm binary
