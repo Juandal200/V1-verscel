@@ -18236,8 +18236,32 @@ var LEVEL_THEMES = {
   window._renderTopbarRank          = _renderTopbarRank;
   window.byId                       = byId;
 
+  // Added after exactly the failure the note above describes, which is the second
+  // time. The emoji sweep put uiIcon calls in three later IIFEs — the First Flight
+  // tour, the squadron board and the install prompt — and none of them could see
+  // it. The tour is the one that mattered: renderHome sends every student who has
+  // not finished it straight there and returns, so a new account signed in, threw
+  // "uiIcon is not defined", and had no way past. Reloading did the same thing.
+  window.uiIcon                     = uiIcon;
+  window.uiIconInline               = uiIconInline;
+
   window._getTierFromXpKey          = _getTierFromXpKey;
   window._getTierFromXp             = _getTierFromXp;
+
+
+  /* Inline handlers run in global scope.
+   *
+   * onclick="_dcSubmitAnswer()" is evaluated as a global, not inside the closure
+   * the markup was written in — so a function declared here and named in an
+   * attribute throws the moment somebody presses the button. Nothing reports it
+   * until a student does.
+   *
+   * These were found by the same check that caught uiIcon: the daily challenge
+   * could not be opened, played, answered or submitted, and the printed report's
+   * download button did nothing at all. */
+  window._downloadUnifiedProgressPdf = _downloadUnifiedProgressPdf;
+  window._qfToggleSection            = _qfToggleSection;
+  window._qfToggleType               = _qfToggleType;
 
 })();
 
@@ -30166,5 +30190,23 @@ window._aeroPageInstall       = _aeroPageInstall;
   } else {
     _aeroRenderInstallPage();
   }
+
+  /* Inline handlers run in global scope.
+   *
+   * onclick="_dcSubmitAnswer()" is evaluated as a global, not inside the closure
+   * the markup was written in — so a function declared here and named in an
+   * attribute throws the moment somebody presses the button. Nothing reports it
+   * until a student does.
+   *
+   * These were found by the same check that caught uiIcon: the daily challenge
+   * could not be opened, played, answered or submitted, and the printed report's
+   * download button did nothing at all. */
+  window._dcPlayAudio               = _dcPlayAudio;
+  window._dcSelectOpt               = _dcSelectOpt;
+  window._dcStopAudio               = _dcStopAudio;
+  window._dcSubmitAnswer            = _dcSubmitAnswer;
+  window.openDailyChallenge         = openDailyChallenge;
+  window.renderAdminDailyChallenges = renderAdminDailyChallenges;
+
 })();
 </script>
