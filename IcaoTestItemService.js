@@ -695,10 +695,27 @@ function _icaoNormLine_(text) {
 var ICAO_DEFAULT_ANSWER_SECS_ = {
   INTERVIEW: 120,
   IMAGE:     120,
+  '1':       120,
   '2A':       60,
   '2B':       90,
-  '2C':       60
+  '2C':       60,
+  '3':       120
 };
+
+/* A question with no time is a question nobody is asked.
+ *
+ * A step only opens the microphone when answerSeconds is above zero or it carries a
+ * picture. That is right for a LINE — a transition is not answered — and right for
+ * an AUDIO, which is listened to. It was wrong for everything else: a question row
+ * whose cell was blank, in a section with no default of its own, inherited zero and
+ * was spoken and then skipped. The candidate was not told, and the sitting was one
+ * question shorter than the paper it claimed to be.
+ *
+ * Sixty seconds is the floor for anything that asks. A paper that wants longer says
+ * so in the sheet, and a row that explicitly says 0 is still honoured — that is how
+ * an author says "play this and move on". What is no longer possible is silence by
+ * omission. */
+var ICAO_MIN_ANSWER_SECS_ = 60;
 
 // An explicit value in the sheet, else the structural default the assembler
 // passes, else the per-type fallback.
@@ -709,7 +726,17 @@ function _icaoRowSecs_(row, fallback) {
     if (!isNaN(n) && n >= 0) return Math.min(600, Math.round(n));
   }
   if (fallback !== undefined) return Number(fallback) || 0;
-  return _icaoAnswerSecs_(row);
+  var secs = _icaoAnswerSecs_(row);
+  // Said out loud, the way a row carrying no voice already says so. A paper that
+  // relies on a floor is a paper somebody forgot to fill in.
+  if (secs === ICAO_MIN_ANSWER_SECS_) {
+    try {
+      Logger.log('[ICAO] item ' + (row.itemId || '?') + ' (' + (row.itemType || '?') +
+                 ', section ' + (row.section || '?') + ') has no answerSeconds; ' +
+                 'using the ' + ICAO_MIN_ANSWER_SECS_ + 's floor');
+    } catch (e) {}
+  }
+  return secs;
 }
 
 function _icaoAnswerSecs_(row) {
@@ -724,7 +751,10 @@ function _icaoAnswerSecs_(row) {
   if (type === 'AUDIO') return 0;   // the recording is listened to, not answered
   if (type === 'INTERVIEW') return ICAO_DEFAULT_ANSWER_SECS_.INTERVIEW;
   if (type === 'IMAGE')     return ICAO_DEFAULT_ANSWER_SECS_.IMAGE;
-  return ICAO_DEFAULT_ANSWER_SECS_[String(row.section || '').toUpperCase()] || 0;
+  // Anything else asks something. A section default if there is one, and a floor
+  // if there is not, so a blank cell cannot silence a question.
+  var bySection = ICAO_DEFAULT_ANSWER_SECS_[String(row.section || '').toUpperCase()];
+  return Number(bySection) > 0 ? bySection : ICAO_MIN_ANSWER_SECS_;
 }
 
 /**
