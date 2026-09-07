@@ -17,29 +17,71 @@ console.log('--- the numbers never leave the server ---');
 const api = T.slice(T.indexOf('function apiGetMyIcaoResults'),
                     T.indexOf('function apiSaveIcaoTranscript'));
 ok('the endpoint asks whether this plan may read',  /getUserAccessStatus_\(user\)\.status/.test(api));
-// Zeros rather than nulls: a null crashed every client that had not yet received the
-// guard for it, and Apps Script deploys hours before the browser does. What matters
-// is that no REAL measurement leaves the server, not which empty value stands in.
-ok('a locked row carries no real band',             /band:\s*0,/.test(api));
-ok('and every descriptor is zeroed',                /pronunciation: 0, structure: 0, vocabulary: 0/.test(api));
+// CHANGED 6 Sep 2026 — the band is given, the reasons are sold.
+//
+// The band used to be withheld too, so half an hour of speaking bought a padlock
+// and a free account's only attempt was spent discovering that. There was nothing
+// in the result to be curious about and therefore nothing to buy. The overall band
+// is the one number that means something on its own — it is what goes on a licence
+// — so it is given. What is still withheld, and still withheld HERE rather than in
+// CSS, is every REASON: the six descriptor scores and the examiner's words.
+// Zeros rather than nulls for the descriptors: a null crashed every client that had
+// not yet received the guard for it, and Apps Script deploys hours before the
+// browser does.
+ok('a locked row carries the real band',
+   /locked:  true,[\s\S]{0,120}version:/.test(api) &&
+   /band:    Number\(r\[idx\['Overall Band'\]\]\) \|\| 0,\n\s*locked:  true/.test(api));
+ok('and every descriptor is still zeroed',          /pronunciation: 0, structure: 0, vocabulary: 0/.test(api));
+ok('no descriptor score leaves the server for a free account',
+   !/pronunciation: Number[\s\S]{0,400}locked:\s*true/.test(api));
 ok('nothing null is sent to an older client',       !/band:\s*null/.test(api) && !/scores:\s*null/.test(api));
 ok('it still says the sitting happened',            /date:\s*String\(r\[idx\['Date'\]\]/.test(api));
-ok('the locked branch returns before the real one',
-   api.indexOf('band:    0,') < api.indexOf("band:    Number(r[idx['Overall Band']])"));
+ok('the locked branch returns before the full one',
+   api.indexOf('locked:  true') < api.lastIndexOf("scores: {"));
 
-console.log('--- the history draws a lock, not a zero ---');
-ok('the chip takes the locked flag',      /function bandChip\(b, locked\)/.test(S));
-ok('both rows pass it',                   (S.match(/bandChip\(r\.band, r\.locked\)/g)||[]).length === 2);
-ok('a locked row says so in words',       /r\.locked \? 'Result locked'/.test(S));
+console.log('--- the history shows the band and gates the bars ---');
+// CHANGED 6 Sep 2026. The chip used to draw a padlock because there was no number
+// to put in it — the band was withheld too. There is one now, so a free row reads
+// like a paid one down to the label, and only the six bars are behind the gate.
+ok('the chip just draws the band',        /function bandChip\(b\) \{/.test(S));
+ok('and no longer takes a locked flag',   !/function bandChip\(b, locked\)/.test(S));
+ok('nor is one passed to it',             !/bandChip\(r\.band, r\.locked\)/.test(S));
+ok('no row says "Result locked" any more', !/'Result locked'/.test(S));
+const card = S.slice(S.indexOf('function _lockedSittingCard'),
+                     S.indexOf('function bars(scores)'));
+ok('a free sitting shows its real band',  /_bandChipNumber\(band\)/.test(card));
+ok('with the band it actually scored',    /var band = Number\(r\.band\) \|\| 0;/.test(card));
+ok('and no invented Band 4 behind a blur', !/_bandChipNumber\(4\)/.test(card));
+ok('the six bars are what is gated',      /filter:blur\(6px\)[\s\S]{0,200}bars\(\{/.test(card));
+ok('and the offer names what is behind them',
+   /See what made this band/.test(card));
 ok('the descriptor rails render empty',   /function _lockedBars/.test(S));
 ok('missing scores fall back to empty rails', /function bars\(scores\) \{[\s\S]{0,60}if \(!scores\) return _lockedBars\(\)/.test(S));
 
+console.log('--- and it is said before, not after ---');
+// A free candidate sat twenty-five to thirty minutes, speaking the whole way, and
+// was handed a padlock — having spent the only attempt a free account gets to find
+// that out. Nothing on the briefing screen warned them.
+const begin = S.slice(S.indexOf('This is a full ICAO aviation English proficiency exam'),
+                      S.indexOf('id="teaBeginBtn"'));
+ok('the briefing tells a free candidate what they will get',
+   /_teaResultsLocked\(\)/.test(begin) && /On the free plan/.test(begin));
+ok('it names the band as the thing they keep',   /overall ICAO band/.test(begin));
+ok('and the six descriptors as the thing they buy',
+   /six descriptor scores/.test(begin));
+ok('it says how long the exam takes',            /30 minutes/.test(begin));
+ok('and that the free plan allows one sitting',  /one sitting/.test(begin));
+ok('a paying candidate is not shown any of it',
+   begin.indexOf('_teaResultsLocked()') < begin.indexOf('On the free plan'));
+
 console.log('--- the blurred report has nothing behind it ---');
-ok('the blur renders a redacted copy',    /filter:blur\(7px\)[\s\S]{0,700}_renderScoreJSON\(_teaRedactScores\(json\)\)/.test(S));
+ok('the blur renders a redacted copy',
+   /filter:blur\(7px\)[\s\S]{0,400}_renderScoreJSON\(_teaRedactScores\(json\)/.test(S));
 ok('the unlocked report is untouched',    /: '<div class="tea-score-box">' \+ _renderScoreJSON\(json\)/.test(S));
 
 // Run the real redactor and prove nothing survives it.
-const src = S.slice(S.indexOf('  function _teaRedactScores(json)'), S.indexOf('  function _renderScoreJSON(json)'));
+const src = S.slice(S.indexOf('  function _teaRedactScores(json)'),
+                    S.indexOf('  function _renderBandHeaderOnly(json)'));
 const redact = new Function(src + 'return _teaRedactScores;')();
 const real = { student_view: {
   overall_band: 5, pronunciation: 5, structure: 4,
@@ -47,7 +89,11 @@ const real = { student_view: {
   fluency: 5, comprehension: 4, interactions: 5, summary: 'A strong candidate.'
 }, admin_view: { transcript: 'Ex: ... Ca: I fly the A320 ...' } };
 const out = redact(real);
-ok('the overall band is gone',   out.student_view.overall_band === 0);
+// CHANGED 6 Sep 2026. The band is kept on purpose — it is the one number that
+// means something on its own, and withholding it left somebody who had just spoken
+// for half an hour with nothing to be curious about and therefore nothing to buy.
+ok('the band is kept, because that is the hook',
+   out.student_view.overall_band === 5);
 ok('every descriptor is zeroed',
    ['pronunciation','structure','fluency','comprehension','interactions']
      .every(k => out.student_view[k] === 0));
@@ -55,8 +101,8 @@ ok('object-shaped scores keep their shape but lose the number',
    out.student_view.vocabulary.score === 0 && out.student_view.vocabulary.feedback === '');
 ok('the written summary is gone',       out.student_view.summary === '');
 ok('the transcript never reaches it',   !JSON.stringify(out).includes('A320'));
-ok('nothing from the real report survives',
-   !/\b[4-6]\b/.test(JSON.stringify(out).replace(/"overall_band":0/, '')));
+ok('no reason survives it',
+   !/\b[4-6]\b/.test(JSON.stringify(out).replace(/"overall_band":\d+/, '')));
 
 console.log('--- and the result is still never spoken ---');
 ok('no band in any spoken line', !/overall ICAO band is/.test(S));

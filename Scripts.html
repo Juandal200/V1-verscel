@@ -27565,9 +27565,16 @@ var LEVEL_THEMES = {
   // A copy of the report with every measurement removed. The headings, the six
   // descriptor rows and the layout survive; the numbers and the examiner's written
   // justification do not.
+  /* What a free candidate sees behind the gate.
+   *
+   * The overall band is kept — it is the one number that means something on its own,
+   * and withholding it left somebody who had just spoken for half an hour with
+   * nothing to be curious about. What is redacted is every reason: the six
+   * descriptor scores and the examiner's words. That is the report, and the report
+   * is the thing being sold. */
   function _teaRedactScores(json) {
     var sv = (json && json.student_view) || {};
-    var out = { student_view: { overall_band: 0 }, admin_view: {} };
+    var out = { student_view: { overall_band: Number(sv.overall_band) || 0 }, admin_view: {} };
     ['pronunciation','structure','vocabulary','fluency','comprehension','interactions']
       .forEach(function (k) {
         var v = sv[k];
@@ -27577,22 +27584,38 @@ var LEVEL_THEMES = {
     return out;
   }
 
-  function _renderScoreJSON(json) {
+  /* The band banner alone, for the free result — the same markup the full report
+   * opens with, so the two read as one document with the rest of it withheld
+   * rather than as two different screens. */
+  function _renderBandHeaderOnly(json) {
+    var sv = (json && json.student_view) || {};
+    var band = Number(sv.overall_band) || 0;
+    return '<div class="tea-score-json">' + _bandBannerHtml(band) + '</div>';
+  }
+
+  function _bandBannerHtml(band) {
+    var ink = band >= 5 ? 'var(--accent)' : band === 4 ? 'var(--accent)' : 'var(--red)';
+    return '<div class="tea-score-band-header">' +
+             '<div class="tea-score-band-label">OVERALL ICAO BAND</div>' +
+             '<div class="tea-score-band-value" style="color:' + ink + ';">' + band + '</div>' +
+             '<div class="tea-score-band-sub" style="color:' + ink + ';">' +
+               (band >= 5 ? 'Extended' : band === 4 ? 'Operational'
+                : band === 3 ? 'Pre-Operational' : 'Below Operational') + '</div>' +
+           '</div>';
+  }
+
+  function _renderScoreJSON(json, opts) {
     var sv = json.student_view;
     var av = json.admin_view;
     var descriptors = ['pronunciation','structure','vocabulary','fluency','comprehension','interactions'];
     var band = sv.overall_band;
-    var bandColor = band >= 5 ? 'var(--accent)' : band === 4 ? '#5b9bd5' : '#e05252';
 
     var html = '<div class="tea-score-json">';
 
-    // Overall band banner
-    html += '<div class="tea-score-band-header">';
-    html += '<div class="tea-score-band-label">OVERALL ICAO BAND</div>';
-    html += '<div class="tea-score-band-value" style="color:' + bandColor + ';">' + band + '</div>';
-    html += '<div class="tea-score-band-sub" style="color:' + bandColor + ';">' +
-      (band >= 5 ? 'Extended' : band === 4 ? 'Operational' : band === 3 ? 'Pre-Operational' : 'Below Operational') + '</div>';
-    html += '</div>';
+    // Overall band banner. Omitted when the caller has already drawn it above the
+    // gate — a free result shows the band for real and blurs only the reasons, and
+    // repeating the banner inside the blur would show it twice.
+    if (!opts || opts.bandHeader !== false) html += _bandBannerHtml(band);
 
     // 6 descriptor cards (student view)
     //
@@ -27950,28 +27973,44 @@ var LEVEL_THEMES = {
           // the result is withheld. Blurring rather than hiding is deliberate: the
           // report is visibly there, finished, and theirs. That is a far better
           // argument than a price list shown before they had done anything.
+          /* The band is read. The reasons are bought.
+           *
+           * Everything here used to sit behind the blur, band included — so half an
+           * hour of speaking bought a padlock, and a free account's only attempt was
+           * spent discovering that. Nothing in it to be curious about, and therefore
+           * nothing to buy.
+           *
+           * The band is the number that means something on its own: it is what goes
+           * on a licence. It is given. What is withheld is every REASON — which of
+           * the six descriptors held them back, and the examiner's words — because
+           * that is the report, and the report is the product.
+           *
+           * Redacted, not merely blurred. A CSS filter is a picture of a gate: the
+           * descriptor scores used to sit in the DOM behind it, readable by anyone
+           * who opened dev tools. What is behind the blur is the SHAPE of the report
+           * with no numbers in it. */
           (_teaResultsLocked()
-            ? '<div style="position:relative;">' +
+            ? '<div class="tea-score-box tea-score-box--band">' +
+                _renderBandHeaderOnly(json) +
+              '</div>' +
+              '<div style="position:relative;margin-top:12px;">' +
                 '<div class="tea-score-box" style="filter:blur(7px);pointer-events:none;' +
-                  // Redacted, not merely blurred. A CSS filter is a picture of a gate:
-                // the real band and every descriptor score sat in the DOM behind it,
-                // readable by anyone who opened dev tools or copied the page. What is
-                // behind the blur now is the SHAPE of the report with no numbers in
-                // it, so the argument to subscribe is still "your finished report is
-                // here" without the report being handed to whoever thinks to look.
-                'user-select:none;" aria-hidden="true">' + _renderScoreJSON(_teaRedactScores(json)) + '</div>' +
+                'user-select:none;" aria-hidden="true">' +
+                  _renderScoreJSON(_teaRedactScores(json), { bandHeader: false }) + '</div>' +
                 '<div style="position:absolute;inset:0;display:flex;flex-direction:column;' +
                   'align-items:center;justify-content:center;text-align:center;padding:24px;">' +
-                  '<div style="background:var(--panel,var(--panel));border-radius:16px;' +
+                  '<div style="background:var(--panel);border-radius:16px;' +
                     'border:1px solid var(--line);padding:22px 24px;' +
-                    'max-width:380px;box-shadow: var(--shadow-3);">' +
-                    '<p class="eyebrow" style="margin:0 0 8px;">Your result is ready</p>' +
-                    '<h3 style="margin:0 0 10px;font-size:1.15rem;color:var(--white,#fff);">' +
-                      'Unlock your ICAO band</h3>' +
+                    'max-width:400px;box-shadow: var(--shadow-3);">' +
+                    '<p class="eyebrow" style="margin:0 0 8px;">Your band is above</p>' +
+                    '<h3 style="margin:0 0 10px;font-size:1.15rem;color:var(--text);">' +
+                      'See why you scored it</h3>' +
                     '<p style="margin:0 0 16px;font-size: 0.82rem;line-height:1.6;' +
-                      'color:var(--muted,#808080);">You completed the full examination and it ' +
-                      'has been marked against all six ICAO descriptors. Subscribe to see your ' +
-                      'bands and the examiner\u2019s feedback.</p>' +
+                      'color:var(--muted);">Your sitting was marked against all six ICAO ' +
+                      'descriptors \u2014 pronunciation, structure, vocabulary, fluency, ' +
+                      'comprehension and interactions. Subscribe to see which of them held ' +
+                      'you back, read the examiner\u2019s feedback on each, and download ' +
+                      'your certificate.</p>' +
                     '<button class="btn primary full" onclick="openSubscriptionModal()">' +
                       'See plans</button>' +
                   '</div>' +
@@ -28030,14 +28069,11 @@ var LEVEL_THEMES = {
 
     // A withheld band is a padlock, not a zero. Rendering 0 or an em-dash would read
     // as a result — and a poor one — rather than as something not yet bought.
-    function bandChip(b, locked) {
-      if (locked) {
-        return '<div style="width:44px;height:44px;border-radius:12px;flex-shrink:0;display:flex;' +
-          'align-items:center;justify-content:center;font-size: 1rem;' +
-          'background:rgba(var(--lift-rgb), 0.06);color:var(--muted,#808080);' +
-          'border:1px solid var(--line);">\u{1F512}</div>';
-      }
-      return _bandChipNumber(b);
+    /* The chip shows the band whether or not the reasons are paid for. It used to
+     * show a padlock, because the band was withheld too — there was no number to
+     * put in it. There is now. */
+    function bandChip(b) {
+      return _bandChipNumber(Number(b) || 0);
     }
 
     function _bandChipNumber(b) {
@@ -28060,32 +28096,40 @@ var LEVEL_THEMES = {
     }
 
     // One sitting, blurred, with the way to unlock it laid over the top.
+    /* A sitting on a free account: the band is read, the reasons are not.
+     *
+     * This drew a fabricated Band 4 with six fabricated descriptor bars behind a
+     * blur, so what a candidate saw was a shape and a padlock. Their real band is
+     * theirs, so it is shown — the chip, the label and the date, exactly as a paid
+     * row shows them — and only the six bars are withheld, because those are what
+     * the subscription is for. */
     function _lockedSittingCard(r) {
-      var inner =
+      var band = Number(r.band) || 0;
+      var label = band >= 5 ? 'Extended' : band === 4 ? 'Operational'
+                : band === 3 ? 'Pre-Operational' : 'Below Operational';
+
+      return '<div class="tea-score-box" style="margin-bottom:10px;">' +
         '<div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;">' +
-          _bandChipNumber(4) +
+          _bandChipNumber(band) +
           '<div style="flex:1;min-width:0;">' +
-            '<div style="font-size: 0.9rem;font-weight:800;color:#dde2e6;">Operational</div>' +
-            '<div style="font-size:0.72rem;color:#5b7690;">' + _esc(when(r.date)) +
+            '<div style="font-size: 0.9rem;font-weight:800;color:var(--text);">' + label + '</div>' +
+            '<div style="font-size:0.72rem;color:var(--muted);">' + _esc(when(r.date)) +
               (r.version ? ' \u00b7 version ' + _esc(r.version) : '') + '</div>' +
           '</div>' +
-        '</div>' + bars({
-          pronunciation: 4, structure: 4, vocabulary: 4,
-          fluency: 4, comprehension: 4, interactions: 4
-        });
-
-      return '<div class="tea-score-box" style="margin-bottom:10px;position:relative;overflow:hidden;">' +
-        '<div style="filter:blur(7px);pointer-events:none;user-select:none;" aria-hidden="true">' +
-          inner +
         '</div>' +
-        '<div style="position:absolute;inset:0;display:flex;flex-direction:column;' +
-          'align-items:center;justify-content:center;text-align:center;padding:16px;' +
-          'background:rgba(var(--scrim-rgb), 0.65);">' +
-          '<p class="eyebrow" style="margin:0 0 6px;">' + _esc(when(r.date)) + '</p>' +
-          '<div style="font-size: 0.9rem;font-weight:800;color:var(--white,#fff);margin-bottom:10px;">' +
-            'Your result is ready</div>' +
-          '<button class="btn primary" style="padding:8px 18px;font-size: 0.82rem;" ' +
-            'onclick="if(window.openSubscriptionModal)openSubscriptionModal()">See plans</button>' +
+        '<div style="position:relative;overflow:hidden;border-radius:8px;">' +
+          '<div style="filter:blur(6px);pointer-events:none;user-select:none;" aria-hidden="true">' +
+            bars({ pronunciation: 4, structure: 4, vocabulary: 4,
+                   fluency: 4, comprehension: 4, interactions: 4 }) +
+          '</div>' +
+          '<div style="position:absolute;inset:0;display:flex;align-items:center;' +
+            'justify-content:center;gap:10px;flex-wrap:wrap;padding:8px;' +
+            'background:rgba(var(--scrim-rgb), 0.55);">' +
+            '<span style="font-size:0.72rem;color:var(--text);font-weight:600;">' +
+              'See what made this band</span>' +
+            '<button class="btn primary" style="padding:6px 14px;font-size: 0.72rem;" ' +
+              'onclick="if(window.openSubscriptionModal)openSubscriptionModal()">See plans</button>' +
+          '</div>' +
         '</div>' +
       '</div>';
     }
@@ -28144,10 +28188,11 @@ var LEVEL_THEMES = {
           if (r.locked) return _lockedSittingCard(r);
           return '<div class="tea-score-box" style="margin-bottom:10px;">' +
             '<div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;">' +
-              bandChip(r.band, r.locked) +
+              bandChip(r.band) +
               '<div style="flex:1;min-width:0;">' +
                 '<div style="font-size: 0.9rem;font-weight:800;color:#dde2e6;">' +
-                  (r.locked ? 'Result locked' : r.band >= 5 ? 'Extended' : r.band === 4 ? 'Operational' : r.band === 3 ? 'Pre-Operational' : 'Below Operational') +
+                  (r.band >= 5 ? 'Extended' : r.band === 4 ? 'Operational' :
+                   r.band === 3 ? 'Pre-Operational' : 'Below Operational') +
                 '</div>' +
                 '<div style="font-size:0.72rem;color:#5b7690;">' + _esc(when(r.date)) +
                   (r.version ? ' · version ' + _esc(r.version) : '') +
@@ -28164,7 +28209,7 @@ var LEVEL_THEMES = {
         body += part.map(function(r) {
           return '<div class="tea-score-box" style="margin-bottom:8px;opacity:.78;">' +
             '<div style="display:flex;gap:10px;align-items:center;">' +
-              bandChip(r.band, r.locked) +
+              bandChip(r.band) +
               '<div><div style="font-size:0.82rem;font-weight:700;color:#c8d8e8;">Part ' + _esc(r.scope) + '</div>' +
               '<div style="font-size: 0.72rem;color:#5b7690;">' + _esc(when(r.date)) + '</div></div>' +
             '</div>' +
@@ -28574,9 +28619,33 @@ var LEVEL_THEMES = {
       '<div class="tea-begin-shell" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 60px);background:var(--bg);gap:24px;">' +
         '<div class="tea-part-badge" style="font-size:0.9rem;padding:6px 18px;">ICAO TEST</div>' +
         '<div style="font-size: 1.35rem;font-weight:700;color:var(--text);">ICAO Language Proficiency Test</div>' +
-        '<div style="font-size: 0.82rem;color:var(--muted);text-align:center;max-width:320px;line-height:1.6;">' +
+        '<div style="font-size: 0.82rem;color:var(--muted);text-align:center;max-width:340px;line-height:1.6;">' +
           'This is a full ICAO aviation English proficiency exam.<br>The examiner will speak. Respond via microphone.' +
         '</div>' +
+        /* Said before, not after.
+         *
+         * A free candidate used to sit twenty-five to thirty minutes, speaking the
+         * whole way, and be handed a padlock — having spent the only attempt a free
+         * account gets to find that out. Nothing on this screen warned them.
+         *
+         * They get their band now, which is the number that goes on a licence and
+         * the one worth knowing on its own. What the subscription buys is the
+         * reasons: which of the six descriptors held them back, and what the
+         * examiner said about each. That is worth stating here, where somebody can
+         * still decide, rather than at the end where they cannot. */
+        (_teaResultsLocked()
+          ? '<div style="max-width:400px;padding:13px 16px;border-radius:12px;' +
+              'background:rgba(var(--accent-rgb), 0.05);border:1px solid var(--line);' +
+              'font-size:0.72rem;line-height:1.65;color:var(--muted);text-align:left;">' +
+              '<span style="display:block;font-weight:700;letter-spacing:0.06em;' +
+                'text-transform:uppercase;color:var(--text);margin-bottom:5px;">' +
+                'On the free plan</span>' +
+              'You will get your <strong style="color:var(--text);">overall ICAO band</strong> ' +
+              'at the end. The six descriptor scores, the examiner\u2019s feedback on each ' +
+              'and your certificate need a subscription. The exam takes about 30 minutes ' +
+              'and your free plan allows one sitting.' +
+            '</div>'
+          : '') +
         '<button onclick="window._teaMyResults()" ' +
           'style="padding:9px 22px;background:transparent;border:1px solid var(--line);' +
           'color:var(--muted);border-radius: 8px;font-size:0.82rem;cursor:pointer;">' +

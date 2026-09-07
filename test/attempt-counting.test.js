@@ -28,7 +28,17 @@ ok('and that runs before the row is built',
    results.indexOf("Number(r[idx['Overall Band']]) > 0") < results.indexOf('results.push('));
 
 console.log('--- the paywall still applies to what remains ---');
-ok('locked rows still carry no real band',   /band:\s*0,/.test(results));
+// CHANGED 6 Sep 2026 — the band is given, the reasons are sold.
+//
+// The band used to be withheld too, so half an hour of speaking bought a padlock
+// and a free account's only attempt was spent discovering that. There was nothing
+// in the result to be curious about and therefore nothing to buy. The overall band
+// is the one number that means something on its own — it is what goes on a licence
+// — so it is given. What is still withheld, and still withheld HERE rather than in
+// CSS, is every REASON: the six descriptor scores and the examiner's words.
+ok('locked rows carry the band and no descriptors',
+   /locked:  true/.test(results) &&
+   /pronunciation: 0, structure: 0, vocabulary: 0/.test(results));
 ok('locked rows still carry no real scores', /pronunciation: 0, structure: 0, vocabulary: 0/.test(results));
 
 /* Drive the real filter over rows shaped like the sheet. */

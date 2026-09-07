@@ -280,10 +280,26 @@ function apiGetMyIcaoResults(sessionToken) {
           // separately it showed one examination as two, the second carrying no band
           // and labelled "Below Operational" — a failing grade for a row never marked.
           if (!(Number(r[idx['Overall Band']]) > 0)) return;
-          // A locked result is sent as a sitting that happened, carrying no numbers.
-          // The date and the fact of it are not what is being charged for.
+          /* The band is theirs. The reasons are what is sold.
+           *
+           * This used to send a locked sitting with band 0 — so somebody who had
+           * spoken for half an hour was handed a date and a padlock, learned nothing
+           * about their English, and had spent the only attempt a free account gets
+           * finding that out. There was nothing in it to be curious about and
+           * therefore nothing to buy.
+           *
+           * The overall band is the one number a pilot actually cares about: it is
+           * the thing that goes on a licence. Giving it away costs nothing and turns
+           * the result into a reason to subscribe — a student who reads "Band 3"
+           * wants to know WHICH of the six descriptors held them back and what to do
+           * about it, and that is exactly what the paid report is.
+           *
+           * The six descriptors, the examiner's justification and the certificate
+           * stay behind the gate, and they stay behind it HERE — the numbers are not
+           * sent and then hidden, because a paywall drawn in CSS is a picture of a
+           * gate. */
           if (locked) {
-            // Zeros, not nulls.
+            // Zeros for the descriptors, not nulls.
             //
             // Sending null was correct for the client I had just written and a crash
             // for the one already on the phone: Apps Script deploys the instant it is
@@ -292,11 +308,11 @@ function apiGetMyIcaoResults(sessionToken) {
             // died with "null is not an object".
             //
             // A server may not assume the client it is talking to is the client it
-            // was written against. Zeros carry no result, and an old build renders
-            // them as an empty report rather than falling over.
+            // was written against. An older build reads the band it is given and
+            // renders empty bars beneath it, which is the right shape by accident.
             results.push({
               date:    String(r[idx['Date']] || ''),
-              band:    0,
+              band:    Number(r[idx['Overall Band']]) || 0,
               locked:  true,
               version: String(r[idx['Version']] || ''),
               scores: {

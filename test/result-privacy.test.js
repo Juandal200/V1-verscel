@@ -21,7 +21,17 @@ ok('no spoken string interpolates a band',
 
 console.log('--- the report on screen is still gated ---');
 ok('the paywall check survives',      /function _teaResultsLocked/.test(S));
-ok('and still blurs the score box',   /_teaResultsLocked\(\)[\s\S]{0,220}filter:blur/.test(S));
+// CHANGED 6 Sep 2026 — the band is given, the reasons are sold.
+//
+// The band used to be withheld too, so half an hour of speaking bought a padlock
+// and a free account's only attempt was spent discovering that. There was nothing
+// in the result to be curious about and therefore nothing to buy. The overall band
+// is the one number that means something on its own — it is what goes on a licence
+// — so it is given. What is still withheld, and still withheld HERE rather than in
+// CSS, is every REASON: the six descriptor scores and the examiner's words.
+ok('and still blurs the reasons',    /_teaResultsLocked\(\)[\s\S]{0,900}filter:blur/.test(S));
+ok('while the band is shown for real',
+   /_teaResultsLocked\(\)[\s\S]{0,200}_renderBandHeaderOnly\(json\)/.test(S));
 
 console.log(fails?('\n'+fails+' FAILING'):'\nall green');
 process.exit(fails?1:0);
