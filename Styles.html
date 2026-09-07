@@ -12198,7 +12198,21 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   gap: 10px;
 }
 
-.shop-card-icon { font-size: 2rem; line-height: 1; }
+/* The button goes to the bottom, whatever the card above it says.
+ *
+ * Two cards side by side, same width, same border, same radius — and their most
+ * important element at different heights, because each one's button sat wherever
+ * its own text happened to stop. They were built as two cards rather than as one
+ * card twice. */
+.shop-card > .btn:last-child { margin-top: auto; }
+
+.shop-card-icon {
+  color: var(--accent);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  min-height: 26px;
+}
 .shop-card-title { margin: 0; font-size: 1.15rem; font-weight: 800; color: var(--text); }
 .shop-card-desc  { margin: 0; font-size: 0.82rem; color: var(--muted); line-height: 1.55; }
 .shop-card-count { display: flex; align-items: baseline; }

@@ -6072,6 +6072,18 @@ var LEVEL_THEMES = {
 
     setActiveNav('Simulator');
 
+    /* Which screen asked for this.
+     *
+     * setActiveNav bumps _navToken on every change of tab, and about thirty async
+     * handlers across the client capture it and bail if it has moved. The simulator
+     * — the busiest flow in the product — never adopted it. So a route that arrived
+     * after you had gone somewhere else rendered the scenario list onto whatever you
+     * were looking at, which is how a Begin Route button ended up under the Shop.
+     *
+     * Captured AFTER setActiveNav, so it is this navigation's token and not the one
+     * before it. */
+    var _navTok = _navToken;
+
     var countryMeta = getCountryUi(selectedCountry);
 
     // Same radar the debrief uses, so the route opens and closes on one visual.
@@ -6083,12 +6095,14 @@ var LEVEL_THEMES = {
 
     var _routeLoadTimer = setTimeout(function() {
       _routeLoadTimer = null;
+      if (_navToken !== _navTok) return;   // no error about a screen they left
       _routeLoader.stop();
       showContentError('Connection timed out. Check your network and try again.');
     }, 15000);
 
     google.script.run
       .withSuccessHandler(function (res) {
+        if (_navToken !== _navTok) return;   // the student is somewhere else now
         if (!_routeLoadTimer) return; // already timed out
         clearTimeout(_routeLoadTimer);
         _routeLoader.stop();
@@ -6147,6 +6161,7 @@ var LEVEL_THEMES = {
 
         google.script.run
           .withSuccessHandler(function(cfg) {
+            if (_navToken !== _navTok) return;
             if (cfg && cfg.ok && cfg.replayThreshold >= 1) {
               AppState.training.replayThreshold = Number(cfg.replayThreshold);
               _openRoute();
@@ -6154,10 +6169,14 @@ var LEVEL_THEMES = {
             }
             _replayThresholdUnavailable(_openRoute);
           })
-          .withFailureHandler(function() { _replayThresholdUnavailable(_openRoute); })
+          .withFailureHandler(function() {
+            if (_navToken !== _navTok) return;
+            _replayThresholdUnavailable(_openRoute);
+          })
           .apiGetLevelConfig(AppState.sessionToken, selectedLevel);
       })
       .withFailureHandler(function (err) {
+        if (_navToken !== _navTok) return;
         clearTimeout(_routeLoadTimer);
         showContentError(err && err.message ? err.message : 'Server error loading training route.');
       })
@@ -6287,9 +6306,10 @@ var LEVEL_THEMES = {
      * gone: a saved position now carries the ids confirmed in ITS OWN session. So the
      * lifetime figure is kept as a figure — a number to show beside the run, not a
      * set to be counted as part of it. */
-    (function(_scns, _lvl, _ctry) {
+    (function(_scns, _lvl, _ctry, _tok) {
       google.script.run
         .withSuccessHandler(function(r) {
+          if (_navToken !== _tok) return;
           if (!r || !r.ok || !r.completedScenarioIds) return;
           var done = {};
           r.completedScenarioIds.forEach(function(id) { done[String(id).trim()] = true; });
@@ -6308,7 +6328,8 @@ var LEVEL_THEMES = {
       // and crashed Begin Route. Read the same values off the shared state, with
       // the route payload as a fallback.
       Number((data && data.level) || AppState.training.selectedLevel || 0),
-      String((data && data.country) || AppState.training.selectedCountry || '')
+      String((data && data.country) || AppState.training.selectedCountry || ''),
+      _navToken
     );
     AppState.training.lastAttempt = null;
     AppState.training.lastProgress = null;
@@ -9658,6 +9679,10 @@ var LEVEL_THEMES = {
 
     // Background server save — syncs real XP total and triggers rank-up check
     var _capturedIndex = index;
+    // Which screen asked. The state this response carries is kept whatever happens
+    // — an answer already given must be recorded — but nothing is DRAWN unless the
+    // student is still where they were when they sent it.
+    var _submitTok = _navToken;
     google.script.run
       .withSuccessHandler(function(res) {
         if (!res || !res.ok) return;
@@ -9669,7 +9694,8 @@ var LEVEL_THEMES = {
         // gated on server confirmation, so the action row has to be rebuilt or the
         // student would click "Next exercise" on a correct answer and be told to
         // submit a correct read-back. Only for the phase still on screen.
-        if (Number(AppState.training.currentIndex || 0) === _capturedIndex && res.evaluation) {
+        if (_navToken === _submitTok &&
+            Number(AppState.training.currentIndex || 0) === _capturedIndex && res.evaluation) {
           renderAttemptFeedback({
             evaluation:     res.evaluation,
             expectedAnswer: res.expectedAnswer || scenario.expectedReadback || '',
@@ -9677,8 +9703,9 @@ var LEVEL_THEMES = {
             _fromServer:    true
           });
         }
-        // The award, now that it is real.
-        if (Number(AppState.training.currentIndex || 0) === _capturedIndex &&
+        // The award, now that it is real. Not onto another screen.
+        if (_navToken === _submitTok &&
+            Number(AppState.training.currentIndex || 0) === _capturedIndex &&
             res.attempt && res.attempt.correct) {
           _showXpFloat(25);
         }
@@ -10572,6 +10599,9 @@ var LEVEL_THEMES = {
   }
 
   function renderTrainingFinished() {
+    // The debrief takes a few seconds to assemble. It must not arrive on a screen
+    // the student moved to while it was being built.
+    var _finishTok = _navToken;
     var scenarios    = AppState.training.scenarios || [];
     // Deliberately does NOT force-mark the current scenario. That assumption held
     // only while the client and server graded identically; when they diverged it
@@ -10634,6 +10664,7 @@ var LEVEL_THEMES = {
     var level   = Number(AppState.training.selectedLevel   || (AppState.training.lastProgress && AppState.training.lastProgress.level)   || 1);
     var country = String(AppState.training.selectedCountry || (AppState.training.lastProgress && AppState.training.lastProgress.country) || 'USA');
 
+    if (_navToken !== _finishTok) return;
     byId('contentArea').innerHTML =
       '<div class="completion-loading-shell">' +
         '<div class="completion-loading-radar">' +
@@ -10666,6 +10697,8 @@ var LEVEL_THEMES = {
       var fill = byId('completionLoadingFill');
       if (fill) fill.style.width = '100%';
       setTimeout(function() {
+        // Not onto a screen they left while the debrief was being assembled.
+        if (_navToken !== _finishTok) return;
         // Streak bump animation before showing the completion screen
         if (newStreakDays && newStreakDays > (window._lmsStreakDays || 0)) {
           window._lmsStreakDays = newStreakDays;
@@ -12059,7 +12092,7 @@ var LEVEL_THEMES = {
           // A price written down in two places is a price that will disagree with
           // itself. Filled in by _shopFillPlanCard once the plans arrive.
           '<div class="shop-card">' +
-            '<div class="shop-card-icon">🚀</div>' +
+            '<div class="shop-card-icon">' + uiIcon('climb', 26) + '</div>' +
             '<h3 class="shop-card-title">Full Access</h3>' +
             '<p class="shop-card-desc">Unlock the ATC Simulator, all country routes, immersive scenarios, and more.</p>' +
             '<div class="shop-card-count">' +
@@ -13005,6 +13038,10 @@ var LEVEL_THEMES = {
   // ── LMS HUB ──────────────────────────────────────────────────────────────────
   function renderLMSHub() {
     setActiveNav('Simulator');
+    // Captured after setActiveNav, so it is this navigation's token. The progress
+    // call below fills a block inside the hub, and must not fill one on a screen
+    // the student has moved to since.
+    var _hubTok = _navToken;
     var modules = [
       { id: 'engines',      icon: '&#9881;',  title: 'Aircraft Engines',       desc: 'Match key engine terms to their definitions.',        status: 'available' },
       { id: 'nonroutine',   icon: '&#9888;',  title: 'Non-Routine Operations', desc: 'Scenario-based recognition of abnormal procedures.',  status: 'available' },
@@ -13072,6 +13109,7 @@ var LEVEL_THEMES = {
     // Update ICAO test status once API responds
     google.script.run
       .withSuccessHandler(function(res) {
+        if (_navToken !== _hubTok) return;
         if (!res || !res.ok) return;
         var status = res.status || 'available';
         var last   = res.lastResult || {};
