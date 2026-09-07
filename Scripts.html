@@ -9760,6 +9760,8 @@ var LEVEL_THEMES = {
       .withSuccessHandler(function(res) {
         if (!res || !res.ok) return;
         if (res.attempt) res.attempt._scenarioIndex = _capturedIndex;
+        // Noted before anything draws, so the panel below has it to show.
+        if (res.streakEvent) noteStreakEvent(res.streakEvent);
         syncTrainingProgressFromAttempt(res);
 
         // Re-render the panel from the SERVER's verdict once it lands. The client
@@ -9775,6 +9777,7 @@ var LEVEL_THEMES = {
             progress:       res.progress || AppState.training.lastProgress || null,
             _fromServer:    true
           });
+          showPendingStreakEvent();
         }
         // The award, now that it is real. Not onto another screen.
         if (_navToken === _submitTok &&
@@ -10722,6 +10725,9 @@ var LEVEL_THEMES = {
           if (res.progress) AppState.training.lastProgress = res.progress;
           if (res.lmsXpTotal !== undefined) window._lmsLmsXp = res.lmsXpTotal;
           if (res.lmsStreakDays) window._lmsStreakDays = res.lmsStreakDays;
+          // Finishing a route is the other moment a missed day is settled. Noted
+          // here; the panel is shown after the debrief rather than over it.
+          if (res.streakEvent) noteStreakEvent(res.streakEvent);
         })
         .withFailureHandler(function () {})
         .apiFinalizeRoute(AppState.sessionToken, {
@@ -10792,6 +10798,8 @@ var LEVEL_THEMES = {
         }
         renderCompletionExperience(catalog);
         if (debriefRows) _injectDebriefTable(debriefRows);
+        // After the debrief, not over it — one piece of news at a time.
+        setTimeout(showPendingStreakEvent, 900);
       }, 400);
     }
 
@@ -12121,6 +12129,93 @@ var LEVEL_THEMES = {
       })
       .apiGetWompiPlans(AppState.sessionToken);
   }
+
+  /* "Your streak was saved."
+   *
+   * A freeze used to be spent in silence. The student paid five hundred XP, missed
+   * a day, came back — and the only visible consequence was a snowflake quietly
+   * gone from the top bar at a moment they were not looking at it. The streak it
+   * rescued looked exactly like a streak that had never been in danger, so the
+   * thing they bought did its work and left no trace of having done it.
+   *
+   * The rescue is the product. This is it, said once, in the same shape as the
+   * streak card on the home screen: the mark, the number, what happened to it.
+   *
+   * Shown once per event and never chased — it appears on the answer that triggered
+   * the update, and if the student is mid-exercise it waits for the feedback panel
+   * rather than interrupting a read-back. */
+  var _pendingStreakEvent = null;
+
+  function noteStreakEvent(ev) {
+    if (!ev || (!ev.saved && !ev.lost)) return;
+    _pendingStreakEvent = ev;
+    if (typeof ev.freezesLeft === 'number') window._lmsStreakFreezes = ev.freezesLeft;
+    if (ev.lost) window._lmsStreakDays = 1;
+  }
+
+  function showPendingStreakEvent() {
+    var ev = _pendingStreakEvent;
+    if (!ev) return;
+    _pendingStreakEvent = null;
+
+    var days   = Number(ev.streakDays) || 0;
+    var missed = Number(ev.daysMissed) || 1;
+    var dayWord = missed === 1 ? 'a day' : missed + ' days';
+
+    var body = ev.saved
+      ? { mark:  uiIcon('freeze', 34),
+          ink:   'var(--accent)',
+          big:   days,
+          unit:  days === 1 ? 'day streak' : 'day streak',
+          head:  'Your streak was saved',
+          // Says what it cost and what is left, because both are the reason to
+          // consider buying another.
+          sub:   'You missed ' + dayWord + '. A streak freeze covered it, so your ' +
+                 days + '-day streak is still standing.',
+          foot:  (ev.freezesLeft > 0
+                    ? ev.freezesLeft + ' freeze' + (ev.freezesLeft === 1 ? '' : 's') + ' left'
+                    : 'That was your last freeze'),
+          cta:   ev.freezesLeft > 0 ? '' : 'Get another' }
+      : { mark:  uiIcon('streak', 34),
+          ink:   'var(--muted)',
+          big:   1,
+          unit:  'day streak',
+          head:  'Your streak reset',
+          sub:   'You missed ' + dayWord + ' and had no freeze. Your ' + days +
+                 '-day streak has started again from one.',
+          foot:  'A streak freeze covers a missed day',
+          cta:   'Get one' };
+
+    var host = document.createElement('div');
+    host.className = 'streak-event-scrim';
+    host.innerHTML =
+      '<div class="streak-event-card" role="dialog" aria-live="polite">' +
+        '<div class="streak-event-mark" style="color:' + body.ink + ';">' + body.mark + '</div>' +
+        '<div class="streak-event-big">' + safeText(body.big) + '</div>' +
+        '<div class="streak-event-unit">' + body.unit + '</div>' +
+        '<h3 class="streak-event-head">' + safeText(body.head) + '</h3>' +
+        '<p class="streak-event-sub">' + safeText(body.sub) + '</p>' +
+        '<p class="streak-event-foot">' + safeText(body.foot) + '</p>' +
+        '<div class="streak-event-actions">' +
+          (body.cta
+            ? '<button class="btn secondary" onclick="_streakEventClose();_navTo(renderShop);">' +
+                safeText(body.cta) + '</button>'
+            : '') +
+          '<button class="btn primary" onclick="_streakEventClose()">Keep training</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(host);
+    requestAnimationFrame(function () { host.classList.add('in'); });
+    window._streakEventHost = host;
+  }
+
+  window._streakEventClose = function () {
+    var h = window._streakEventHost;
+    if (!h) return;
+    window._streakEventHost = null;
+    h.classList.remove('in');
+    setTimeout(function () { if (h.parentNode) h.parentNode.removeChild(h); }, 260);
+  };
 
   function renderShop() {
     setActiveNav('Shop');

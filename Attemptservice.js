@@ -105,13 +105,16 @@ var AttemptService = {
 
     var progress = ProgressService.updateUserProgress(user, scenario);
     var lmsXpTotal;
-    var lmsStreakDays;
+    var lmsStreakDays, streakEvent = null;
     try {
       if (evaluation.correct) {
         lmsXpTotal = lmsAddXp_(user.userId, 25);
         // Return the new count so the client can tell an increment from a
         // same-day refresh and celebrate only when the streak actually grows.
         lmsStreakDays = lmsUpdateStreak_(user.userId);
+        // What that update DID, not just what it left behind — a freeze paying for
+        // a missed day is news, and the number alone cannot carry it.
+        try { streakEvent = lmsTakeStreakEvent_(); } catch (e) {}
       }
     } catch(e) {}
 
@@ -122,7 +125,8 @@ var AttemptService = {
       progress: progress,
       expectedAnswer: scenario.expectedReadback,
       lmsXpTotal: lmsXpTotal,
-      lmsStreakDays: lmsStreakDays
+      lmsStreakDays: lmsStreakDays,
+      streakEvent:   streakEvent
     };
   },
 
@@ -966,12 +970,13 @@ function apiFinalizeRoute(sessionToken, payload) {
     // XP and the streak were awarded per answer before; they are settled here now, so
     // a route grants exactly what its correct answers earned rather than one award
     // per round-trip.
-    var lmsXpTotal, lmsStreakDays;
+    var lmsXpTotal, lmsStreakDays, streakEvent = null;
     try {
       var correct = Number(payload.correctCount || 0);
       if (correct > 0) {
         lmsXpTotal   = lmsAddXp_(user.userId, 25 * correct);
         lmsStreakDays = lmsUpdateStreak_(user.userId);
+        try { streakEvent = lmsTakeStreakEvent_(); } catch (e2) {}
       }
     } catch (e) {
       Logger.log('[finalizeRoute] xp/streak: ' + e.message);
@@ -983,7 +988,8 @@ function apiFinalizeRoute(sessionToken, payload) {
       finalized: done,
       missing: missing,
       lmsXpTotal: lmsXpTotal,
-      lmsStreakDays: lmsStreakDays
+      lmsStreakDays: lmsStreakDays,
+      streakEvent:   streakEvent
     };
   } catch (err) {
     return apiError_('apiFinalizeRoute', err);

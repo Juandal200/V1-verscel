@@ -2214,6 +2214,87 @@
   opacity: 0.85;
 }
 
+/* "Your streak was saved."
+ *
+ * A freeze used to be spent in silence — the snowflake simply gone from the top
+ * bar at a moment nobody was watching, and the streak it rescued looking exactly
+ * like one that had never been at risk. Five hundred XP for something that left
+ * no trace of having worked.
+ *
+ * Shaped like the streak card on the home screen so it reads as the same object
+ * with news attached, rather than as a dialog that arrived from somewhere else. */
+.streak-event-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(var(--scrim-rgb), 0.65);
+  opacity: 0;
+  transition: opacity 0.25s var(--ease);
+}
+.streak-event-scrim.in { opacity: 1; }
+
+.streak-event-card {
+  width: 100%;
+  max-width: 340px;
+  padding: 28px 24px 22px;
+  border-radius: 22px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-3);
+  text-align: center;
+  transform: translateY(10px) scale(0.98);
+  transition: transform 0.25s var(--ease);
+}
+.streak-event-scrim.in .streak-event-card { transform: none; }
+
+.streak-event-mark { display: flex; justify-content: center; margin-bottom: 14px; }
+
+/* The number is the point of the card, the way it is on the streak card itself. */
+.streak-event-big {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.streak-event-unit {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 2px 0 14px;
+}
+.streak-event-head {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text);
+}
+.streak-event-sub {
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.streak-event-foot {
+  margin: 0 0 18px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.streak-event-actions { display: flex; gap: 8px; }
+.streak-event-actions .btn { flex: 1; font-size: 0.82rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  .streak-event-scrim, .streak-event-card { transition: none; }
+}
+
 .flag-shell {
   display: inline-grid;
   place-items: center;

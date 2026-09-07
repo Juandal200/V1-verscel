@@ -58,8 +58,14 @@ ok('the feedback card is gated on it',
 ok('the XP chip is gated on it',
    /if \(_navToken === _submitTok &&[\s\S]{0,160}_showXpFloat\(25\)/.test(submit));
 // The state must NOT be gated. Dropping this loses an answer the student gave.
+// The intent, not the distance. This counted characters between the handler
+// opening and the sync, and broke the moment a line was added between them —
+// which says nothing about whether the sync is guarded, only about how far down
+// it sits. What matters is that no token check stands between the two.
+const upToSync = submit.slice(submit.indexOf('withSuccessHandler'),
+                              submit.indexOf('syncTrainingProgressFromAttempt(res);'));
 ok('but the attempt is still synced whatever screen they are on',
-   /withSuccessHandler\(function\(res\) \{\s*\n\s*if \(!res \|\| !res\.ok\) return;\s*\n[\s\S]{0,120}syncTrainingProgressFromAttempt\(res\);/.test(submit));
+   upToSync.length > 0 && !/_navToken !== _submitTok/.test(upToSync));
 
 console.log('--- the debrief does not arrive somewhere else ---');
 const fin = fnBody('renderTrainingFinished');

@@ -219,6 +219,10 @@ function lmsUpdateStreak_(userId) {
     var lastMid  = lastTs ? toMidnight(lastTs) : 0;
     var daysDiff = Math.round((todayMid - lastMid) / 86400000);
 
+    // Reset first. A streak event belongs to the call that produced it, and a
+    // request that changes nothing must not inherit the last one's news.
+    _LMS_LAST_STREAK_EVENT_ = null;
+
     if (daysDiff === 0) {
       // Same calendar day — just refresh timestamp, no change to count
       dbUpdateByRow_('UserStreaks', row.__rowNumber, { lastActiveAt: now.toISOString() });
@@ -228,13 +232,32 @@ function lmsUpdateStreak_(userId) {
       longest = Math.max(streakDays, longest);
       dbUpdateByRow_('UserStreaks', row.__rowNumber, { streakDays: streakDays, lastActiveAt: now.toISOString(), longestStreak: longest });
     } else {
-      // Missed at least one day — use a freeze before resetting
+      /* Missed at least one day — a freeze covers it, if there is one.
+       *
+       * This spent the freeze and said nothing. A student paid five hundred XP for
+       * something whose entire visible behaviour was a snowflake quietly vanishing
+       * from the top bar at a moment they were not watching — and the streak it
+       * saved looked exactly like a streak that had never been at risk.
+       *
+       * The saving IS the product. It is now reported, so it can be shown. */
       var freezes = 0;
       try { freezes = _dcGetFreezes_(userId); } catch(e) {}
       if (freezes > 0) {
         try { _dcSetFreezes_(userId, freezes - 1); } catch(e) {}
         dbUpdateByRow_('UserStreaks', row.__rowNumber, { lastActiveAt: now.toISOString() });
+        _LMS_LAST_STREAK_EVENT_ = {
+          saved:        true,
+          streakDays:   streakDays,
+          daysMissed:   daysDiff - 1,
+          freezesLeft:  Math.max(0, freezes - 1)
+        };
       } else {
+        _LMS_LAST_STREAK_EVENT_ = {
+          saved:      false,
+          lost:       true,
+          streakDays: streakDays,   // what it WAS, before the reset
+          daysMissed: daysDiff - 1
+        };
         streakDays = 1;
         dbUpdateByRow_('UserStreaks', row.__rowNumber, { streakDays: 1, lastActiveAt: now.toISOString() });
       }
@@ -243,6 +266,25 @@ function lmsUpdateStreak_(userId) {
   } catch(e) {
     return 0;
   }
+}
+
+/* What the last streak update actually did.
+ *
+ * lmsUpdateStreak_ returns a day count, which cannot distinguish "twelve days, as
+ * it was yesterday" from "twelve days, because a freeze just paid for the day you
+ * missed". The second is the whole reason somebody bought the freeze, and it was
+ * invisible.
+ *
+ * A module-level slot rather than a changed return type, because lmsUpdateStreak_
+ * is called from four places and three of them only want the number. Read it with
+ * lmsTakeStreakEvent_ immediately after, which also clears it. */
+var _LMS_LAST_STREAK_EVENT_ = null;
+
+/** The event from the update just performed, once. Null if it was an ordinary day. */
+function lmsTakeStreakEvent_() {
+  var e = _LMS_LAST_STREAK_EVENT_;
+  _LMS_LAST_STREAK_EVENT_ = null;
+  return e;
 }
 
 function lmsGetProgress_(userId, moduleId) {
