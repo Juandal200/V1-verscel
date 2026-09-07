@@ -8,7 +8,7 @@ export const config = {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Expected-Readback');
 
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
   if (req.method !== 'POST') {
@@ -42,6 +42,51 @@ export default async function handler(req, res) {
     formData.append('file', audioBlob, 'audio.webm');
     formData.append('model', 'whisper-1');
     formData.append('language', 'en');
+
+    /* Tell it what it is listening to.
+     *
+     * Whisper was transcribing general English, so a student who said "turn right
+     * heading zero five zero, climb four thousand feet" was marked twenty out of a
+     * hundred for "Tongue Right" and "zero-zero-FIT". The read-back was correct; the
+     * transcription was not, and the score was the transcription's.
+     *
+     * The prompt biases it toward a vocabulary. It is not a filter and it does not
+     * force the words — a candidate who says something else still gets what they
+     * said. It only makes the aviation reading of an ambiguous sound the likelier
+     * one, which is exactly right when the ambiguity is between "turn right" and
+     * "tongue right".
+     *
+     * There is a 224-token limit and the tail is what counts, so the scenario's own
+     * expected read-back goes last: the closer a phrase is to the end of the prompt,
+     * the more weight it carries.
+     *
+     * _BASE_FIXES in the client — forty entries repairing "queue and h" to QNH and
+     * "squork" to SQUAWK — is the same job done afterwards, by hand, and only for
+     * mistakes somebody already noticed. This is the same job done before. */
+    const PHRASEOLOGY =
+      'Air traffic control radiotelephony. ICAO standard phraseology. ' +
+      'Cleared for takeoff, cleared to land, line up and wait, hold short, ' +
+      'taxi via, contact tower, contact ground, report passing, climb and maintain, ' +
+      'descend and maintain, turn left heading, turn right heading, squawk, ' +
+      'QNH, altimeter, wilco, roger, affirm, negative, standby, say again, ' +
+      'runway, flight level, feet, knots, ILS, ATIS, wind check, go around, ' +
+      'pushback approved, request descent, traffic in sight, ' +
+      'zero one two three four five six seven eight niner, ' +
+      'alpha bravo charlie delta echo foxtrot golf hotel india juliett kilo lima ' +
+      'mike november oscar papa quebec romeo sierra tango uniform victor whiskey ' +
+      'x-ray yankee zulu.';
+
+    // The client sends the clearance this answer is a read-back OF. Header rather
+    // than body, because the body is the raw audio.
+    const expected = String(req.headers['x-expected-readback'] || '')
+      .slice(0, 400)
+      .replace(/[\r\n]+/g, ' ')
+      .trim();
+
+    formData.append('prompt', expected ? PHRASEOLOGY + ' ' + expected : PHRASEOLOGY);
+    // Deterministic. Left to its own devices Whisper invents when it is unsure, and
+    // an invented word is scored as a wrong one.
+    formData.append('temperature', '0');
 
     const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',

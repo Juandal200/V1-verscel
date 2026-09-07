@@ -135,8 +135,12 @@ console.log('--- Full is sorted by colour, Basic is not ---');
 // The marks take currentColor, so tinting one sets the colour of its cell and the
 // drawing is untouched. Only the emergency block is tinted, because that block is
 // what Full has and Basic does not — colour doing the sorting, not the decorating.
+// The exact signature, not a prefix. 'function _missing' also matches
+// _missingCategories, which was added later and sits earlier in the file — the
+// slice then ran backwards and matched nothing, which a test reads as a fail if
+// you are lucky and as a pass if you are not.
 const feat = S.slice(S.indexOf('function _feat(icon, text, strong, tone)'),
-                     S.indexOf('function _missing'));
+                     S.indexOf('function _missing(icon, text)'));
 ok('the feature row takes a tone', /tone === 'danger'/.test(feat) && /tone === 'warn'/.test(feat));
 ok('and defaults to the accent',   /: 'var\(--accent\)';/.test(feat));
 const list = S.slice(S.indexOf('var featureList ='), S.indexOf('var featureList =') + 2400);

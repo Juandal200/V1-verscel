@@ -102,6 +102,31 @@
     return result;
   }
 
+  /* Which of the recogniser's guesses to believe.
+   *
+   * SpeechRecognition ranks alternatives by its own confidence, and confidence is
+   * not the same as being aviation — "Tongue Right" outranked "turn right" on a
+   * clearance that plainly said the latter, and the student was scored on it.
+   *
+   * Every alternative is put through the same corrections, then scored on how much
+   * of the expected read-back it actually contains. Ties keep the recogniser's own
+   * order, so with nothing to go on this behaves exactly as it did before. */
+  function _bestAlternative(result, expected) {
+    var fixes = _scenarioFixes(expected);
+    var want  = String(expected || '').toLowerCase()
+                  .replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
+                  .filter(function (w) { return w.length > 2; });
+    var best = null, bestScore = -1;
+    for (var i = 0; i < result.length; i++) {
+      var text = _applyFixes(result[i].transcript, fixes);
+      var hay  = text.toLowerCase();
+      var hits = 0;
+      for (var j = 0; j < want.length; j++) if (hay.indexOf(want[j]) >= 0) hits++;
+      if (hits > bestScore) { bestScore = hits; best = text; }
+    }
+    return best !== null ? best : '';
+  }
+
   function _resetBtn(btn) {
     if (!btn) return;
     btn.classList.remove('listening', 'processing');
@@ -118,13 +143,18 @@
       return;
     }
     var rec = new SpeechRec();
-    rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 1;
+    // Several guesses, not one. The recogniser ranks them by its own confidence,
+    // which is not the same as which one is aviation — "tongue right" can outrank
+    // "turn right" and did. The grader is given all of them below.
+    rec.lang = 'en-US'; rec.interimResults = false; rec.maxAlternatives = 5;
     rec.onstart = function() {
       _gMicActive = true;
       if (btn) { btn.classList.add('listening'); btn.innerHTML = '&#9679; Listening&hellip;'; }
     };
     rec.onresult = function(e) {
-      var corrected = _applyFixes(e.results[0][0].transcript, _scenarioFixes(expected));
+      // The alternative that contains the most of what was asked for, rather than
+      // the one the recogniser happened to rank first.
+      var corrected = _bestAlternative(e.results[0], expected);
       var ta = document.getElementById(textareaId);
       if (ta) { ta.value = corrected; ta.focus(); ta.dispatchEvent(new Event('input')); }
       if (onTranscript) onTranscript(corrected);
@@ -204,9 +234,26 @@
           var mime = _gMicRecorder.mimeType || 'audio/webm';
           var blob = new Blob(_gMicChunks, { type: mime });
 
+          // The clearance travels with the audio.
+          //
+          // Whisper takes a prompt that biases it toward a vocabulary, and the best
+          // possible prompt for a read-back is the clearance being read back. It is
+          // a hint, not a filter: a candidate who says something else still gets
+          // what they said. What it fixes is the ambiguous case — "turn right" and
+          // "tongue right" sound alike, and only one of them is aviation.
+          var _hdrs = { 'Content-Type': mime };
+          if (expected) {
+            // Latin-1 only in a header value, and a clearance can carry a degree
+            // sign or an en dash. Stripped rather than encoded — the prompt is a
+            // hint and does not need to be exact.
+            var _exp = String(expected).replace(/[^\x20-\x7E]/g, ' ')
+                                       .replace(/\s+/g, ' ').trim().slice(0, 400);
+            if (_exp) _hdrs['X-Expected-Readback'] = _exp;
+          }
+
           fetch('/api/whisper', {
             method:  'POST',
-            headers: { 'Content-Type': mime },
+            headers: _hdrs,
             body:    blob
           })
           .then(function(r) { return r.json(); })
@@ -6201,6 +6248,7 @@ var LEVEL_THEMES = {
     AppState.training.scenarioStartMs = Date.now();
     AppState.training.completedScenarioIds = {};
     AppState.training.serverConfirmedIds = {};
+    AppState.training.lifetimeCompleted = null;
     // Optimistic pre-mark so the progress bar reads correctly straight away.
     // It is NOT authority: serverConfirmedIds stays empty until the seed below
     // returns, so nothing can be advanced past on the strength of this alone.
@@ -6220,22 +6268,36 @@ var LEVEL_THEMES = {
     }
     AppState.training._resumeConfirmedIds = null;
 
-    // Seed the confirmed set from what the database actually holds. Without this a
-    // resuming student would be unable to finish, because the advance gate now
-    // requires server confirmation and a resumed phase has no response in flight.
+    /* What you have ever done on this route, kept apart from what you are doing now.
+     *
+     * apiGetRouteCompletion reads the Attempts sheet by userId, level and country —
+     * no session, no date. It is your LIFETIME record. It used to be written into
+     * both working sets, and two things followed from that.
+     *
+     * The visible one: on exercise 2 of 8 the card read "Route progress 88% (7/8)",
+     * because it was reporting a history as though it were a position. The rail said
+     * 1 done and the card said 7, on the same screen.
+     *
+     * The unseen one, and the worse: serverConfirmedIds gates advancing. Seeded with
+     * a lifetime record, the gate opened on phases the student had not answered in
+     * this run — so somebody who flew the route last week could click through it
+     * this week without saying a word.
+     *
+     * The seed existed so a resuming student would not be blocked. That reason is
+     * gone: a saved position now carries the ids confirmed in ITS OWN session. So the
+     * lifetime figure is kept as a figure — a number to show beside the run, not a
+     * set to be counted as part of it. */
     (function(_scns, _lvl, _ctry) {
       google.script.run
         .withSuccessHandler(function(r) {
           if (!r || !r.ok || !r.completedScenarioIds) return;
           var done = {};
           r.completedScenarioIds.forEach(function(id) { done[String(id).trim()] = true; });
-          AppState.training.serverConfirmedIds = AppState.training.serverConfirmedIds || {};
-          _scns.forEach(function(sc, i) {
-            if (done[String(sc.scenarioId || '').trim()]) {
-              AppState.training.serverConfirmedIds['i' + i] = true;
-              AppState.training.completedScenarioIds['i' + i] = true;
-            }
+          var n = 0;
+          _scns.forEach(function(sc) {
+            if (done[String(sc.scenarioId || '').trim()]) n++;
           });
+          AppState.training.lifetimeCompleted = n;
         })
         .withFailureHandler(function() {})
         .apiGetRouteCompletion(AppState.sessionToken, { level: _lvl, country: _ctry });
@@ -9920,6 +9982,47 @@ var LEVEL_THEMES = {
     return Math.round((done / scenarios.length) * 100);
   }
 
+  /* What kind of thing is missing, not what it was.
+   *
+   * The card printed the keywords verbatim — "Missing: runway 27, turn right heading
+   * 050, squawk 5501, report passing 4 000 feet" — directly above a Retry button.
+   * That is the answer key. Type those four in and you pass, and after the first
+   * attempt the exercise measures nothing.
+   *
+   * Saying nothing is not the answer either: a student who fails and is told nothing
+   * learns nothing. What they need is where to listen, which is the CATEGORY. "You
+   * missed a heading and a squawk code" sends them back to the transmission. "You
+   * missed heading 050" sends them to the keyboard.
+   *
+   * The full list is still written to the attempt row and still shown to an
+   * instructor. Only the student's screen changes. */
+  var _KW_CATEGORIES = [
+    [/^runway\b|^rwy\b/i,                          'the runway'],
+    [/\bheading\b|^hdg\b/i,                        'a heading'],
+    [/\bsquawk\b|^transponder\b/i,                 'the squawk code'],
+    [/\bflight level\b|^fl\s?\d/i,                 'a flight level'],
+    [/\bfeet\b|\baltitude\b|\bclimb\b|\bdescend\b/i, 'an altitude'],
+    [/\bqnh\b|\baltimeter\b/i,                     'the altimeter setting'],
+    [/\bcontact\b|\bfrequency\b|\d{3}\.\d/i,      'a frequency or a station'],
+    [/\btaxi\b|\bvia\b|\bhold short\b|\btaxiway\b/i, 'a taxi instruction'],
+    [/\bwind\b/i,                                  'the wind'],
+    [/\bcleared\b|\bapproved\b|\bline up\b/i,     'the clearance itself'],
+    [/\breport\b/i,                                'a reporting point'],
+    [/^[a-z]+\s?\d{2,4}[a-z]?$/i,                   'your callsign']
+  ];
+
+  function _missingCategories(missing) {
+    var seen = [], out = [];
+    (missing || []).forEach(function (kw) {
+      var label = 'an element of the clearance';
+      for (var i = 0; i < _KW_CATEGORIES.length; i++) {
+        if (_KW_CATEGORIES[i][0].test(String(kw))) { label = _KW_CATEGORIES[i][1]; break; }
+      }
+      if (seen.indexOf(label) === -1) { seen.push(label); out.push(label); }
+    });
+    return out;
+  }
+
   function renderAttemptFeedback(res) {
     var evaluation = res.evaluation || {};
     var missing = evaluation.keywordsMissing || [];
@@ -9957,8 +10060,24 @@ var LEVEL_THEMES = {
     var html =
       '<h3>' + (ok ? '✓ Read-back accepted' : '✗ Non-standard read-back') + '</h3>' +
       '<p><strong>Score:</strong> ' + safeText(evaluation.score || 0) + '/100</p>' +
-      (missing.length ? '<p><strong>Missing:</strong> ' + safeText(missing.map(function(k){ return k.toLowerCase(); }).join(', ')) + '</p>' : '<p style="color:var(--green);"><strong>✓ All required elements included.</strong></p>') +
-      '<p class="route-progress-live"><strong>Route progress:</strong> ' + routePct + '% (' + safeText(completedCount) + '/' + safeText(total) + ' phases)</p>' +
+      (missing.length
+        ? '<p><strong>You did not read back:</strong> ' +
+            safeText(_missingCategories(missing).join(', ')) +
+            '. <span style="opacity:.75;">Listen again and read the whole clearance.</span></p>'
+        : '<p style="color:var(--green);"><strong>✓ All required elements included.</strong></p>') +
+      /* "This run", not "route progress".
+       *
+       * The old label sat over a count that had a lifetime record mixed into it, and
+       * a word that vague is what let the two be confused in the first place. What
+       * you have ever done on this route is a different fact and gets its own line,
+       * shown only when it is ahead of where you are now — otherwise it is just the
+       * same number twice. */
+      '<p class="route-progress-live"><strong>This run:</strong> ' + routePct + '% (' +
+        safeText(completedCount) + '/' + safeText(total) + ' phases)</p>' +
+      (Number(AppState.training.lifetimeCompleted) > completedCount
+        ? '<p class="route-progress-best">Best on this route: ' +
+            safeText(AppState.training.lifetimeCompleted) + '/' + safeText(total) + '</p>'
+        : '') +
       '<div class="sim-action-row">' +
         '<button class="btn secondary" onclick="retryCurrentScenario()">' + (ok ? 'Practice again' : 'Retry') + '</button>' +
         (ok
