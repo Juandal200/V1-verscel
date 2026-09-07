@@ -161,6 +161,19 @@ ok('the emergency lines are the tinted ones',
 ok('and everything both plans share is not',
    !/uiIcon\('(tower|paper|bands|seal|chart)'\)[^)]*'(danger|warn)'/.test(list));
 
+console.log('--- a drawn mark sits where the emoji it replaced sat ---');
+// The emoji these replaced were text characters, so text-align:center from the card
+// centred them. An SVG at display:block does not answer to text-align at all, so
+// every one of these marks moved to the left edge of its container — visible on the
+// First Flight tour, where a plane sat hard left under a centred heading.
+const blockIcons = [...S.matchAll(/'<(?:div|p|span)([^']*)'\s*\+\s*uiIcon\(/g)].map(m => m[1]);
+const notCentred = blockIcons.filter(a => /text-align:\s*center|font-size:\s*2rem/.test(a)
+                                          && !/justify-content:\s*center/.test(a));
+if (notCentred.length) console.log('        ' + notCentred.slice(0, 4).join('\n        '));
+ok('no block mark is left relying on text-align', notCentred.length === 0);
+ok('they centre themselves instead',
+   (S.match(/display:flex;justify-content:center;[^']*'\s*\+\s*uiIcon\(/g) || []).length >= 10);
+
 console.log('--- the accent is a flag, not two lines of text ---');
 // "INDIAN ATC" wrapped and pushed the Replay button off centre. A flag says it at
 // a glance and in one line, and getFlagHtml falls back to the character if the

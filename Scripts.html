@@ -310,7 +310,7 @@
       d.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg,var(--bg));';
       d.innerHTML =
         '<div style="background:var(--panel,var(--bg));border:1px solid var(--line);border-radius: 22px;padding:36px 32px;max-width:340px;width:100%;text-align:center;box-shadow: var(--shadow-3);">' +
-          '<p style="font-size:2rem;margin:0 0 12px;color:var(--muted);">' + uiIcon('tools', 30) + '</p>' +
+          '<p style="display:flex;justify-content:center;margin:0 0 12px;color:var(--muted);">' + uiIcon('tools', 30) + '</p>' +
           '<h3 style="color:var(--text,var(--text));margin:0 0 8px;font-size: 1.15rem;font-weight:700;">Something went wrong</h3>' +
           '<p style="color:var(--muted,var(--line));font-size: 0.82rem;margin:0 0 6px;line-height:1.5;">An unexpected error occurred. Your progress is saved.</p>' +
           (msg ? '<p style="color:var(--muted,var(--line));font-size:0.72rem;margin:0 0 24px;opacity:0.6;font-family:var(--font-instrument);word-break:break-word;">' + String(msg).slice(0, 120) + '</p>' : '<div style="margin-bottom:24px;"></div>') +
@@ -1288,7 +1288,7 @@
     overlay.innerHTML =
       '<div class="session-expired-backdrop">' +
         '<div class="session-expired-card">' +
-          '<p style="font-size:2rem;margin:0 0 12px;color:var(--accent);">' + uiIcon('plane', 30) + '</p>' +
+          '<p style="display:flex;justify-content:center;margin:0 0 12px;color:var(--accent);">' + uiIcon('plane', 30) + '</p>' +
           '<h3>Session expired</h3>' +
           '<p>Your login session has timed out. Sign in again to continue — your progress is saved.</p>' +
           '<button class="btn primary full" onclick="document.getElementById(\'sessionExpiredOverlay\').remove();showScreen(\'loginScreen\');setLoginMessage(\'\');">Sign in again</button>' +
@@ -1757,7 +1757,7 @@
     area.innerHTML =
       '<div style="min-height:70vh;display:flex;align-items:center;justify-content:center;padding:32px 16px;">' +
         '<div style="max-width:480px;width:100%;text-align:center;">' +
-          '<div style="font-size: 2rem;margin-bottom:16px;color:var(--accent);">' + uiIcon('plane', 30) + '</div>' +
+          '<div style="display:flex;justify-content:center;margin-bottom:16px;color:var(--accent);">' + uiIcon('plane', 30) + '</div>' +
           '<p class="eyebrow" style="margin-bottom:8px;">Aviation English Interactive Campus</p>' +
           '<h2 style="margin:0 0 10px;font-size: 1.6rem;">Choose your plan</h2>' +
           '<p class="subtitle" style="margin:0 0 28px;line-height:1.6;">Subscribe to keep practising. Get full access to all simulators, routes, evaluations and certificates.</p>' +
@@ -14535,7 +14535,7 @@ var LEVEL_THEMES = {
     if (!modules.length) {
       var emptyHtml =
         '<div style="padding:60px 0;text-align:center;">' +
-          '<div style="font-size: 2rem;margin-bottom:16px;color:var(--accent);">' + uiIcon('tower', 30) + '</div>' +
+          '<div style="display:flex;justify-content:center;margin-bottom:16px;color:var(--accent);">' + uiIcon('tower', 30) + '</div>' +
           '<h3 style="color:var(--muted);font-weight:400;">No modules available yet.</h3>' +
           '<p style="color:var(--muted);">Check back soon — training content is being prepared.</p>' +
         '</div>';
@@ -15368,7 +15368,7 @@ var LEVEL_THEMES = {
         '</div>' +
         (unlocked ? bodyHtml :
           '<div style="padding:28px 24px;text-align:center;">' +
-            '<div style="font-size:2rem;margin-bottom:10px;color:var(--muted);">' + uiIcon('locked', 30) + '</div>' +
+            '<div style="display:flex;justify-content:center;margin-bottom:10px;color:var(--muted);">' + uiIcon('locked', 30) + '</div>' +
             '<p style="margin:0;font-size: 0.82rem;font-weight:600;color:var(--muted);">' + (lockMsgs[key] || 'Locked') + '</p>' +
           '</div>') +
       '</div>';
@@ -15558,7 +15558,7 @@ var LEVEL_THEMES = {
           '</div>' +
           // No-forum placeholder (shown for Application/Evaluation)
           '<div id="rpNoForum" style="display:none;flex:1;align-items:center;justify-content:center;text-align:center;padding:20px;flex-direction:column;gap:8px;">' +
-            '<span style="font-size:2rem;color:var(--accent);">' + uiIcon('taxi', 28) + '</span>' +
+            '<span style="display:flex;justify-content:center;color:var(--accent);">' + uiIcon('taxi', 28) + '</span>' +
             '<p style="margin:0;font-size:0.82rem;color:var(--muted);">No forum for this section.</p>' +
           '</div>' +
           // Posts list
@@ -15675,7 +15675,7 @@ var LEVEL_THEMES = {
     if (!posts.length) {
       el.innerHTML =
         '<div style="padding:24px 0;text-align:center;">' +
-          '<div style="font-size:2rem;margin-bottom:8px;color:var(--muted);">' + uiIcon('chat', 30) + '</div>' +
+          '<div style="display:flex;justify-content:center;margin-bottom:8px;color:var(--muted);">' + uiIcon('chat', 30) + '</div>' +
           '<p style="margin:0;font-size: 0.9rem;color:var(--muted);">No posts yet — be the first to share your thoughts.</p>' +
         '</div>';
       return;
@@ -16071,11 +16071,11 @@ var LEVEL_THEMES = {
     container.innerHTML =
       '<div style="padding:40px 20px;text-align:center;">' +
         (passed
-          ? '<div style="font-size: 2rem;margin-bottom:16px;color:var(--accent);">' + uiIcon('trophy', 30) + '</div>' +
+          ? '<div style="display:flex;justify-content:center;margin-bottom:16px;color:var(--accent);">' + uiIcon('trophy', 30) + '</div>' +
             '<h3 style="margin:0 0 8px;color:var(--green);">Passed!</h3>' +
             '<p style="margin:0 0 6px;color:var(--muted);">Score: <strong style="color:var(--text);font-size: 1.15rem;">' + score + '%</strong></p>' +
             '<p style="margin:0;font-size:0.82rem;color:var(--muted);">Module complete — badge awarded.</p>'
-          : '<div style="font-size: 2rem;margin-bottom:16px;color:var(--muted);">' + uiIcon('paper', 30) + '</div>' +
+          : '<div style="display:flex;justify-content:center;margin-bottom:16px;color:var(--muted);">' + uiIcon('paper', 30) + '</div>' +
             '<h3 style="margin:0 0 8px;color:var(--red);">Score: ' + score + '%</h3>' +
             '<p style="margin:0 0 6px;color:var(--muted);">Need 85% to pass.</p>' +
             (res.cooldownUntil ? '<p style="margin:0;font-size:0.82rem;color:var(--yellow);">Next attempt available at ' + _fmtTime(res.cooldownUntil) + '</p>' : '')
@@ -22581,7 +22581,7 @@ var LEVEL_THEMES = {
   function _s0() {
     return (
       '<div style="text-align:center;padding:8px 0 4px;">' +
-        '<div style="font-size: 2rem;margin-bottom:14px;color:var(--accent);">' + uiIcon('plane', 30) + '</div>' +
+        '<div style="display:flex;justify-content:center;margin-bottom:14px;color:var(--accent);">' + uiIcon('plane', 30) + '</div>' +
         '<h2 style="margin:0 0 10px;color:var(--text);font-size: 1.35rem;">Welcome to ICAO Trainer</h2>' +
         '<p style="color:var(--muted);margin:0 0 6px;line-height:1.6;">Practice real ATC radio communications with authentic voices and professional phraseology.</p>' +
         '<p style="color:var(--muted);font-size:0.82rem;margin:0 0 24px;">This 60-second walkthrough shows you exactly how a training session works.</p>' +
@@ -28497,7 +28497,7 @@ var LEVEL_THEMES = {
              _esc((res && res.error) || 'Could not load your results.') + '</div>';
     } else if (!results.length && !sections.length) {
       body = '<div style="text-align:center;padding:48px 16px;">' +
-        '<div style="font-size:2rem;margin-bottom:10px;color:var(--accent);">' + uiIcon('headset', 30) + '</div>' +
+        '<div style="display:flex;justify-content:center;margin-bottom:10px;color:var(--accent);">' + uiIcon('headset', 30) + '</div>' +
         '<div style="font-size: 0.9rem;color:#c8d8e8;font-weight:700;margin-bottom:6px;">No results yet</div>' +
         '<div style="font-size:0.82rem;color:#5b7690;max-width:380px;margin:0 auto;">' +
           'Sit the ICAO Language Proficiency Test and your band, your six descriptor ' +
