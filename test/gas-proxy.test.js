@@ -4,10 +4,19 @@
  * rather than a killed function returning nothing, and the log names WHICH call was
  * slow — without that a 45-second failure is indistinguishable from any other. */
 const path = require('path');
+const { pathToFileURL } = require('url');
 let fails = 0; const ok=(n,c)=>{if(!c)fails++;console.log((c?'  PASS  ':'  FAIL  ')+n);};
 
 (async () => {
-  const handler = (await import(path.join(__dirname, '..', 'api', 'gas.mjs'))).default;
+  /* pathToFileURL, not a bare path.
+   *
+   * import() takes a URL. On macOS a POSIX path happens to work as one, so this
+   * passed here for months. On Windows path.join produces C:\Users\...\gas.mjs and
+   * Node refuses it — ERR_UNSUPPORTED_ESM_URL_SCHEME — so the suite threw before
+   * asserting anything. Found the first time this repo was cloned onto another
+   * machine. */
+  const modUrl  = pathToFileURL(path.join(__dirname, '..', 'api', 'gas.mjs')).href;
+  const handler = (await import(modUrl)).default;
 
   const mkRes = () => { const r={_h:{},_code:0,_json:null,
     setHeader(k,v){this._h[k]=v;}, status(c){this._code=c;return this;},
