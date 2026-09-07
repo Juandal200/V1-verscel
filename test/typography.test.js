@@ -93,7 +93,10 @@ ok(`${names.length} icons in the set`, names.length >= 17);
 // the top bar ask for went missing without a word: uiIcon returns '' for a name it
 // does not know, so a button is simply empty and nothing is thrown. Every call site
 // in the file, not the ones nearest the assertion.
-const asked = [...new Set([...S.matchAll(/uiIcon\('([a-z]+)'/g)].map(m => m[1]))];
+// uiIcon( and uiIconInline( — the second was added so a mark can sit in a line of
+// text, and a pattern anchored on "uiIcon(" matches neither it nor the icons only
+// it asks for. Six looked unused and were not.
+const asked = [...new Set([...S.matchAll(/uiIcon(?:Inline)?\('([a-z]+)'/g)].map(m => m[1]))];
 const missing = asked.filter(a => !names.includes(a));
 if (missing.length) console.log('    asked for but not drawn: ' + missing.join('  '));
 ok(`all ${asked.length} icons asked for anywhere in the client exist`, missing.length === 0);

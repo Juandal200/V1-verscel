@@ -1954,7 +1954,7 @@
 
       var simCard = _homeCard({
         gradient:   'linear-gradient(to top,rgba(0,0,0,.75) 0%,rgba(0,0,0,.25) 60%,rgba(0,0,0,.1) 100%),url(https://lh3.googleusercontent.com/d/1oBMXM9QDWKg-GjGqwaD5ZE1qff4TevL1) center/cover no-repeat',
-        icon:       { bg: 'var(--accent)', emoji: '🎙️' },
+        icon:       { bg: 'var(--accent)', emoji: uiIcon('mic', 20) },
         badge:      'ATC Simulator',
         title:      _cpPending ? ('Checkpoint ' + _cpGate) : 'ATC Radio Simulator',
         subtitle:   _cpPending
@@ -4717,7 +4717,20 @@
     locked: '<rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/>' +
             '<path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
     passed: '<circle cx="12" cy="12" r="8.5"/><path d="M8.2 12.2l2.6 2.6 5-5.4"/>',
-    retry:  '<path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4.5h-4.5"/>'
+    retry:  '<path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4.5h-4.5"/>',
+    // The rest of the interface, in the same hand. Two hundred colour emoji were
+    // still scattered through it — a lightning bolt, a satellite dish, a padlock —
+    // each from a different designer, in a palette the app does not use.
+    bolt:   '<path d="M13.5 2.5L5 13.5h5.5L10 21.5 19 10h-5.5z"/>',
+    plane:  '<path d="M10.5 20.5l1.5-5.5 6.5-2 2.5-2.2a1.6 1.6 0 0 0-1.6-2.7l-3 1.1-5.4-4.7-1.8.6 3 5.4-3.4 1.2-2.6-1.7-1.4.5 2 3.3-1 2.4 2.4-1 3.3 2 .5-1.4-1.7-2.6 1.2-3.4"/>',
+    mic:    '<rect x="9" y="2.5" width="6" height="11" rx="3"/>' +
+            '<path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5v4"/><path d="M8.5 21.5h7"/>',
+    speaker:'<path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z"/>' +
+            '<path d="M15.5 9.5a3.5 3.5 0 0 1 0 5"/><path d="M18 7a7 7 0 0 1 0 10"/>',
+    trophy: '<path d="M7.5 3.5h9v5a4.5 4.5 0 0 1-9 0z"/>' +
+            '<path d="M7.5 5H5a2.5 2.5 0 0 0 2.5 2.5"/><path d="M16.5 5H19a2.5 2.5 0 0 1-2.5 2.5"/>' +
+            '<path d="M12 13v3.5"/><path d="M8.5 20.5h7"/><path d="M10 16.5h4l.7 4h-5.4z"/>',
+    dot:    '<circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/>'
   };
 
   /* 1.6 at 24 is the same optical weight as the interface's 700 text at 0.82rem,
@@ -4729,6 +4742,19 @@
            'fill="none" stroke="currentColor" stroke-width="1.6" ' +
            'stroke-linecap="round" stroke-linejoin="round" ' +
            'aria-hidden="true" focusable="false" style="display:block;">' + d + '</svg>';
+  }
+
+  /* The same mark, sitting in a line of text rather than on its own.
+   *
+   * uiIcon draws display:block, which is right in a cell of its own and wrong in
+   * the middle of a button label — "⚡ Enter Double XP Sector" is one line, and a
+   * block-level SVG breaks it in two. Most of the emoji being replaced live in
+   * strings like that, so they need a form that behaves like a character. */
+  function uiIconInline(name, size) {
+    var svg = uiIcon(name, size || 15);
+    if (!svg) return '';
+    return '<span style="display:inline-flex;vertical-align:-2px;margin-right:5px;">' +
+           svg + '</span>';
   }
 
   function getCountryUi(country) {
@@ -4850,14 +4876,14 @@
 
   // ── Variable Ratio Priority Clearance system ──────────────────────────────
   var VR_EVENT_TYPES = [
-    { type: 'double',   chance: 0.08, label: 'DOUBLE XP SECTOR',  icon: '⚡', xpLabel: '2× XP',  cp: 20,
-      desc: 'Rare atmospheric window — double XP active',           btn: '⚡ Enter Double XP Sector' },
-    { type: 'critical', chance: 0.17, label: 'CRITICAL SCENARIO',  icon: '🔴', xpLabel: '+50 XP', cp: 15,
-      desc: 'Emergency procedures — priority clearance assigned',   btn: '🔴 Enter Critical Sector' },
-    { type: 'priority', chance: 0.45, label: 'PRIORITY DISPATCH',  icon: '🚨', xpLabel: '+25 XP', cp: 10,
-      desc: 'ATC slot allocated — complete to claim recognition',   btn: '🚨 Accept Dispatch' },
-    { type: 'hot',      chance: 0.30, label: 'HOT SECTOR',         icon: '📡', xpLabel: '+15 XP', cp: 5,
-      desc: 'Favorable conditions — training window open',          btn: '📡 Enter Hot Sector' }
+    { type: 'double',   chance: 0.08, label: 'DOUBLE XP SECTOR',  icon: uiIconInline('bolt'), xpLabel: '2× XP',  cp: 20,
+      desc: 'Rare atmospheric window — double XP active',           btn: 'Enter Double XP Sector' },
+    { type: 'critical', chance: 0.17, label: 'CRITICAL SCENARIO',  icon: uiIconInline('dot'), xpLabel: '+50 XP', cp: 15,
+      desc: 'Emergency procedures — priority clearance assigned',   btn: 'Enter Critical Sector' },
+    { type: 'priority', chance: 0.45, label: 'PRIORITY DISPATCH',  icon: uiIconInline('alert'), xpLabel: '+25 XP', cp: 10,
+      desc: 'ATC slot allocated — complete to claim recognition',   btn: 'Accept Dispatch' },
+    { type: 'hot',      chance: 0.30, label: 'HOT SECTOR',         icon: uiIconInline('tower'), xpLabel: '+15 XP', cp: 5,
+      desc: 'Favorable conditions — training window open',          btn: 'Enter Hot Sector' }
   ];
 
   function _vrCfg() {
@@ -5390,7 +5416,9 @@ var LEVEL_THEMES = {
             '</div>'
           : '';
         var isCurrent = Number(levelItem.level) === currentLevelNum;
-        var cardIcon  = locked ? '🔒' : (isCompleted ? '✅' : (vr ? vr.icon : '✈️'));
+        var cardIcon  = locked ? uiIcon('locked', 22)
+                      : (isCompleted ? uiIcon('passed', 22)
+                      : (vr ? vr.icon : uiIcon('plane', 22)));
         // A level locked because you have not finished the previous one has nothing
         // to offer but patience, so its button stays disabled. A level locked
         // because of your plan has something to offer, and disabling it turns the
@@ -11105,7 +11133,7 @@ var LEVEL_THEMES = {
     var vrPanel = '';
     if (vrBonus) {
       var vrColors = { double:'var(--yellow)', critical:'var(--red)', priority:'var(--yellow)', hot:'var(--accent)' };
-      var vrLabels = { double:'⚡ DOUBLE XP SECTOR', critical:'🔴 CRITICAL SCENARIO', priority:'🚨 PRIORITY DISPATCH', hot:'📡 HOT SECTOR' };
+      var vrLabels = { double:'DOUBLE XP SECTOR', critical:'CRITICAL SCENARIO', priority:'PRIORITY DISPATCH', hot:'HOT SECTOR' };
       var vrColor  = vrColors[vrBonus.type] || 'var(--accent)';
       var vrLabel  = vrLabels[vrBonus.type] || vrBonus.type;
       vrPanel =
@@ -11895,7 +11923,7 @@ var LEVEL_THEMES = {
 
     google.script.run
       .withSuccessHandler(function(res) {
-        if (btn) btn.textContent = '🎙 Voice Check';
+        if (btn) btn.textContent = 'Voice Check';
         if (!panel) return;
         if (!res || !res.ok) {
           panel.innerHTML = '<span style="color:var(--red);">Diagnostic failed: ' + safeText((res && res.message) || 'unknown error') + '</span>';
@@ -11913,7 +11941,7 @@ var LEVEL_THEMES = {
         panel.innerHTML = html;
       })
       .withFailureHandler(function() {
-        if (btn) btn.textContent = '🎙 Voice Check';
+        if (btn) btn.textContent = 'Voice Check';
         if (panel) panel.innerHTML = '<span style="color:var(--red);">Could not run diagnostic.</span>';
       })
       .apiAdminDiagnoseTts(AppState.sessionToken);
@@ -12775,7 +12803,7 @@ var LEVEL_THEMES = {
         if (!res || !res.ok) { banner.innerHTML = ''; return; }
         var a = res.assignments || {};
         var keys = Object.keys(a);
-        var vrLabels = { double:'⚡ Double XP', critical:'🔴 Critical', priority:'🚨 Priority', hot:'📡 Hot' };
+        var vrLabels = { double:'Double XP', critical:'Critical', priority:'Priority', hot:'Hot' };
         var vrColors = { double:'var(--yellow)', critical:'var(--red)', priority:'var(--yellow)', hot:'var(--accent)' };
         if (!keys.length) {
           banner.innerHTML = '<div style="padding:10px 14px;background:rgba(var(--lift-rgb), 0.03);border-radius: 8px;font-size: 0.82rem;">No VR events active today' + (!res.enabled ? ' (system disabled)' : '') + '.</div>';
@@ -14860,7 +14888,7 @@ var LEVEL_THEMES = {
         quizBody = (prog.quizAttempts > 0 ? '<p style="margin:0 0 14px;font-size:0.82rem;color:var(--muted);">Last attempt: <strong>' + prog.quizScore + '%</strong> — Need 85%. Attempt #' + (prog.quizAttempts+1) + '</p>' : '') +
           _renderQuizForm('expQuiz', expQs, m.moduleId, 'explanation', prog.quizAttempts, prog.quizScore);
       }
-      expBody += _lmsItem('📝', 'Quiz', 'Section Assessment', quizStatusHtml, quizBody, false);
+      expBody += _lmsItem(uiIconInline('paper'), 'Quiz', 'Section Assessment', quizStatusHtml, quizBody, false);
     }
 
     // ── APPLICATION BODY ──
@@ -14945,7 +14973,7 @@ var LEVEL_THEMES = {
 
     function _renderListeningFormat(clips, format, passed, score, attempts, cooldown) {
       var fmtLabel = format === 'short' ? 'Short Audio' : 'Long Audio';
-      var fmtIcon  = format === 'short' ? '🔉' : '🔊';
+      var fmtIcon  = uiIconInline('speaker');
       var idBase   = 'lst-' + format + '-' + safeText(m.moduleId);
       var html = '<div style="margin-bottom:16px;border:1px solid var(--line);border-radius:8px;overflow:hidden;">' +
         '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--panel-soft);border-bottom:1px solid var(--line);">' +
@@ -15029,7 +15057,7 @@ var LEVEL_THEMES = {
     function _spkPromptCard(prompt, idx, disabled) {
       var sub      = submMap[prompt.promptId];
       var typeLabel = prompt.type === 'image_description' ? 'Image Description' : 'Interview Question';
-      var typeIcon  = prompt.type === 'image_description' ? '🖼' : '🎤';
+      var typeIcon  = uiIconInline(prompt.type === 'image_description' ? 'chart' : 'mic');
       var html = '<div style="border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:12px;">' +
         '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--panel-soft);border-bottom:1px solid var(--line);">' +
           '<span>' + typeIcon + '</span>' +
@@ -15184,8 +15212,8 @@ var LEVEL_THEMES = {
     var _sectionMeta = {
       intro:       { icon: '📖', label: 'Introduction', num: '01' },
       explanation: { icon: '🎓', label: 'Explanation',  num: '02' },
-      application: { icon: '🛫', label: 'Application',  num: '03' },
-      evaluation:  { icon: '🏆', label: 'Evaluation',   num: '04' }
+      application: { icon: uiIconInline('climb'),  label: 'Application',  num: '03' },
+      evaluation:  { icon: uiIconInline('trophy'), label: 'Evaluation',   num: '04' }
     };
 
     function sectionPanel(key, unlocked, bodyHtml, completed) {
@@ -15220,7 +15248,10 @@ var LEVEL_THEMES = {
     }
 
     function outlineSectionHead(key, num, label, unlocked, completed, forumGate) {
-      var sectionIcon = { intro: '📖', explanation: '🎓', application: '🛫', evaluation: '🏆' }[key] || '';
+      var sectionIcon = { intro:       uiIconInline('paper'),
+                        explanation: uiIconInline('bands'),
+                        application: uiIconInline('climb'),
+                        evaluation:  uiIconInline('trophy') }[key] || '';
       var isActiveSec = key === (defaultSection || 'intro');
       if (forumGate) {
         return '<div id="outlineHead-' + key + '" data-forum-gate="1" onclick="_lmsToggleRightPanel(\'forum\')" ' +
