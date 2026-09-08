@@ -968,10 +968,36 @@
   // flying a route, or sitting an examination. Both keep running when the screen is
   // replaced — the engine noise carries on behind the error panel — so wiping the
   // DOM does not stop the activity, it only takes away the ability to continue it.
+  /* Is the student LOOKING at something, or waiting for it?
+   *
+   * This asked only whether an examination or a route was running, and that was
+   * too narrow. A student sat on the level map for twenty seconds, touched
+   * nothing, and watched it be replaced by "The training server took too long to
+   * answer" — a screen that had loaded perfectly, destroyed by the late failure of
+   * one of the several calls that screen fires in parallel. They had not asked for
+   * anything. There was nothing to retry.
+   *
+   * The right question is not "is this student busy" but "did they ask for this".
+   * If the content area is still showing a loading state, they are waiting for
+   * this screen and an error IS the answer. If real content is already painted,
+   * the failure belongs to something behind it, and behind it is where it stays.
+   *
+   * One rule, so every one of the forty-three callers gets it, and so does the
+   * next one. */
   function _isMidActivity() {
     try {
       if (document.body && document.body.classList.contains('sim-focus-mode')) return true;
       if (byId('teaCards') || byId('pilotReadback')) return true;
+
+      var area = byId('contentArea');
+      if (area) {
+        // Anything the app paints while a screen is still on its way.
+        var waiting = area.querySelector(
+          '.app-spinner-wrap, .skeleton-card, .completion-loading-shell, .boot-placeholder'
+        );
+        // Content, and not a loader, means they are reading rather than waiting.
+        if (!waiting && area.children.length) return true;
+      }
     } catch (e) {}
     return false;
   }
