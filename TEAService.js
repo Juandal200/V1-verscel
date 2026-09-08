@@ -38,8 +38,44 @@ var TEA_SHEET_HEADERS = [
  * Called by doPost via action: 'apiSaveTEAResult'.
  * @param {object} data  The gasData object from tea-pipeline.mjs
  */
+/* Who may file an examination result.
+ *
+ * This took no session token and called no requireRole, and doPost admits any
+ * action matching /^api[A-Z]/ with no authentication of its own — auth is
+ * delegated entirely to each function, and this one delegated it to nobody. So
+ * anyone able to POST to the deployment URL could write an arbitrary result:
+ * any candidate, any band, straight into Drive and the sheet.
+ *
+ * It is not called from a browser. The grading pipeline calls it server to
+ * server, so the right credential is a shared secret rather than a session.
+ *
+ * Rollout matters here. Apps Script and Vercel deploy separately, so if this
+ * demanded the secret before the pipeline was sending one, every result would
+ * stop being filed — silently, because the pipeline logs the failure and the
+ * candidate's screen never mentions it. So an UNSET property still accepts the
+ * call and says so in the log. Set PIPELINE_SECRET in both places and it locks;
+ * until then it is exactly as open as it was, and noisy about it. */
+function _teaCallerAuthorised_(data) {
+  var expected = '';
+  try { expected = PropertiesService.getScriptProperties().getProperty('PIPELINE_SECRET') || ''; }
+  catch (e) {}
+  if (!expected) {
+    console.warn('[TEAService] PIPELINE_SECRET is not set — apiSaveTEAResult is accepting ' +
+                 'unauthenticated writes. Set it in Script Properties and in Vercel.');
+    return true;
+  }
+  return String((data && data.pipelineSecret) || '') === expected;
+}
+
 function apiSaveTEAResult(data) {
   try {
+    if (!_teaCallerAuthorised_(data)) {
+      console.error('[TEAService] apiSaveTEAResult refused: bad or missing pipeline secret.');
+      return { ok: false, code: 'FORBIDDEN', error: 'Not authorised to file a result.' };
+    }
+    // Never let the credential reach Drive or the sheet.
+    if (data && data.pipelineSecret) delete data.pipelineSecret;
+
     var folder   = _teaGetOrCreateFolder_();
     var fileUrl  = _teaSaveJsonReport_(folder, data);
     _teaAppendSheetRow_(data, fileUrl);

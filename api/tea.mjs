@@ -298,13 +298,109 @@ OUTPUT FOR [ADMIN_REPORT] — exactly this, nothing else:
   }
 }`;
 
+
+/* Who is allowed to spend this endpoint.
+ *
+ * This proxy had no authentication of any kind and answered
+ * Access-Control-Allow-Origin: *, so it was not merely reachable by anyone who
+ * knew the URL — any page on the internet could call it from a browser and spend
+ * the account's model budget. Nothing about it was private.
+ *
+ * Three checks, in cost order and in order of how certain each one is.
+ *
+ * The origin check is free and stops the cross-site case outright. The presence
+ * check is free too, and it is the one that carries the weight: an anonymous
+ * caller has no session token, so they are refused without Apps Script being
+ * asked anything at all.
+ *
+ * The third check — is this token real — is the only one that needs a round
+ * trip, and it is deliberately the WEAKEST. Apps Script does not reliably answer
+ * with JSON: under load, on a cold start, or to a non-browser client it returns
+ * an HTML consent page instead. api/gas.mjs documents this and retries. Probing
+ * the live deployment from a terminal returns that HTML every single time.
+ *
+ * So a validator that refuses whenever it cannot get an answer would 403 real
+ * candidates mid-examination every time Apps Script had a bad minute. Only a
+ * parsed, explicit "this session is not valid" refuses here. Anything else —
+ * HTML, a timeout, a network error — is allowed through and logged, because the
+ * case that check exists to catch is already caught by the token being absent.
+ *
+ * apiGetMe rather than a purpose-built validator: it is already deployed. A new
+ * Apps Script function would have to reach the live deployment BEFORE this file
+ * reaches Vercel, and those two deploy separately — a gate that fails because
+ * its validator is not there yet would take the exam down for everyone.
+ *
+ * The duplication of this block across the two proxies is deliberate. Every file
+ * in api/ becomes a public route on Vercel, and inventing a shared module inside
+ * that directory to avoid fifteen duplicated lines is not a trade worth making
+ * in the change that is meant to be closing routes. */
+const GAS_AUTH_URL =
+  process.env.GAS_WEBHOOK_URL ||
+  'https://script.google.com/macros/s/AKfycbx4TnUdFYUb6SNJGsuTQW-rd3eQ2RRFeJCpe0ZsK7s67Y2L4bBx3Ez3l5WSM53yINNa/exec';
+
+// Unset means "not configured yet", which must not lock the app out. Set
+// APP_ORIGIN in Vercel to the live origin to switch this on.
+const APP_ORIGIN = process.env.APP_ORIGIN || '';
+
+function originAllowed(req) {
+  const origin = req.headers.origin || '';
+  if (!origin) return true;        // same-origin fetches often send no Origin header
+  if (!APP_ORIGIN) return true;    // not configured
+  return origin === APP_ORIGIN;
+}
+
+async function sessionValid(token) {
+  // No token is a definite no, and costs nothing to establish.
+  if (!token || typeof token !== 'string') return false;
+  try {
+    const ac = new AbortController();
+    const t  = setTimeout(() => ac.abort(), 8000);
+    let text;
+    try {
+      const r = await fetch(GAS_AUTH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'apiGetMe', args: [token] }),
+        redirect: 'follow',
+        signal: ac.signal,
+      });
+      text = await r.text();
+    } finally { clearTimeout(t); }
+
+    // An HTML consent page is not an answer about this session.
+    if (/^\s*(<!doctype|<html)/i.test(text || '')) {
+      console.warn('[auth] Apps Script answered HTML, not JSON — allowing on token presence.');
+      return true;
+    }
+    let j = null;
+    try { j = JSON.parse(text); } catch (e) { j = null; }
+    if (!j) {
+      console.warn('[auth] Apps Script answer was unparseable — allowing on token presence.');
+      return true;
+    }
+    return j.ok !== false;
+  } catch (e) {
+    console.warn('[auth] session check could not complete (' + e.message + ') — allowing on token presence.');
+    return true;
+  }
+}
+
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin', APP_ORIGIN || '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
   if (req.method !== 'POST') { res.status(405).json({ ok: false, error: 'Method not allowed' }); return; }
+
+  if (!originAllowed(req)) {
+    res.status(403).json({ ok: false, code: 'FORBIDDEN', error: 'Origin not allowed' });
+    return;
+  }
+  if (!(await sessionValid((req.body || {}).sessionToken))) {
+    res.status(403).json({ ok: false, code: 'FORBIDDEN', error: 'Sign in to use this endpoint' });
+    return;
+  }
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {

@@ -2239,12 +2239,21 @@ function apiError_(source, err) {
     Logger.log('Could not write LogService error: ' + logErr);
   }
 
-  return {
+  // A refusal is not a fault. It is carried as its own code so the client can say
+  // "not available for your role" instead of "something went wrong", and so a
+  // permission denial is not counted as an error in the logs.
+  var out = {
     ok: false,
     source: source,
     message: message,
     stack: stack
   };
+  if (err && err.code === 'FORBIDDEN') {
+    out.code    = 'FORBIDDEN';
+    out.status  = 403;
+    out.message = 'This is not available for your role.';
+  }
+  return out;
 }
 
 function getAppConfigValue_(key, fallback) {

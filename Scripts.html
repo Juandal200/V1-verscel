@@ -2439,6 +2439,19 @@
   var _groupStudentsCache = null;  // { members, available } loaded for current group detail
 
   function renderAdminNav() {
+    /* The door, not every room.
+     *
+     * The Admin button is hidden from students with classList.add('hidden') —
+     * which is CSS, and every renderAdmin* function is on window. Typing
+     * renderAdminNav() in the console got the chrome to paint. Nothing came back
+     * with it: all 161 gated endpoints refuse, and this change does not replace
+     * that server-side refusal, which is the one that matters. It stops the app
+     * from drawing a room the student cannot be in and then filling it with
+     * errors.
+     *
+     * One gate here rather than on all thirty-three screens: this is the only
+     * navigation entry, and the rest are reached from inside it. */
+    if (!_lmsVisible()) { renderHome(); return; }
     if (AppState.user && AppState.user.role === 'INSTRUCTOR') {
       renderInstructorGroupView();
     } else {
@@ -25668,7 +25681,10 @@ var LEVEL_THEMES = {
       setTimeout(function() { cb(err, msg); }, 0);
     }
 
+    // The proxies verify this against Apps Script before spending a model call.
+    // They used to accept anything from anywhere.
     var body = JSON.stringify({
+      sessionToken:    AppState.sessionToken,
       history:         _t.history,
       interviewTopics: TEA_INTERVIEW,
       bank:            TEA_BANK
@@ -27185,6 +27201,7 @@ var LEVEL_THEMES = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          sessionToken: AppState.sessionToken,
           segments:    _t.segments,
           history:     _t.history,
           candidateId: candidateId,
@@ -28302,7 +28319,9 @@ var LEVEL_THEMES = {
    * is the thing being sold. */
   function _teaRedactScores(json) {
     var sv = (json && json.student_view) || {};
-    var out = { student_view: { overall_band: Number(sv.overall_band) || 0 }, admin_view: {} };
+    // null, not {}. An empty object is truthy, so the redacted free-tier report
+    // still drew the "Show Admin Report" button — opening onto nothing.
+    var out = { student_view: { overall_band: Number(sv.overall_band) || 0 }, admin_view: null };
     ['pronunciation','structure','vocabulary','fluency','comprehension','interactions']
       .forEach(function (k) {
         var v = sv[k];
@@ -28330,6 +28349,29 @@ var LEVEL_THEMES = {
                (band >= 5 ? 'Extended' : band === 4 ? 'Operational'
                 : band === 3 ? 'Pre-Operational' : 'Below Operational') + '</div>' +
            '</div>';
+  }
+
+  /* The admin report is not the candidate's to read.
+   *
+   * _renderScoreJSON drew an entire "Show Admin Report" panel on `if (av)` alone —
+   * the annotated transcript with inline pins, and the examiner's technical
+   * justification — with no role check anywhere. It is not hidden in a network
+   * response: it is a button on the student's own results screen, and a paying
+   * candidate could open it and read exactly which words were marked and why.
+   *
+   * Nothing loses a feature here. The three callers of _renderScoreJSON are the
+   * student's locked report, the student's paid report, and a pipeline test
+   * screen — no admin surface uses it, and the admin ICAO results screen renders
+   * no transcript at all. So this panel had no legitimate reader.
+   *
+   * window., not a bare call: _lmsVisible lives in the IIFE that starts at line
+   * 299 and this function is in the one that starts at 25228. A bare reference is
+   * a ReferenceError, which is the fault that locked every new student out in
+   * September. And it fails CLOSED — a permission gate that cannot find its
+   * answer must refuse, not allow. */
+  function _teaMayReadAdminReport() {
+    try { return !!(window._lmsVisible && window._lmsVisible()); }
+    catch (e) { return false; }
   }
 
   function _renderScoreJSON(json, opts) {
@@ -28402,8 +28444,8 @@ var LEVEL_THEMES = {
       '</div>';
     }
 
-    // Admin view — collapsible
-    if (av) {
+    // Admin view — collapsible, and only for someone entitled to it.
+    if (av && _teaMayReadAdminReport()) {
       var adminId = 'teaAdminView_' + Date.now();
       html += '<div class="tea-admin-section">';
       html += '<button class="tea-admin-toggle" onclick="' +
@@ -28601,7 +28643,7 @@ var LEVEL_THEMES = {
     ]);
     fetch('/api/tea', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ history: hist, bank: TEA_BANK })
+      body: JSON.stringify({ sessionToken: AppState.sessionToken, history: hist, bank: TEA_BANK })
     })
     .then(function(r) { return r.json(); })
     .then(function(d) {
@@ -29665,6 +29707,7 @@ var LEVEL_THEMES = {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        sessionToken:   AppState.sessionToken,
         mockTranscript: _MOCK_TRANSCRIPT,
         history:        _MOCK_HISTORY,
         candidateId:    'test@aerocomms.dev',

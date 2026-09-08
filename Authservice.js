@@ -351,7 +351,15 @@ var AuthService = {
     var user = this.requireSession(sessionToken);
 
     if (allowedRoles.indexOf(user.role) === -1) {
-      throw new Error('Unauthorized action for role: ' + user.role);
+      /* Tagged, so the client can tell "you may not" from "it broke".
+       *
+       * This threw a plain Error, which every api function catches and turns into
+       * a generic failure — so a student who reached an admin endpoint was told
+       * something went wrong rather than that it was not theirs to open, and the
+       * two cases were indistinguishable in the logs too. */
+      var denied = new Error('Unauthorized action for role: ' + user.role);
+      denied.code = 'FORBIDDEN';
+      throw denied;
     }
 
     return user;
