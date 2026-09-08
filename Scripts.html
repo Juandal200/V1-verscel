@@ -28471,19 +28471,16 @@ var LEVEL_THEMES = {
    * nothing to be curious about. What is redacted is every reason: the six
    * descriptor scores and the examiner's words. That is the report, and the report
    * is the thing being sold. */
-  function _teaRedactScores(json) {
-    var sv = (json && json.student_view) || {};
-    // null, not {}. An empty object is truthy, so the redacted free-tier report
-    // still drew the "Show Admin Report" button — opening onto nothing.
-    var out = { student_view: { overall_band: Number(sv.overall_band) || 0 }, admin_view: null };
-    ['pronunciation','structure','vocabulary','fluency','comprehension','interactions']
-      .forEach(function (k) {
-        var v = sv[k];
-        out.student_view[k] = (v && typeof v === 'object') ? { score: 0, feedback: '' } : 0;
-      });
-    if (sv.summary !== undefined) out.student_view.summary = '';
-    return out;
-  }
+  /* The client-side score redaction lived here.
+   *
+   * It built a zeroed copy of the six descriptors for display, which meant the
+   * real numbers had already been serialised to this browser and were sitting in
+   * the response — the paywall was a drawing of a gate. api/tea-pipeline.mjs
+   * withholds them before the response is written now, so there is nothing left
+   * here to redact and no dead path to reintroduce.
+   *
+   * The blur and the paywall card stay: they are presentation, and presentation
+   * is all they were ever fit to be. */
 
   /* The band banner alone, for the free result — the same markup the full report
    * opens with, so the two read as one document with the rest of it withheld
@@ -28977,7 +28974,7 @@ function _showReportScreen(json) {
               '<div style="position:relative;margin-top:12px;">' +
                 '<div class="tea-score-box" style="filter:blur(7px);pointer-events:none;' +
                 'user-select:none;" aria-hidden="true">' +
-                  _renderScoreJSON(_teaRedactScores(json), { bandHeader: false }) + '</div>' +
+                  _renderScoreJSON(json, { bandHeader: false }) + '</div>' +
                 '<div style="position:absolute;inset:0;display:flex;flex-direction:column;' +
                   'align-items:center;justify-content:center;text-align:center;padding:24px;">' +
                   '<div style="background:var(--panel);border-radius:16px;' +

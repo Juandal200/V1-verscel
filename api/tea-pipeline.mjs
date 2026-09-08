@@ -642,9 +642,19 @@ function originAllowed(req) {
   try { return new URL(origin).host === host; } catch (e) { return false; }
 }
 
+/* Who is calling, and on what plan.
+ *
+ * apiGetMe already returns accessStatus alongside the user, and this function
+ * already calls it — the plan was being fetched and thrown away. Returning it
+ * costs nothing and is what lets the descriptors be withheld here rather than
+ * sent and then hidden by the browser.
+ *
+ * Returns null when there is no usable session, otherwise { status } where
+ * status is 'free', 'active', … or '' when the session looked real but the plan
+ * could not be established. An empty status is treated as free below. */
 async function sessionValid(token) {
   // No token is a definite no, and costs nothing to establish.
-  if (!token || typeof token !== 'string') return false;
+  if (!token || typeof token !== 'string') return null;
   try {
     const ac = new AbortController();
     const t  = setTimeout(() => ac.abort(), 8000);
@@ -662,20 +672,47 @@ async function sessionValid(token) {
 
     // An HTML consent page is not an answer about this session.
     if (/^\s*(<!doctype|<html)/i.test(text || '')) {
-      console.warn('[auth] Apps Script answered HTML, not JSON — allowing on token presence.');
-      return true;
+      console.warn('[auth] Apps Script answered HTML, not JSON — allowing on token presence, plan unknown.');
+      return { status: '' };
     }
     let j = null;
     try { j = JSON.parse(text); } catch (e) { j = null; }
     if (!j) {
-      console.warn('[auth] Apps Script answer was unparseable — allowing on token presence.');
-      return true;
+      console.warn('[auth] Apps Script answer was unparseable — allowing on token presence, plan unknown.');
+      return { status: '' };
     }
-    return j.ok !== false;
+    if (j.ok === false) return null;
+    return { status: String((j.accessStatus && j.accessStatus.status) || '') };
   } catch (e) {
-    console.warn('[auth] session check could not complete (' + e.message + ') — allowing on token presence.');
-    return true;
+    console.warn('[auth] session check could not complete (' + e.message + ') — allowing on token presence, plan unknown.');
+    return { status: '' };
   }
+}
+
+/* The band is given. The reasons are sold.
+ *
+ * TEAService.js does this for the results history — a free account gets the
+ * overall band and six zeroed descriptors, decided on the server. The LIVE
+ * report did not: the full student_view was serialised to the browser and a
+ * client function built a zeroed copy for display. The real numbers arrived
+ * first and sat in the response.
+ *
+ * Withheld when the plan is free, and ALSO when it could not be established.
+ * Apps Script intermittently answers HTML and the session check above tolerates
+ * that rather than ending a live sitting — but tolerating an unknown plan by
+ * handing over the paid product is a different trade. A paying candidate caught
+ * by that has their full report in results history, which checks the plan
+ * independently; a free account handed the descriptors has them for good. */
+// Reuses the DESCRIPTORS constant declared at the top of this file — the same
+// six the schema requires, so the two cannot drift.
+function withholdDescriptors(sv) {
+  const out = { ...sv };
+  DESCRIPTORS.forEach(function (k) {
+    const v = sv[k];
+    out[k] = (v && typeof v === 'object') ? { score: 0, feedback: '' } : 0;
+  });
+  if (sv.summary !== undefined) out.summary = '';
+  return out;
 }
 
 export default async function handler(req, res) {
@@ -695,10 +732,13 @@ export default async function handler(req, res) {
     res.status(403).json({ ok: false, code: 'FORBIDDEN', error: 'Origin not allowed' });
     return;
   }
-  if (!(await sessionValid((req.body || {}).sessionToken))) {
+  const caller = await sessionValid((req.body || {}).sessionToken);
+  if (!caller) {
     res.status(403).json({ ok: false, code: 'FORBIDDEN', error: 'Sign in to use this endpoint' });
     return;
   }
+  // '' means the plan could not be established — treated as free. See above.
+  const paidPlan = caller.status !== 'free' && caller.status !== '';
 
   const geminiKey = process.env.GEMINI_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
@@ -837,7 +877,22 @@ export default async function handler(req, res) {
      *
      * The admin report lives in Drive and on the sheet. That is where an
      * instructor reads it. */
-    res.status(200).json({ ok: true, student_view });
+    /* Withheld here, not hidden there.
+     *
+     * saveToGAS above has already filed the complete result, so nothing is lost
+     * to the record — this only decides what the candidate's browser receives.
+     * descriptorsWithheld lets the client explain itself rather than showing a
+     * paying candidate six silent zeros if the plan lookup was the thing that
+     * failed. */
+    if (paidPlan) {
+      res.status(200).json({ ok: true, student_view });
+    } else {
+      res.status(200).json({
+        ok: true,
+        student_view: withholdDescriptors(student_view),
+        descriptorsWithheld: true
+      });
+    }
 
   } catch (err) {
     console.error('[PIPELINE]', err.message);
