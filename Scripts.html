@@ -2021,7 +2021,7 @@
       })();
 
       var simStatusHtml = _cpPending
-        ? '<span style="position:absolute;top:10px;right:12px;font-size: 0.72rem;font-weight:800;background:rgba(234,179,8,.25);border:1px solid rgba(234,179,8,.5);color:var(--green);padding:2px 10px;border-radius: 22px;letter-spacing: 0.06em;">EXAM</span>'
+        ? '<span style="position:absolute;top:10px;right:12px;font-size: 0.72rem;font-weight:800;background:rgba(var(--yellow-rgb), .25);border:1px solid rgba(var(--yellow-rgb), .5);color:var(--green);padding:2px 10px;border-radius: 22px;letter-spacing: 0.06em;">EXAM</span>'
         : '<span style="position:absolute;top:10px;right:12px;font-size: 0.72rem;font-weight:800;background:rgba(14,165,233,.25);border:1px solid rgba(14,165,233,.5);color:var(--accent);padding:2px 10px;border-radius: 22px;letter-spacing: 0.06em;">&#9654; ACTIVE</span>';
       var simBodyHtml =
         '<div style="display:flex;gap:0;margin-bottom:4px;">' +
@@ -8220,7 +8220,7 @@ var LEVEL_THEMES = {
     if (host) {
       host.innerHTML =
         '<div style="padding:12px 14px;border-radius:12px;text-align:left;' +
-          'background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.35);">' +
+          'background:rgba(var(--yellow-rgb), .10);border:1px solid rgba(var(--yellow-rgb), .35);">' +
           '<p style="margin:0 0 6px;font-size: 0.62rem;font-weight:800;letter-spacing: 0.12em;' +
             'text-transform:uppercase;color:var(--yellow);">ATC \u00b7 audio unavailable</p>' +
           '<p style="margin:0;font-size: 0.9rem;line-height:1.55;color:var(--muted);">' +
@@ -12995,7 +12995,7 @@ var LEVEL_THEMES = {
           var active  = s.status === 'active' && end && end > now;
           var badge   = active
             ? '<span style="background:rgba(var(--accent-rgb), 0.15);color:var(--accent);border-radius:4px;padding:2px 7px;font-size:0.72rem;font-weight:700;">ACTIVE</span>'
-            : '<span style="background:rgba(239,68,68,0.12);color:var(--red);border-radius:4px;padding:2px 7px;font-size:0.72rem;font-weight:700;">EXPIRED</span>';
+            : '<span style="background:rgba(var(--red-rgb), 0.12);color:var(--red);border-radius:4px;padding:2px 7px;font-size:0.72rem;font-weight:700;">EXPIRED</span>';
           var endStr  = end ? end.toLocaleDateString('en-GB') : '—';
           var cop     = s.amountCents ? 'COP ' + Number(s.amountCents / 100).toLocaleString('es-CO') : '—';
           return '<tr style="border-bottom:1px solid var(--line);">' +
@@ -14679,7 +14679,7 @@ var LEVEL_THEMES = {
       var color = isBonus ? 'var(--green)' : 'var(--green)';
       // Start scaled down and invisible — pops in at screen center
       chip.style.cssText = 'position:fixed;z-index:99999;pointer-events:none;font-size: 1.6rem;font-weight: 800;' +
-        'color:' + color + ';text-shadow:0 0 24px rgba(34,197,94,.8),0 2px 10px rgba(var(--scrim-rgb), 0.65);' +
+        'color:' + color + ';text-shadow:0 0 24px rgba(var(--green-rgb), .8),0 2px 10px rgba(var(--scrim-rgb), 0.65);' +
         'left:' + sx + 'px;top:' + sy + 'px;transform:translate(-50%,-50%) scale(0.5);' +
         'white-space:nowrap;opacity:0;transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1),opacity 0.15s;';
       document.body.appendChild(chip);
@@ -14779,7 +14779,7 @@ var LEVEL_THEMES = {
 
       // Status chip
       var chip = completed
-        ? '<span style="font-size: 0.72rem;font-weight:700;color:var(--green);background:rgba(22,163,74,.12);border:1px solid rgba(22,163,74,.25);padding:2px 8px;border-radius: 22px;letter-spacing: 0.06em;">✓ COMPLETED</span>'
+        ? '<span style="font-size: 0.72rem;font-weight:700;color:var(--green);background:rgba(var(--green-rgb), .12);border:1px solid rgba(var(--green-rgb), .25);padding:2px 8px;border-radius: 22px;letter-spacing: 0.06em;">✓ COMPLETED</span>'
         : locked
           ? '<span style="font-size: 0.72rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:2px 8px;border-radius: 22px;">LOCKED</span>'
           : sectionsDone > 0
@@ -14816,7 +14816,7 @@ var LEVEL_THEMES = {
 
       return '<div class="lms-module-card-wrap" style="' + (!locked ? 'cursor:pointer;' : 'opacity:0.65;') + '"' +
         (!locked ? ' onclick="renderModuleDetail(\'' + m.moduleId + '\')"' : '') + '>' +
-        '<div style="border:1px solid ' + (completed ? 'rgba(22,163,74,.3)' : inProgress ? 'rgba(14,165,233,.2)' : 'var(--line)') + ';border-radius: 12px;overflow:hidden;background:var(--panel);transition:box-shadow 0.25s var(--ease);">' +
+        '<div style="border:1px solid ' + (completed ? 'rgba(var(--green-rgb), .3)' : inProgress ? 'rgba(14,165,233,.2)' : 'var(--line)') + ';border-radius: 12px;overflow:hidden;background:var(--panel);transition:box-shadow 0.25s var(--ease);">' +
 
           thumb +
 
@@ -14960,7 +14960,7 @@ var LEVEL_THEMES = {
     }
 
     function _doneChip() {
-      return '<span style="display:inline-flex;align-items:center;gap:4px;font-size: 0.72rem;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:3px 10px;border-radius: 22px;white-space:nowrap;flex-shrink:0;">✓ Done</span>';
+      return '<span style="display:inline-flex;align-items:center;gap:4px;font-size: 0.72rem;font-weight:700;color:var(--green);background:rgba(var(--green-rgb), .1);border:1px solid rgba(var(--green-rgb), .25);padding:3px 10px;border-radius: 22px;white-space:nowrap;flex-shrink:0;">✓ Done</span>';
     }
     function _todoChip(label) {
       return '<span style="font-size: 0.72rem;color:var(--muted);background:var(--panel-soft);border:1px solid var(--line);padding:3px 10px;border-radius: 22px;white-space:nowrap;flex-shrink:0;">' + (label || 'To do') + '</span>';
@@ -15097,8 +15097,8 @@ var LEVEL_THEMES = {
         btns.forEach(function(b) { b.onclick = null; b.style.cursor = 'default'; });
         var correct = idx === quiz.correctIndex;
         btns.forEach(function(b, i) {
-          if (i === quiz.correctIndex) { b.style.background = 'rgba(22,163,74,.25)'; b.style.borderColor = 'rgba(22,163,74,.5)'; b.style.color = 'var(--green)'; }
-          else if (i === idx)          { b.style.background = 'rgba(239,68,68,.15)'; b.style.borderColor = 'rgba(239,68,68,.4)';  b.style.color = 'var(--red)'; b.style.opacity = '1'; }
+          if (i === quiz.correctIndex) { b.style.background = 'rgba(var(--green-rgb), .25)'; b.style.borderColor = 'rgba(var(--green-rgb), .5)'; b.style.color = 'var(--green)'; }
+          else if (i === idx)          { b.style.background = 'rgba(var(--red-rgb), .15)'; b.style.borderColor = 'rgba(var(--red-rgb), .4)';  b.style.color = 'var(--red)'; b.style.opacity = '1'; }
           else                         { b.style.opacity = '0.3'; }
         });
         var msg = document.getElementById('_lmsVqMsg');
@@ -15201,7 +15201,7 @@ var LEVEL_THEMES = {
       var quizStatusHtml = prog.quizPassed ? _doneChip() : _todoChip('Score 85%+');
       var quizBody = '';
       if (prog.quizPassed) {
-        quizBody = '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.2);border-radius:8px;">' +
+        quizBody = '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:rgba(var(--green-rgb), .06);border:1px solid rgba(var(--green-rgb), .2);border-radius:8px;">' +
           '<span style="font-size: 1.15rem;">✅</span>' +
           '<div><p style="margin:0;font-weight:700;color:var(--green);">Passed — ' + prog.quizScore + '%</p><p style="margin:0;font-size: 0.82rem;color:var(--muted);">Explanation section unlocked.</p></div>' +
         '</div>';
@@ -15227,10 +15227,10 @@ var LEVEL_THEMES = {
     function _stationHead(num, icon, label, done, locked) {
       var color = done ? 'var(--green)' : locked ? 'var(--muted)' : 'var(--accent)';
       return '<div style="display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--panel-soft);border-bottom:1px solid var(--line);">' +
-        '<div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:800;background:' + (done ? 'rgba(22,163,74,.15)' : locked ? 'rgba(100,116,139,.12)' : 'rgba(14,165,233,.12)') + ';color:' + color + ';flex-shrink:0;">' + num + '</div>' +
+        '<div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:800;background:' + (done ? 'rgba(var(--green-rgb), .15)' : locked ? 'rgba(100,116,139,.12)' : 'rgba(14,165,233,.12)') + ';color:' + color + ';flex-shrink:0;">' + num + '</div>' +
         '<span style="font-size:1rem;">' + icon + '</span>' +
         '<span style="font-weight:700;color:' + color + ';font-size: 0.9rem;">' + label + '</span>' +
-        (done ? '<span style="margin-left:auto;font-size: 0.72rem;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);padding:2px 8px;border-radius: 22px;">✓ Complete</span>' : '') +
+        (done ? '<span style="margin-left:auto;font-size: 0.72rem;font-weight:700;color:var(--green);background:rgba(var(--green-rgb), .1);padding:2px 8px;border-radius: 22px;">✓ Complete</span>' : '') +
         (locked ? '<span style="margin-left:auto;font-size: 0.72rem;color:var(--muted);">🔒 Locked</span>' : '') +
       '</div>';
     }
@@ -15263,7 +15263,7 @@ var LEVEL_THEMES = {
     var grammarBody = _stationHead('1', uiIconInline('paper'), 'Grammar Station', grammarPassed, false);
 
     if (grammarPassed) {
-      grammarBody += '<div style="padding:18px 20px;display:flex;align-items:center;gap:14px;background:rgba(22,163,74,.04);">' +
+      grammarBody += '<div style="padding:18px 20px;display:flex;align-items:center;gap:14px;background:rgba(var(--green-rgb), .04);">' +
         '<span style="font-size:1.6rem;">✅</span>' +
         '<div><p style="margin:0;font-weight:700;color:var(--green);">Passed — ' + grammarScore + '%</p>' +
         '<p style="margin:0;font-size: 0.82rem;color:var(--muted);">Grammar station complete.</p></div>' +
@@ -15304,7 +15304,7 @@ var LEVEL_THEMES = {
         '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--panel-soft);border-bottom:1px solid var(--line);">' +
           '<span>' + fmtIcon + '</span>' +
           '<span style="font-weight:700;font-size: 0.9rem;">' + fmtLabel + '</span>' +
-          (passed ? '<span style="margin-left:auto;font-size: 0.72rem;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);padding:2px 8px;border-radius: 22px;">✓ Passed ' + score + '%</span>' : '') +
+          (passed ? '<span style="margin-left:auto;font-size: 0.72rem;font-weight:700;color:var(--green);background:rgba(var(--green-rgb), .1);padding:2px 8px;border-radius: 22px;">✓ Passed ' + score + '%</span>' : '') +
         '</div>';
 
       if (passed) {
@@ -15398,12 +15398,12 @@ var LEVEL_THEMES = {
         '<p style="margin:0 0 10px;font-size: 0.9rem;color:var(--text);">' + safeText(prompt.promptText) + '</p>';
 
       if (sub && sub.status === 'graded') {
-        html += '<div style="padding:10px 14px;background:rgba(22,163,74,.07);border:1px solid rgba(22,163,74,.25);border-radius: 4px;font-size: 0.82rem;">' +
+        html += '<div style="padding:10px 14px;background:rgba(var(--green-rgb), .07);border:1px solid rgba(var(--green-rgb), .25);border-radius: 4px;font-size: 0.82rem;">' +
           '<p style="margin:0 0 4px;font-weight:700;color:var(--green);">Graded — ' + sub.raterScore + '/100</p>' +
           (sub.raterFeedback ? '<p style="margin:0;color:var(--muted);">' + safeText(sub.raterFeedback) + '</p>' : '') +
         '</div>';
       } else if (sub && sub.status === 'pending') {
-        html += '<div style="padding:10px 14px;background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.3);border-radius: 4px;">' +
+        html += '<div style="padding:10px 14px;background:rgba(var(--yellow-rgb), .06);border:1px solid rgba(var(--yellow-rgb), .3);border-radius: 4px;">' +
           '<p style="margin:0;font-size: 0.82rem;color:var(--muted);">⏳ Submitted — awaiting instructor review</p>' +
           '<p style="margin:4px 0 0;font-size: 0.82rem;color:var(--muted);">Your response: ' + safeText((sub.responseText || '').substring(0, 120)) + (sub.responseText && sub.responseText.length > 120 ? '…' : '') + '</p>' +
         '</div>';
@@ -15422,7 +15422,7 @@ var LEVEL_THEMES = {
     if (!listeningUnlocked) {
       productionBody += '<div style="padding:16px 20px;font-size: 0.9rem;color:var(--muted);">🔒 Complete Listening Station to unlock.</div>';
     } else if (speakingGraded) {
-      productionBody += '<div style="padding:18px 20px;display:flex;align-items:center;gap:14px;background:rgba(22,163,74,.04);">' +
+      productionBody += '<div style="padding:18px 20px;display:flex;align-items:center;gap:14px;background:rgba(var(--green-rgb), .04);">' +
         '<span style="font-size:1.6rem;">✅</span>' +
         '<div><p style="margin:0;font-weight:700;color:var(--green);">Graded — ' + speakingScore + '/100</p>' +
         '<p style="margin:0;font-size: 0.82rem;color:var(--muted);">Speaking Production complete.</p></div>' +
@@ -15431,7 +15431,7 @@ var LEVEL_THEMES = {
       productionBody += '<div style="padding:16px 20px;font-size: 0.9rem;color:var(--muted);">Speaking prompts not yet available for this module.</div>';
     } else if (speakingSubmitted) {
       productionBody += '<div style="padding:16px 20px;">' +
-        '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(234,179,8,.06);border:1px solid rgba(234,179,8,.3);border-radius:8px;margin-bottom:16px;">' +
+        '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(var(--yellow-rgb), .06);border:1px solid rgba(var(--yellow-rgb), .3);border-radius:8px;margin-bottom:16px;">' +
           '<span style="font-size: 1.35rem;">⏳</span>' +
           '<div><p style="margin:0;font-weight:700;color:var(--muted);">Submitted — awaiting instructor review</p>' +
           '<p style="margin:2px 0 0;font-size: 0.82rem;color:var(--muted);">Your responses are in the review queue. Results will appear here once graded.</p></div>' +
@@ -15548,7 +15548,7 @@ var LEVEL_THEMES = {
         '<div style="display:flex;align-items:center;gap:7px;padding:7px 16px;background:var(--panel-soft);border-bottom:1px solid var(--line);">' +
           '<span style="font-size: 0.82rem;">' + meta.icon + '</span>' +
           '<span style="font-size: 0.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing: 0.12em;">Section ' + meta.num + ' · ' + meta.label + '</span>' +
-          (completed ? '<span style="margin-left:auto;font-size: 0.62rem;font-weight:700;color:var(--green);background:rgba(22,163,74,.1);border:1px solid rgba(22,163,74,.25);padding:1px 7px;border-radius:8px;">✓ Done</span>' : (!unlocked ? '<span style="margin-left:auto;font-size: 0.82rem;">🔒</span>' : '')) +
+          (completed ? '<span style="margin-left:auto;font-size: 0.62rem;font-weight:700;color:var(--green);background:rgba(var(--green-rgb), .1);border:1px solid rgba(var(--green-rgb), .25);padding:1px 7px;border-radius:8px;">✓ Done</span>' : (!unlocked ? '<span style="margin-left:auto;font-size: 0.82rem;">🔒</span>' : '')) +
         '</div>' +
         (unlocked ? bodyHtml :
           '<div style="padding:28px 24px;text-align:center;">' +
@@ -15580,10 +15580,10 @@ var LEVEL_THEMES = {
       var isActiveSec = key === (defaultSection || 'intro');
       if (forumGate) {
         return '<div id="outlineHead-' + key + '" data-forum-gate="1" onclick="_lmsToggleRightPanel(\'forum\')" ' +
-          'style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(234,179,8,.07);border-bottom:1px solid var(--line);border-left:3px solid var(--yellow);cursor:pointer;">' +
+          'style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(var(--yellow-rgb), .07);border-bottom:1px solid var(--line);border-left:3px solid var(--yellow);cursor:pointer;">' +
           '<span style="font-size: 0.9rem;flex-shrink:0;">' + sectionIcon + '</span>' +
           '<span style="font-size: 0.72rem;font-weight:700;flex:1;color:var(--text);">' + label + '</span>' +
-          '<span style="font-size: 0.62rem;font-weight:800;color:var(--yellow);white-space:nowrap;background:rgba(234,179,8,.15);border-radius:8px;padding:2px 7px;">💬 Post to unlock</span>' +
+          '<span style="font-size: 0.62rem;font-weight:800;color:var(--yellow);white-space:nowrap;background:rgba(var(--yellow-rgb), .15);border-radius:8px;padding:2px 7px;">💬 Post to unlock</span>' +
         '</div>';
       }
       return '<div id="outlineHead-' + key + '" onclick="' + (unlocked ? '_lmsShowSection(\'' + key + '\')' : '') + '" ' +
@@ -16489,7 +16489,7 @@ var LEVEL_THEMES = {
           var msg = 'Score: ' + res.score + '% — Need 85% to pass.';
           if (res.cooldownUntil) msg += ' Retry at ' + _fmtTime(res.cooldownUntil) + '.';
           var el = document.createElement('div');
-          el.style.cssText = 'margin-top:8px;padding:8px 12px;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.25);border-radius: 4px;font-size: 0.82rem;';
+          el.style.cssText = 'margin-top:8px;padding:8px 12px;background:rgba(var(--red-rgb), .07);border:1px solid rgba(var(--red-rgb), .25);border-radius: 4px;font-size: 0.82rem;';
           el.textContent = msg;
           if (submitBtn) { submitBtn.parentNode.appendChild(el); submitBtn.disabled = false; submitBtn.textContent = 'Retry ' + (format === 'short' ? 'Short Audio' : 'Long Audio'); }
         }
@@ -16556,7 +16556,7 @@ var LEVEL_THEMES = {
           if (!result) return;
           var color = result.correct ? 'var(--green)' : 'var(--red)';
           wrap.style.borderColor = color;
-          wrap.style.background  = result.correct ? 'rgba(22,163,74,.06)' : 'rgba(239,68,68,.06)';
+          wrap.style.background  = result.correct ? 'rgba(var(--green-rgb), .06)' : 'rgba(var(--red-rgb), .06)';
           if (result.explanation) {
             var existing = wrap.querySelector('.gr-explanation');
             if (!existing) {
@@ -16575,7 +16575,7 @@ var LEVEL_THEMES = {
         } else {
           var coolMsg = res.grammarCooldownUntil ? ' Retry at ' + _fmtTime(res.grammarCooldownUntil) + '.' : '';
           var scoreDiv = document.createElement('div');
-          scoreDiv.style.cssText = 'margin-top:12px;padding:10px 14px;background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.25);border-radius:8px;font-size: 0.82rem;color:var(--text);';
+          scoreDiv.style.cssText = 'margin-top:12px;padding:10px 14px;background:rgba(var(--red-rgb), .07);border:1px solid rgba(var(--red-rgb), .25);border-radius:8px;font-size: 0.82rem;color:var(--text);';
           scoreDiv.textContent = 'Score: ' + res.score + '% — Need 85% to pass.' + coolMsg;
           form.appendChild(scoreDiv);
           if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Retry Grammar Exercises'; }
@@ -16923,7 +16923,7 @@ var LEVEL_THEMES = {
           (name ? '<div class="sub">' + name + '</div>' : '') +
           '<div class="sub">Generated ' + dateStr + '</div>' +
         '</div>' +
-        '<button onclick="window.print()" style="padding:9px 20px;background:var(--bg);color:#fff;border:none;border-radius: 4px;font-size: 0.72rem;font-weight:700;cursor:pointer;letter-spacing: 0.04em;">Print / Save PDF</button>' +
+        '<button onclick="window.print()" style="padding:9px 20px;background:var(--accent);color:var(--accent-ink);border:none;border-radius: 4px;font-size: 0.72rem;font-weight:700;cursor:pointer;letter-spacing: 0.04em;">Print / Save PDF</button>' +
       '</div>' +
 
       // ── ATC Training section ───────────────────────────────────────
@@ -16944,7 +16944,7 @@ var LEVEL_THEMES = {
         '<h2>Course Modules</h2>' +
         '<div class="stats" style="margin-bottom:14px;">' +
           '<div class="card"><div class="card-label">Completed</div><div class="card-value" style="color:var(--text)">' + done + ' <span style="font-size: 0.9rem;color:var(--muted);">/ ' + mods.length + '</span></div></div>' +
-          '<div class="card"><div class="card-label">Overall Progress</div><div class="card-value" style="color:' + (done === mods.length && mods.length ? 'var(--green)' : 'var(--bg)') + '">' + (mods.length ? Math.round(done/mods.length*100) : 0) + '%</div></div>' +
+          '<div class="card"><div class="card-label">Overall Progress</div><div class="card-value" style="color:' + (done === mods.length && mods.length ? 'var(--green)' : 'var(--text)') + '">' + (mods.length ? Math.round(done/mods.length*100) : 0) + '%</div></div>' +
           '<div class="card"><div class="card-label">Module Time</div><div class="card-value" style="color:var(--muted)">' + lmsTimeLabel + '</div></div>' +
         '</div>' +
         (function() {
@@ -17393,7 +17393,7 @@ var LEVEL_THEMES = {
     var evalQs  = questions.filter(function(q) { return q.section === 'evaluation'; });
 
     function sectionBadge(q) {
-      if (q.section === 'evaluation') return '<span style="font-size: 0.62rem;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(234,179,8,.12);color:var(--yellow);border:1px solid rgba(234,179,8,.3);">EVAL</span>';
+      if (q.section === 'evaluation') return '<span style="font-size: 0.62rem;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(var(--yellow-rgb), .12);color:var(--yellow);border:1px solid rgba(var(--yellow-rgb), .3);">EVAL</span>';
       if (q.section === 'intro')      return '<span style="font-size: 0.62rem;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(29,78,216,.12);color:var(--accent);border:1px solid rgba(29,78,216,.3);">INTRO</span>';
       return '<span style="font-size: 0.62rem;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(14,165,233,.1);color:var(--cyan);border:1px solid rgba(14,165,233,.25);">EXP</span>';
     }
@@ -17433,7 +17433,7 @@ var LEVEL_THEMES = {
         '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;font-size: 0.82rem;color:var(--muted);">' +
           '<span style="padding:3px 10px;border-radius: 4px;background:rgba(29,78,216,.08);border:1px solid rgba(29,78,216,.2);">INTRO = Intro video quiz (' + introQs.length + ')</span>' +
           '<span style="padding:3px 10px;border-radius: 4px;background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.2);">EXP = Explanation quiz (' + expQs.length + ')</span>' +
-          '<span style="padding:3px 10px;border-radius: 4px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);">EVAL = Evaluation exam (' + evalQs.length + ')</span>' +
+          '<span style="padding:3px 10px;border-radius: 4px;background:rgba(var(--yellow-rgb), .08);border:1px solid rgba(var(--yellow-rgb), .2);">EVAL = Evaluation exam (' + evalQs.length + ')</span>' +
         '</div>' +
         '<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">' +
           '<thead><tr style="border-bottom:1px solid var(--line);">' +
@@ -18296,8 +18296,8 @@ var LEVEL_THEMES = {
         '<td style="padding:10px 12px;font-size: 0.82rem;color:var(--muted);">' + _fmtDate(s.submittedAt) + '</td>' +
         '<td style="padding:10px 12px;text-align:center;">' +
           (isPending
-            ? '<span style="background:rgba(234,179,8,.12);color:var(--yellow);padding:2px 8px;border-radius:12px;font-size: 0.72rem;font-weight:700;">PENDING</span>'
-            : '<span style="background:rgba(22,163,74,.1);color:var(--green);padding:2px 8px;border-radius:12px;font-size: 0.72rem;font-weight:700;">GRADED ' + s.raterScore + '/100</span>') +
+            ? '<span style="background:rgba(var(--yellow-rgb), .12);color:var(--yellow);padding:2px 8px;border-radius:12px;font-size: 0.72rem;font-weight:700;">PENDING</span>'
+            : '<span style="background:rgba(var(--green-rgb), .1);color:var(--green);padding:2px 8px;border-radius:12px;font-size: 0.72rem;font-weight:700;">GRADED ' + s.raterScore + '/100</span>') +
         '</td>' +
       '</tr>' +
       '<tr id="detail-' + safeText(s.submissionId) + '" style="display:none;">' +
@@ -18335,7 +18335,7 @@ var LEVEL_THEMES = {
               '</div>' +
               '<button class="btn primary" onclick="adminGradeSpeaking(\'' + sid + '\')">Submit Grade</button>' +
             '</div>'
-          : '<div style="padding:10px 14px;background:rgba(22,163,74,.06);border:1px solid rgba(22,163,74,.2);border-radius: 4px;font-size: 0.82rem;">' +
+          : '<div style="padding:10px 14px;background:rgba(var(--green-rgb), .06);border:1px solid rgba(var(--green-rgb), .2);border-radius: 4px;font-size: 0.82rem;">' +
               '<strong style="color:var(--green);">Graded ' + s.raterScore + '/100</strong>' +
               (s.raterFeedback ? ' — ' + safeText(s.raterFeedback) : '') +
             '</div>') +
@@ -18378,7 +18378,7 @@ var LEVEL_THEMES = {
         renderAdminTabs('speakingqueue') +
         '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
           '<h3 style="margin:0;">🎙 Speaking Queue</h3>' +
-          (pending.length ? '<span style="background:rgba(234,179,8,.15);color:var(--yellow);padding:3px 10px;border-radius: 22px;font-size: 0.82rem;font-weight:700;">' + pending.length + ' pending</span>' : '') +
+          (pending.length ? '<span style="background:rgba(var(--yellow-rgb), .15);color:var(--yellow);padding:3px 10px;border-radius: 22px;font-size: 0.82rem;font-weight:700;">' + pending.length + ' pending</span>' : '') +
           '<button class="btn secondary" style="margin-left:auto;font-size:0.82rem;" onclick="renderAdminSpeakingQueue()">↻ Refresh</button>' +
         '</div>' +
         pendingSection + gradedSection +
@@ -20348,7 +20348,7 @@ var LEVEL_THEMES = {
         var tierColor = m.completed ? 'var(--green)' : inProg ? 'var(--accent)' : 'rgba(155,155,155,0.3)';
         var statusLabel = m.completed ? '✓ Complete' : inProg ? 'In Progress' : 'Not Started';
         var statusStyle = m.completed
-          ? 'color:var(--green);background:rgba(34,197,94,0.10);border:1px solid rgba(34,197,94,0.25);'
+          ? 'color:var(--green);background:rgba(var(--green-rgb), 0.10);border:1px solid rgba(var(--green-rgb), 0.25);'
           : inProg
             ? 'color:var(--accent);background:rgba(14,165,233,0.10);border:1px solid rgba(14,165,233,0.25);'
             : 'color:var(--muted);background:rgba(var(--lift-rgb), 0.06);border:1px solid var(--line-strong);';
@@ -22103,9 +22103,9 @@ var LEVEL_THEMES = {
 
   function _insightBanner(type, icon, headline, detail) {
     var palettes = {
-      good:     { bg: 'rgba(34,197,94,0.07)',  border: 'rgba(34,197,94,0.4)',  text: 'var(--green)' },
+      good:     { bg: 'rgba(var(--green-rgb), 0.07)',  border: 'rgba(var(--green-rgb), 0.4)',  text: 'var(--green)' },
       warning:  { bg: 'rgba(245,158,11,0.07)', border: 'rgba(245,158,11,0.4)', text: 'var(--yellow)' },
-      critical: { bg: 'rgba(239,68,68,0.07)',  border: 'rgba(239,68,68,0.4)',  text: 'var(--red)' },
+      critical: { bg: 'rgba(var(--red-rgb), 0.07)',  border: 'rgba(var(--red-rgb), 0.4)',  text: 'var(--red)' },
       info:     { bg: 'rgba(99,179,237,0.07)', border: 'rgba(99,179,237,0.4)', text: 'var(--accent)' }
     };
     var p = palettes[type] || palettes.info;
@@ -23432,7 +23432,7 @@ var LEVEL_THEMES = {
       'color:#fff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);' +
       'box-shadow: var(--shadow-2);pointer-events:none;' +
       'opacity:0;transform:translateY(6px);transition:opacity 0.25s var(--ease), transform 0.25s var(--ease);' +
-      'background:' + (type === 'err' ? 'rgba(239,68,68,.9)' : 'rgba(0,229,160,.85)') + ';';
+      'background:' + (type === 'err' ? 'rgba(var(--red-rgb), .9)' : 'rgba(0,229,160,.85)') + ';';
     t.textContent = msg;
     document.body.appendChild(t);
     requestAnimationFrame(function () {
@@ -24464,7 +24464,7 @@ var LEVEL_THEMES = {
     var answer = ta ? ta.value.trim() : '';
     if (!answer) {
       var lbl = document.querySelector('#examOverlay .exam-readback-label');
-      if (lbl) { lbl.textContent = 'Type your readback before continuing'; lbl.style.color = '#ef4444'; }
+      if (lbl) { lbl.textContent = 'Type your readback before continuing'; lbl.style.color = 'var(--red)'; }
       return;
     }
     _EX.answers.push({ scenarioId: _EX.phases[_EX.phaseIndex].scenarioId, answer: answer });
@@ -24620,7 +24620,7 @@ var LEVEL_THEMES = {
     o.innerHTML =
       '<div class="exam-card-overlay exam-error">' +
         '<p style="font-size: 1.35rem;margin-bottom:12px;">&#9888;</p>' +
-        '<p style="color:#ef4444;margin-bottom:20px;">' + _esc(msg) + '</p>' +
+        '<p style="color:var(--red);margin-bottom:20px;">' + _esc(msg) + '</p>' +
         '<button class="btn secondary" onclick="window._examClose()">Close</button>' +
       '</div>';
   }
@@ -24967,7 +24967,7 @@ var LEVEL_THEMES = {
     var answer = ta ? ta.value.trim() : '';
     if (!answer) {
       var lbl = document.querySelector('#placementOverlay .exam-readback-label');
-      if (lbl) { lbl.textContent = 'Type your readback before continuing'; lbl.style.color = '#ef4444'; }
+      if (lbl) { lbl.textContent = 'Type your readback before continuing'; lbl.style.color = 'var(--red)'; }
       return;
     }
     _PL.answers.push({ scenarioId: _PL.phases[_PL.phaseIndex].scenarioId, answer: answer });
@@ -25019,11 +25019,11 @@ var LEVEL_THEMES = {
           '<p style="font-size: 0.82rem;color:#8fa3bb;margin:0 0 22px;line-height:1.5;">' + _esc(levelMsg) + '</p>' +
           '<div style="display:flex;gap:24px;justify-content:center;margin-bottom:26px;">' +
             '<div style="text-align:center;">' +
-              '<div style="font-size: 1.6rem;font-weight: 800;color:' + (r1 >= 75 ? 'var(--accent)' : '#ef4444') + ';">' + r1 + '%</div>' +
+              '<div style="font-size: 1.6rem;font-weight: 800;color:' + (r1 >= 75 ? 'var(--accent)' : 'var(--red)') + ';">' + r1 + '%</div>' +
               '<div style="font-size: 0.72rem;color:#6e7a88;margin-top:2px;">Round 1</div>' +
             '</div>' +
             '<div style="text-align:center;">' +
-              '<div style="font-size: 1.6rem;font-weight: 800;color:' + (r2 >= 75 ? 'var(--accent)' : '#ef4444') + ';">' + r2 + '%</div>' +
+              '<div style="font-size: 1.6rem;font-weight: 800;color:' + (r2 >= 75 ? 'var(--accent)' : 'var(--red)') + ';">' + r2 + '%</div>' +
               '<div style="font-size: 0.72rem;color:#6e7a88;margin-top:2px;">Round 2</div>' +
             '</div>' +
           '</div>' +
@@ -25049,7 +25049,7 @@ var LEVEL_THEMES = {
     o.innerHTML =
       '<div class="exam-card-overlay exam-error">' +
         '<p style="font-size: 1.35rem;margin-bottom:12px;">&#9888;</p>' +
-        '<p style="color:#ef4444;margin-bottom:20px;">' + _esc(msg) + '</p>' +
+        '<p style="color:var(--red);margin-bottom:20px;">' + _esc(msg) + '</p>' +
         '<button class="btn secondary" onclick="window._placementClose()">Close</button>' +
       '</div>';
   }
@@ -25742,7 +25742,7 @@ var LEVEL_THEMES = {
       an.fftSize = 128;
       an.smoothingTimeConstant = 0.7;
       src.connect(an);                              // analyser only — no echo
-      _teaVizRun(an, 'rgba(239,68,68,.55)');
+      _teaVizRun(an, 'rgba(var(--red-rgb), .55)');
     } catch (e) {}
   }
 
@@ -26120,12 +26120,12 @@ var LEVEL_THEMES = {
         box.id = 'teaUnvoiced';
         box.style.cssText =
           'margin-top:12px;padding:12px 14px;border-radius:12px;text-align:left;' +
-          'background:rgba(234,179,8,.10);border:1px solid rgba(234,179,8,.35);';
+          'background:rgba(var(--yellow-rgb), .10);border:1px solid rgba(var(--yellow-rgb), .35);';
         host.appendChild(box);
       }
       box.innerHTML =
         '<p style="margin:0 0 6px;font-size: 0.62rem;font-weight:800;letter-spacing: 0.12em;' +
-        'text-transform:uppercase;color:#eab308;">Examiner \u00b7 audio unavailable</p>' +
+        'text-transform:uppercase;color:var(--yellow);">Examiner \u00b7 audio unavailable</p>' +
         '<p style="margin:0;font-size: 0.9rem;line-height:1.55;color:var(--text,#cacaca);">' +
         _esc(String(text || '')) + '</p>';
       box.style.display = '';
@@ -27229,7 +27229,7 @@ var LEVEL_THEMES = {
         el.textContent = Math.floor(left / 60) + ':' + ('0' + (left % 60)).slice(-2);
         // Amber inside the last fifteen seconds — enough warning to finish a
         // sentence, not so early that it rushes the whole answer.
-        el.style.color = left <= 15 ? '#eab308' : 'var(--muted,#808080)';
+        el.style.color = left <= 15 ? 'var(--yellow)' : 'var(--muted,#808080)';
       }
       if (left <= 0) { _scClearTimer(); onExpire(); }
     }
@@ -27277,8 +27277,8 @@ var LEVEL_THEMES = {
     var el = document.createElement('div');
     el.id = 'teaMicNotice';
     el.style.cssText = 'margin:0 16px 10px;padding:9px 12px;border-radius: 8px;font-size: 0.72rem;' +
-      'line-height:1.45;color:#eab308;background:rgba(234,179,8,.08);' +
-      'border:1px solid rgba(234,179,8,.30);';
+      'line-height:1.45;color:var(--yellow);background:rgba(var(--yellow-rgb), .08);' +
+      'border:1px solid rgba(var(--yellow-rgb), .30);';
     el.textContent = 'No microphone access, so this sitting will be typed. ' +
       'Your answers are still marked, and recorded as written rather than spoken.';
     host.insertBefore(el, cards);
@@ -27385,7 +27385,7 @@ var LEVEL_THEMES = {
     var host = _scEl('scAnswer');
     if (!host) { done(''); return; }
     host.innerHTML =
-      (notice ? '<p style="margin:0 0 10px;font-size: 0.82rem;color:#eab308;">' + _esc(notice) + '</p>' : '') +
+      (notice ? '<p style="margin:0 0 10px;font-size: 0.82rem;color:var(--yellow);">' + _esc(notice) + '</p>' : '') +
       '<textarea id="scType" class="input" rows="4" style="width:100%;resize:vertical;" ' +
       'placeholder="Type your answer"></textarea>' +
       '<button class="btn primary" id="scTypeSend" style="margin-top:10px;">Submit answer</button>';

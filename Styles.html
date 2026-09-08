@@ -656,7 +656,7 @@
     padding: 0 4px;
     margin-left: 6px;
     vertical-align: middle;
-    box-shadow: 0 0 7px rgba(239,68,68,0.65);
+    box-shadow: 0 0 7px rgba(var(--red-rgb), 0.65);
     animation: navBadgePulse 2s ease-in-out infinite;
   }
 
@@ -678,8 +678,8 @@
   }
 
   .gam-tour-banner--urgent {
-    background: rgba(239,68,68,0.06);
-    border-bottom-color: rgba(239,68,68,0.2);
+    background: rgba(var(--red-rgb), 0.06);
+    border-bottom-color: rgba(var(--red-rgb), 0.2);
   }
 
   .gam-tour-label {
@@ -837,8 +837,8 @@
   }
 
   .btn.danger {
-    background: rgba(239, 68, 68, 0.16);
-    border-color: rgba(239, 68, 68, 0.5);
+    background: rgba(var(--red-rgb), 0.16);
+    border-color: rgba(var(--red-rgb), 0.5);
   }
 
 .btn.full {
@@ -1094,17 +1094,17 @@
 
   .status.ACTIVE {
     color: var(--green);
-    background: rgba(34, 197, 94, 0.14);
+    background: rgba(var(--green-rgb), 0.14);
   }
 
   .status.PENDING {
     color: var(--yellow);
-    background: rgba(234, 179, 8, 0.14);
+    background: rgba(var(--yellow-rgb), 0.14);
   }
 
   .status.BLOCKED {
     color: var(--red);
-    background: rgba(239, 68, 68, 0.14);
+    background: rgba(var(--red-rgb), 0.14);
   }
 
   .scenario-card {
@@ -1190,13 +1190,13 @@
   }
 
   .feedback-card.ok {
-    border-color: rgba(34, 197, 94, 0.55);
-    background: rgba(34, 197, 94, 0.10);
+    border-color: rgba(var(--green-rgb), 0.55);
+    background: rgba(var(--green-rgb), 0.10);
   }
 
   .feedback-card.bad {
-    border-color: rgba(239, 68, 68, 0.55);
-    background: rgba(239, 68, 68, 0.10);
+    border-color: rgba(var(--red-rgb), 0.55);
+    background: rgba(var(--red-rgb), 0.10);
   }
 
   .feedback-card p {
@@ -1432,7 +1432,7 @@
   animation: vrCardAmbientPriority 3.2s ease-in-out infinite;
 }
 .level-card-pro.vr-critical {
-  border-color: rgba(239,68,68,0.55);
+  border-color: rgba(var(--red-rgb), 0.55);
   box-shadow: var(--shadow-3);
   animation: vrCardAmbientCritical 2.4s ease-in-out infinite;
 }
@@ -1488,7 +1488,7 @@
   row-gap: 4px;
 }
 .vr-event-banner--priority { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.28); color: var(--yellow); animation: vrBannerPulse 2.8s ease-in-out infinite; }
-.vr-event-banner--critical  { background: rgba(239,68,68,0.08);  border: 1px solid rgba(239,68,68,0.30);  color: var(--red); animation: vrBannerPulse 1.9s ease-in-out infinite; }
+.vr-event-banner--critical  { background: rgba(var(--red-rgb), 0.08);  border: 1px solid rgba(var(--red-rgb), 0.30);  color: var(--red); animation: vrBannerPulse 1.9s ease-in-out infinite; }
 .vr-event-banner--double    { background: rgba(218,165,32,0.09); border: 1px solid rgba(218,165,32,0.36); color: var(--yellow); animation: vrBannerPulse 3.2s ease-in-out infinite; }
 .vr-event-banner--hot       { background: rgba(var(--accent-rgb), 0.06);  border: 1px solid rgba(var(--accent-rgb), 0.22); color: var(--accent); }
 
@@ -1894,7 +1894,7 @@
   font-size: 0.82rem;
 }
 .sim-hero-incentive--priority { background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.30); }
-.sim-hero-incentive--critical  { background: rgba(239,68,68,0.09);  border: 1px solid rgba(239,68,68,0.28); }
+.sim-hero-incentive--critical  { background: rgba(var(--red-rgb), 0.09);  border: 1px solid rgba(var(--red-rgb), 0.28); }
 .sim-hero-incentive--double    { background: rgba(218,165,32,0.09); border: 1px solid rgba(218,165,32,0.32); }
 .sim-hero-incentive--hot       { background: rgba(var(--accent-rgb), 0.07);  border: 1px solid rgba(var(--accent-rgb), 0.24); }
 .sim-hero-incentive-left {
@@ -2115,9 +2115,9 @@
   font-weight: 700;
   color: var(--text);
 }
-.ccm-trend-up   { border-color: rgba(34,197,94,0.3);  background: rgba(34,197,94,0.07);  }
+.ccm-trend-up   { border-color: rgba(var(--green-rgb), 0.3);  background: rgba(var(--green-rgb), 0.07);  }
 .ccm-trend-up   .ccm-value { color: var(--green); }
-.ccm-trend-down { border-color: rgba(239,68,68,0.3);  background: rgba(239,68,68,0.07);  }
+.ccm-trend-down { border-color: rgba(var(--red-rgb), 0.3);  background: rgba(var(--red-rgb), 0.07);  }
 .ccm-trend-down .ccm-value { color: var(--red); }
 .ccm-trend-stable { border-color: rgba(148,163,184,0.2); }
 .ccm-trend-stable .ccm-value { color: var(--muted); }
@@ -2690,7 +2690,7 @@
 
 .sim-feedback-box.danger {
   background: rgba(127, 29, 29, 0.22);
-  border-color: rgba(239, 68, 68, 0.24);
+  border-color: rgba(var(--red-rgb), 0.24);
   color: var(--text);
 }
 
@@ -2921,7 +2921,7 @@ body.cabina-mode .content-grid {
 
 .cabina-inst-value.green {
   color: var(--green);
-  text-shadow: 0 0 8px rgba(34, 197, 94, 0.55);
+  text-shadow: 0 0 8px rgba(var(--green-rgb), 0.55);
 }
 
 .cabina-inst-unit {
@@ -2993,7 +2993,7 @@ body.cabina-mode .content-grid {
   height: 8px;
   border-radius: 999px;
   background: var(--green);
-  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
+  box-shadow: 0 0 0 4px rgba(var(--green-rgb), 0.18);
   animation: cabinaLedBlink 1.8s ease-in-out infinite;
   flex-shrink: 0;
 }
@@ -3297,7 +3297,7 @@ body.cabina-mode .content-grid {
   left: 0;
   right: 0;
   z-index: 9999;
-  background: rgba(234, 179, 8, 0.9);
+  background: rgba(var(--yellow-rgb), 0.9);
   color: var(--muted);
   font-size: 0.82rem;
   font-weight: 800;
@@ -3756,9 +3756,9 @@ body.sim-paused #simMediaPauseBtn {
 
 /* States */
 .sim-instrument--ok {
-  border-color: rgba(34,197,94,0.5) !important;
-  background: rgba(34,197,94,0.07) !important;
-  box-shadow: 0 0 8px 1px rgba(34,197,94,0.12);
+  border-color: rgba(var(--green-rgb), 0.5) !important;
+  background: rgba(var(--green-rgb), 0.07) !important;
+  box-shadow: 0 0 8px 1px rgba(var(--green-rgb), 0.12);
 }
 .sim-instrument--ok .sim-instr-label { color: var(--green); }
 .sim-instrument--ok .sim-instr-arrow { color: var(--green); }
@@ -3775,13 +3775,13 @@ body.sim-paused #simMediaPauseBtn {
 .sim-instrument--warn .sim-instr-target-val { color: var(--yellow); }
 
 @keyframes simLockFlash {
-  0%   { border-color: rgba(34,197,94,0.2); box-shadow: none; }
-  50%  { border-color: rgba(34,197,94,0.7); box-shadow: 0 0 14px 3px rgba(34,197,94,0.25); }
-  100% { border-color: rgba(34,197,94,0.2); box-shadow: none; }
+  0%   { border-color: rgba(var(--green-rgb), 0.2); box-shadow: none; }
+  50%  { border-color: rgba(var(--green-rgb), 0.7); box-shadow: 0 0 14px 3px rgba(var(--green-rgb), 0.25); }
+  100% { border-color: rgba(var(--green-rgb), 0.2); box-shadow: none; }
 }
 .sim-instrument--lock {
-  border-color: rgba(34,197,94,0.55) !important;
-  background: rgba(34,197,94,0.09) !important;
+  border-color: rgba(var(--green-rgb), 0.55) !important;
+  background: rgba(var(--green-rgb), 0.09) !important;
   animation: simLockFlash 0.8s ease-in-out 2;
 }
 .sim-instrument--lock .sim-instr-label { color: var(--green); }
@@ -3878,7 +3878,7 @@ mark.atc-highlight {
 
 .sim-feedback-box.danger {
   background: rgba(127, 29, 29, 0.22);
-  border-color: rgba(239, 68, 68, 0.24);
+  border-color: rgba(var(--red-rgb), 0.24);
   color: var(--text);
 }
 
@@ -8188,7 +8188,7 @@ body.sim-focus-mode .topbar-avatar {
 .icao-scenario-row .sc-score.bad  { color:var(--red); }
 .icao-suggestion {
   margin-top:14px; padding:12px 14px; border-radius: 8px;
-  background:rgba(234,179,8,0.07); border:1px solid rgba(234,179,8,0.18);
+  background:rgba(var(--yellow-rgb), 0.07); border:1px solid rgba(var(--yellow-rgb), 0.18);
   font-size: 0.82rem; color:var(--yellow); line-height:1.5;
 }
 .icao-band-footer {
@@ -12090,7 +12090,7 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease);
 }
 .dc-home-card:hover { border-color: rgba(14,165,233,.6); box-shadow: 0 0 0 3px rgba(14,165,233,.1); }
-.dc-home-card--done { background: var(--panel); border-color: rgba(22,163,74,.3); cursor: default; opacity: .8; }
+.dc-home-card--done { background: var(--panel); border-color: rgba(var(--green-rgb), .3); cursor: default; opacity: .8; }
 .dc-home-card--loading { cursor: default; opacity: .5; font-size: 0.82rem; color: var(--muted); justify-content: center; padding: 14px 20px; }
 .dc-home-card-icon {
   font-size: 1.6rem;
@@ -12105,7 +12105,7 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   border-radius: 12px;
   border: 1px solid rgba(14,165,233,.25);
 }
-.dc-home-card--done .dc-home-card-icon { background: rgba(22,163,74,.12); border-color: rgba(22,163,74,.25); }
+.dc-home-card--done .dc-home-card-icon { background: rgba(var(--green-rgb), .12); border-color: rgba(var(--green-rgb), .25); }
 .dc-home-card-body { flex: 1; min-width: 0; }
 .dc-home-card-label { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 2px; }
 .dc-home-card--done .dc-home-card-label { color: var(--green); }
@@ -12185,7 +12185,7 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 }
 .dc-opt:hover           { border-color: rgba(14,165,233,.4); }
 .dc-opt--selected       { border-color: var(--accent); background: rgba(14,165,233,.08); }
-.dc-opt--correct        { border-color: var(--green); background: rgba(22,163,74,.1); }
+.dc-opt--correct        { border-color: var(--green); background: rgba(var(--green-rgb), .1); }
 .dc-opt--wrong          { border-color: var(--red); background: rgba(var(--red-rgb), .07); }
 .dc-opt-letter {
   width: 28px; height: 28px;
