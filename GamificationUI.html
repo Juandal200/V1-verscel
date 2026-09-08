@@ -891,9 +891,15 @@
     flex-shrink: 0;
   }
 
-  #gamification-module .gam-lb-rank--1 { color: #ffd700; font-size: 1rem; }
-  #gamification-module .gam-lb-rank--2 { color: var(--muted); font-size: 1rem; }
-  #gamification-module .gam-lb-rank--3 { color: #cd7f32; font-size: 1rem; }
+  /* Gold and bronze were #ffd700 and #cd7f32 — 1.24:1 and 2.78:1 on the light
+     theme, so first and third place were the two least readable rows in their own
+     table. This whole module carries no [data-theme] rules at all, which is why
+     nobody caught it: it was only ever looked at on the dark one.
+     The ladder is kept — first place still stands out most — in tokens that
+     invert. */
+  #gamification-module .gam-lb-rank--1 { color: var(--yellow); font-size: 1rem; }
+  #gamification-module .gam-lb-rank--2 { color: var(--text);   font-size: 1rem; }
+  #gamification-module .gam-lb-rank--3 { color: var(--muted);  font-size: 1rem; }
 
   #gamification-module .gam-lb-avatar {
     width: 36px;
@@ -911,9 +917,9 @@
     letter-spacing: 0.02em;
   }
 
-  #gamification-module .gam-lb-avatar--1 { border-color: rgba(255,215,0,0.45);   box-shadow: 0 0 12px rgba(255,215,0,0.18); }
-  #gamification-module .gam-lb-avatar--2 { border-color: rgba(192,199,209,0.45); box-shadow: 0 0 12px rgba(192,199,209,0.12); }
-  #gamification-module .gam-lb-avatar--3 { border-color: rgba(205,127,50,0.45);  box-shadow: 0 0 12px rgba(205,127,50,0.12); }
+  #gamification-module .gam-lb-avatar--1 { border-color: rgba(var(--yellow-rgb), 0.55); box-shadow: 0 0 12px rgba(var(--yellow-rgb), 0.20); }
+  #gamification-module .gam-lb-avatar--2 { border-color: rgba(var(--lift-rgb), 0.45);   box-shadow: 0 0 12px rgba(var(--lift-rgb), 0.14); }
+  #gamification-module .gam-lb-avatar--3 { border-color: var(--line-strong);            box-shadow: none; }
 
   #gamification-module .gam-lb-info {
     flex: 1;
@@ -950,6 +956,19 @@
     align-items: flex-end;
     gap: 4px;
     flex-shrink: 0;
+  }
+
+  /* The weekly score is the headline because the table is weekly. The career
+     total sits under it in a smaller, quieter type — present for anyone who
+     wants it, and no longer competing with a rank it does not explain. */
+  #gamification-module .gam-lb-alltime {
+    display: block;
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    margin-top: 2px;
+    white-space: nowrap;
   }
 
   #gamification-module .gam-lb-score {

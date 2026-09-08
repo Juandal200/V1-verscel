@@ -23877,7 +23877,6 @@ var LEVEL_THEMES = {
       return;
     }
     var myEmail = _gam.myEmail ? _gam.myEmail.toLowerCase() : '';
-    var crowns  = ['👑', '🥈', '🥉'];
 
     // Assign global weekly rank (sorted by weeklyXp DESC coming from server)
     var globalRankMap = {};
@@ -23891,8 +23890,15 @@ var LEVEL_THEMES = {
     });
     // Within each tier, keep server order (weeklyXp DESC)
 
+    /* The bar measures the same thing the rank does.
+     *
+     * The header says THIS WEEK'S RANKING and the server sorts by weeklyXp — but
+     * every number on the row was mergedXp, the all-time total. So the table read
+     * as broken to anyone who looked: first place showing 50 XP above fourth
+     * place showing 100. Both numbers were right; they were answers to different
+     * questions, printed next to a rank that answered the first one. */
     var maxXp = 1;
-    res.data.forEach(function(p) { if ((p.mergedXp || 0) > maxXp) maxXp = p.mergedXp; });
+    res.data.forEach(function(p) { if ((p.weeklyXp || 0) > maxXp) maxXp = p.weeklyXp; });
 
     var html = '<div style="font-size: 0.72rem;font-weight:700;letter-spacing: 0.08em;color:var(--muted);text-align:center;margin-bottom:8px;text-transform:uppercase;">This week\'s ranking · resets Monday</div>';
 
@@ -23911,11 +23917,14 @@ var LEVEL_THEMES = {
         var emailLc   = String(p.email || '').toLowerCase();
         var globalRnk = globalRankMap[emailLc] || 99;
         var isMe      = (emailLc === myEmail);
-        var crownMkp  = globalRnk <= 3 ? '<span style="font-size:1rem;margin-right:3px;">' + crowns[globalRnk - 1] + '</span>' : '';
+        /* No crown, no medals. The rank number is already gold, silver and bronze
+         * by class, and the avatar already carries a ring in the same colour — so
+         * the emoji said a third time what the row said twice, in a typeface that
+         * belongs to no part of this product. */
         var rankCls   = globalRnk <= 3 ? ' gam-lb-rank--' + globalRnk : '';
         var avaCls    = globalRnk <= 3 ? ' gam-lb-avatar--' + globalRnk : '';
         var rowCls    = isMe ? ' gam-lb-row--me' : '';
-        var barW      = Math.min(100, Math.round(((p.mergedXp || 0) / maxXp) * 100));
+        var barW      = Math.min(100, Math.round(((p.weeklyXp || 0) / maxXp) * 100));
         var pilotTier = window._getTierFromXp ? window._getTierFromXp(p.mergedXp || 0) : { color: 'var(--accent)' };
 
         // Streak badge
@@ -23927,7 +23936,7 @@ var LEVEL_THEMES = {
                       uiIcon('streak', 12) + p.streakDays + 'd' + shield + '</span>';
         }
 
-        var nameTag = crownMkp + _gEsc(p.name) +
+        var nameTag = _gEsc(p.name) +
           (isMe ? ' <span style="color:var(--gam-green);font-size:0.72rem;font-weight:700;margin-left:5px;letter-spacing: 0.06em;">YOU</span>' : '') +
           streakMkp;
 
@@ -23944,7 +23953,8 @@ var LEVEL_THEMES = {
               '</div>' +
             '</div>' +
             '<div class="gam-lb-right">' +
-              '<span class="gam-lb-score" style="color:' + pilotTier.color + ';">' + (p.mergedXp || 0) + ' XP</span>' +
+              '<span class="gam-lb-score" style="color:' + pilotTier.color + ';">' + (p.weeklyXp || 0) + ' XP</span>' +
+              '<span class="gam-lb-alltime">' + (p.mergedXp || 0) + ' total</span>' +
             '</div>' +
           '</div>';
       });
