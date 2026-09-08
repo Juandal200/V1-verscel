@@ -82,8 +82,7 @@ function authorizeTeaDrive() {
 }
 
 function _teaGetOrCreateFolder_() {
-  var it = DriveApp.getFoldersByName(TEA_FOLDER_NAME);
-  return it.hasNext() ? it.next() : DriveApp.createFolder(TEA_FOLDER_NAME);
+  return driveFolder_(TEA_FOLDER_NAME);
 }
 
 function _teaSaveJsonReport_(folder, data) {
@@ -130,11 +129,7 @@ function _teaAppendSheetRow_(data, fileUrl) {
 
 function _teaGetOrCreateSheet_() {
   // Use the same spreadsheet the rest of the app already uses
-  var props = PropertiesService.getScriptProperties();
-  var ssId  = props.getProperty('DB_SPREADSHEET_ID');
-  if (!ssId) throw new Error('DB_SPREADSHEET_ID not set in Script Properties');
-
-  var ss       = SpreadsheetApp.openById(ssId);
+  var ss       = dbGetSpreadsheet_();
   var existing = ss.getSheetByName(TEA_TAB_NAME);
   if (existing) {
     // Headers are only written when the tab is created, so a column added to

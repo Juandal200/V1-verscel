@@ -656,7 +656,7 @@ function setupDatabase() {
   var ss;
 
   if (spreadsheetId) {
-    ss = SpreadsheetApp.openById(spreadsheetId);
+    ss = dbGetSpreadsheet_();
   } else {
     ss = SpreadsheetApp.create(CONFIG.APP_NAME + ' - Database');
     props.setProperty(CONFIG.PROP_DB_SPREADSHEET_ID, ss.getId());
@@ -735,22 +735,17 @@ function seedInitialConfig_() {
     }
   });
 }
-function setExistingDatabaseId() {
-  // Replace with the ID of your corporate Google Sheets database, then run once.
-  // Find it in the spreadsheet URL: docs.google.com/spreadsheets/d/YOUR_ID_HERE/edit
-  var NEW_SPREADSHEET_ID = 'YOUR_NEW_SPREADSHEET_ID_HERE';
-
-  if (NEW_SPREADSHEET_ID === 'YOUR_NEW_SPREADSHEET_ID_HERE') {
-    throw new Error('Edit setExistingDatabaseId() and replace YOUR_NEW_SPREADSHEET_ID_HERE with your actual spreadsheet ID before running.');
-  }
-
-  PropertiesService.getScriptProperties().setProperty(
-    CONFIG.PROP_DB_SPREADSHEET_ID,
-    NEW_SPREADSHEET_ID
-  );
-
-  return setupDatabase();
-}
+/* setExistingDatabaseId() was here.
+ *
+ * It repointed the whole application at a new spreadsheet from an id pasted into the
+ * source, and it was one of three such tools — the others lived in DatabaseHardFix.js
+ * and Setupdatabasefix.js, both now deleted. All three did the same one-time migration
+ * job, all three had already been run, and all three remained one careless Run away
+ * from moving production onto a different database.
+ *
+ * Setting DB_SPREADSHEET_ID is a two-second edit in Project Settings → Script
+ * Properties, where it is visible, audited, and not a function anyone can click by
+ * accident while looking for something else. */
 function setTtsConfig() {
   // Paste your new corporate Google Cloud TTS API key here, then run this function once.
   // Steps to get the key:

@@ -1,13 +1,35 @@
 /* Everything that can be checked without a browser, a phone or a human.
- * Run before every push: node test/run-all.js */
+ * Run before every push: npm test
+ *
+ * The suite list used to be written out by hand here, and it drifted: seven suites in
+ * tests/ — grader, audioQueue, ttsDigits, feedbackCard, autoplayUx, aircraftTypePrefix
+ * and telephonyDesignators — were never added to it, so nothing ran them. They all
+ * passed when finally invoked, which is the point: a test nobody runs tells you
+ * nothing, and it fails silently by never being called.
+ *
+ * So the list is discovered rather than remembered. Anything named *.test.js in either
+ * directory runs. Adding a suite is now writing the file. */
 const { execFileSync } = require('child_process');
-const suites = ['audio-cache.test.js', 'exam-accent.test.js', 'server-contract.test.js',
-                'speed-ramp.test.js', 'exam-audio-cache.test.js', 'gas-proxy.test.js', 'sim-teardown.test.js', 'exam-sitting.test.js', 'exam-regressions.test.js', 'palette.test.js', 'result-privacy.test.js', 'unheard-sitting.test.js', 'results-paywall.test.js', 'attempt-counting.test.js', 'locked-history.test.js', 'plan-coherence.test.js', 'theme-coherence.test.js', 'route-flow.test.js', 'single-source.test.js', 'english-only.test.js', 'no-duplicate-functions.test.js', 'typography.test.js', 'design-system.test.js', 'route-scoring.test.js', 'email-palette.test.js', 'form-system.test.js', 'route-integrity.test.js', 'answer-windows.test.js', 'feedback-integrity.test.js', 'nav-guard.test.js', 'streak-freeze.test.js', 'scope-reach.test.js'];
+const fs   = require('fs');
+const path = require('path');
+
+const DIRS = [__dirname, path.join(__dirname, '..', 'tests')];
+
+const suites = DIRS.flatMap(dir => {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir)
+    .filter(f => f.endsWith('.test.js'))
+    .sort()
+    .map(f => ({ label: path.relative(path.join(__dirname, '..'), path.join(dir, f)).replace(/\\/g, '/'),
+                 file:  path.join(dir, f) }));
+});
+
 let bad = 0;
 for (const s of suites) {
-  try { execFileSync(process.execPath, [__dirname + '/' + s], { stdio: 'pipe' });
-        console.log('  PASS  ' + s); }
-  catch (e) { bad++; console.log('  FAIL  ' + s + '\n' + (e.stdout || '').toString()); }
+  try { execFileSync(process.execPath, [s.file], { stdio: 'pipe' });
+        console.log('  PASS  ' + s.label); }
+  catch (e) { bad++; console.log('  FAIL  ' + s.label + '\n' + (e.stdout || '').toString()); }
 }
-console.log(bad ? '\n' + bad + ' suite(s) failing' : '\nall suites green');
+console.log(bad ? '\n' + bad + ' suite(s) failing of ' + suites.length
+                : '\nall ' + suites.length + ' suites green');
 process.exit(bad ? 1 : 0);

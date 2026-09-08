@@ -29,15 +29,51 @@ function dbWithReadScope_(fn) {
   finally { if (!outer) dbEndReadScope_(); }
 }
 
-function dbGetSpreadsheet_() {
-  var props = PropertiesService.getScriptProperties();
-  var spreadsheetId = props.getProperty(CONFIG.PROP_DB_SPREADSHEET_ID);
+/* The one place that decides which spreadsheet this execution talks to.
+ *
+ * There used to be ten. Five copies of getDatabaseId_ in Código.js, one in
+ * TTSService.js, getDatabaseIdV5Hard_ spelled differently, and three chains written
+ * inline — each trying four property names in turn and each ending in a hardcoded id.
+ *
+ * That hardcoded id was not a dead string. It is 1IKVJEEw8Qo… — "ICAO Trainer Pro -
+ * Database", a real spreadsheet with 47 users and 622 attempts still sitting in it,
+ * the original that was superseded by a copy and never removed from the source. Any
+ * path that left DB_SPREADSHEET_ID unset — a cleared property, a typo, a project
+ * restored from a backup — sent every read and every write to months-old data and
+ * said nothing about it.
+ *
+ * So: one property name, and no fallback. Missing configuration throws. A loud failure
+ * is worth more than a silent one that looks like it worked.
+ */
+function dbGetSpreadsheetId_() {
+  var spreadsheetId = PropertiesService.getScriptProperties()
+    .getProperty(CONFIG.PROP_DB_SPREADSHEET_ID);
 
   if (!spreadsheetId) {
     throw new Error('Database not configured. Run setupDatabase() first.');
   }
 
-  return SpreadsheetApp.openById(spreadsheetId);
+  return spreadsheetId;
+}
+
+function dbGetSpreadsheet_() {
+  return SpreadsheetApp.openById(dbGetSpreadsheetId_());
+}
+
+/* The one place that resolves a Drive folder, for the same reason.
+ *
+ * Four copies of this three-line lookup existed — scenario audio, ICAO test audio, TEA
+ * reports and CSV reports — each finding a folder BY NAME and creating it on a miss.
+ * A name resolves inside the Drive of whichever account the script runs as, so two
+ * deployments running as the same account share every folder. That is not merely
+ * untidy: IcaoTestItemService trashes the previous audio file when it re-renders one,
+ * so a shared folder means a test run can delete production audio.
+ *
+ * Routing them through here is what lets a QA environment later append a suffix in one
+ * place instead of four. */
+function driveFolder_(name) {
+  var it = DriveApp.getFoldersByName(name);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(name);
 }
 
 function dbGetSheet_(sheetName) {

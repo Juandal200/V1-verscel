@@ -16,8 +16,7 @@
 var REPORT_FOLDER_NAME_ = 'AEROCOMMS Reports';
 
 function _reportFolder_() {
-  var it = DriveApp.getFoldersByName(REPORT_FOLDER_NAME_);
-  return it.hasNext() ? it.next() : DriveApp.createFolder(REPORT_FOLDER_NAME_);
+  return driveFolder_(REPORT_FOLDER_NAME_);
 }
 
 function _csvCell_(v) {

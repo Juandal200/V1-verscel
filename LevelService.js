@@ -39,8 +39,7 @@ var _LEVEL_SEED_ = [
  */
 function setupLevelsSheet() {
   // Same accessor the other setup functions use.
-  var ss = SpreadsheetApp.openById(
-    PropertiesService.getScriptProperties().getProperty(CONFIG.PROP_DB_SPREADSHEET_ID));
+  var ss = dbGetSpreadsheet_();
   var sh = ss.getSheetByName(LEVELS_SHEET_);
   var created = false;
   if (!sh) {
@@ -201,8 +200,7 @@ function _levelCapsCompute_() {
     // Script, and this wanted the highest level number — it was pulling every column
     // of every scenario to find it.
     try {
-      var sh = SpreadsheetApp.openById(
-        PropertiesService.getScriptProperties().getProperty(CONFIG.PROP_DB_SPREADSHEET_ID))
+      var sh = dbGetSpreadsheet_()
         .getSheetByName('Scenarios');
       if (sh && sh.getLastRow() > 1) {
         var hdr  = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];

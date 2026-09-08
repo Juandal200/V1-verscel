@@ -4,7 +4,8 @@
   "description": "aerocomms ICAO Trainer — Vercel frontend",
   "scripts": {
     "build": "node build.js",
-    "dev": "node build.js && npx serve dist -p 3000"
+    "dev": "node build.js && npx serve dist -p 3000",
+    "test": "node test/run-all.js"
   },
   "dependencies": {
     "web-push": "^3.6.7"

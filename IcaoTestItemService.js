@@ -380,8 +380,7 @@ function renderIcaoTestAudio(force) {
   var headers = DB_SCHEMA[ICAO_ITEMS_SHEET_];
   var rows    = dbReadAll_(ICAO_ITEMS_SHEET_);
 
-  var it = DriveApp.getFoldersByName(ICAO_AUDIO_FOLDER_);
-  var folder = it.hasNext() ? it.next() : DriveApp.createFolder(ICAO_AUDIO_FOLDER_);
+  var folder = driveFolder_(ICAO_AUDIO_FOLDER_);
 
   var fileCol = headers.indexOf('audioFileId') + 1;
   var done = 0, skipped = 0, failed = 0;

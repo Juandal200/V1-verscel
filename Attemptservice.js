@@ -1010,8 +1010,7 @@ function apiFinalizeRoute(sessionToken, payload) {
  * Run addMissingSheetColumns() from Attemptservice.gs.
  */
 function addMissingSheetColumns() {
-  var ss = SpreadsheetApp.openById(
-    PropertiesService.getScriptProperties().getProperty(CONFIG.PROP_DB_SPREADSHEET_ID));
+  var ss = dbGetSpreadsheet_();
   var out = [], touched = 0;
 
   Object.keys(DB_SCHEMA).forEach(function(name) {
@@ -1085,8 +1084,7 @@ function addMissingSheetColumns() {
  * Run repairSheetHeaders() from Attemptservice.gs.
  */
 function relabelSheetHeadersToSchema() {
-  var ss = SpreadsheetApp.openById(
-    PropertiesService.getScriptProperties().getProperty(CONFIG.PROP_DB_SPREADSHEET_ID));
+  var ss = dbGetSpreadsheet_();
   var out = [], fixed = 0;
 
   Object.keys(DB_SCHEMA).forEach(function(name) {

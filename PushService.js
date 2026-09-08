@@ -8,9 +8,7 @@
  *******************************************************/
 
 function setupPushSubscriptionsSheet() {
-  var ss = SpreadsheetApp.openById(
-    PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID')
-  );
+  var ss = dbGetSpreadsheet_();
   if (ss.getSheetByName('PushSubscriptions')) {
     Logger.log('PushSubscriptions sheet already exists.');
     return;

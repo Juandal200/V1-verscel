@@ -1,0 +1,38 @@
+# The suites only protect anything if something is obliged to run them.
+#
+# There was no CI here, and no `npm test` — the 32 suites in test/ ran when a person
+# remembered, and the 7 in tests/ were never wired in at all, so nothing had run them
+# since they were written. That is the failure this file exists to stop repeating.
+#
+# It matters most for test/one-database-source.test.js, which is what keeps the ten
+# copies of the spreadsheet resolver from growing back after Phase 1 of the QA split
+# collapses them. A guard nobody is required to run is not a guard.
+
+name: tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: npm
+
+      - run: npm ci
+
+      # Every suite in test/ and tests/, discovered rather than listed.
+      - run: npm test
+
+      # The build resolves the GAS include templates and copies the PWA icons. It
+      # used to fail silently on Linux while succeeding on the author's Mac, so it
+      # is checked on the same OS Vercel builds on.
+      - run: npm run build

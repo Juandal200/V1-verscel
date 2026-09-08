@@ -713,7 +713,7 @@ var TTSService = {
   },
 
   getScenarioByIdFromSheet_: function(scenarioId) {
-    var ss = SpreadsheetApp.openById(this.getDatabaseId_());
+    var ss = dbGetSpreadsheet_();
     var sheet = ss.getSheetByName('Scenarios');
 
     if (!sheet) {
@@ -758,18 +758,6 @@ var TTSService = {
 
       return obj;
     });
-  },
-
-  getDatabaseId_: function() {
-    var props = PropertiesService.getScriptProperties();
-
-    return (
-      props.getProperty('DB_SPREADSHEET_ID') ||
-      props.getProperty('DATABASE_SPREADSHEET_ID') ||
-      props.getProperty('SPREADSHEET_ID') ||
-      props.getProperty('ICAO_DB_SPREADSHEET_ID') ||
-      '1IKVJEEw8QoX9HkMJpnXNj3a20HnTl_-CjUcOJb4vgWY'
-    );
   },
 
   validateScenarioAudioAccess_: function(user, scenario) {
@@ -920,10 +908,10 @@ function listGoogleTtsVoicesForLanguage(languageCode) {
 
 // Run this in the GAS editor to find which scenarios will fail TTS
 function diagnoseScenarioTts() {
-  var ss    = SpreadsheetApp.openById(
-    PropertiesService.getScriptProperties().getProperty('DB_SPREADSHEET_ID') ||
-    SpreadsheetApp.getActiveSpreadsheet().getId()
-  );
+  // The fallback here was getActiveSpreadsheet(), which is whatever sheet the editor
+  // happens to be bound to — for a diagnostic, that is a different database on a good
+  // day and null on a bad one.
+  var ss    = dbGetSpreadsheet_();
   var sheet = ss.getSheetByName('Scenarios');
   if (!sheet) { Logger.log('ERROR: Scenarios sheet not found.'); return; }
 
@@ -1045,8 +1033,7 @@ var SCENARIO_AUDIO_VOICES_ = 3;      // variants per line
 var SCENARIO_RENDER_BUDGET_MS_ = 4.5 * 60 * 1000;   // stop before the 6-minute wall
 
 function _scenAudioSheet_() {
-  var ss = SpreadsheetApp.openById(
-    PropertiesService.getScriptProperties().getProperty(CONFIG.PROP_DB_SPREADSHEET_ID));
+  var ss = dbGetSpreadsheet_();
   var sheet = ss.getSheetByName(SCENARIO_AUDIO_SHEET_);
   if (!sheet) {
     sheet = ss.insertSheet(SCENARIO_AUDIO_SHEET_);
@@ -1057,8 +1044,7 @@ function _scenAudioSheet_() {
 }
 
 function _scenAudioFolder_() {
-  var it = DriveApp.getFoldersByName(SCENARIO_AUDIO_FOLDER_);
-  return it.hasNext() ? it.next() : DriveApp.createFolder(SCENARIO_AUDIO_FOLDER_);
+  return driveFolder_(SCENARIO_AUDIO_FOLDER_);
 }
 
 // Short, stable, and dependent on the text. Edit a clearance and its fingerprint

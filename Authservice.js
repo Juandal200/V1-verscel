@@ -430,8 +430,7 @@ function checkLoginPerformance() {
  * Run once from the editor — Authservice.gs. Safe to run again.
  */
 function setupSessionsSheet() {
-  var ss = SpreadsheetApp.openById(
-    PropertiesService.getScriptProperties().getProperty(CONFIG.PROP_DB_SPREADSHEET_ID));
+  var ss = dbGetSpreadsheet_();
 
   var sheet = ss.getSheetByName('Sessions');
   var created = false;

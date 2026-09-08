@@ -1687,14 +1687,7 @@ function authorizeMailService() {
  *******************************************************/
 
 function installUserStatusTrigger() {
-  var props = PropertiesService.getScriptProperties();
-  var dbId =
-    props.getProperty('DB_SPREADSHEET_ID') ||
-    props.getProperty('DATABASE_SPREADSHEET_ID') ||
-    props.getProperty('SPREADSHEET_ID') ||
-    props.getProperty('ICAO_DB_SPREADSHEET_ID') ||
-    '1IKVJEEw8QoX9HkMJpnXNj3a20HnTl_-CjUcOJb4vgWY';
-  var ss = SpreadsheetApp.openById(dbId);
+  var ss = dbGetSpreadsheet_();
 
   // Remove any existing triggers for this function to avoid duplicates
   ScriptApp.getProjectTriggers().forEach(function(t) {
@@ -1774,14 +1767,7 @@ function onUserStatusSheetEdit(e) {
  *******************************************************/
 
 function repairAllScenarioReadbacks() {
-  var props = PropertiesService.getScriptProperties();
-  var dbId =
-    props.getProperty('DB_SPREADSHEET_ID') ||
-    props.getProperty('DATABASE_SPREADSHEET_ID') ||
-    props.getProperty('SPREADSHEET_ID') ||
-    '1IKVJEEw8QoX9HkMJpnXNj3a20HnTl_-CjUcOJb4vgWY';
-
-  var ss    = SpreadsheetApp.openById(dbId);
+  var ss    = dbGetSpreadsheet_();
   var sheet = ss.getSheetByName('Scenarios');
   if (!sheet) throw new Error('Scenarios sheet not found.');
 
@@ -2499,7 +2485,7 @@ function getHighestUnlockedLevelV5Hard_(levels) {
 
 
 function readSheetObjectsV5Hard_(sheetName) {
-  var ss = SpreadsheetApp.openById(getDatabaseIdV5Hard_());
+  var ss = dbGetSpreadsheet_();
   var sheet = ss.getSheetByName(sheetName);
 
   if (!sheet) {
@@ -2554,17 +2540,6 @@ function readSheetObjectsV5Hard_(sheetName) {
 }
 
 
-function getDatabaseIdV5Hard_() {
-  var props = PropertiesService.getScriptProperties();
-
-  return (
-    props.getProperty('DB_SPREADSHEET_ID') ||
-    props.getProperty('DATABASE_SPREADSHEET_ID') ||
-    props.getProperty('SPREADSHEET_ID') ||
-    props.getProperty('ICAO_DB_SPREADSHEET_ID') ||
-    '1IKVJEEw8QoX9HkMJpnXNj3a20HnTl_-CjUcOJb4vgWY'
-  );
-}
 
 
 function isTruthyV5Hard_(value) {
@@ -2728,7 +2703,7 @@ var RouteBuilderService = {
       emergencyTriggerPhase = this.getDefaultTriggerPhase_(emergencyType);
     }
 
-    var ss = SpreadsheetApp.openById(this.getDatabaseId_());
+    var ss = dbGetSpreadsheet_();
     var sheet = ss.getSheetByName('Scenarios');
 
     if (!sheet) {
@@ -3308,18 +3283,6 @@ var RouteBuilderService = {
 
   now_: function() {
     return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
-  },
-
-  getDatabaseId_: function() {
-    var props = PropertiesService.getScriptProperties();
-
-    return (
-      props.getProperty('DB_SPREADSHEET_ID') ||
-      props.getProperty('DATABASE_SPREADSHEET_ID') ||
-      props.getProperty('SPREADSHEET_ID') ||
-      props.getProperty('ICAO_DB_SPREADSHEET_ID') ||
-      '1IKVJEEw8QoX9HkMJpnXNj3a20HnTl_-CjUcOJb4vgWY'
-    );
   }
 };
 
@@ -3394,7 +3357,7 @@ RouteBuilderService.createCustomFullRoute = function(adminUser, payload) {
 
   var normalizedPhases = this.validateCustomRoutePhases_(phases);
 
-  var ss = SpreadsheetApp.openById(this.getDatabaseId_());
+  var ss = dbGetSpreadsheet_();
   var sheet = ss.getSheetByName('Scenarios');
 
   if (!sheet) {
@@ -4049,7 +4012,7 @@ var RouteAdminService = {
   },
 
   getSheet_: function() {
-    var ss = SpreadsheetApp.openById(this.getDatabaseId_());
+    var ss = dbGetSpreadsheet_();
     var sheet = ss.getSheetByName(this.SHEET_NAME);
 
     if (!sheet) {
@@ -4182,18 +4145,6 @@ var RouteAdminService = {
 
   now_: function() {
     return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
-  },
-
-  getDatabaseId_: function() {
-    var props = PropertiesService.getScriptProperties();
-
-    return (
-      props.getProperty('DB_SPREADSHEET_ID') ||
-      props.getProperty('DATABASE_SPREADSHEET_ID') ||
-      props.getProperty('SPREADSHEET_ID') ||
-      props.getProperty('ICAO_DB_SPREADSHEET_ID') ||
-      '1IKVJEEw8QoX9HkMJpnXNj3a20HnTl_-CjUcOJb4vgWY'
-    );
   }
 };
 
@@ -4234,7 +4185,7 @@ var RouteSimulatorBridgeService = {
       throw new Error('This level is locked. Complete previous levels first.');
     }
 
-    var ss = SpreadsheetApp.openById(this.getDatabaseId_());
+    var ss = dbGetSpreadsheet_();
     var sheet = ss.getSheetByName(this.SHEET_NAME);
 
     if (!sheet) {
@@ -4388,18 +4339,6 @@ var RouteSimulatorBridgeService = {
       text === 'SÍ' ||
       text === '1'
     );
-  },
-
-  getDatabaseId_: function() {
-    var props = PropertiesService.getScriptProperties();
-
-    return (
-      props.getProperty('DB_SPREADSHEET_ID') ||
-      props.getProperty('DATABASE_SPREADSHEET_ID') ||
-      props.getProperty('SPREADSHEET_ID') ||
-      props.getProperty('ICAO_DB_SPREADSHEET_ID') ||
-      '1IKVJEEw8QoX9HkMJpnXNj3a20HnTl_-CjUcOJb4vgWY'
-    );
   }
 };
 
@@ -4456,7 +4395,7 @@ function ensureScenarioServiceUsesHeaderReader_() {
       return _DB_SCOPE.__activeScenarios;
     }
 
-    var ss    = SpreadsheetApp.openById(RuntimeScenarioReaderService.getDatabaseId_());
+    var ss    = dbGetSpreadsheet_();
     var sheet = ss.getSheetByName('Scenarios');
     if (!sheet) return [];
     var out = RuntimeScenarioReaderService.readRowsByHeaders_(sheet)
@@ -4483,7 +4422,7 @@ var RuntimeScenarioReaderService = {
       throw new Error('scenarioId is required.');
     }
 
-    var ss = SpreadsheetApp.openById(this.getDatabaseId_());
+    var ss = dbGetSpreadsheet_();
     var sheet = ss.getSheetByName(this.SHEET_NAME);
 
     if (!sheet) {
@@ -4602,18 +4541,6 @@ var RuntimeScenarioReaderService = {
       text === 'SI' ||
       text === 'SÍ' ||
       text === '1'
-    );
-  },
-
-  getDatabaseId_: function() {
-    var props = PropertiesService.getScriptProperties();
-
-    return (
-      props.getProperty('DB_SPREADSHEET_ID') ||
-      props.getProperty('DATABASE_SPREADSHEET_ID') ||
-      props.getProperty('SPREADSHEET_ID') ||
-      props.getProperty('ICAO_DB_SPREADSHEET_ID') ||
-      '1IKVJEEw8QoX9HkMJpnXNj3a20HnTl_-CjUcOJb4vgWY'
     );
   }
 };
@@ -4867,7 +4794,7 @@ function apiSubmitAttempt_resolveScenario_(payload) {
       ' — falling back to phase search.'
     );
 
-    var ss = SpreadsheetApp.openById(RuntimeScenarioReaderService.getDatabaseId_());
+    var ss = dbGetSpreadsheet_();
     var sheet = ss.getSheetByName('Scenarios');
     var rows  = RuntimeScenarioReaderService.readRowsByHeaders_(sheet);
 
@@ -5107,7 +5034,7 @@ var AnalyticsServiceV1 = {
   logEvent: function(user, payload) {
     payload = payload || {};
 
-    var ss = SpreadsheetApp.openById(this.getDatabaseId_());
+    var ss = dbGetSpreadsheet_();
     var sheet = ss.getSheetByName(this.SHEETS.EVENTS);
 
     if (!sheet) {
@@ -5801,7 +5728,7 @@ var AnalyticsServiceV1 = {
   },
 
   readRows_: function(sheetName) {
-    var ss = SpreadsheetApp.openById(this.getDatabaseId_());
+    var ss = dbGetSpreadsheet_();
     var sheet = ss.getSheetByName(sheetName);
 
     if (!sheet) {
@@ -5994,18 +5921,6 @@ var AnalyticsServiceV1 = {
 
   now_: function() {
     return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
-  },
-
-  getDatabaseId_: function() {
-    var props = PropertiesService.getScriptProperties();
-
-    return (
-      props.getProperty('DB_SPREADSHEET_ID') ||
-      props.getProperty('DATABASE_SPREADSHEET_ID') ||
-      props.getProperty('SPREADSHEET_ID') ||
-      props.getProperty('ICAO_DB_SPREADSHEET_ID') ||
-      '1IKVJEEw8QoX9HkMJpnXNj3a20HnTl_-CjUcOJb4vgWY'
-    );
   }
 };
 
@@ -6148,7 +6063,7 @@ function apiUpdateUserTrainingContext(sessionToken, payload) {
   // ── Patch logEvent to write sessionId + durationSec ─────────────────
   AnalyticsServiceV1.logEvent = function(user, payload) {
     payload = payload || {};
-    var ss = SpreadsheetApp.openById(this.getDatabaseId_());
+    var ss = dbGetSpreadsheet_();
     var sheet = ss.getSheetByName(this.SHEETS.EVENTS);
     if (!sheet) {
       sheet = ss.insertSheet(this.SHEETS.EVENTS);
@@ -6199,7 +6114,7 @@ function apiUpdateUserTrainingContext(sessionToken, payload) {
 
   AnalyticsServiceV1.saveFeedback = function(user, payload) {
     payload = payload || {};
-    var ss = SpreadsheetApp.openById(this.getDatabaseId_());
+    var ss = dbGetSpreadsheet_();
     var sheet = ss.getSheetByName(this.SHEETS.FEEDBACK);
     if (!sheet) {
       sheet = ss.insertSheet(this.SHEETS.FEEDBACK);
@@ -8229,8 +8144,15 @@ function ensureTestimonialsSheet_() {
 }
 
 // ─── LMS SHEET SETUP ─────────────────────────────────────────────────────────
+/* The LMS sheets live in the same database as everything else.
+ *
+ * These three functions named the spreadsheet by a hardcoded id and consulted no
+ * property at all, which made them look like a second database and made them
+ * unreachable by any environment switch. They are not a second database: that id is
+ * the one DB_SPREADSHEET_ID already holds. Two of the three — fetchLMSData and
+ * saveLMSScore — are in the doPost allowlist, so they serve live student traffic. */
 function setupLMSSheets() {
-  var ss = SpreadsheetApp.openById('15Za2QsPmUcDwN92qzY1SMpihUCyLh3zeuZwcnmb9H1E');
+  var ss = dbGetSpreadsheet_();
   var sheetsData = [
     { name: 'Admin_Engines',      headers: ['Term',      'Definition']  },
     { name: 'Admin_NonRoutine',   headers: ['Scenario',  'Category']    },
@@ -8774,9 +8696,7 @@ function wompiRecordSubscription_(userId, email, transactionId, amountCents, day
 }
 
 function wompiGetOrCreateSheet_() {
-  var ss    = SpreadsheetApp.openById(
-    PropertiesService.getScriptProperties().getProperty(CONFIG.PROP_DB_SPREADSHEET_ID)
-  );
+  var ss    = dbGetSpreadsheet_();
   var sheet = ss.getSheetByName('Subscriptions');
   if (!sheet) {
     sheet = ss.insertSheet('Subscriptions');
@@ -8808,9 +8728,7 @@ function apiAdminSaveSubscriptionPrice(sessionToken, amountCopCents) {
 function apiAdminGrantSubscription(sessionToken, email, days) {
   try {
     AuthService.requireRole(sessionToken, ['ADMIN']);
-    var ss      = SpreadsheetApp.openById(
-      PropertiesService.getScriptProperties().getProperty(CONFIG.PROP_DB_SPREADSHEET_ID)
-    );
+    var ss      = dbGetSpreadsheet_();
     var users   = ss.getSheetByName('Users');
     if (!users) return { ok: false, error: 'Users sheet not found' };
     var data    = users.getDataRange().getValues();
@@ -8876,7 +8794,7 @@ function fetchLMSData(sheetName) {
   if (_FETCH_LMS_ALLOWED_SHEETS_.indexOf(String(sheetName || '')) === -1) {
     throw new Error('Sheet not allowed: ' + sheetName);
   }
-  var ss    = SpreadsheetApp.openById('15Za2QsPmUcDwN92qzY1SMpihUCyLh3zeuZwcnmb9H1E');
+  var ss    = dbGetSpreadsheet_();
   var sheet = ss.getSheetByName(sheetName);
   if (!sheet) return [];
 
@@ -8897,7 +8815,7 @@ function saveLMSScore(email, moduleName, score) {
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    var ss    = SpreadsheetApp.openById('15Za2QsPmUcDwN92qzY1SMpihUCyLh3zeuZwcnmb9H1E');
+    var ss    = dbGetSpreadsheet_();
     var sheet = ss.getSheetByName('LMS_Data');
     if (!sheet) throw new Error('LMS_Data sheet not found. Run setupLMSSheets() first.');
     sheet.appendRow([new Date(), email, moduleName, score]);
