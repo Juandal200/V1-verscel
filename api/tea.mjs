@@ -402,6 +402,91 @@ async function sessionValid(token) {
   }
 }
 
+
+/* The answer key, fetched here instead of carried by the candidate.
+ *
+ * The examiner is told what each recording said and grades against it. That
+ * relay used to run in the browser: the client held every transcript and pasted
+ * it into the conversation. The answer key to a listening-comprehension section
+ * was in the page the candidate was being tested with, readable from view-source
+ * before they played a single clip.
+ *
+ * Now the client sends only the item id and this fills in the rest. The lookup
+ * is authorised by the pipeline secret, which lives in Vercel's environment and
+ * in Script Properties and never reaches a browser — a session token would not
+ * do, because every candidate has one.
+ *
+ * Memoised per bank. Vercel reuses a warm container between invocations, so a
+ * sitting usually pays for this once rather than on each of its twelve audio
+ * turns. */
+const _transcriptCache = new Map();
+
+async function transcriptsFor(bank) {
+  const key = String(bank || '');
+  if (_transcriptCache.has(key)) return _transcriptCache.get(key);
+
+  const ac = new AbortController();
+  const t  = setTimeout(() => ac.abort(), 20000);
+  try {
+    const r = await fetch(GAS_AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'apiIcaoGraderTranscripts',
+        args: [{ bank: key, pipelineSecret: process.env.PIPELINE_SECRET || '' }]
+      }),
+      redirect: 'follow',
+      signal: ac.signal,
+    });
+    const text = await r.text();
+    if (/^\s*(<!doctype|<html)/i.test(text || '')) throw new Error('Apps Script answered HTML');
+    const j = JSON.parse(text);
+    if (!j || j.ok !== true || !j.transcripts) throw new Error(j && (j.error || j.code) || 'no transcripts');
+    _transcriptCache.set(key, j.transcripts);
+    return j.transcripts;
+  } finally { clearTimeout(t); }
+}
+
+/* Fill the transcript into the markers the client sends.
+ *
+ * [AUDIO_COMPLETE: <id> | ...]  and  [recording played: <id>]
+ *
+ * Returns the rewritten history, or throws. It throws on purpose: an examiner
+ * handed AUDIO_COMPLETE with no transcript grades a recording it was never told
+ * the content of, and IcaoTestItemService already treats a transcript-less audio
+ * item as a fault serious enough to block a bank. A stalled turn the candidate
+ * can retry is better than a score derived from nothing. */
+const AUDIO_MARKER = /\[AUDIO_COMPLETE:\s*([A-Za-z0-9_\-]+)/;
+const PLAYED_MARKER = /\[recording played:\s*([A-Za-z0-9_\-]+)\]/;
+
+async function injectTranscripts(history, bank) {
+  if (!Array.isArray(history)) return history;
+  const needs = history.some(m =>
+    typeof m?.content === 'string' &&
+    !/\| transcript:/.test(m.content) &&
+    (AUDIO_MARKER.test(m.content) || PLAYED_MARKER.test(m.content)));
+  if (!needs) return history;
+
+  const map = await transcriptsFor(bank);
+  return history.map(function (m) {
+    if (typeof m?.content !== 'string' || /\| transcript:/.test(m.content)) return m;
+
+    const played = m.content.match(PLAYED_MARKER);
+    if (played) {
+      const tr = map[played[1]];
+      if (!tr) throw new Error('No transcript for item ' + played[1]);
+      return { ...m, content: '[recording played] ' + tr };
+    }
+    const audio = m.content.match(AUDIO_MARKER);
+    if (audio) {
+      const tr = map[audio[1]];
+      if (!tr) throw new Error('No transcript for item ' + audio[1]);
+      return { ...m, content: m.content.replace(/\]\s*$/, '') + ' | transcript: "' + tr + '"]' };
+    }
+    return m;
+  });
+}
+
 export default async function handler(req, res) {
   // Echo the origin we actually accept, never '*'.
   res.setHeader('Access-Control-Allow-Origin',
@@ -428,7 +513,22 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { history, interviewTopics, bank } = req.body;
+    const { history: rawHistory, interviewTopics, bank } = req.body;
+
+    // The candidate's browser no longer carries the answer key, so it is put back
+    // here — before the model sees the turn, and never on the way out.
+    let history;
+    try {
+      history = await injectTranscripts(rawHistory, bank);
+    } catch (e) {
+      console.error('[tea] transcript injection failed: ' + e.message);
+      res.status(200).json({
+        ok: false,
+        error: 'The examiner could not be given the recording to mark against. ' +
+               'Nothing was graded — please try that step again.'
+      });
+      return;
+    }
 
     // Part 1 topics come from the item bank for this sitting, so two versions of
     // the exam cover different ground. Wording is still the examiner's — reading a

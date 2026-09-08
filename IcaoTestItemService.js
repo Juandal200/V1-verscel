@@ -590,8 +590,8 @@ function apiGetIcaoTestItems(sessionToken, bank) {
         audio[id] = {
           voice:      String(r.voice || ''),
           lang:       String(r.lang  || 'en-US'),
-          script:     String(r.script || ''),
-          transcript: String(r.transcript || r.script || '')
+          script:     String(r.script || '')
+          // transcript deliberately absent — see stepOf.
         };
         order.push(id);
         // The client derives every 2A/2B/2C boundary from this rather than
@@ -762,6 +762,49 @@ function _icaoAnswerSecs_(row) {
  * Returns ok:false rather than throwing; the client shows the failure instead of
  * starting an exam it cannot finish.
  */
+/**
+ * Transcripts for one bank, for the grader only.
+ *
+ * The examiner model is told what each recording said, and uses it as ground
+ * truth — api/tea.mjs injects it into the conversation before the model sees the
+ * turn. That relay used to run in the candidate's browser, which meant the answer
+ * key to a listening-comprehension section was in the page they were being tested
+ * with.
+ *
+ * This takes no session token, deliberately. A session proves who someone is, not
+ * what they may read, and every candidate has one. The only credential it accepts
+ * is the pipeline secret, which lives in Vercel's environment and in Script
+ * Properties and never reaches a browser.
+ *
+ * _teaCallerAuthorised_ is defined in TEAService.js. Apps Script is one global
+ * scope, so it is the same function the result-filing endpoint uses rather than a
+ * second copy that could drift from it.
+ */
+function apiIcaoGraderTranscripts(payload) {
+  try {
+    payload = payload || {};
+    if (!_teaCallerAuthorised_(payload)) {
+      console.error('[IcaoTestItems] transcript lookup refused: bad or missing pipeline secret.');
+      return { ok: false, code: 'FORBIDDEN', error: 'Not authorised.' };
+    }
+    var rows = dbReadAll_(ICAO_ITEMS_SHEET_);
+    var wanted = String(payload.bank || '').trim();
+    var out = {};
+    rows.forEach(function (r) {
+      if (String(r.itemType || '').toUpperCase() !== 'AUDIO') return;
+      if (wanted && String(r.bank || '').trim() !== wanted) return;
+      var id = String(r.itemId || '').trim();
+      if (!id) return;
+      // Same fallback the item builder uses: a bank whose transcript column was
+      // never filled still grades against the script rather than against nothing.
+      out[id] = String(r.transcript || r.script || '');
+    });
+    return { ok: true, bank: wanted, transcripts: out };
+  } catch (err) {
+    return apiError_('apiIcaoGraderTranscripts', err);
+  }
+}
+
 function apiGetIcaoTestScript(sessionToken, bank) {
   try {
     AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
@@ -840,7 +883,9 @@ function _icaoBuildScript_(bank) {
         kind:     t,
         section:  opts.section || String(r.section || '').trim().toUpperCase(),
         text:     text,
-        transcript: String(r.transcript || text || ''),
+        // No transcript. It is the answer key to a listening-comprehension
+        // section, and it was being handed to the candidate's browser with the
+        // question. The grader gets it server-side from apiIcaoGraderTranscripts.
         label:    String(r.label || ''),
         imageUrl: opts.imageUrl !== undefined ? opts.imageUrl : String(r.imageUrl || '').trim(),
         // What the picture shows, in words. The grader never sees the image, so
