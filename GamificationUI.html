@@ -47,7 +47,7 @@
       transparent 0%,
       rgba(var(--accent-rgb),0.7) 20%,
       rgba(var(--accent-rgb),1) 50%,
-      rgba(59,130,246,0.7) 80%,
+      rgba(var(--accent-rgb), 0.7) 80%,
       transparent 100%);
     z-index: 1;
   }
@@ -75,7 +75,13 @@
   /* ── Hero Header ─────────────────────────────────────────── */
   #gamification-module .gam-hero {
     position: relative;
-    background: linear-gradient(160deg, #0c1e38 0%, #071222 60%, #06101c 100%);
+    /* The hero was three navy literals, painted the same on both themes — the
+       largest dark island on a white page. The accent wash keeps the depth it had
+       on the dark theme and inverts with everything else; it is the same pattern
+       the operational level card uses. */
+    background:
+      radial-gradient(ellipse at top left, rgba(var(--accent-rgb), 0.07) 0%, transparent 60%),
+      linear-gradient(160deg, var(--panel) 0%, var(--bg) 100%);
     border-bottom: 1px solid var(--gam-border);
     overflow: visible;
   }
@@ -203,13 +209,13 @@
     justify-content: center;
     padding: 0 4px;
     border: 1.5px solid var(--gam-bg);
-    box-shadow: 0 0 10px rgba(239,68,68,0.5);
+    box-shadow: 0 0 10px rgba(var(--red-rgb), 0.5);
     animation: gam-pulse 2.5s ease-in-out infinite;
   }
 
   #gamification-module .gam-badge--orange {
     background: var(--gam-orange);
-    box-shadow: 0 0 10px rgba(245,158,11,0.5);
+    box-shadow: 0 0 10px rgba(var(--yellow-rgb), 0.5);
   }
 
   @keyframes gam-pulse {
@@ -271,7 +277,7 @@
     width: 32px;
     height: 32px;
     border-radius: 8px;
-    background: linear-gradient(135deg, var(--panel-soft), #0a1828);
+    background: linear-gradient(135deg, var(--panel-soft), var(--bg));
     border: 1px solid rgba(var(--accent-rgb),0.2);
     color: var(--gam-green);
     font-size: 0.72rem;
@@ -333,14 +339,14 @@
   }
 
   #gamification-module .gam-btn-sm--decline {
-    background: rgba(239,68,68,0.07);
+    background: rgba(var(--red-rgb), 0.07);
     color: var(--red);
-    border: 1px solid rgba(239,68,68,0.16);
+    border: 1px solid rgba(var(--red-rgb), 0.16);
   }
 
   #gamification-module .gam-btn-sm--decline:hover {
-    background: rgba(239,68,68,0.15);
-    border-color: rgba(239,68,68,0.3);
+    background: rgba(var(--red-rgb), 0.15);
+    border-color: rgba(var(--red-rgb), 0.3);
   }
 
   /* Challenge items inside trophy dropdown */
@@ -373,9 +379,9 @@
   }
 
   #gamification-module .gam-score-badge {
-    background: rgba(245,158,11,0.1);
+    background: rgba(var(--yellow-rgb), 0.1);
     color: var(--gam-orange);
-    border: 1px solid rgba(245,158,11,0.22);
+    border: 1px solid rgba(var(--yellow-rgb), 0.22);
     border-radius: 4px;
     padding: 2px 8px;
     font-size: 0.72rem;
@@ -571,9 +577,9 @@
   }
 
   #gamification-module .gam-pilot-card:hover {
-    border-color: rgba(245,158,11,0.3);
-    border-left-color: rgba(245,158,11,0.7);
-    background: rgba(245,158,11,0.03);
+    border-color: rgba(var(--yellow-rgb), 0.3);
+    border-left-color: rgba(var(--yellow-rgb), 0.7);
+    background: rgba(var(--yellow-rgb), 0.03);
     box-shadow: 0 6px 24px rgba(var(--scrim-rgb), 0.42);
   }
 
@@ -581,7 +587,7 @@
     width: 44px;
     height: 44px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #0d2a4a, #071d36);
+    background: linear-gradient(135deg, var(--panel-soft), var(--panel));
     border: 2px solid rgba(var(--accent-rgb),0.25);
     color: var(--gam-green);
     font-size: 0.82rem;
@@ -616,8 +622,8 @@
   #gamification-module .gam-challenge-btn {
     flex-shrink: 0;
     padding: 8px 16px;
-    background: rgba(245,158,11,0.09);
-    border: 1px solid rgba(245,158,11,0.22);
+    background: rgba(var(--yellow-rgb), 0.09);
+    border: 1px solid rgba(var(--yellow-rgb), 0.22);
     border-radius: 8px;
     color: var(--gam-orange);
     font-size: 0.72rem;
@@ -631,9 +637,9 @@
   }
 
   #gamification-module .gam-challenge-btn:hover {
-    background: rgba(245,158,11,0.18);
-    border-color: rgba(245,158,11,0.45);
-    box-shadow: 0 0 18px rgba(245,158,11,0.18);
+    background: rgba(var(--yellow-rgb), 0.18);
+    border-color: rgba(var(--yellow-rgb), 0.45);
+    box-shadow: 0 0 18px rgba(var(--yellow-rgb), 0.18);
     transform: translateY(-1px);
   }
 
@@ -672,7 +678,7 @@
     border-radius: 22px;
     box-shadow:
       0 32px 100px rgba(var(--scrim-rgb), 0.65),
-      0 0 0 1px rgba(245,158,11,0.08),
+      0 0 0 1px rgba(var(--yellow-rgb), 0.08),
       inset 0 1px 0 rgba(var(--lift-rgb), 0.06);
     overflow: hidden;
     transform: scale(0.93) translateY(12px);
@@ -725,8 +731,8 @@
   }
 
   #gamification-module .gam-modal-close:hover {
-    background: rgba(239,68,68,0.12);
-    border-color: rgba(239,68,68,0.3);
+    background: rgba(var(--red-rgb), 0.12);
+    border-color: rgba(var(--red-rgb), 0.3);
     color: var(--red);
   }
 
@@ -773,14 +779,14 @@
   }
 
   #gamification-module .gam-select option {
-    background: #0b1625;
+    background: var(--panel);
     color: var(--text);
   }
 
   #gamification-module .gam-select:focus,
   #gamification-module .gam-number-input:focus {
-    border-color: rgba(245,158,11,0.38);
-    box-shadow: 0 0 0 3px rgba(245,158,11,0.07);
+    border-color: rgba(var(--yellow-rgb), 0.38);
+    box-shadow: 0 0 0 3px rgba(var(--yellow-rgb), 0.07);
   }
 
   #gamification-module .gam-number-input::placeholder { color: var(--gam-muted); }
@@ -788,7 +794,7 @@
   #gamification-module .gam-send-btn {
     width: 100%;
     padding: 13px;
-    background: linear-gradient(135deg, var(--yellow), #b45309);
+    background: linear-gradient(135deg, var(--yellow), rgba(var(--yellow-rgb), 0.72));
     border: none;
     border-radius: 12px;
     color: #fff;
@@ -799,18 +805,18 @@
     font-family: inherit;
     transition: all 0.25s var(--ease);
     margin-top: 4px;
-    box-shadow: 0 4px 18px rgba(217,119,6,0.2);
+    box-shadow: 0 4px 18px rgba(var(--yellow-rgb), 0.2);
   }
 
   #gamification-module .gam-send-btn:hover {
     background: linear-gradient(135deg, var(--yellow), var(--yellow));
-    box-shadow: 0 6px 28px rgba(245,158,11,0.38);
+    box-shadow: 0 6px 28px rgba(var(--yellow-rgb), 0.38);
     transform: translateY(-2px);
   }
 
   #gamification-module .gam-send-btn:active {
     transform: translateY(0);
-    box-shadow: 0 2px 10px rgba(245,158,11,0.2);
+    box-shadow: 0 2px 10px rgba(var(--yellow-rgb), 0.2);
   }
 
   /* ── Tab navigation ──────────────────────────────────────────── */
@@ -946,7 +952,7 @@
   #gamification-module .gam-lb-bar {
     height: 100%;
     border-radius: 4px;
-    background: linear-gradient(90deg, var(--gam-green), #00aaff);
+    background: linear-gradient(90deg, var(--gam-green), rgba(var(--accent-rgb), 0.65));
     transition: width 0.4s var(--ease);
   }
 
@@ -1067,11 +1073,11 @@
   #gamification-module .gam-medallion.gam-med--missed { opacity: 0.2; }
 
   #gamification-module .gam-medallion.gam-med--dxp {
-    box-shadow: 0 0 7px rgba(218,165,32,0.55);
+    box-shadow: 0 0 7px rgba(var(--yellow-rgb), 0.55);
   }
 
   #gamification-module .gam-medallion.gam-med--comeback {
-    box-shadow: 0 0 7px rgba(245,158,11,0.5);
+    box-shadow: 0 0 7px rgba(var(--yellow-rgb), 0.5);
   }
 
   #gamification-module .gam-med-icon {
@@ -1233,7 +1239,7 @@
 <!-- ── Tab navigation ──────────────────────────────────────── -->
 <div class="gam-tab-nav">
   <button id="gamTabSquadron" class="gam-tab" onclick="window._gamSwitchTab && _gamSwitchTab('squadron')">&#9992; Crew</button>
-  <button id="gamTabRankings" class="gam-tab active" onclick="window._gamSwitchTab && _gamSwitchTab('rankings')">&#127942; Rankings</button>
+  <button id="gamTabRankings" class="gam-tab active" onclick="window._gamSwitchTab && _gamSwitchTab('rankings')"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="display:inline-block;vertical-align:-2px;margin-right:5px;"><path d="M7.5 3.5h9v5a4.5 4.5 0 0 1-9 0z"/><path d="M7.5 5H5a2.5 2.5 0 0 0 2.5 2.5"/><path d="M16.5 5H19a2.5 2.5 0 0 1-2.5 2.5"/><path d="M12 13v3.5"/><path d="M8.5 20.5h7"/><path d="M10 16.5h4l.7 4h-5.4z"/></svg>Rankings</button>
 </div>
 
 <!-- ── Squadron pane ────────────────────────────────────────── -->
@@ -1243,7 +1249,7 @@
   <div class="gam-section">
     <div class="gam-section-label">Recruit Pilots</div>
     <div class="gam-search-wrap">
-      <span class="gam-search-icon">&#128269;</span>
+      <span class="gam-search-icon"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="display:inline-block;vertical-align:-2px;margin-right:5px;"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l4.5 4.5"/></svg></span>
       <input id="gamSearchInput" type="text" class="gam-search-input"
              placeholder="Search by name or email address…">
     </div>
@@ -1279,7 +1285,7 @@
   <!-- Score legend -->
   <div id="gamLbLegend" style="display:flex;gap:16px;padding:6px 20px 2px;font-size: 0.72rem;letter-spacing: 0.06em;">
     <span id="gamLbLegendXp" style="color:var(--accent);font-weight:700;">XP <span style="color:var(--muted);font-weight:400;">— Experience Points</span></span>
-    <span id="gamLbLegendCp" style="color:#DAA520;font-weight:700;display:none;">CP <span style="color:var(--muted);font-weight:400;">— Career Points</span></span>
+    <span id="gamLbLegendCp" style="color:var(--yellow);font-weight:700;display:none;">CP <span style="color:var(--muted);font-weight:400;">— Career Points</span></span>
   </div>
 
   <!-- Leaderboard content -->

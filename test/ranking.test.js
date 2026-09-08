@@ -38,6 +38,48 @@ ok('the tier still comes from all-time XP',
    /_getTierFromXpKey\(p\.mergedXp \|\| 0\)/.test(lb) &&
    /_getTierFromXp\(p\.mergedXp \|\| 0\)/.test(lb));
 
+console.log('--- and you race the people you are racing ---');
+/* The rank was a GLOBAL position printed inside blocks grouped by career tier,
+ * so the page read 3, then 1, 2, 4 and looked broken. Worse than looking broken:
+ * a Senior with two thousand XP behind him appeared BELOW a newcomer with fifty
+ * who had had a busier week, and the newcomer's "first place" was first over
+ * people who were never their competition.
+ *
+ * The tiers already are divisions. Career XP decides which one you are in; the
+ * week decides where you finish inside it. */
+ok('the rank is counted within the tier',
+   /rankMap\[String\(p\.email \|\| ''\)\.toLowerCase\(\)\] = groups\[key\]\.length;/.test(lb));
+ok('and the global map is gone',   !/globalRankMap/.test(Sc));
+ok('the row reads its division rank', /var globalRnk = rankMap\[emailLc\]/.test(lb));
+// Server order is weeklyXp DESC with career XP as tiebreaker, so counting
+// positions as rows arrive within a group is already the right order.
+ok('which relies on the server order it already had',
+   /if \(b\.weeklyXp !== a\.weeklyXp\) return b\.weeklyXp - a\.weeklyXp;/.test(strip(M)));
+ok('each division says what it is',
+   /_GAM_TIER_RANGE = \{/.test(Sc) && /junior:\s*'under 1,000 XP'/.test(Sc) &&
+   /_GAM_TIER_RANGE\[tier\.key\]/.test(lb));
+// The thresholds printed must be the thresholds enforced.
+ok('and the printed ranges match the code that sorts into them',
+   /xp >= 8000\) return 'chief'/.test(Sc) && /chief:\s*'8,000\+ XP'/.test(Sc) &&
+   /xp >= 3000\) return 'instructor'/.test(Sc) && /instructor: '3,000/.test(Sc) &&
+   /xp >= 1000\) return 'senior'/.test(Sc) && /senior:\s*'1,000/.test(Sc));
+
+console.log('--- the module has nothing left that ignores the theme ---');
+const gm = G.replace(/\/\*[\s\S]*?\*\//g, '');
+ok('no hex literal',    !/#[0-9a-fA-F]{6}\b/.test(gm));
+ok('no rgb literal',    !/rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}/.test(gm));
+/* Both remaining emoji were written as HTML entities, which is why every emoji
+ * sweep missed them — and why a colour audit read &#127942; as the hex colour
+ * #127942. Six valid hex digits. */
+ok('and no entity-encoded emoji', !/&#1[0-9]{4,5};/.test(gm));
+/* Anchor on the markup, not the name. `gam-search-icon` is a CSS selector eight
+ * hundred lines before it is an attribute, and a window measured from the first
+ * match lands in the stylesheet. */
+ok('the trophy is drawn',    /<\/svg>Ranking/.test(gm) && /M7\.5 3\.5h9v5a4\.5/.test(gm));
+ok('the magnifier is drawn', /gam-search-icon">[\s\S]{0,300}<circle cx="10\.5"/.test(gm));
+ok('the hero keeps its depth without a navy literal',
+   /rgba\(var\(--accent-rgb\), 0\.07\)[\s\S]{0,120}var\(--panel\) 0%, var\(--bg\) 100%/.test(gm));
+
 console.log('--- and the podium needs no emoji ---');
 ok('the crown and medals are gone',
    !/crowns\s*=/.test(Sc) && !/crownMkp/.test(Sc));

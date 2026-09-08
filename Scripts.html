@@ -23869,6 +23869,17 @@ var LEVEL_THEMES = {
     return s;
   }
 
+  /* What each division is, in the terms that put you there.
+     Printed beside the count so the grouping explains itself: a student who
+     wonders why they are not racing the person above them can see that the
+     answer is career XP, and exactly how much of it. */
+  var _GAM_TIER_RANGE = {
+    junior:     'under 1,000 XP',
+    senior:     '1,000\u20132,999 XP',
+    instructor: '3,000\u20137,999 XP',
+    chief:      '8,000+ XP'
+  };
+
   function _gamRenderLeaderboard(res) {
     var box = _gEl('gamLeaderboard');
     if (!box) return;
@@ -23878,15 +23889,32 @@ var LEVEL_THEMES = {
     }
     var myEmail = _gam.myEmail ? _gam.myEmail.toLowerCase() : '';
 
-    // Assign global weekly rank (sorted by weeklyXp DESC coming from server)
-    var globalRankMap = {};
-    res.data.forEach(function(p, i) { globalRankMap[String(p.email || '').toLowerCase()] = i + 1; });
+    /* Rank inside your own division, not against the whole school.
+     *
+     * The number used to be a GLOBAL position, printed inside blocks that are
+     * grouped by career tier — so the page read 3, then 1, 2, 4 down the column
+     * and looked broken. Worse than looking broken, it was demoralising in one
+     * direction and hollow in the other: a Senior with two thousand XP behind him
+     * appeared BELOW a newcomer with fifty, because the newcomer had had a busier
+     * week, and the newcomer's "first place" was first place over people who were
+     * never really their competition.
+     *
+     * The tiers already are divisions — Junior under 1000 all-time XP, Senior to
+     * 3000, Instructor to 8000, Chief above. Career XP decides which division you
+     * are in; the week decides where you finish inside it. Nobody is ever shown
+     * losing to someone in a different league, and first place means first among
+     * the people you are actually racing.
+     *
+     * Server order is weeklyXp DESC with career XP as the tiebreaker, so counting
+     * positions as they arrive within a group is already the right order. */
 
     // Group by permanent tier based on all-time lmsXp
     var groups = { chief: [], instructor: [], senior: [], junior: [] };
+    var rankMap = {};
     res.data.forEach(function(p) {
       var key = window._getTierFromXpKey ? window._getTierFromXpKey(p.mergedXp || 0) : 'junior';
       groups[key].push(p);
+      rankMap[String(p.email || '').toLowerCase()] = groups[key].length;
     });
     // Within each tier, keep server order (weeklyXp DESC)
 
@@ -23910,12 +23938,15 @@ var LEVEL_THEMES = {
         '<span class="gam-lb-tier-label" style="color:' + tier.color + ';text-shadow:0 0 12px ' + tier.glow + ';">' +
           _gamStripesSvg(tier.stripes, tier.color) + '&nbsp;&nbsp;' + tier.label.toUpperCase() +
         '</span>' +
-        '<span class="gam-lb-tier-count" style="color:' + tier.color + '80;">' + pilots.length + ' professional' + (pilots.length !== 1 ? 's' : '') + '</span>' +
+        '<span class="gam-lb-tier-count" style="color:' + tier.color + '80;">' +
+          pilots.length + ' professional' + (pilots.length !== 1 ? 's' : '') +
+          (_GAM_TIER_RANGE[tier.key] ? ' &middot; ' + _GAM_TIER_RANGE[tier.key] : '') +
+        '</span>' +
       '</div>';
 
       pilots.forEach(function(p) {
         var emailLc   = String(p.email || '').toLowerCase();
-        var globalRnk = globalRankMap[emailLc] || 99;
+        var globalRnk = rankMap[emailLc] || 99;
         var isMe      = (emailLc === myEmail);
         /* No crown, no medals. The rank number is already gold, silver and bronze
          * by class, and the avatar already carries a ring in the same colour — so
