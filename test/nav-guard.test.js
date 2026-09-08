@@ -55,8 +55,25 @@ const submit = fnBody('submitScenarioAnswer');
 ok('the token is captured', /var _submitTok = _navToken;/.test(submit));
 ok('the feedback card is gated on it',
    /if \(_navToken === _submitTok &&\s*\n\s*Number\(AppState\.training\.currentIndex/.test(submit));
-ok('the XP chip is gated on it',
-   /if \(_navToken === _submitTok &&[\s\S]{0,160}_showXpFloat\(25\)/.test(submit));
+/* CHANGED 7 Sep 2026 — the chip is no longer gated, and does not need to be.
+ *
+ * It was made to wait for the server so an animation could not be un-played if the
+ * verdict changed underneath it. True, and the wrong trade: a disagreement is rare,
+ * an Apps Script round trip happens on every correct answer, and on a cold start it
+ * is many seconds. Every student paid that wait, every time, to guard against
+ * something that may never happen.
+ *
+ * It fires synchronously in the click handler now — on the screen the student is
+ * looking at, in the same tick they pressed Send. There is no window in which they
+ * could have navigated away, which is why no token check is needed here and one on
+ * the FEEDBACK panel still is: that one arrives later, from the network. */
+ok('the chip flies with the answer, not with the response',
+   /if \(clientEval\.correct\) _showXpFloat\(25\);/.test(submit));
+ok('and nothing waits for a round trip to show it',
+   !/_navToken === _submitTok &&[\s\S]{0,160}_showXpFloat\(25\)/.test(submit));
+// The server's total still wins; only the animation is optimistic.
+ok('a server disagreement is still noticed',
+   /XP shown on a client pass the server failed/.test(submit));
 // The state must NOT be gated. Dropping this loses an answer the student gave.
 // The intent, not the distance. This counted characters between the handler
 // opening and the sync, and broke the moment a line was added between them —

@@ -85,12 +85,24 @@ ok('the default is still there, so nobody is refused training',
 console.log('--- the XP waits for the award to be real ---');
 const submit = S.slice(S.indexOf('function submitScenarioAnswer'),
                        S.indexOf('function submitScenarioAnswer') + 6000);
-ok('the chip does not fly on the client verdict',
-   !/if \(clientEval\.correct\) _showXpFloat/.test(submit));
-ok('it flies when the server confirms the attempt',
-   /res\.attempt && res\.attempt\.correct\) \{\s*\n\s*_showXpFloat\(25\)/.test(submit));
-ok('and only for the phase still on screen',
-   /currentIndex \|\| 0\) === _capturedIndex &&\s*\n\s*res\.attempt/.test(submit));
+/* CHANGED 7 Sep 2026, reversing a change made the day before.
+ *
+ * The chip was made to wait for the server so an animation could not be un-played
+ * if the verdict changed underneath it. True, and the wrong trade: a disagreement
+ * is rare, an Apps Script round trip happens on EVERY correct answer, and on a
+ * cold start it is many seconds. Every student paid that wait, every time, to
+ * guard against something that may never happen.
+ *
+ * It fires synchronously in the click handler now, on the screen they are looking
+ * at. The server's total still wins — lmsXpTotal overwrites the running figure
+ * when it lands — so only the animation is optimistic, and an animation that is
+ * occasionally optimistic beats one that is always late. */
+ok('the chip flies with the answer',
+   /if \(clientEval\.correct\) _showXpFloat\(25\);/.test(submit));
+ok('and nothing holds it for a round trip',
+   !/res\.attempt\.correct\) \{\s*\n\s*_showXpFloat\(25\)/.test(submit));
+ok('a server disagreement is still noticed',
+   /XP shown on a client pass the server failed/.test(submit));
 ok('the feedback is still instant, which was the point of it',
    /renderAttemptFeedback\(\{\s*\n\s*evaluation: clientEval/.test(submit));
 ok('every disagreement between the two graders is recorded',

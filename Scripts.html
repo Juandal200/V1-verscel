@@ -2020,7 +2020,15 @@
           '</div>' +
           '<div style="flex:1;padding-left:12px;">' +
             '<p style="margin:0;font-size: 0.72rem;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing: 0.06em;">Country</p>' +
-            '<p class="home-stat-val" style="margin:0;font-size: 1.6rem;line-height:1;">' + safeText(getCountryUi(country).emoji || '🌐') + '</p>' +
+            /* getFlagHtml, not the raw character.
+             *
+             * A regional-indicator pair has no glyph on Windows — macOS and iOS
+             * draw a flag, Windows draws two letters or two boxes. Twelve places
+             * already went through getFlagHtml, which serves an SVG; these two
+             * printed the character directly, which is why the flags were visible
+             * on a Mac and missing on a PC. */
+            '<p class="home-stat-val" style="margin:0;line-height:1;">' +
+              getFlagHtml(country, 'flag-lg') + '</p>' +
           '</div>' +
         '</div>';
 
@@ -2069,7 +2077,7 @@
             '<div class="home-hero-meta">' +
               'Lvl <strong>' + level + '</strong>' +
               '<span class="home-hero-sep">·</span>' +
-              '<span style="font-size: 1.15rem;">' + safeText(getCountryUi(country).emoji || '🌐') + '</span>' +
+              '<span>' + getFlagHtml(country, 'flag-sm') + '</span>' +
             '</div>' +
           '</div>' +
           '<button style="flex-shrink:0;width:auto;white-space:nowrap;background:var(--accent);color:var(--accent-ink);border:none;border-radius: 8px;padding:7px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;" onclick="_navTo(renderSimulatorPlaceholder)">Continue →</button>' +
@@ -4885,17 +4893,46 @@
     var cssClass = sizeClass || 'flag-lg';
 
     if (meta.code) {
-      return '<span class="flag-shell"><img class="' + cssClass + ' flag-img" src="https://flagcdn.com/' + safeText(meta.code) + '.svg" alt="' + safeText(meta.label) + ' flag" onerror="this.style.display=\'none\'; this.parentNode.innerHTML=\'' + safeText(meta.emoji || '🌐') + '\';"></span>';
+      return '<span class="flag-shell"><img class="' + cssClass + ' flag-img" src="https://flagcdn.com/' + safeText(meta.code) + '.svg" alt="' + safeText(meta.label) + ' flag" onerror="this.style.display=\'none\'; this.parentNode.innerHTML=\'<span class=&quot;flag-code&quot;>' + safeText((meta.code || '??').toUpperCase()) + '</span>\';"></span>';
     }
 
-    return '<span class="' + cssClass + ' flag-emoji" title="' + safeText(meta.label) + '">' + safeText(meta.emoji || '🌐') + '</span>';
+    /* The fallback cannot be an emoji either, for the same reason the problem
+     * existed: it is what shows when the image will not load — a blocked CDN, a
+     * captive portal, an offline moment — and on Windows it would fail exactly as
+     * the original did. Two letters in a bordered box are legible on every
+     * platform and say which country they mean. */
+    return '<span class="' + cssClass + ' flag-code" title="' + safeText(meta.label) + '">' +
+           safeText((meta.code || '??').toUpperCase()) + '</span>';
   }
+
+  /* Who the app is being used as.
+   *
+   * viewAs lets an admin look at the product as a student, and every gate that
+   * respects it has to read it the same way. Written once here rather than
+   * repeated at each call site. */
+  function _currentRole() {
+    return String((window.AppState && (AppState.viewAs ||
+                  (AppState.user && AppState.user.role))) || 'STUDENT').toUpperCase();
+  }
+  window._currentRole = _currentRole;
+
+  function _lmsVisible() {
+    var r = _currentRole();
+    return r === 'ADMIN' || r === 'INSTRUCTOR';
+  }
+  window._lmsVisible = _lmsVisible;
 
   function _simTabStrip(active) {
     var tabs = [
-      { id: 'flight',   label: '<svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg> Flight Simulator' },
-      { id: 'modules',  label: '&#128218; LMS Modules'    }
+      { id: 'flight',   label: '<svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg> Flight Simulator' }
     ];
+    // The modules are not being shown to students yet. Hidden rather than removed
+    // — the work is real and it is coming back.
+    if (_lmsVisible()) {
+      tabs.push({ id: 'modules', label: uiIconInline('book') + 'LMS Modules' });
+    }
+    // One tab is not a choice. A strip that cannot be switched is chrome.
+    if (tabs.length < 2) return '';
     return '<div class="sim-subtab-strip">' +
       tabs.map(function(t) {
         return '<button class="sim-subtab-btn' + (t.id === active ? ' active' : '') + '" ' +
@@ -5637,8 +5674,14 @@ var LEVEL_THEMES = {
               '</div>' +
             '</div>' +
           '</div>' +
-          '<div class="level-map-grid-pro">' + tierCards + '</div>' +
-          _buildExamCard(tier.examNum) +
+          /* The checkpoint belongs to the sequence, so it belongs in the grid.
+           *
+           * It sat outside as a sibling, and .level-map-grid-pro's 18px gap only
+           * spaces what is inside it. .exam-card carries no margin of its own, so
+           * the checkpoint butted flush against the level cards above it with
+           * nothing between them at all. */
+          '<div class="level-map-grid-pro">' + tierCards +
+            _buildExamCard(tier.examNum) + '</div>' +
         '</div>';
     });
 
@@ -6571,6 +6614,31 @@ var LEVEL_THEMES = {
   function enableSimulatorFocusMode() {
     document.body.classList.add('sim-focus-mode');
   }
+
+  /* Show the menu, and hide it again.
+   *
+   * The cockpit's "Menu" button called disableSimulatorFocusMode, which is not a
+   * toggle — it is the exit, and it stops every sound the simulator is making on
+   * the way out. So pressing it revealed the navigation, pressing it again ran the
+   * same one-way function and did nothing, and there was no way back to the
+   * uncluttered view short of leaving the exercise.
+   *
+   * Two things were fused: focus mode is a display state, leaving the simulator is
+   * a lifecycle event. This is only the first. Every genuine exit still goes
+   * through disableSimulatorFocusMode, which the note above it records as the fix
+   * for the fourth separate occasion the engine was left running over another
+   * screen. */
+  function toggleSimulatorFocusMode() {
+    var on = document.body.classList.toggle('sim-focus-mode');
+    var btn = document.getElementById('simFocusToggle');
+    if (btn) {
+      var label = btn.querySelector('.btn-label');
+      if (label) label.textContent = on ? ' Menu' : ' Hide menu';
+      btn.setAttribute('aria-pressed', on ? 'false' : 'true');
+    }
+    return on;
+  }
+  window.toggleSimulatorFocusMode = toggleSimulatorFocusMode;
 
   // Leaving the simulator stops the simulator. Both of those belong together, and
   // keeping them apart is what let the engine loop, the ambience and the altitude
@@ -8201,7 +8269,8 @@ var LEVEL_THEMES = {
               // the symbol already says.
               '<span class="btn-glyph">' + uiIcon('pause', 16) + '</span>' +
               '<span class="btn-label"> Pause all</span></button>' +
-            '<button class="btn secondary" onclick="disableSimulatorFocusMode()">' +
+            '<button class="btn secondary" id="simFocusToggle" aria-pressed="false" ' +
+              'onclick="toggleSimulatorFocusMode()">' +
               '<span class="btn-glyph">' + uiIcon('menu', 16) + '</span>' +
               '<span class="btn-label"> Menu</span></button>' +
           '</div>' +
@@ -9809,18 +9878,25 @@ var LEVEL_THEMES = {
       expectedAnswer: scenario.expectedReadback || '',
       progress: AppState.training.lastProgress || null
     });
-    /* The XP waits for the server. The feedback does not.
+    /* The chip flies now. The total is corrected later if it has to be.
      *
-     * Instant feedback is right — a student should not watch a spinner to find out
-     * whether they said the right thing. But the chip flew on the CLIENT's verdict,
-     * and when the server disagreed the panel changed underneath a student who had
-     * already watched twenty-five points award themselves. An animation cannot be
-     * un-played, so it does not play until the award is real.
+     * I made this wait for the server yesterday, on the reasoning that an animation
+     * cannot be un-played if the verdict changes underneath it. That was true and
+     * it was the wrong trade. A disagreement is rare; an Apps Script round trip
+     * happens on every single correct answer, and on a cold start it is many
+     * seconds. So the protection cost every student a wait, every time, to guard
+     * against something that may never occur.
      *
-     * Every disagreement is logged. If they never disagree, the round trip is not
-     * earning its keep; if they disagree often, the client grader is what to fix.
-     * Either way it is a number rather than a guess. */
+     * The number is what matters and the server still owns it — lmsXpTotal
+     * overwrites the running total when it lands. The animation is a flourish, and
+     * a flourish that is occasionally optimistic is better than one that is always
+     * late.
+     *
+     * Disagreements are still logged. checkGraderAgreement() in LogService.gs says
+     * how often the two graders differ, and if the answer is never, the reconcile
+     * below can go too. */
     AppState.training._pendingClientCorrect = clientEval.correct;
+    if (clientEval.correct) _showXpFloat(25);
 
     // Background server save — syncs real XP total and triggers rank-up check
     var _capturedIndex = index;
@@ -9851,11 +9927,12 @@ var LEVEL_THEMES = {
           });
           showPendingStreakEvent();
         }
-        // The award, now that it is real. Not onto another screen.
-        if (_navToken === _submitTok &&
-            Number(AppState.training.currentIndex || 0) === _capturedIndex &&
-            res.attempt && res.attempt.correct) {
-          _showXpFloat(25);
+        // The chip has already flown. If the server disagrees, the total it sends
+        // is authoritative and quietly corrects it — no second animation, and no
+        // taking one back.
+        if (res.attempt && !res.attempt.correct &&
+            AppState.training._pendingClientCorrect === true) {
+          if (window.console) console.warn('[ICAO] XP shown on a client pass the server failed');
         }
         var _clientSaid = AppState.training._pendingClientCorrect;
         AppState.training._pendingClientCorrect = null;
@@ -13277,6 +13354,10 @@ var LEVEL_THEMES = {
 
   // ── LMS HUB ──────────────────────────────────────────────────────────────────
   function renderLMSHub() {
+    // Hiding one tab is not hiding a feature. This is reachable from four
+    // "← Modules" buttons and from the nav, so the gate belongs on the screen
+    // itself as well as on the way in.
+    if (!_lmsVisible()) { renderSimulatorPlaceholder(); return; }
     setActiveNav('Simulator');
     // Captured after setActiveNav, so it is this navigation's token. The progress
     // call below fills a block inside the hub, and must not fill one on a screen
@@ -27371,6 +27452,23 @@ var LEVEL_THEMES = {
       _sc.deadline += (Date.now() - _sc.holdAt);
       _sc.holdAt = 0;
     }
+
+    /* And it gives the turn back.
+     *
+     * The track was restored correctly and the status was not. _scSpeak sets
+     * "Examiner speaking…", and nothing ever set it back — so after Repeat question
+     * or Replay recording the screen said the examiner was talking, the ring and
+     * the microphone stayed grey, and the candidate reasonably concluded they could
+     * no longer answer.
+     *
+     * They could. The recorder had never stopped. But an exam that says it is not
+     * your turn is an exam you do not speak into, and the two controls that exist
+     * to help were the two that silenced you.
+     *
+     * A hold has to be symmetrical: what it takes on the way in, it returns on the
+     * way out. Releasing one only ever happens inside an answer window, so the turn
+     * is always the candidate's again. */
+    if (!on) _setStatus('Your turn — speak now', 'listening');
   }
 
   function _scAsk(step, done) {

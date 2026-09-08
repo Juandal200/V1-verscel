@@ -2319,6 +2319,32 @@
 }
 .btn-row > .btn { flex: 0 1 auto; }
 
+/* A country, when the picture will not load.
+ *
+ * The fallback used to be the flag emoji, which is what the problem was: a
+ * regional-indicator pair has no glyph on Windows, so a Mac drew a flag and a PC
+ * drew two letters or two boxes. A fallback that fails on the same platform as the
+ * thing it is falling back from is not a fallback.
+ *
+ * Two letters in a bordered box. Legible everywhere, and it says which country it
+ * means rather than gesturing at one. */
+.flag-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  padding: 1px 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: rgba(var(--lift-rgb), 0.06);
+  font-family: var(--font-instrument);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .flag-shell {
   display: inline-grid;
   place-items: center;
@@ -10687,8 +10713,11 @@ p, li, td, th, h1, h2, h3, h4,
  * EXAM CARDS (level grid)
  * ============================================================ */
 .exam-card {
-  border: 2px dashed rgba(255,180,0,0.35) !important;
-  background: rgba(255,180,0,0.03) !important;
+  /* Full width of the row. A checkpoint gates everything above it, so it reads as
+     a bar across the sequence rather than as another level beside them. */
+  grid-column: 1 / -1;
+  border: 2px dashed rgba(var(--yellow-rgb), 0.35) !important;
+  background: rgba(var(--yellow-rgb), 0.03) !important;
 }
 .exam-card.exam-card-passed {
   border-color: rgba(var(--accent-rgb), 0.4) !important;
@@ -10703,7 +10732,7 @@ p, li, td, th, h1, h2, h3, h4,
   background: rgba(var(--red-rgb), 0.03) !important;
 }
 .exam-status-badge { font-size: 0.62rem !important; font-weight: 800 !important; letter-spacing: 0.12em; }
-.exam-badge-avail  { background: rgba(255,180,0,0.15) !important; color: var(--yellow) !important; border: 1px solid rgba(255,180,0,0.3) !important; }
+.exam-badge-avail  { background: rgba(var(--yellow-rgb), 0.15) !important; color: var(--yellow) !important; border: 1px solid rgba(var(--yellow-rgb), 0.3) !important; }
 .exam-badge-passed { background: rgba(var(--accent-rgb), 0.15) !important; color: var(--accent) !important; border: 1px solid rgba(var(--accent-rgb), 0.3) !important; }
 .exam-badge-warn   { background: rgba(251,146,60,0.15) !important; color: var(--yellow) !important; border: 1px solid rgba(251,146,60,0.3) !important; }
 .exam-badge-replay { background: rgba(var(--red-rgb), 0.12) !important; color: var(--red) !important; border: 1px solid rgba(var(--red-rgb), 0.25) !important; }
