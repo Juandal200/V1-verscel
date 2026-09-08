@@ -85,6 +85,41 @@ ok('the card no longer dims itself whole', !/^\s*opacity: 0\.66/m.test(lock));
 ok('only the imagery fades',
    /\.level-card-pro\.is-locked img,[\s\S]{0,140}opacity: 0\.55/.test(Cc));
 
+console.log('--- the level map is the app\'s colours ---');
+/* The operational card was amber — #f59e0b, in no palette — with an amber wash,
+ * an amber icon tile and a yellow eyebrow, on a product that is black, white and
+ * navy. Thirty-six literals of it across the map, the priority banners and the
+ * exam badges. */
+ok('no amber literal is left anywhere',
+   !/245,\s*158,\s*11/.test(Sc) && !/245,\s*158,\s*11/.test(Cc) &&
+   !/251,\s*146,\s*60/.test(Sc) && !/251,\s*146,\s*60/.test(Cc));
+ok('the operational card carries the accent',
+   /\.level-card-ops \{[\s\S]{0,300}border-color: rgba\(var\(--accent-rgb\), 0\.38\)/.test(Cc));
+ok('and its eyebrow is not a shout',
+   /\.ops-eyebrow \{[\s\S]{0,80}color: var\(--muted\)/.test(Cc));
+ok('its title takes the theme\'s ink, not white',
+   !/\.ops-lvl-title \{[\s\S]{0,160}color: #fff/.test(Cc));
+ok('the rest became the palette\'s yellow, not a new colour',
+   (Cc.match(/rgba\(var\(--yellow-rgb\)/g) || []).length >= 20);
+
+console.log('--- and its marks are drawn ---');
+// A padlock, a tick and a target rendered in three typefaces at three weights
+// next to instrument text — and on Windows some of them not at all.
+ok('the operational icons are drawn',
+   /uiIcon\('locked', 30\)/.test(Sc) && /uiIcon\('passed', 30\)/.test(Sc) &&
+   /uiIcon\('target', 30\)/.test(Sc));
+ok('and none of the four is still an emoji',
+   !/olIcon\s+= OPS_COMING_SOON \? '\\uD83D/.test(Sc));
+
+console.log('--- a locked checkpoint keeps its explanation ---');
+// Dimming the card took "Complete Levels 7-9 to unlock" — the line explaining
+// WHY it is locked — down with it.
+ok('the card is not faded whole',
+   !/\.exam-card\.exam-card-locked \{[\s\S]{0,120}opacity: 0\.7/.test(Cc));
+ok('the dashed border carries the meaning',
+   /\.exam-card\.exam-card-locked \{[\s\S]{0,140}border-style: dashed/.test(Cc));
+ok('and its badge is legible',  !/color: #555/.test(Cc));
+
 console.log('--- and nothing ships in Spanish ---');
 const SP = /\b(Cargando|Completa|Bloqueado|Desbloquea\w*|Debes|Necesitas|Guardando|Enviando|Continuar|Comenzar|Correcto|Incorrecto|Siguiente|anterior)\b/i;
 ok('no Spanish prose in the client', !SP.test(Sc.replace(/<!--[\s\S]*?-->/g, '')));

@@ -748,8 +748,8 @@
     align-items: center;
     margin-top: 5px;
     padding: 3px 9px;
-    background: rgba(245,158,11,0.09);
-    border: 1px solid rgba(245,158,11,0.2);
+    background: rgba(var(--yellow-rgb), 0.09);
+    border: 1px solid rgba(var(--yellow-rgb), 0.2);
     border-radius: 4px;
     color: var(--yellow);
     font-size: 0.62rem;
@@ -1451,7 +1451,7 @@
   overflow: hidden;
 }
 .level-card-pro.vr-priority {
-  border-color: rgba(245,158,11,0.55);
+  border-color: rgba(var(--yellow-rgb), 0.55);
   box-shadow: var(--shadow-3);
   animation: vrCardAmbientPriority 3.2s ease-in-out infinite;
 }
@@ -1511,7 +1511,7 @@
   flex-wrap: wrap;
   row-gap: 4px;
 }
-.vr-event-banner--priority { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.28); color: var(--yellow); animation: vrBannerPulse 2.8s ease-in-out infinite; }
+.vr-event-banner--priority { background: rgba(var(--yellow-rgb), 0.08); border: 1px solid rgba(var(--yellow-rgb), 0.28); color: var(--yellow); animation: vrBannerPulse 2.8s ease-in-out infinite; }
 .vr-event-banner--critical  { background: rgba(var(--red-rgb), 0.08);  border: 1px solid rgba(var(--red-rgb), 0.30);  color: var(--red); animation: vrBannerPulse 1.9s ease-in-out infinite; }
 .vr-event-banner--double    { background: rgba(218,165,32,0.09); border: 1px solid rgba(218,165,32,0.36); color: var(--yellow); animation: vrBannerPulse 3.2s ease-in-out infinite; }
 .vr-event-banner--hot       { background: rgba(var(--accent-rgb), 0.06);  border: 1px solid rgba(var(--accent-rgb), 0.22); color: var(--accent); }
@@ -1765,7 +1765,7 @@
 .ops-divider-line {
   flex: 1;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(245,158,11,0.45), transparent);
+  background: linear-gradient(90deg, transparent, rgba(var(--yellow-rgb), 0.45), transparent);
 }
 .ops-divider-label {
   font-size: 0.62rem;
@@ -1778,12 +1778,17 @@
 .level-ops-section {
   margin-top: 14px;
 }
+/* The operational card is the app's own colours.
+   It was amber — #f59e0b, a colour in no palette — with an amber wash, an amber
+   icon tile and a yellow eyebrow, on a product that is black, white and navy.
+   The accent carries the emphasis instead: white on the dark theme, navy on the
+   light one. */
 .level-card-ops {
-  border-color: rgba(245,158,11,0.38);
+  border-color: rgba(var(--accent-rgb), 0.38);
   background:
-    radial-gradient(ellipse at top left,  rgba(245,158,11,0.09) 0%, transparent 55%),
-    radial-gradient(ellipse at bottom right, rgba(245,158,11,0.05) 0%, transparent 55%),
-    linear-gradient(160deg, var(--panel) 0%, rgba(14,14,14,0.97) 100%);
+    radial-gradient(ellipse at top left,  rgba(var(--accent-rgb), 0.07) 0%, transparent 55%),
+    radial-gradient(ellipse at bottom right, rgba(var(--accent-rgb), 0.04) 0%, transparent 55%),
+    linear-gradient(160deg, var(--panel) 0%, var(--bg) 100%);
   box-shadow: var(--shadow-3);
   min-height: auto;
 }
@@ -1804,19 +1809,19 @@
   height: 72px !important;
   font-size: 2rem !important;
   border-radius: 22px !important;
-  background: rgba(245,158,11,0.10) !important;
-  border-color: rgba(245,158,11,0.32) !important;
+  background: rgba(var(--accent-rgb), 0.10) !important;
+  border-color: rgba(var(--accent-rgb), 0.26) !important;
   flex-shrink: 0;
 }
 .ops-eyebrow {
-  color: var(--yellow) !important;
+  color: var(--muted) !important;
   letter-spacing: 0.12em;
 }
 .ops-lvl-title {
   font-size: 2rem;
   font-weight: 800;
   margin: 4px 0 8px;
-  color: #fff;
+  color: var(--text);
   letter-spacing: -0.02em;
   line-height: 1;
 }
@@ -1847,7 +1852,7 @@
   margin-bottom: 6px;
 }
 .sim-hero-bar--event {
-  border-color: rgba(245,158,11,0.3);
+  border-color: rgba(var(--yellow-rgb), 0.3);
 }
 .sim-hero-top-row {
   display: flex;
@@ -1917,7 +1922,7 @@
   flex-wrap: wrap;
   font-size: 0.82rem;
 }
-.sim-hero-incentive--priority { background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.30); }
+.sim-hero-incentive--priority { background: rgba(var(--yellow-rgb), 0.10); border: 1px solid rgba(var(--yellow-rgb), 0.30); }
 .sim-hero-incentive--critical  { background: rgba(var(--red-rgb), 0.09);  border: 1px solid rgba(var(--red-rgb), 0.28); }
 .sim-hero-incentive--double    { background: rgba(218,165,32,0.09); border: 1px solid rgba(218,165,32,0.32); }
 .sim-hero-incentive--hot       { background: rgba(var(--accent-rgb), 0.07);  border: 1px solid rgba(var(--accent-rgb), 0.24); }
@@ -2644,8 +2649,8 @@
   margin-bottom: 12px;
   padding: 10px 12px;
   border-radius: 12px;
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.24);
+  background: rgba(var(--yellow-rgb), 0.12);
+  border: 1px solid rgba(var(--yellow-rgb), 0.24);
   color: var(--yellow);
   font-size: 0.82rem;
 }
@@ -2713,8 +2718,8 @@
 }
 
 .sim-feedback-box.warning {
-  background: rgba(245, 158, 11, 0.1);
-  border-color: rgba(245, 158, 11, 0.24);
+  background: rgba(var(--yellow-rgb), 0.1);
+  border-color: rgba(var(--yellow-rgb), 0.24);
   color: var(--yellow);
 }
 
@@ -3575,8 +3580,8 @@ body.sim-paused #simMediaPauseBtn {
   margin-bottom: 12px;
   padding: 12px 14px;
   border-radius: 16px;
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.28);
+  background: rgba(var(--yellow-rgb), 0.12);
+  border: 1px solid rgba(var(--yellow-rgb), 0.28);
   color: var(--yellow);
   font-size: 0.82rem;
   line-height: 1.5;
@@ -3673,16 +3678,16 @@ body.sim-paused #simMediaPauseBtn {
   font-weight: 400;
 }
 .sim-side-item--warn {
-  border-color: rgba(245, 158, 11, 0.5) !important;
-  background: rgba(245, 158, 11, 0.08) !important;
+  border-color: rgba(var(--yellow-rgb), 0.5) !important;
+  background: rgba(var(--yellow-rgb), 0.08) !important;
   animation: flightWarnPulse 1.2s ease-in-out infinite;
 }
 .sim-side-item--warn span {
   color: var(--yellow) !important;
 }
 @keyframes flightWarnPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
-  50%       { box-shadow: 0 0 8px 2px rgba(245,158,11,0.25); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--yellow-rgb), 0); }
+  50%       { box-shadow: 0 0 8px 2px rgba(var(--yellow-rgb), 0.25); }
 }
 .flight-target-sub {
   display: block;
@@ -3795,8 +3800,8 @@ body.sim-paused #simMediaPauseBtn {
 .sim-instrument--ok .sim-instr-target-val { color: var(--green); }
 
 .sim-instrument--warn {
-  border-color: rgba(245,158,11,0.6) !important;
-  background: rgba(245,158,11,0.09) !important;
+  border-color: rgba(var(--yellow-rgb), 0.6) !important;
+  background: rgba(var(--yellow-rgb), 0.09) !important;
   animation: flightWarnPulse 1.2s ease-in-out infinite;
 }
 .sim-instrument--warn .sim-instr-label { color: var(--yellow); }
@@ -3901,8 +3906,8 @@ mark.atc-highlight {
 }
 
 .sim-feedback-box.warning {
-  background: rgba(245, 158, 11, 0.1);
-  border-color: rgba(245, 158, 11, 0.24);
+  background: rgba(var(--yellow-rgb), 0.1);
+  border-color: rgba(var(--yellow-rgb), 0.24);
   color: var(--yellow);
 }
 
@@ -4227,8 +4232,8 @@ mark.atc-highlight {
 }
 
 .admin-form-message.is-warning {
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(var(--yellow-rgb), 0.12);
+  border-color: rgba(var(--yellow-rgb), 0.28);
   color: var(--yellow);
 }
 
@@ -5247,7 +5252,7 @@ body.sim-focus-mode .topbar-avatar {
 }
 
 .status.PARTIAL {
-  background: rgba(245, 158, 11, 0.18);
+  background: rgba(var(--yellow-rgb), 0.18);
   color: var(--yellow);
 }
 
@@ -5624,7 +5629,7 @@ body.sim-focus-mode .topbar-avatar {
 }
 
 .status.PARTIAL {
-  background: rgba(245, 158, 11, 0.18);
+  background: rgba(var(--yellow-rgb), 0.18);
   color: var(--yellow);
 }
 
@@ -7815,8 +7820,8 @@ body.sim-focus-mode .topbar-avatar {
 .feedback-btn.easy:hover    { background: rgba(var(--green-rgb), 0.12); }
 .feedback-btn.ok            { border-color: var(--line-strong); color: var(--muted); }
 .feedback-btn.ok:hover      { background: rgba(var(--lift-rgb), 0.1); }
-.feedback-btn.hard          { border-color: rgba(251,146,60,0.35); color: var(--yellow); }
-.feedback-btn.hard:hover    { background: rgba(251,146,60,0.12); }
+.feedback-btn.hard          { border-color: rgba(var(--yellow-rgb), 0.35); color: var(--yellow); }
+.feedback-btn.hard:hover    { background: rgba(var(--yellow-rgb), 0.12); }
 .feedback-btn.skip          { border-color: transparent; color: var(--muted); font-size: 0.72rem; padding: 4px 10px; }
 
 /* ── Full-screen modal overlay ───────────────────────── */
@@ -7974,7 +7979,7 @@ body.sim-focus-mode .topbar-avatar {
 .wua-chip { padding: 8px 20px; border-radius: 22px; font-size: 0.82rem; font-weight: 600; }
 .wua-chip.yes   { background: rgba(var(--green-rgb), 0.15); color: var(--green); border: 1px solid rgba(var(--green-rgb), 0.3); }
 .wua-chip.maybe { background: rgba(var(--lift-rgb), 0.1); color: var(--muted); border: 1px solid var(--line-strong); }
-.wua-chip.no    { background: rgba(251,146,60,0.12); color: var(--yellow); border: 1px solid rgba(251,146,60,0.25); }
+.wua-chip.no    { background: rgba(var(--yellow-rgb), 0.12); color: var(--yellow); border: 1px solid rgba(var(--yellow-rgb), 0.25); }
 
 .recent-text-list { display: flex; flex-direction: column; gap: 8px; }
 .recent-text-item { background: rgba(var(--lift-rgb), 0.03); border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--muted); font-style: italic; }
@@ -8304,11 +8309,14 @@ body.sim-focus-mode .topbar-avatar {
   box-shadow: var(--shadow-2);
   animation: none;
 }
+/* The pulsing call-to-action, disabled. #555 is 2.6:1 on the dark theme — a
+   fourth disabled rule inventing its own grey, found only because the suite
+   started asking. */
 .btn.btn-cta-pulse:disabled {
   animation: none;
-  background: rgba(var(--lift-rgb), 0.06);
+  background: var(--panel);
   border-color: var(--line);
-  color: #555;
+  color: var(--muted);
   box-shadow: none;
 }
 @keyframes ctaPulseGlow {
@@ -8467,7 +8475,7 @@ body.sim-focus-mode .topbar-avatar {
 }
 .tm-star.filled {
   color: var(--yellow);
-  text-shadow: 0 0 8px rgba(245,158,11,0.6);
+  text-shadow: 0 0 8px rgba(var(--yellow-rgb), 0.6);
 }
 .tm-text {
   font-size: 0.82rem;
@@ -10761,8 +10769,14 @@ p, li, td, th, h1, h2, h3, h4,
  * ============================================================ */
 .exam-card {
   /* Full width of the row. A checkpoint gates everything above it, so it reads as
-     a bar across the sequence rather than as another level beside them. */
+     a bar across the sequence rather than as another level beside them.
+
+     And it takes the height its content needs. It inherits .level-card-pro, which
+     sets min-height: 260px so that three cards side by side line up — but a
+     checkpoint has no card beside it to line up with, so all that reserved height
+     became an empty region below four lines of text. */
   grid-column: 1 / -1;
+  min-height: auto !important;
   border: 2px dashed rgba(var(--yellow-rgb), 0.35) !important;
   background: rgba(var(--yellow-rgb), 0.03) !important;
 }
@@ -10770,9 +10784,12 @@ p, li, td, th, h1, h2, h3, h4,
   border-color: rgba(var(--accent-rgb), 0.4) !important;
   background: rgba(var(--accent-rgb), 0.03) !important;
 }
+/* Locked, not faded. The same fault as the level cards: dimming the whole card
+   took "Complete Levels 7-9 to unlock" — the one line explaining WHY it is
+   locked — down with it. The dashed border and the padlock already say it. */
 .exam-card.exam-card-locked {
   border-color: var(--line) !important;
-  opacity: 0.7;
+  border-style: dashed !important;
 }
 .exam-card.exam-card-replay_required {
   border-color: rgba(var(--red-rgb), 0.35) !important;
@@ -10781,9 +10798,9 @@ p, li, td, th, h1, h2, h3, h4,
 .exam-status-badge { font-size: 0.62rem !important; font-weight: 800 !important; letter-spacing: 0.12em; }
 .exam-badge-avail  { background: rgba(var(--yellow-rgb), 0.15) !important; color: var(--yellow) !important; border: 1px solid rgba(var(--yellow-rgb), 0.3) !important; }
 .exam-badge-passed { background: rgba(var(--accent-rgb), 0.15) !important; color: var(--accent) !important; border: 1px solid rgba(var(--accent-rgb), 0.3) !important; }
-.exam-badge-warn   { background: rgba(251,146,60,0.15) !important; color: var(--yellow) !important; border: 1px solid rgba(251,146,60,0.3) !important; }
+.exam-badge-warn   { background: rgba(var(--yellow-rgb), 0.15) !important; color: var(--yellow) !important; border: 1px solid rgba(var(--yellow-rgb), 0.3) !important; }
 .exam-badge-replay { background: rgba(var(--red-rgb), 0.12) !important; color: var(--red) !important; border: 1px solid rgba(var(--red-rgb), 0.25) !important; }
-.exam-badge-locked { background: rgba(var(--lift-rgb), 0.06) !important; color: #555 !important; border: 1px solid var(--line) !important; }
+.exam-badge-locked { background: rgba(var(--lift-rgb), 0.06) !important; color: var(--muted) !important; border: 1px solid var(--line) !important; }
 .exam-card-body { padding: 0 0 14px; }
 .exam-card-info { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 4px; }
 .exam-card-pill {
@@ -12334,7 +12351,7 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 .diff-pill--off.diff-pill--active    { background: rgba(107,114,128,0.2); border-color: var(--line); color: var(--muted); }
 .diff-pill--easy.diff-pill--active   { background: rgba(var(--green-rgb), 0.15);  border-color: var(--green); color: var(--green); }
 .diff-pill--medium.diff-pill--active { background: rgba(var(--accent-rgb), 0.15); border-color: var(--accent); color: var(--accent); }
-.diff-pill--hard.diff-pill--active   { background: rgba(245,158,11,0.15); border-color: var(--yellow); color: var(--yellow); }
+.diff-pill--hard.diff-pill--active   { background: rgba(var(--yellow-rgb), 0.15); border-color: var(--yellow); color: var(--yellow); }
 .diff-pill--expert.diff-pill--active { background: rgba(var(--red-rgb), 0.15);  border-color: var(--red); color: var(--red); }
 .diff-rt-label {
   font-size: 0.72rem;
@@ -12478,7 +12495,7 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 /* Outstanding-phases variant of the debrief verdict pill: the route did not
    actually complete, so it must not wear the green "confirmed" treatment. */
 .senior-verdict.senior-verdict-warn {
-  border-color: rgba(245, 158, 11, 0.34);
+  border-color: rgba(var(--yellow-rgb), 0.34);
   background: rgba(120, 53, 15, 0.30);
 }
 .senior-verdict.senior-verdict-warn span { color: var(--yellow); }

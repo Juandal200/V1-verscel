@@ -72,7 +72,16 @@ console.log('--- the checkpoint has room around it ---');
 ok('it sits inside the grid',
    /level-map-grid-pro">' \+ tierCards \+\s*\n\s*_buildExamCard\(tier\.examNum\) \+ '<\/div>'/.test(S));
 ok('so the grid\'s own gap applies',  /\.level-map-grid-pro \{[\s\S]{0,140}gap: 18px/.test(C));
-ok('and it spans the row',            /\.exam-card \{[\s\S]{0,200}grid-column: 1 \/ -1;/.test(C));
+/* Read the stripped stylesheet, not the raw one. This matched inside a fixed
+ * 200-character window from the selector, and a comment added above the rule
+ * pushed the declaration past it — so the check failed while the CSS was
+ * correct. A comment must never be able to break a test about code. */
+const Cs = C.replace(/\/\*[\s\S]*?\*\//g, '');
+ok('and it spans the row',            /\.exam-card \{[\s\S]{0,200}grid-column: 1 \/ -1;/.test(Cs));
+// A checkpoint has no card beside it to line up with, so the 260px reserved by
+// .level-card-pro became an empty region under four lines of text.
+ok('and takes only the height it needs',
+   /\.exam-card \{[\s\S]{0,240}min-height: auto !important;/.test(Cs));
 ok('in the palette, not an orange literal',
    !/rgba\(255,180,0/.test(C) && /rgba\(var\(--yellow-rgb\), 0\.35\)/.test(C));
 

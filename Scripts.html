@@ -5797,8 +5797,12 @@ var LEVEL_THEMES = {
             '<span class="vr-event-slot">CLOSES ' + vrSlot + '</span>' +
           '</div>'
         : '';
-      var olIcon   = OPS_COMING_SOON ? '\uD83D\uDD12'
-                   : olLocked ? '\uD83D\uDD12' : (olDone ? '\u2705' : (olVr ? olVr.icon : '\uD83C\uDFAF'));
+      // Drawn marks, not emoji. A padlock, a tick and a target rendered in three
+      // different typefaces at three different weights next to instrument text —
+      // and on Windows some of them not at all.
+      var olIcon   = OPS_COMING_SOON ? uiIcon('locked', 30)
+                   : olLocked ? uiIcon('locked', 30)
+                   : (olDone ? uiIcon('passed', 30) : (olVr ? olVr.icon : uiIcon('target', 30)));
       // Opens the GROUP, not a level. It went straight into level 10's country picker,
       // which was right while Operational was level 10 and wrong the moment there
       // were several. A student picks the level first, as they do above.
@@ -11087,7 +11091,7 @@ var LEVEL_THEMES = {
           if (streakEl) {
             streakEl.style.transition = 'transform .35s cubic-bezier(.34,1.56,.64,1),box-shadow .35s';
             streakEl.style.transform  = 'scale(1.55)';
-            streakEl.style.boxShadow  = '0 0 18px rgba(251,146,60,.85)';
+            streakEl.style.boxShadow  = '0 0 18px rgba(var(--yellow-rgb), .85)';
             setTimeout(function() {
               streakEl.style.transform = 'scale(1)';
               streakEl.style.boxShadow = '';
@@ -20228,7 +20232,7 @@ var LEVEL_THEMES = {
       var lowest = users[users.length - 1];
       if (lowest.multitaskingScore < 60) {
         insightHtml =
-          '<div class="prog-alert-banner" style="border-color:rgba(245,158,11,0.4);background:rgba(245,158,11,0.06)">' +
+          '<div class="prog-alert-banner" style="border-color:rgba(var(--yellow-rgb), 0.4);background:rgba(var(--yellow-rgb), 0.06)">' +
             '<strong>Attention: ' + h(lowest.name) + '</strong>' +
             '<span>Lowest multitasking score (' + lowest.multitaskingScore + '). Recovery rate: ' + lowest.recoveryRate + '%, avg correction: ' + (lowest.avgCorrectionSec || '—') + 's. Consider reducing workload for this student.</span>' +
           '</div>';
@@ -21828,7 +21832,7 @@ var LEVEL_THEMES = {
       ? '<div class="prog-bar-list">' + chartPhases.map(function(p) {
           var pct = Math.round((p.warnings / maxWarn) * 100);
           var isHighlighted = phaseFilter !== 'all' && p.phase === phaseFilter;
-          var barColor = phaseFilter !== 'all' ? (isHighlighted ? 'var(--yellow)' : 'rgba(245,158,11,0.22)') : 'var(--yellow)';
+          var barColor = phaseFilter !== 'all' ? (isHighlighted ? 'var(--yellow)' : 'rgba(var(--yellow-rgb), 0.22)') : 'var(--yellow)';
           return '<div class="prog-bar-row">' +
             '<span' + (isHighlighted ? ' style="font-weight:700;color:var(--yellow)"' : '') + '>' + h(p.phase) + '</span>' +
             '<div class="analytics-bar-track"><div class="analytics-bar-fill" style="width:' + pct + '%;background:' + barColor + '"></div></div>' +
@@ -22275,7 +22279,7 @@ var LEVEL_THEMES = {
   function _insightBanner(type, icon, headline, detail) {
     var palettes = {
       good:     { bg: 'rgba(var(--green-rgb), 0.07)',  border: 'rgba(var(--green-rgb), 0.4)',  text: 'var(--green)' },
-      warning:  { bg: 'rgba(245,158,11,0.07)', border: 'rgba(245,158,11,0.4)', text: 'var(--yellow)' },
+      warning:  { bg: 'rgba(var(--yellow-rgb), 0.07)', border: 'rgba(var(--yellow-rgb), 0.4)', text: 'var(--yellow)' },
       critical: { bg: 'rgba(var(--red-rgb), 0.07)',  border: 'rgba(var(--red-rgb), 0.4)',  text: 'var(--red)' },
       info:     { bg: 'rgba(99,179,237,0.07)', border: 'rgba(99,179,237,0.4)', text: 'var(--accent)' }
     };
