@@ -1297,11 +1297,32 @@
     document.body.appendChild(overlay);
   }
 
+  /* Did the server REJECT this token, or did it simply not answer?
+   *
+   * Three handlers each carried their own copy of this, all reading:
+   *
+   *     !res || res.code === 'SESSION_ERROR' || res.code === 'AUTH_ERROR'
+   *
+   * with a comment above saying "only clear the session if the server explicitly
+   * rejected the token". But `!res` is exactly the case where the server said
+   * NOTHING — a timeout, a cold start, a dropped request. A network hiccup was
+   * being read as a rejected login, and the student was signed out and sent back
+   * to the code screen.
+   *
+   * That is how a candidate who hit an error at the end of an examination came to
+   * be logged out by reloading, and to conclude her sitting had been thrown away.
+   *
+   * Rejected means the server said so. Silence means try again. */
+  function _serverRejectedToken(res) {
+    if (!res) return false;                       // no answer is not an answer
+    return res.code === 'SESSION_ERROR' || res.code === 'AUTH_ERROR';
+  }
+
   function handleGetMeResponse(res) {
     if (!res || !res.ok) {
       // Distinguish a real auth failure from a transient server error.
       // Only clear the session if the server explicitly rejected the token.
-      var isAuthError = !res || res.code === 'SESSION_ERROR' || res.code === 'AUTH_ERROR';
+      var isAuthError = _serverRejectedToken(res);
       if (isAuthError) {
         _clearSession();
         // If the app screen is already active, show a gentle overlay instead of a hard redirect.
@@ -1330,7 +1351,7 @@
   // can skip the separate getMyCompletedLevels call.
   function handleBootstrapResponse(res) {
     if (!res || !res.ok) {
-      var isAuthError = !res || res.code === 'SESSION_ERROR' || res.code === 'AUTH_ERROR';
+      var isAuthError = _serverRejectedToken(res);
       if (isAuthError) {
         _clearSession();
         var _bsAppScreen = byId('appScreen');
@@ -1503,6 +1524,13 @@
   function enterApplication() {
     if (!AppState.user) return;
     showScreen('appScreen');
+
+    /* An examination that was graded but never filed.
+     *
+     * If the tab died between the grading and the server's acknowledgement, the
+     * payload is still in localStorage and this is the only thing that will ever
+     * send it. Runs once a session is real, so the token is there to send with. */
+    try { window._teaResendPendingResult && window._teaResendPendingResult(); } catch (e) {}
 
     // role/email removed from topbar (avatar used instead)
 
@@ -1686,7 +1714,7 @@
     google.script.run
       .withSuccessHandler(function(res) {
         if (!res || !res.ok) {
-          var isAuthError = !res || res.code === 'SESSION_ERROR' || res.code === 'AUTH_ERROR';
+          var isAuthError = _serverRejectedToken(res);
           if (isAuthError) {
             _clearSession();
             _showSessionExpiredOverlay();
@@ -26009,16 +26037,33 @@ var LEVEL_THEMES = {
       _t._awaitingFinalReport = 0;
       _lockExamUI();
       var band = jsonData.student_view.overall_band;
-      _showReportScreen(jsonData);
       _t._studentView = jsonData.student_view;
-      // The candidate has their result. Everything the examiner has to say about
-      // HOW it was reached is fetched now, in the background, and filed with the
-      // sitting — so a capacity spike costs the examiner's working, not the band.
-      _teaFetchAdminReport();
-      // This path used to keep nothing at all — it is reached whenever the audio
-      // pipeline fails and for every sitting answered by typing, since there is
-      // then no recording to transcribe. Those results existed only on screen.
+
+      /* Kept before it is shown.
+       *
+       * This drew the report and saved it afterwards. A candidate finished a
+       * thirty-minute examination, something threw while the screen was being
+       * built, the global error boundary caught it — and the save never ran. The
+       * sitting existed nowhere: not on the sheet, not in a draft, nowhere to
+       * recover it from. She reloaded and it was simply gone.
+       *
+       * Nothing about drawing a result should be able to destroy it. The write
+       * goes first and the render is wrapped, so the worst a display failure can
+       * now cost is the display. */
       _teaSaveConversationResult(jsonData);
+      // Everything the examiner has to say about HOW the band was reached, fetched
+      // in the background and filed with the sitting — so a capacity spike costs
+      // the examiner's working, not the result.
+      _teaFetchAdminReport();
+
+      try {
+        _showReportScreen(jsonData);
+      } catch (e) {
+        // The result is already saved and already on its way to the sheet. Say so,
+        // rather than letting the error boundary imply it was lost.
+        if (window.console) console.error('[ICAO test] report screen failed', e);
+        _teaShowReportFallback(jsonData, e);
+      }
       // The examiner does not read the result out.
       //
       // It used to say the band aloud while the report on screen was blurred for a
@@ -28233,27 +28278,103 @@ var LEVEL_THEMES = {
   // sitting under six spent audio cards with the exam chrome — ring, part rail,
   // input bar — still around it, so the thing the candidate came for was the least
   // prominent object on the page.
+  /* When the report cannot be drawn.
+   *
+   * The result is saved before this point, so a failure here costs the rendering
+   * and nothing else. What the candidate must not see is the generic crash
+   * overlay, which says "an unexpected error occurred" and offers a reload — the
+   * exact sequence that made somebody believe a completed examination had been
+   * thrown away.
+   *
+   * It tells them the band, which is the number they came for and is in hand, and
+   * points at My results, where the saved sitting will be. */
+  function _teaShowReportFallback(json, err) {
+    var host = document.getElementById('contentArea');
+    if (!host) return;
+    var band = 0;
+    try { band = Number(json.student_view.overall_band) || 0; } catch (e) {}
+    host.innerHTML =
+      '<div style="min-height:calc(100vh - 60px);display:flex;align-items:center;' +
+        'justify-content:center;padding:26px 16px;">' +
+        '<div class="tea-score-box" style="max-width:420px;text-align:center;">' +
+          '<p class="eyebrow" style="margin:0 0 8px;">ICAO test \u00b7 result saved</p>' +
+          (band > 0 ? '<div class="tea-score-band-value" style="color:var(--accent);">' +
+                        band + '</div>' +
+                      '<div class="tea-score-band-sub" style="color:var(--accent);">' +
+                        'Overall ICAO band</div>' : '') +
+          '<p style="margin:14px 0 0;font-size:0.9rem;line-height:1.6;color:var(--muted);">' +
+            'Your examination is complete and your result has been saved. The report ' +
+            'could not be displayed on this screen \u2014 open <strong>My results</strong> ' +
+            'to read it.</p>' +
+          '<div style="display:flex;gap:8px;margin-top:18px;">' +
+            '<button class="btn secondary" style="flex:1;" ' +
+              'onclick="window._teaMyResults && window._teaMyResults()">My results</button>' +
+            '<button class="btn primary" style="flex:1;" ' +
+              'onclick="window.renderHome && window.renderHome()">Home</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  var TEA_PENDING_KEY = 'icao_pending_exam_result';
+
+  /* The result, written down before it is sent.
+   *
+   * A save is a network call and a network call can be lost — the tab closes, the
+   * connection drops, the proxy times out. Thirty minutes of examination should
+   * not depend on one request surviving. It goes to localStorage first, is cleared
+   * only when the server confirms, and _teaResendPendingResult finds it on the next
+   * load if it is still there. */
   function _teaSaveConversationResult(json) {
+    var payload = {
+      student_view:   json.student_view,
+      admin_view:     json.admin_view,
+      history:        _t.history,
+      bank:           TEA_BANK,
+      scope:          _t.scope || 'FULL',
+      examDate:       new Date().toISOString()
+    };
+    try { localStorage.setItem(TEA_PENDING_KEY, JSON.stringify(payload)); } catch (e) {}
+    _teaSendResult(payload);
+  }
+
+  function _teaSendResult(payload) {
     try {
       google.script.run
         .withSuccessHandler(function(res) {
+          // Only once the sheet has it.
+          try { localStorage.removeItem(TEA_PENDING_KEY); } catch (e) {}
           if (window.console && console.log) {
             console.log('[ICAO test] result saved: ' + ((res && res.driveFileUrl) || (res && res.error) || '?'));
           }
         })
         .withFailureHandler(function(e) {
-          if (window.console && console.warn) console.warn('[ICAO test] result save failed', e);
+          // Left in localStorage on purpose — the next load sends it again.
+          if (window.console && console.warn) console.warn('[ICAO test] result save failed, kept locally', e);
         })
-        .apiSaveIcaoExamResult(AppState.sessionToken, {
-          student_view:   json.student_view,
-          admin_view:     json.admin_view,
-          history:        _t.history,
-          bank:           TEA_BANK,
-          scope:          _t.scope || 'FULL',
-          examDate:       new Date().toISOString()
-        });
+        .apiSaveIcaoExamResult(AppState.sessionToken, payload);
     } catch (e) {}
   }
+
+  /* An examination that was graded but never filed.
+   *
+   * Called once on boot. If the tab died between the grading and the server's
+   * acknowledgement, the payload is still in localStorage and this is the only
+   * thing that will ever send it. */
+  function _teaResendPendingResult() {
+    var raw = null;
+    try { raw = localStorage.getItem(TEA_PENDING_KEY); } catch (e) {}
+    if (!raw) return;
+    var payload = null;
+    try { payload = JSON.parse(raw); } catch (e) {}
+    if (!payload || !payload.student_view) {
+      try { localStorage.removeItem(TEA_PENDING_KEY); } catch (e) {}
+      return;
+    }
+    if (window.console) console.log('[ICAO test] resending a sitting that was never filed');
+    _teaSendResult(payload);
+  }
+  window._teaResendPendingResult = _teaResendPendingResult;
 
   // Free accounts sit the exam and are graded; they just cannot read the outcome
   // until they subscribe. Staff and paid plans always see it.
