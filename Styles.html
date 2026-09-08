@@ -1116,9 +1116,14 @@
     background: rgba(var(--yellow-rgb), 0.14);
   }
 
+  /* Locked is not a failure.
+     Red is the colour this app uses for a wrong read-back and a failed sitting.
+     A level you have not reached yet is neither — it is simply next, and marking
+     it with the same colour as an error tells a student something went wrong
+     when nothing has. The padlock and the disabled button already say locked. */
   .status.BLOCKED {
-    color: var(--red);
-    background: rgba(var(--red-rgb), 0.14);
+    color: var(--muted);
+    background: rgba(var(--lift-rgb), 0.10);
   }
 
   .scenario-card {
@@ -10777,6 +10782,18 @@ p, li, td, th, h1, h2, h3, h4,
      became an empty region below four lines of text. */
   grid-column: 1 / -1;
   min-height: auto !important;
+
+  /* A bar, laid out like a bar.
+     Setting min-height to auto stopped it RESERVING empty height, but it was
+     still a column: a title, then pills, then a button pushed to the far corner
+     by the footer's margin-top:auto. On a wide screen that put four lines of
+     text down the left of a 2000px band and left the middle of it empty.
+     Across, not down. The three parts sit on one line, vertically centred, and
+     the card is as tall as its tallest part. */
+  flex-direction: row;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
   border: 2px dashed rgba(var(--yellow-rgb), 0.35) !important;
   background: rgba(var(--yellow-rgb), 0.03) !important;
 }
@@ -10801,7 +10818,19 @@ p, li, td, th, h1, h2, h3, h4,
 .exam-badge-warn   { background: rgba(var(--yellow-rgb), 0.15) !important; color: var(--yellow) !important; border: 1px solid rgba(var(--yellow-rgb), 0.3) !important; }
 .exam-badge-replay { background: rgba(var(--red-rgb), 0.12) !important; color: var(--red) !important; border: 1px solid rgba(var(--red-rgb), 0.25) !important; }
 .exam-badge-locked { background: rgba(var(--lift-rgb), 0.06) !important; color: var(--muted) !important; border: 1px solid var(--line) !important; }
-.exam-card-body { padding: 0 0 14px; }
+.exam-card-body { padding: 0; }
+/* The pills take the middle of the bar rather than a line of their own, and the
+   button keeps to the right — margin-top:auto did that job in a column, and
+   margin-left:auto does it in a row. */
+.exam-card .level-card-top { flex: 0 1 auto; margin-bottom: 0; }
+.exam-card .exam-card-body { flex: 1 1 220px; }
+.exam-card .level-card-footer { margin-top: 0; margin-left: auto; flex: 0 0 auto; }
+
+@media (max-width: 760px) {
+  /* Narrow enough that a row would wrap into something worse than a column. */
+  .exam-card { flex-direction: column; align-items: stretch; gap: 12px; }
+  .exam-card .level-card-footer { margin-left: 0; }
+}
 .exam-card-info { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 4px; }
 .exam-card-pill {
   font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em;

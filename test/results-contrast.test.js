@@ -120,6 +120,33 @@ ok('the dashed border carries the meaning',
    /\.exam-card\.exam-card-locked \{[\s\S]{0,140}border-style: dashed/.test(Cc));
 ok('and its badge is legible',  !/color: #555/.test(Cc));
 
+console.log('--- a checkpoint is laid out like the bar it is ---');
+/* min-height: auto stopped it RESERVING empty height, but it was still a column:
+ * a title, then pills, then a button pushed to the far corner by the footer's
+ * margin-top:auto. On a wide screen that is four lines of text down the left of a
+ * 2000px band with an empty middle. */
+const ec = Cc.slice(Cc.indexOf('.exam-card {'), Cc.indexOf('.exam-card {') + 500);
+ok('it takes only the height it needs', /min-height: auto !important/.test(ec));
+ok('and lays out across, not down',
+   /flex-direction: row/.test(ec) && /align-items: center/.test(ec));
+ok('the pills take the middle',   /\.exam-card \.exam-card-body \{ flex: 1 1 220px; \}/.test(Cc));
+ok('the button keeps to the right',
+   /\.exam-card \.level-card-footer \{ margin-top: 0; margin-left: auto/.test(Cc));
+// A row that wraps on a phone is worse than a column.
+ok('and it becomes a column when there is no width to use',
+   /@media \(max-width: 760px\) \{\s*\.exam-card \{ flex-direction: column/.test(Cc));
+
+console.log('--- locked is not an error ---');
+/* Red is what this app uses for a wrong read-back and a failed sitting. A level
+ * you have not reached is neither — it is simply next. The padlock and the
+ * disabled button already say locked. */
+ok('a blocked status is neutral, not red',
+   /\.status\.BLOCKED \{[\s\S]{0,120}color: var\(--muted\)/.test(Cc) &&
+   !/\.status\.BLOCKED \{[\s\S]{0,120}color: var\(--red\)/.test(Cc));
+// Complete stays green on purpose: on a map of ten levels it is the one glance
+// signal that says where you are, and --green is a palette token.
+ok('but complete is still green', /\.status\.ACTIVE \{[\s\S]{0,120}color: var\(--green\)/.test(Cc));
+
 console.log('--- and nothing ships in Spanish ---');
 const SP = /\b(Cargando|Completa|Bloqueado|Desbloquea\w*|Debes|Necesitas|Guardando|Enviando|Continuar|Comenzar|Correcto|Incorrecto|Siguiente|anterior)\b/i;
 ok('no Spanish prose in the client', !SP.test(Sc.replace(/<!--[\s\S]*?-->/g, '')));
