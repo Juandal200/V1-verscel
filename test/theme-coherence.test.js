@@ -127,6 +127,37 @@ ok(`ink on paper is ${cr(fieldInk, fieldBg).toFixed(1)}:1`, cr(fieldInk, fieldBg
   ok(sel + ' is paper', i > 0 && /var\(--field\)/.test(C.slice(i, i + 400)));
 });
 
+console.log('--- the feedback colours have triplets, so they can be translucent ---');
+/* --accent had an -rgb triplet from the day it was made; --green, --yellow and
+ * --red never did. So every faint success wash and error tint in the app had to be
+ * written as a literal, because there was no token to write instead — which is why
+ * there were hundreds of them and why none of them followed the theme.
+ *
+ * The progress tab alone carried eighteen: Tailwind's green, Tailwind's red,
+ * Tailwind's blue for a selection that should have been the accent, and a slate
+ * for a neutral wash that should have been a lift. */
+['--green-rgb', '--yellow-rgb', '--red-rgb'].forEach(t => {
+  ok(t + ' is declared in both themes', new RegExp(t + ':').test(dark0) &&
+                                        new RegExp(t + ':').test(light0));
+});
+// A triplet has to match the hex it belongs to, or a solid and a translucent form
+// of the same token are different colours.
+const trip = (block, name) => (block.match(new RegExp('--' + name + '-rgb:\\s*([\\d, ]+);')) || [])[1];
+const hex  = (block, name) => (block.match(new RegExp('--' + name + ':\\s*(#[0-9a-fA-F]{6})')) || [])[1];
+[['green', dark0], ['yellow', dark0], ['red', dark0],
+ ['green', light0], ['yellow', light0], ['red', light0]].forEach(([n, blk]) => {
+  const h = hex(blk, n), t = trip(blk, n);
+  const asRgb = h && [1,3,5].map(i => parseInt(h.slice(i, i+2), 16)).join(', ');
+  ok(`--${n}-rgb matches --${n}`, !!t && t.trim() === asRgb);
+});
+
+console.log('--- and the progress tab uses them ---');
+const prog = (C.match(/\.prog-[a-z-]+[^{]*\{[^}]*\}/g) || []).join('');
+const lits = prog.match(/rgba?\(\s*\d[\d\s,.]*\)/g) || [];
+if (lits.length) console.log('    ' + [...new Set(lits)].slice(0, 5).join('  '));
+ok('no colour literal left in it', lits.length === 0);
+ok('and no stray hex either',      !/#990011/.test(C));
+
 console.log('--- a canvas reads its tokens, it cannot be given them ---');
 // ctx.fillStyle = 'var(--muted)' is not a colour. The assignment is rejected in
 // silence and the context keeps what it had — black, on the first pass — so the

@@ -19330,11 +19330,14 @@ var LEVEL_THEMES = {
   // brightness — enough to separate them at a glance, not enough to look like a
   // dashboard competing for attention.
   var _PROG_PILLARS = {
-    rooms:     { icon: '\u25A6', accent: 'var(--accent)', tint: 'rgba(126,168,196,.10)',
+    rooms:     { icon: uiIcon('book', 18),   accent: 'var(--accent)',
+                 tint: 'rgba(var(--accent-rgb), 0.10)',
                  sub: 'Guided modules — video, quiz, listening, speaking' },
-    mock:      { icon: '\u2713', accent: 'var(--yellow)', tint: 'rgba(201,169,97,.10)',
+    mock:      { icon: uiIcon('paper', 18),  accent: 'var(--yellow)',
+                 tint: 'rgba(var(--yellow-rgb), 0.10)',
                  sub: 'Full ICAO proficiency examination' },
-    simulator: { icon: '\u25CE', accent: 'var(--muted)', tint: 'rgba(143,185,150,.10)',
+    simulator: { icon: uiIcon('tower', 18),  accent: 'var(--muted)',
+                 tint: 'rgba(var(--lift-rgb), 0.10)',
                  sub: 'Live radio read-back practice' }
   };
 
