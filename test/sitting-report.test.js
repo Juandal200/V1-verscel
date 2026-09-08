@@ -13,6 +13,8 @@ const fs = require('fs');
 const S = fs.readFileSync(__dirname + '/../Scripts.html', 'utf8');
 const C = fs.readFileSync(__dirname + '/../Styles.html', 'utf8');
 let fails = 0; const ok=(n,c)=>{if(!c)fails++;console.log((c?'  PASS  ':'  FAIL  ')+n);};
+// Comments describe the fix; they must never be what satisfies the check.
+const strip = t => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/[^\n]*/g, '$1');
 
 console.log('--- a replay gives the turn back ---');
 /* _scHoldForPlayback mutes the microphone while the examiner speaks and un-mutes
@@ -75,21 +77,49 @@ ok('in the palette, not an orange literal',
    !/rgba\(255,180,0/.test(C) && /rgba\(var\(--yellow-rgb\), 0\.35\)/.test(C));
 
 console.log('--- a flag is a flag on every platform ---');
-/* A regional-indicator pair has no glyph on Windows: macOS draws a flag, Windows
- * draws two letters or two boxes. Twelve call sites already used getFlagHtml, which
- * serves an SVG. Two printed the character directly — and so did BOTH fallbacks,
- * which is the part that mattered, because a fallback that fails on the same
- * platform as the thing it replaces is not a fallback. */
+/* This started as a Windows bug: a regional-indicator pair has no glyph there, so
+ * macOS drew a flag and Windows drew two letters. Both fallbacks were emoji, which
+ * is a fallback that fails on the same platform as the thing it replaces, so those
+ * were changed to a two-letter box.
+ *
+ * That fix made a second, older failure legible. The flags were <img> tags served
+ * from flagcdn.com and the images were not arriving — and the emoji fallback had
+ * been hiding it, because on a Mac it renders as a flag that looks exactly like
+ * the image that failed. One failure, two fallbacks, two bug reports, months
+ * apart.
+ *
+ * There is no request now. Fourteen flags live in the file. */
 ok('nothing prints a country emoji directly',
    !/safeText\(getCountryUi\(country\)\.emoji/.test(S));
-ok('the image fallback is a country code',
-   /flag-code[^']*'\s*\+\s*safeText\(\(meta\.code \|\| '\?\?'\)/.test(S));
-ok('and so is the no-image path',
+ok('and nothing fetches a flag from anywhere',
+   !/flagcdn/.test(strip(S)));
+ok('the fourteen countries in the table all have one',
+   ['us','gb','in','au','ca','co','br','mx','es','fr','de','ie','nz','za']
+     .every(c => new RegExp('\\n    ' + c + ": '<svg").test(S)));
+// Every code COUNTRY_UI can hand out must be drawable, or the country silently
+// falls through to the two-letter box.
+const codes = [...S.slice(S.indexOf('var COUNTRY_UI = {'), S.indexOf('var AppState = {'))
+                  .matchAll(/code: '([a-z]{2})'/g)].map(m => m[1]);
+ok('and no country in the table is left without one',
+   codes.length > 0 && [...new Set(codes)].every(c => new RegExp('\\n    ' + c + ": '<svg").test(S)));
+ok('the box crops the way object-fit used to',
+   /preserveAspectRatio="xMidYMid slice"/.test(S) &&
+   /\.flag-img \{[\s\S]{0,160}overflow: hidden/.test(C));
+ok('and the svg fills the size its class asked for',
+   /\.flag-img > svg \{[\s\S]{0,120}width: 100%;\s*\n\s*height: 100%/.test(C));
+// The two-letter box survives, but now only for a country we do not draw yet —
+// there is no load left to fail.
+ok('the unknown-country path is still a readable code',
    /return '<span class="' \+ cssClass \+ ' flag-code"/.test(S));
 ok('which is styled to be readable',
    /\.flag-code \{[\s\S]{0,200}border: 1px solid var\(--line-strong\)/.test(C));
-ok('the twelve that were already right are untouched',
+ok('every call site still goes through the one function',
    (S.match(/getFlagHtml\(/g) || []).length >= 12);
+/* Mexico and Spain carry the plain field. Their real flags ship a coat of arms of
+ * 143 KB and 153 KB — engraving about six pixels wide at the size these draw — so
+ * the whole set is 11 KB instead of 300 KB. */
+ok('and the set stays small enough to be worth inlining',
+   (S.match(/var FLAG_SVG = \{[\s\S]*?\n  \};/) || [''])[0].length < 20000);
 
 console.log(fails?('\n'+fails+' FAILING'):'\nall green');
 process.exit(fails?1:0);

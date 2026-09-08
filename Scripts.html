@@ -523,6 +523,44 @@
     5: ['USA', 'UK', 'India', 'Australia', 'Canada']
   };
 
+  /* The flags, in the app, not on somebody else's server.
+   *
+   * These were <img src="https://flagcdn.com/xx.svg">, and the images were not
+   * arriving. Everything on our side checked out — lowercase codes, a CDN
+   * answering 200 with access-control-allow-origin: *, no CSP anywhere, a real
+   * 46x32 box in the stylesheet — so the failure was in the network between the
+   * student and a third party, which is not somewhere we can fix or test.
+   *
+   * And it had been failing for a long time. The onerror fallback used to be the
+   * country's emoji, which on a Mac renders as a flag that looks exactly like the
+   * image that failed to load. Nobody could tell. On Windows the same fallback
+   * drew two letters or two boxes — reported then as "the flags are invisible on
+   * Windows", and reported again now as "the flags show IN and GB". One failure,
+   * two fallbacks, two bug reports.
+   *
+   * Fourteen flags is 11 KB. Mexico and Spain ship a full coat of arms — 143 KB
+   * and 153 KB of engraving that is about six pixels wide at the size these are
+   * drawn — so those two carry the plain field, which is what a reader actually
+   * sees at 46x32 anyway.
+   *
+   * No request, so nothing to block, and no fallback path to get wrong. */
+  var FLAG_SVG = {
+    us: '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" viewBox="0 0 7410 3900"><path fill="#b31942" d="M0 0h7410v3900H0"/><path stroke="#FFF" stroke-width="300" d="M0 450h7410m0 600H0m0 600h7410m0 600H0m0 600h7410m0 600H0"/><path fill="#0a3161" d="M0 0h2964v2100H0"/><g fill="#FFF"><g id="d"><g id="c"><g id="e"><g id="b"><path id="a" d="m247 90 70.534 217.082-184.66-134.164h228.253L176.466 307.082z"/><use xlink:href="#a" y="420"/><use xlink:href="#a" y="840"/><use xlink:href="#a" y="1260"/></g><use xlink:href="#a" y="1680"/></g><use xlink:href="#b" x="247" y="210"/></g><use xlink:href="#c" x="494"/></g><use xlink:href="#d" x="988"/><use xlink:href="#c" x="1976"/><use xlink:href="#e" x="2470"/></g></svg>',
+    gb: '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" viewBox="0 0 60 30"><clipPath id="a"><path d="M0 0v30h60V0z"/></clipPath><clipPath id="b"><path d="M30 15h30v15zv15H0zH0V0zV0h30z"/></clipPath><g clip-path="url(#a)"><path d="M0 0v30h60V0z" fill="#012169"/><path d="m0 0 60 30m0-30L0 30" stroke="#fff" stroke-width="6"/><path d="m0 0 60 30m0-30L0 30" clip-path="url(#b)" stroke="#C8102E" stroke-width="4"/><path d="M30 0v30M0 15h60" stroke="#fff" stroke-width="10"/><path d="M30 0v30M0 15h60" stroke="#C8102E" stroke-width="6"/></g></svg>',
+    in: '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" fill="#07038D" viewBox="-45 -30 90 60"><path fill="#FFF" d="M-45-30h90v60h-90z"/><path fill="#FF6820" d="M-45-30h90v20h-90z"/><path fill="#046A38" d="M-45 10h90v20h-90z"/><circle r="9.25"/><circle r="8" fill="#FFF"/><circle r="1.6"/><g id="d"><g id="c"><g id="b"><g id="a"><path d="m0-8 .3 4.814L0-.802l-.3-2.384z"/><circle cy="-8" r=".35" transform="rotate(7.5)"/></g><use xlink:href="#a" transform="scale(-1)"/></g><use xlink:href="#b" transform="rotate(15)"/></g><use xlink:href="#c" transform="rotate(30)"/></g><use xlink:href="#d" transform="rotate(60)"/><use xlink:href="#d" transform="rotate(120)"/></svg>',
+    au: '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" viewBox="0 0 10080 5040"><defs><clipPath id="a"><path d="M0 0h6v3H0z"/></clipPath><clipPath id="b"><path d="M0 0v1.5h6V3zm6 0H3v3H0z"/></clipPath><path id="c" d="m0-360 69.421 215.845 212.038-80.301L155.99-35.603l194.985 115.71-225.881 19.651 31.105 224.59L0 160l-156.198 164.349 31.105-224.59-225.881-19.651 194.986-115.711-125.471-188.853 212.038 80.301z"/><path id="d" d="M0-210 54.86-75.508l144.862 10.614L88.765 28.842l34.67 141.052L0 93.334l-123.435 76.56 34.67-141.052-110.957-93.736L-54.86-75.508z"/></defs><path fill="#012169" d="M0 0h10080v5040H0z"/><path d="m0 0 6 3m0-3L0 3" stroke="#fff" stroke-width=".6" clip-path="url(#a)" transform="scale(840)"/><path d="m0 0 6 3m0-3L0 3" stroke="#e4002b" stroke-width=".4" clip-path="url(#b)" transform="scale(840)"/><path d="M2520 0v2520M0 1260h5040" stroke="#fff" stroke-width="840"/><path d="M2520 0v2520M0 1260h5040" stroke="#e4002b" stroke-width="504"/><g fill="#fff"><use xlink:href="#c" transform="matrix(2.1 0 0 2.1 2520 3780)"/><use xlink:href="#c" x="7560" y="4200"/><use xlink:href="#c" x="6300" y="2205"/><use xlink:href="#c" x="7560" y="840"/><use xlink:href="#c" x="8680" y="1869"/><use xlink:href="#d" x="8064" y="2730"/></g></svg>',
+    ca: '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" viewBox="0 0 9600 4800"><path fill="red" d="M0 0h2400l99 99h4602l99-99h2400v4800H7200l-99-99H2499l-99 99H0z"/><path fill="#fff" d="M2400 0h4800v4800H2400zm2490 4430-45-863a95 95 0 0 1 111-98l859 151-116-320a65 65 0 0 1 20-73l941-762-212-99a65 65 0 0 1-34-79l186-572-542 115a65 65 0 0 1-73-38l-105-247-423 454a65 65 0 0 1-111-57l204-1052-327 189a65 65 0 0 1-91-27l-332-652-332 652a65 65 0 0 1-91 27l-327-189 204 1052a65 65 0 0 1-111 57l-423-454-105 247a65 65 0 0 1-73 38l-542-115 186 572a65 65 0 0 1-34 79l-212 99 941 762a65 65 0 0 1 20 73l-116 320 859-151a95 95 0 0 1 111 98l-45 863z"/></svg>',
+    co: '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><path fill="#ffcd00" d="M0 0h900v600H0z"/><path fill="#003087" d="M0 300h900v300H0z"/><path fill="#c8102e" d="M0 450h900v150H0z"/></svg>',
+    br: '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" viewBox="-2100 -1470 4200 2940"><defs><path id="j" fill-rule="evenodd" d="M-31.5 0h33a30 30 0 0 0 30-30v-10a30 30 0 0 0-30-30h-33zm13-13h19a19 19 0 0 0 19-19v-6a19 19 0 0 0-19-19h-19z"/><path id="k" d="M0 0h63v-13H12v-18h40v-12H12v-14h48v-13H0z" transform="translate(-31.5)"/><path id="m" d="M-26.25 0h52.5v-12h-40.5v-16h33v-12h-33v-11H25v-12h-51.25z"/><path id="l" d="M-31.5 0h12v-48l14 48h11l14-48V0h12v-70H14L0-22l-14-48h-17.5z"/><path id="b" fill-rule="evenodd" d="M0 0a31.5 35 0 0 0 0-70A31.5 35 0 0 0 0 0m0-13a18.5 22 0 0 0 0-44 18.5 22 0 0 0 0 44"/><path id="c" fill-rule="evenodd" d="M-31.5 0h13v-26h28a22 22 0 0 0 0-44h-40zm13-39h27a9 9 0 0 0 0-18h-27z"/><path id="o" d="M-15.75-22C-15.75-15-9-11.5 1-11.5s14.74-3.25 14.75-7.75c0-14.25-46.75-5.25-46.5-30.25C-30.5-71-6-70 3-70s26 4 25.75 21.25H13.5c0-7.5-7-10.25-15-10.25-7.75 0-13.25 1.25-13.25 8.5-.25 11.75 46.25 4 46.25 28.75C31.5-3.5 13.5 0 0 0c-11.5 0-31.55-4.5-31.5-22z"/><use xlink:href="#f" id="p" transform="scale(31.5)"/><use xlink:href="#f" id="q" transform="scale(26.25)"/><use xlink:href="#f" id="u" transform="scale(21)"/><use xlink:href="#f" id="r" transform="scale(15)"/><use xlink:href="#f" id="v" transform="scale(10.5)"/><g id="n"><clipPath id="a"><path d="M-31.5 0v-70h63V0zM0-47v12h31.5v-12z"/></clipPath><use xlink:href="#b" clip-path="url(#a)"/><path d="M5-35h26.5v10H5z"/><path d="M21.5-35h10V0h-10z"/></g><g id="i"><use xlink:href="#c"/><path d="M28 0c0-10 0-32-15-32H-6c22 0 22 22 22 32"/></g><g id="f" fill="#fff"><g id="e"><path id="d" d="M0-1v1h.5" transform="rotate(18 0 -1)"/><use xlink:href="#d" transform="scale(-1 1)"/></g><use xlink:href="#e" transform="rotate(72)"/><use xlink:href="#e" transform="rotate(-72)"/><use xlink:href="#e" transform="rotate(144)"/><use xlink:href="#e" transform="rotate(216)"/></g></defs><clipPath id="h"><circle r="735"/></clipPath><path fill="#009440" d="M-2100-1470h4200v2940h-4200z"/><path fill="#ffcb00" d="M-1743 0 0 1113 1743 0 0-1113Z"/><circle r="735" fill="#302681"/><path fill="#fff" d="M-2205 1470a1785 1785 0 0 1 3570 0h-105a1680 1680 0 1 0-3360 0z" clip-path="url(#h)"/><g fill="#009440" transform="translate(-420 1470)"><use xlink:href="#b" y="-1697.5" transform="rotate(-7)"/><use xlink:href="#i" y="-1697.5" transform="rotate(-4)"/><use xlink:href="#j" y="-1697.5" transform="rotate(-1)"/><use xlink:href="#k" y="-1697.5" transform="rotate(2)"/><use xlink:href="#l" y="-1697.5" transform="rotate(5)"/><use xlink:href="#m" y="-1697.5" transform="rotate(9.75)"/><use xlink:href="#c" y="-1697.5" transform="rotate(14.5)"/><use xlink:href="#i" y="-1697.5" transform="rotate(17.5)"/><use xlink:href="#b" y="-1697.5" transform="rotate(20.5)"/><use xlink:href="#n" y="-1697.5" transform="rotate(23.5)"/><use xlink:href="#i" y="-1697.5" transform="rotate(26.5)"/><use xlink:href="#k" y="-1697.5" transform="rotate(29.5)"/><use xlink:href="#o" y="-1697.5" transform="rotate(32.5)"/><use xlink:href="#o" y="-1697.5" transform="rotate(35.5)"/><use xlink:href="#b" y="-1697.5" transform="rotate(38.5)"/></g><use xlink:href="#p" x="-600" y="-132"/><use xlink:href="#p" x="-535" y="177"/><use xlink:href="#q" x="-625" y="243"/><use xlink:href="#r" x="-463" y="132"/><use xlink:href="#q" x="-382" y="250"/><use xlink:href="#u" x="-404" y="323"/><use xlink:href="#p" x="228" y="-228"/><use xlink:href="#p" x="515" y="258"/><use xlink:href="#u" x="617" y="265"/><use xlink:href="#q" x="545" y="323"/><use xlink:href="#q" x="368" y="477"/><use xlink:href="#u" x="367" y="551"/><use xlink:href="#u" x="441" y="419"/><use xlink:href="#q" x="500" y="382"/><use xlink:href="#u" x="365" y="405"/><use xlink:href="#q" x="-280" y="30"/><use xlink:href="#u" x="200" y="-37"/><use xlink:href="#p" y="330"/><use xlink:href="#q" x="85" y="184"/><use xlink:href="#q" y="118"/><use xlink:href="#u" x="-74" y="184"/><use xlink:href="#r" x="-37" y="235"/><use xlink:href="#q" x="220" y="495"/><use xlink:href="#u" x="283" y="430"/><use xlink:href="#u" x="162" y="412"/><use xlink:href="#p" x="-295" y="390"/><use xlink:href="#v" y="575"/></svg>',
+    mx: '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" viewBox="0 0 3 2"><path fill="#006847" d="M0 0h1v2H0z"/><path fill="#fff" d="M1 0h1v2H1z"/><path fill="#ce1126" d="M2 0h1v2H2z"/></svg>',
+    es: '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" viewBox="0 0 3 2"><path fill="#c60b1e" d="M0 0h3v2H0z"/><path fill="#ffc400" d="M0 .5h3v1H0z"/></svg>',
+    fr: '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><path fill="#CE1126" d="M0 0h900v600H0"/><path fill="#fff" d="M0 0h600v600H0"/><path fill="#002654" d="M0 0h300v600H0"/></svg>',
+    de: '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" viewBox="0 0 5 3"><path d="M0 0h5v3H0z"/><path fill="#D00" d="M0 1h5v2H0z"/><path fill="#FFCE00" d="M0 2h5v1H0z"/></svg>',
+    ie: '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice"><path fill="#169b62" d="M0 0h1200v600H0z"/><path fill="#fff" d="M400 0h800v600H400z"/><path fill="#ff883e" d="M800 0h400v600H800z"/></svg>',
+    nz: '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" ><defs><clipPath id="b"><path d="M0 0h600v300H0z"/></clipPath><clipPath id="c"><path d="m0 0 300 150H0zm300 0h300L300 150zm0 150h300v150zm0 0v150H0z"/></clipPath><g id="d"><g id="a"><path d="M0 0v.5L1 0z" transform="translate(0 -.325)"/><path d="M0 0v-.5L1 0z" transform="rotate(-36 .5 -.162)"/></g><use xlink:href="#a" transform="scale(-1 1)"/><use xlink:href="#a" transform="rotate(72 0 0)"/><use xlink:href="#a" transform="rotate(-72 0 0)"/><use xlink:href="#a" transform="scale(-1 1) rotate(72)"/></g></defs><path fill="#012169" d="M0 0h1200v600H0z"/><path stroke="#FFF" d="m0 0 600 300M0 300 600 0" stroke-width="60" clip-path="url(#b)"/><path stroke="#C8102E" d="m0 0 600 300M0 300 600 0" stroke-width="40" clip-path="url(#c)"/><path stroke="#FFF" d="M300 0v300M0 150h600" stroke-width="100" clip-path="url(#b)"/><path stroke="#C8102E" d="M300 0v300M0 150h600" stroke-width="60" clip-path="url(#b)"/><use xlink:href="#d" fill="#FFF" transform="matrix(45.4 0 0 45.4 900 120)"/><use xlink:href="#d" fill="#C8102E" transform="matrix(30 0 0 30 900 120)"/><g transform="rotate(82 900 240)"><use xlink:href="#d" fill="#FFF" transform="rotate(-82 519.022 -457.666) scale(40.4)"/><use xlink:href="#d" fill="#C8102E" transform="rotate(-82 519.022 -457.666) scale(25)"/></g><g transform="rotate(82 900 240)"><use xlink:href="#d" fill="#FFF" transform="rotate(-82 668.57 -327.666) scale(45.4)"/><use xlink:href="#d" fill="#C8102E" transform="rotate(-82 668.57 -327.666) scale(30)"/></g><use xlink:href="#d" fill="#FFF" transform="matrix(50.4 0 0 50.4 900 480)"/><use xlink:href="#d" fill="#C8102E" transform="matrix(35 0 0 35 900 480)"/></svg>',
+    za: '<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" viewBox="0 0 90 60"><defs><clipPath id="b"><path d="m0 0 45 30L0 60z"/></clipPath><clipPath id="a"><path d="M0 0h90v60H0z"/></clipPath></defs><path fill="#E03C31" d="M0 0h90v30H45z"/><path fill="#001489" d="M0 60h90V30H45z"/><g fill="none" clip-path="url(#a)"><path stroke="#FFF" stroke-width="20" d="M90 30H45L0 0v60l45-30"/><path fill="#000" stroke="#ffb81c" stroke-width="20" d="m0 0 45 30L0 60" clip-path="url(#b)"/><path stroke="#007749" stroke-width="12" d="m0 0 45 30h45M0 60l45-30"/></g></svg>'
+  };
+
   var COUNTRY_UI = {
     USA: { code: 'us', emoji: '🇺🇸', label: 'United States', accent: 'American ATC' },
     US: { code: 'us', emoji: '🇺🇸', label: 'United States', accent: 'American ATC' },
@@ -4903,15 +4941,16 @@
     var meta = getCountryUi(country);
     var cssClass = sizeClass || 'flag-lg';
 
-    if (meta.code) {
-      return '<span class="flag-shell"><img class="' + cssClass + ' flag-img" src="https://flagcdn.com/' + safeText(meta.code) + '.svg" alt="' + safeText(meta.label) + ' flag" onerror="this.style.display=\'none\'; this.parentNode.innerHTML=\'<span class=&quot;flag-code&quot;>' + safeText((meta.code || '??').toUpperCase()) + '</span>\';"></span>';
+    var svg = meta.code ? FLAG_SVG[meta.code] : null;
+    if (svg) {
+      return '<span class="' + cssClass + ' flag-img" role="img" aria-label="' +
+             safeText(meta.label) + ' flag">' + svg + '</span>';
     }
 
-    /* The fallback cannot be an emoji either, for the same reason the problem
-     * existed: it is what shows when the image will not load — a blocked CDN, a
-     * captive portal, an offline moment — and on Windows it would fail exactly as
-     * the original did. Two letters in a bordered box are legible on every
-     * platform and say which country they mean. */
+    /* Reached only by a country with no drawn flag — never by a failed load,
+     * because there is no load. Two letters in a bordered box are legible on
+     * every platform and say which country they mean. An emoji would not be: on
+     * Windows a regional-indicator pair has no glyph at all. */
     return '<span class="' + cssClass + ' flag-code" title="' + safeText(meta.label) + '">' +
            safeText((meta.code || '??').toUpperCase()) + '</span>';
   }
@@ -6963,15 +7002,27 @@ var LEVEL_THEMES = {
 
   /***********************
    * AtcReplayGate
-   * Tracks how many times the current ATC message has been played.
-   * Text stays hidden for plays 1 and 2; auto-reveals on the 3rd play.
-   * Both autoplay and manual replay increment the same counter.
+   * Tracks how many times the student has REPLAYED the current ATC message.
+   * The automatic first playback is not a replay: it is the exercise starting.
+   * Text unlocks once the student has asked to hear it _threshold more times.
    ***********************/
   var AtcReplayGate = (function () {
     var _count      = 0;
     var _isRevealed = false;
     var _origText   = '';
     var _threshold  = 2;   // admin-configurable per level; loaded at route start
+    /* Which message the gate is currently counting for.
+     *
+     * init() used to reset unconditionally, and simMediaInit() calls it. Retry
+     * goes through renderScenarioStageImmersive() -> simMediaInit(), so every
+     * press of Retry set the count back to zero — and autoplay then put it
+     * straight back to one. The count could not exceed one no matter how many
+     * times the student played the transmission, so the text never unlocked.
+     *
+     * The gate now knows WHICH transmission it is counting. Re-initialising for
+     * the same one redraws the controls, because the DOM around it was rebuilt,
+     * and leaves the count alone. Only a genuinely different message resets it. */
+    var _key        = '';
 
     function _dotsHtml() {
       var h = '';
@@ -6983,11 +7034,13 @@ var LEVEL_THEMES = {
 
     function _statusMsg() {
       if (_isRevealed) return 'Transmission text unlocked';
-      if (_count === 0) return 'Play the transmission to begin';
       var remaining = _threshold - _count;
+      if (_count === 0) {
+        return 'Replay ' + _threshold + ' time' + (_threshold !== 1 ? 's' : '') + ' to unlock the text';
+      }
       return remaining === 1
-        ? 'One more listen — text unlocks on next replay'
-        : remaining + ' more listens to unlock text';
+        ? 'One more replay — the text unlocks next'
+        : remaining + ' more replays to unlock the text';
     }
 
     function _renderCounter() {
@@ -7021,21 +7074,36 @@ var LEVEL_THEMES = {
         el.innerHTML =
           '<div class="atc-hidden-mask">' +
             '<span class="atc-hidden-icon">&#127911;</span>' +
-            '<span class="atc-hidden-copy">ATC text hidden — unlocks after ' + _threshold + ' listen' + (_threshold !== 1 ? 's' : '') + '.</span>' +
+            '<span class="atc-hidden-copy">ATC text hidden — unlocks after ' + _threshold + ' replay' + (_threshold !== 1 ? 's' : '') + '.</span>' +
           '</div>';
       }
     }
 
-    function init(text, threshold) {
-      _count      = 0;
-      _isRevealed = false;
-      _origText   = String(text || '');
+    function init(text, threshold, key) {
+      var same = key && key === _key;
+      _key = key || '';
+      _origText = String(text || '');
       if (threshold != null && Number(threshold) >= 1) _threshold = Number(threshold);
+      // Same message, rebuilt screen: keep what the student has already earned.
+      if (!same) {
+        _count      = 0;
+        _isRevealed = false;
+      }
       _renderCounter();
       _renderText();
     }
 
-    function increment() {
+    /* A listen the student asked for, and a listen that simply arrived.
+     *
+     * Both used to land here and both spent one of the student's replays. The
+     * transmission plays by itself when a phase opens, so the counter already
+     * read one of two before they had touched anything — and that phantom replay
+     * was sent to the server on the attempt row as though they had pressed it.
+     *
+     * Hearing the clearance is not a favour the student asked for; it is the
+     * exercise starting. Only a press counts. */
+    function increment(isManual) {
+      if (!isManual) { _renderCounter(); return; }
       if (_isRevealed) return;
       _count++;
       if (_count >= _threshold) _isRevealed = true;
@@ -8028,7 +8096,7 @@ var LEVEL_THEMES = {
       a.playbackRate = _atcPlaybackRate(0) *
         ((opts && opts.levelRamp === false) ? 1 : _atcLevelFactor(res.speakingRate));
       SimMedia.atcAudio = a;
-      AtcReplayGate.increment();
+      AtcReplayGate.increment(false);   // autoplay: the clearance arriving, not a replay
 
       // Route through Web Audio bandpass (300–3 400 Hz) to simulate VHF radio bandwidth.
       // Falls back to direct playback silently if AudioContext is unavailable.
@@ -8097,7 +8165,7 @@ var LEVEL_THEMES = {
       });
     } catch (e) {
       if (_atcAudioGen !== myGen) return;
-      AtcReplayGate.increment();
+      AtcReplayGate.increment(false);   // autoplay fell back to unvoiced — still not a replay
       _simUnvoiced(atcText, andThen);
     }
   }
@@ -8122,8 +8190,14 @@ var LEVEL_THEMES = {
     simMediaStartBg();
     SimAmbient.start(scenario && (scenario.phaseCode || scenario.phaseName) || '');
     _simMediaStartBgAudio(scenario && scenario.audioUrl ? scenario.audioUrl : '');
-    // Reset replay gate for this new message
-    AtcReplayGate.init(getScenarioAtcTextSafe(scenario), AppState.training.replayThreshold);
+    /* Keyed on the run and the scenario, so a Retry — which rebuilds this whole
+     * screen and lands back here — is recognised as the same message and keeps
+     * the replays the student has already spent. A new phase, or a fresh run of
+     * the route, changes the key and starts the count again. */
+    AtcReplayGate.init(
+      getScenarioAtcTextSafe(scenario),
+      AppState.training.replayThreshold,
+      (AppState.training.sessionId || '') + '|' + ((scenario && scenario.scenarioId) || ''));
     var expectedIndex = Number(AppState.training.currentIndex || 0);
     setTimeout(function() {
       if (!byId('simFeedbackBox')) return;
@@ -8198,7 +8272,7 @@ var LEVEL_THEMES = {
       }
       console.warn('[TTS] no audio for scenario ' + scenario.scenarioId);
       if (_isStale()) return;
-      AtcReplayGate.increment();
+      AtcReplayGate.increment(false);   // autoplay with no audio at all
       _simUnvoiced(atcText, _onAutoplayDone);
     });
   }
@@ -8318,7 +8392,7 @@ var LEVEL_THEMES = {
                 '</div>' +
               '</div>' +
               '<div class="sim-radio-console">' +
-                '<p id="atcAutoplayHint" class="atc-autoplay-hint">Clearance plays automatically &mdash; do not press Replay.</p>' +
+                '<p id="atcAutoplayHint" class="atc-autoplay-hint">Clearance playing&hellip; Replay is available once it finishes.</p>' +
                 '<div id="atcReplayCounter" class="atc-replay-counter"></div>' +
                 (!atcText ? '<div class="sim-data-warning">This scenario has invalid ATC text. Edit atcText in Admin &#8594; Scenarios.</div>' : '') +
                 '<div class="sim-radio-text"></div>' +
@@ -8337,6 +8411,16 @@ var LEVEL_THEMES = {
                     '<span class="glyph">\u25CF</span> Speak</button>' +
                   '<button id="simSendReadbackBtn" class="btn primary big-action" onclick="immersiveSendReadback()">Send</button>' +
                 '</div>' +
+                /* Retry and Next sit here, directly under Send.
+                 *
+                 * They used to be written into #simFeedbackBox, which is the last
+                 * block in this card — so Retry landed below the textarea, below
+                 * Speak, below Send AND below however many lines of feedback the
+                 * attempt produced. On a 768px-tall laptop it was off the bottom of
+                 * the screen, and the student had to scroll to try again.
+                 *
+                 * Empty and hidden until there is an attempt to act on. */
+                '<div id="simActionRow" class="sim-action-row" style="display:none;"></div>' +
                 '<div id="simFeedbackBox" class="sim-feedback-box"></div>' +
                 '<textarea id="studentAnswer" class="legacy-bridge-field"></textarea>' +
               '<textarea id="studentReadback" class="legacy-bridge-field"></textarea>' +
@@ -8669,6 +8753,22 @@ var LEVEL_THEMES = {
 
       if (!isGameActive) return;
       if (typeof SimMedia !== 'undefined' && SimMedia.isPaused) return;
+
+      /* The read-back box gets its arrows back while it has focus.
+       *
+       * This handler is bound in the CAPTURE phase precisely so the arrows reach
+       * the aircraft before a textarea can take them for cursor movement. That is
+       * right when the student is flying and wrong when they are writing: in
+       * DEPARTURE, CRUISE and DESCEND, pressing Up to go back a line climbed a
+       * hundred feet instead and left the cursor where it was. The student could
+       * type but could not move around what they had typed, which is what was
+       * reported as the cursor not going where it belongs.
+       *
+       * Focus settles it. Writing in the box means the arrows are text; anywhere
+       * else on the screen they are the aircraft. The on-screen Climb and Descend
+       * buttons fly it either way, so nothing is unreachable. */
+      var _ae = document.activeElement;
+      if (_ae && _ae.id === 'pilotReadback') return;
 
       if (e.key === 'ArrowUp') {
         e.preventDefault();
@@ -9437,7 +9537,7 @@ var LEVEL_THEMES = {
     var have = _ttsPickVariant(baseKey);
     if (have) {
       restore();
-      AtcReplayGate.increment();
+      AtcReplayGate.increment(true);    // the Replay button
       playBase64Audio(have.audioBase64, have.speakingRate);
       setImmersiveFeedback('ATC transmission playing.', 'success');
       if (_ttsVariantList(baseKey).length < _TTS_VARIANT_TARGET) {
@@ -9448,7 +9548,7 @@ var LEVEL_THEMES = {
 
     _ttsFetchVariant(scenario.scenarioId, ttsText, rate, function (res) {
       restore();
-      AtcReplayGate.increment();
+      AtcReplayGate.increment(true);    // the Replay button, fetched rather than cached
       if (res && res.audioBase64) {
         playBase64Audio(res.audioBase64, res.speakingRate);
         setImmersiveFeedback('ATC transmission playing.', 'success');
@@ -10334,19 +10434,24 @@ var LEVEL_THEMES = {
         ? '<p class="route-progress-best">Best on this route: ' +
             safeText(AppState.training.lifetimeCompleted) + '/' + safeText(total) + '</p>'
         : '') +
-      '<div class="sim-action-row">' +
-        '<button class="btn secondary" onclick="retryCurrentScenario()">' + (ok ? 'Practice again' : 'Retry') + '</button>' +
-        (ok
-          ? (isCurrentScenarioCompleted()
-              ? '<button class="btn primary big-action" onclick="' + (isLast ? 'renderTrainingFinished()' : 'goToNextScenario()') + '">' +
-                  (isLast ? 'Finish route and view debrief' : 'Next exercise') + '</button>'
-              // Correct on screen, not yet acknowledged by the server. Showing an
-              // armed button here would let the student click through before the
-              // phase is recorded — the gap that produced phantom completions.
-              : '<button class="btn primary big-action" disabled>Saving\u2026</button>')
-          : '') +
-      '</div>' +
       ratingWidget;
+
+    var actions =
+      '<button class="btn secondary" onclick="retryCurrentScenario()">' + (ok ? 'Practice again' : 'Retry') + '</button>' +
+      (ok
+        ? (isCurrentScenarioCompleted()
+            ? '<button class="btn primary big-action" onclick="' + (isLast ? 'renderTrainingFinished()' : 'goToNextScenario()') + '">' +
+                (isLast ? 'Finish route and view debrief' : 'Next exercise') + '</button>'
+            // Correct on screen, not yet acknowledged by the server. Showing an
+            // armed button here would let the student click through before the
+            // phase is recorded — the gap that produced phantom completions.
+            : '<button class="btn primary big-action" disabled>Saving\u2026</button>')
+        : '');
+    var actionRow = byId('simActionRow');
+    if (actionRow) {
+      actionRow.innerHTML = actions;
+      actionRow.style.display = 'flex';
+    }
 
     // The reconcile pass repaints the same verdict — don't play it twice.
     if (!res._fromServer) {
@@ -21282,16 +21387,55 @@ var LEVEL_THEMES = {
     }
   };
 
+  /* Three separate faults lived in four lines here.
+   *
+   * The thanks was written immediately and unconditionally — before the server
+   * had answered, and identically if the call failed. With no stars chosen the
+   * message was the EMPTY STRING, so pressing Submit replaced the widget with a
+   * blank paragraph: nothing happened, and nothing said why. And the whole send
+   * sat inside `if (_selectedStars > 0)`, so a student who wrote a comment and
+   * did not pick a star had it silently thrown away.
+   *
+   * Now: a comment is worth sending on its own, nothing is confirmed until the
+   * server confirms it, a failure says so and keeps what was typed, and pressing
+   * Submit with nothing filled in asks rather than blanking the panel. */
   window._fbScenarioSubmit = function() {
-    var comment = (document.getElementById('scenarioComment') || {}).value || '';
+    var comment = String((document.getElementById('scenarioComment') || {}).value || '').trim();
     var w = document.getElementById('scenarioRatingWidget');
-    if (_selectedStars > 0) {
+    var note = function(msg, tone) {
+      var el = document.getElementById('scenarioRatingNote');
+      if (!el && w) {
+        el = document.createElement('p');
+        el.id = 'scenarioRatingNote';
+        el.className = 'feedback-card-label';
+        w.appendChild(el);
+      }
+      if (el) {
+        el.textContent = msg;
+        el.style.color = tone === 'bad' ? 'var(--red)' : tone === 'good' ? 'var(--green)' : 'var(--muted)';
+      }
+    };
+
+    if (_selectedStars === 0 && !comment) {
+      note('Choose a star rating or write a comment first.', 'bad');
+      return;
+    }
+
+    var btns = w ? w.querySelectorAll('.feedback-btn') : [];
+    for (var b = 0; b < btns.length; b++) btns[b].disabled = true;
+    note('Sending\u2026');
+
+    {
       try {
         var scenario = null;
         try { if (window.getCurrentScenarioSim) scenario = window.getCurrentScenarioSim(); } catch(e) {}
         google.script.run
-          .withSuccessHandler(function() {})
-          .withFailureHandler(function() {})
+          .withSuccessHandler(function(res) {
+            if (res && res.ok === false) return _fbRatingFailed(w, note, btns);
+            if (w) w.innerHTML = '<p class="feedback-card-label" style="color:var(--green);">Thanks for your feedback!</p>';
+            _selectedStars = 0;
+          })
+          .withFailureHandler(function() { _fbRatingFailed(w, note, btns); })
           .apiSaveFeedback(AppState.sessionToken, {
             feedbackType: 'scenario_rating',
             stars: _selectedStars,
@@ -21302,11 +21446,19 @@ var LEVEL_THEMES = {
             country:    scenario ? scenario.country    : '',
             phaseCode:  scenario ? scenario.phaseCode  : ''
           });
-      } catch(e) { console.warn('[Rating] send error', e); }
+      } catch(e) {
+        console.warn('[Rating] send error', e);
+        _fbRatingFailed(w, note, btns);
+      }
     }
-    if (w) w.innerHTML = '<p style="color:var(--green);font-size: 0.82rem;padding:4px 0 0;">' + (_selectedStars > 0 ? 'Thanks for your feedback!' : '') + '</p>';
-    _selectedStars = 0;
   };
+
+  // The rating is not worth losing what they typed over. The panel stays, the
+  // buttons come back, and it says plainly that nothing was sent.
+  function _fbRatingFailed(w, note, btns) {
+    for (var b = 0; b < btns.length; b++) btns[b].disabled = false;
+    note('Could not send that \u2014 tap Submit to try again.', 'bad');
+  }
 
   window._fbScenarioSkip = function() {
     var w = document.getElementById('scenarioRatingWidget');

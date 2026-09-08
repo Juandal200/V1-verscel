@@ -12,6 +12,13 @@ const fs = require('fs');
 const C  = fs.readFileSync(__dirname + '/../Styles.html', 'utf8');
 const S  = fs.readFileSync(__dirname + '/../Scripts.html', 'utf8');
 const G  = fs.readFileSync(__dirname + '/../GamificationUI.html', 'utf8');
+/* The flag table is national colour and national geometry — the red of Canada,
+ * the stroke that draws the Union Flag's saltire. It is data the countries own,
+ * not a design decision this app gets to make, so it is cut out before any scan
+ * that measures OUR palette or OUR icon weight. Leaving it in made the flags
+ * look like eighty-four new colours and a second stroke weight. */
+const cutFlags = t => t.replace(/var FLAG_SVG = \{[\s\S]*?\n  \};/, '');
+
 let fails = 0; const ok=(n,c)=>{if(!c)fails++;console.log((c?'  PASS  ':'  FAIL  ')+n);};
 
 console.log('--- the faces are declared once ---');
@@ -114,7 +121,7 @@ ok('and nothing in the set is drawn and never used',
 // 1.6 at 24 is the same optical weight as the interface's 700 text at 0.82rem,
 // which is what lets an icon sit in a line rather than on top of it. The one
 // exception is the score chart's baseline, which is an axis rule and not an icon.
-const strokes = [...S.matchAll(/stroke-width="([\d.]+)"/g)].map(m => m[1]);
+const strokes = [...cutFlags(S).matchAll(/stroke-width="([\d.]+)"/g)].map(m => m[1]);
 console.log('    stroke weights: ' + [...new Set(strokes)].join('  '));
 ok('the icons are one stroke weight',
    /stroke-width="1\.6"/.test(S) &&

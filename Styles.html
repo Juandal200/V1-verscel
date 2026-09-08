@@ -2345,16 +2345,22 @@
   line-height: 1.5;
 }
 
-.flag-shell {
-  display: inline-grid;
-  place-items: center;
-}
-
+/* The flag is an inline <svg> in a sized box now, not an <img>.
+   object-fit did the cropping before; overflow does it here, and the svg's own
+   preserveAspectRatio="xMidYMid slice" is what fills the box the way cover did.
+   The sizing still comes from .flag-preview / .flag-lg / .flag-xl on this same
+   element, so every call site keeps the size it asked for. */
 .flag-img {
   display: block;
-  object-fit: cover;
+  overflow: hidden;
   border-radius: 8px;
   box-shadow: 0 0 0 1px rgba(var(--lift-rgb), 0.26);
+}
+
+.flag-img > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .flag-preview {

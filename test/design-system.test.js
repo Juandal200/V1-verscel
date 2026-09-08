@@ -14,6 +14,13 @@
 const fs = require('fs');
 const C = fs.readFileSync(__dirname + '/../Styles.html', 'utf8');
 const S = fs.readFileSync(__dirname + '/../Scripts.html', 'utf8');
+/* The flag table is national colour and national geometry — the red of Canada,
+ * the stroke that draws the Union Flag's saltire. It is data the countries own,
+ * not a design decision this app gets to make, so it is cut out before any scan
+ * that measures OUR palette or OUR icon weight. Leaving it in made the flags
+ * look like eighty-four new colours and a second stroke weight. */
+const cutFlags = t => t.replace(/var FLAG_SVG = \{[\s\S]*?\n  \};/, '');
+
 const ALL = C + S;
 let fails = 0; const ok=(n,c)=>{if(!c)fails++;console.log((c?'  PASS  ':'  FAIL  ')+n);};
 
@@ -56,7 +63,7 @@ console.log('--- colour ---');
 // (?<!&) — the same blind spot that ate the marks. &#127908; is a microphone, and
 // 127908 is six valid hex digits, so this was counting entities as colours: the
 // count read 58 while they were broken and 88 once they were restored.
-const hexes = new Set([...ALL.matchAll(/(?<![&\w])#[0-9a-fA-F]{6}\b/g)].map(m => m[0].toLowerCase()));
+const hexes = new Set([...cutFlags(ALL).matchAll(/(?<![&\w])#[0-9a-fA-F]{6}\b/g)].map(m => m[0].toLowerCase()));
 ok(`${hexes.size} distinct hex colours (was 153 in the stylesheet alone, ceiling 60)`,
    hexes.size <= 60);
 ok('the eight tokens carry the work',
