@@ -366,9 +366,20 @@ function originAllowed(req) {
   try { return new URL(origin).host === host; } catch (e) { return false; }
 }
 
+/* Who is calling, not merely whether someone is.
+ *
+ * This returned a boolean, and a boolean is the wrong shape: a session proves
+ * identity, and the [ADMIN_REPORT] instruction below needs authority. Every
+ * candidate holds a valid session, so "signed in" authorised the one request on
+ * this endpoint that no candidate should be able to make.
+ *
+ * apiGetMe already returns the role, so the answer costs nothing extra.
+ * Returns: null when there is no usable session, otherwise
+ * { role: 'STUDENT'|'INSTRUCTOR'|'ADMIN'|'' } — an empty role meaning the
+ * session looked real but the role could not be established. */
 async function sessionValid(token) {
   // No token is a definite no, and costs nothing to establish.
-  if (!token || typeof token !== 'string') return false;
+  if (!token || typeof token !== 'string') return null;
   try {
     const ac = new AbortController();
     const t  = setTimeout(() => ac.abort(), 8000);
@@ -384,22 +395,44 @@ async function sessionValid(token) {
       text = await r.text();
     } finally { clearTimeout(t); }
 
-    // An HTML consent page is not an answer about this session.
+    // An HTML consent page is not an answer about this session. Allowed through
+    // on token presence, with no role — see the ADMIN_REPORT guard, which treats
+    // an unknown role as a refusal.
     if (/^\s*(<!doctype|<html)/i.test(text || '')) {
-      console.warn('[auth] Apps Script answered HTML, not JSON — allowing on token presence.');
-      return true;
+      console.warn('[auth] Apps Script answered HTML, not JSON — allowing on token presence, role unknown.');
+      return { role: '' };
     }
     let j = null;
     try { j = JSON.parse(text); } catch (e) { j = null; }
     if (!j) {
-      console.warn('[auth] Apps Script answer was unparseable — allowing on token presence.');
-      return true;
+      console.warn('[auth] Apps Script answer was unparseable — allowing on token presence, role unknown.');
+      return { role: '' };
     }
-    return j.ok !== false;
+    if (j.ok === false) return null;
+    return { role: String((j.user && j.user.role) || '').toUpperCase() };
   } catch (e) {
-    console.warn('[auth] session check could not complete (' + e.message + ') — allowing on token presence.');
-    return true;
+    console.warn('[auth] session check could not complete (' + e.message + ') — allowing on token presence, role unknown.');
+    return { role: '' };
   }
+}
+
+/* The examiner's working is not the candidate's to ask for.
+ *
+ * [ADMIN_REPORT] asks the model for the annotated transcript, the inline pins and
+ * the technical justification. The client no longer sends it — but this endpoint
+ * is reachable by hand with any valid session, and every candidate has one.
+ *
+ * The endpoint itself stays open: it IS the examiner, and a student sitting an
+ * exam has to be able to talk to it. What is gated is the one instruction that
+ * asks it to hand over the marking.
+ *
+ * Fails closed, unlike the session check above. That check has to be lenient
+ * because Apps Script intermittently answers HTML and refusing would end live
+ * examinations. This one has no such excuse: if the role cannot be established,
+ * the answer is no. */
+function asksForAdminReport(history) {
+  return Array.isArray(history) && history.some(m =>
+    typeof m?.content === 'string' && m.content.indexOf('[ADMIN_REPORT') !== -1);
 }
 
 
@@ -501,8 +534,15 @@ export default async function handler(req, res) {
     res.status(403).json({ ok: false, code: 'FORBIDDEN', error: 'Origin not allowed' });
     return;
   }
-  if (!(await sessionValid((req.body || {}).sessionToken))) {
+  const caller = await sessionValid((req.body || {}).sessionToken);
+  if (!caller) {
     res.status(403).json({ ok: false, code: 'FORBIDDEN', error: 'Sign in to use this endpoint' });
+    return;
+  }
+  if (asksForAdminReport((req.body || {}).history) &&
+      caller.role !== 'ADMIN' && caller.role !== 'INSTRUCTOR') {
+    console.warn('[tea] ADMIN_REPORT refused for role "' + caller.role + '"');
+    res.status(403).json({ ok: false, code: 'FORBIDDEN', error: 'Not available for your role.' });
     return;
   }
 

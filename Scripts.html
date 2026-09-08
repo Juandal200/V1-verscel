@@ -26541,10 +26541,18 @@ var LEVEL_THEMES = {
        * goes first and the render is wrapped, so the worst a display failure can
        * now cost is the display. */
       _teaSaveConversationResult(jsonData);
-      // Everything the examiner has to say about HOW the band was reached, fetched
-      // in the background and filed with the sitting — so a capacity spike costs
-      // the examiner's working, not the result.
-      _teaFetchAdminReport();
+      /* The admin report is not fetched here any more.
+       *
+       * This used to ask the examiner, from the candidate's browser, for the
+       * admin_view: their turns with inline pins, the annotations and the
+       * technical justification. The panel that draws it is role-gated, but the
+       * data had already arrived and was readable in DevTools. Gating the render
+       * is hiding, not withholding.
+       *
+       * Nothing is lost by removing it. api/tea-pipeline.mjs already produces the
+       * same report and files it server to server, before it writes its response —
+       * so this was a second, redundant production of a report that already
+       * existed, paid for on the candidate's connection. */
 
       try {
         _showReportScreen(jsonData);
@@ -28774,42 +28782,6 @@ var LEVEL_THEMES = {
         'before or after it, no code fences, no explanation.'
       : '';
     _sendMsg(_teaReplayReport() + strict);
-  }
-
-  // Asked for after the report is already on screen. Nothing waits on it, nothing
-  // breaks without it, and it is never allowed to interrupt what the candidate is
-  // reading — so it goes straight to storage and says nothing either way.
-  function _teaFetchAdminReport() {
-    if (_t._adminAsked) return;
-    _t._adminAsked = true;
-    var hist = (_t.history || []).concat([
-      { role: 'user', content: '[ADMIN_REPORT — the candidate already has their bands. ' +
-        'Return only the admin_view object: the candidate turns with inline pins, the ' +
-        'annotations, and the technical justification.]' }
-    ]);
-    fetch('/api/tea', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionToken: AppState.sessionToken, history: hist, bank: TEA_BANK })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      if (!d || !d.ok || !d.message) return;
-      var parsed = _teaParsePayload(d.message);
-      if (!parsed || !parsed.admin_view) return;
-      google.script.run
-        .withSuccessHandler(function() {})
-        .withFailureHandler(function() {})
-        .apiSaveIcaoExamResult(AppState.sessionToken, {
-          student_view: _t._studentView || {},
-          admin_view:   parsed.admin_view,
-          sheetRow:     false,
-          history:      _t.history,
-          bank:         TEA_BANK,
-          scope:        _t.scope || 'FULL',
-          examDate:     new Date().toISOString()
-        });
-    })
-    .catch(function() {});
   }
 
   function _teaReportFailed() {
