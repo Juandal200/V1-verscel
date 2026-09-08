@@ -1427,18 +1427,6 @@ function ensureCatalogHasVisibleLevels_(catalog, maxLevels) {
 /**
  * Admin e Instructor pueden ver y abrir todos los niveles.
  */
-function unlockCatalogForStaff_(catalog) {
-  catalog = catalog || {};
-  catalog.levels = catalog.levels || [];
-
-  catalog.levels.forEach(function(levelItem) {
-    levelItem.unlocked = true;
-    levelItem.locked = false;
-  });
-
-  return catalog;
-}
-
 function apiGetStudentScenarios(sessionToken, payload) {
   try {
     var user = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);

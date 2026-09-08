@@ -19150,46 +19150,16 @@ var LEVEL_THEMES = {
     });
   }
 
-  function analyticsLogEvent(eventType, metadata) {
-    try {
-      if (!window.AppState || !AppState.sessionToken) return;
-
-      var scenario = null;
-
-      if (typeof window.getCurrentScenarioSim === 'function') {
-        try {
-          scenario = window.getCurrentScenarioSim();
-        } catch (e) {
-          scenario = null;
-        }
-      }
-
-      var route = AppState.training && AppState.training.route ? AppState.training.route : {};
-      var payload = {
-        eventType: eventType,
-        level: scenario ? scenario.level : (route.currentLevel || route.level || AppState.training.selectedLevel || ''),
-        country: scenario ? scenario.country : (route.currentCountry || route.country || AppState.training.selectedCountry || ''),
-        scenarioType: scenario ? scenario.scenarioType : '',
-        emergencyType: scenario ? scenario.emergencyType : '',
-        flightScenarioId: scenario ? scenario.flightScenarioId : (route.flightScenarioId || ''),
-        routeName: scenario ? scenario.flightScenarioName : (route.flightScenarioName || ''),
-        scenarioId: scenario ? scenario.scenarioId : '',
-        phaseCode: scenario ? scenario.phaseCode : '',
-        metadata: metadata || {},
-        userAgent: navigator.userAgent || ''
-      };
-
-      google.script.run
-        .withSuccessHandler(function() {})
-        .withFailureHandler(function(err) {
-          console.warn('[ICAO] analytics event log failed', err);
-        })
-        .apiLogClientEvent(AppState.sessionToken, payload);
-    } catch (err) {
-      console.warn('[ICAO] analyticsLogEvent error', err);
-    }
-  }
-
+  /* analyticsLogEvent was declared twice in this scope, forty lines apart in
+   * behaviour and two thousand apart in the file. JavaScript keeps the LAST
+   * declaration, so this longer one — which built its own payload and posted it
+   * directly — had never run. The surviving delegate hands the event to
+   * AnalyticsEngine, which captures the same context and rather more: a session
+   * id, the B2B tenant fields, and validation that drops NaN before it reaches a
+   * sheet.
+   *
+   * Removed rather than merged. Two functions of the same name in one scope is not
+   * a duplicate, it is a decision made silently by the parser. */
   function renderProgress() {
     if (window.simMediaStopAll) window.simMediaStopAll();
     setActiveNav('Progress');

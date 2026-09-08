@@ -77,6 +77,39 @@ if (unreachable.length) {
 ok(`${[...new Set(unreachable)].length} calls that would throw at runtime`,
    unreachable.length === 0);
 
+console.log('--- nothing is declared twice in one scope ---');
+/* Two function declarations of the same name in the same scope is not a duplicate.
+ * It is a decision the parser makes silently: the last one wins and the first
+ * never runs.
+ *
+ * analyticsLogEvent was declared twice, two thousand lines apart, in the same
+ * IIFE. The dead one built its own payload and posted it; the live one delegates
+ * to AnalyticsEngine. Nothing broke — the survivor was the better of the two — but
+ * forty lines of code that looked load-bearing had never executed, and an edit to
+ * them would have done nothing at all.
+ *
+ * no-duplicate-functions.test.js already holds this for the SERVER, where Apps
+ * Script shares one global scope. The client had no such check, and it is thirty
+ * thousand lines. */
+const declPos = [];
+lines.forEach((l, i) => {
+  const m = /^ {2}function ([A-Za-z_$][\w$]*)\s*\(/.exec(l);   // exactly two spaces: IIFE level
+  if (m) declPos.push([i + 1, m[1]]);
+});
+const byScope = new Map();
+declPos.forEach(([ln, name]) => {
+  const b = blocks.find(([o, c]) => ln > o && ln < c);
+  const key = (b ? b.join('-') : 'top') + '|' + name;
+  if (!byScope.has(key)) byScope.set(key, []);
+  byScope.get(key).push(ln);
+});
+const shadowed = [...byScope.entries()].filter(([, v]) => v.length > 1);
+if (shadowed.length) {
+  shadowed.forEach(([k, v]) => console.log('        ' + k.split('|')[1] + ' at ' + v.join(', ')));
+}
+ok(`${shadowed.length} functions shadowed by a later declaration`, shadowed.length === 0);
+console.log('    ' + declPos.length + ' functions at IIFE level, each declared once');
+
 console.log('--- an inline handler can reach what it names ---');
 /* onclick="_dcSubmitAnswer()" is evaluated in GLOBAL scope, not in the closure the
  * markup was written in. So a function declared inside an IIFE and named in an
