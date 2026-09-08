@@ -86,6 +86,31 @@ ok('a fixed share of what is left', /pct = pct \+ \(90 - pct\) \* 0\.18/.test(rl
 ok('it still stops short of the end so stop() can finish it',
    /fill\.style\.width = '100%'/.test(rl));
 
+console.log('--- and only one loader owns the bar ---');
+/* This is the fault that was actually reported, twice, and that neither earlier
+ * fix touched. Every loader writes to one element id and keeps its own pct in a
+ * closure. The interval stopped itself only when NO fill element existed — so the
+ * moment a second loader rendered, a fill element existed again and the first
+ * interval carried on writing ITS percentage to the new bar. Two timers, two
+ * numbers, 900ms apart, one element: the bar jumped backwards and forwards.
+ *
+ * A progress bar that goes backwards is two progress bars. */
+ok('a loader takes a number on the way in',
+   /var _radarGen = 0;/.test(Sc) && /var myGen = \+\+_radarGen;/.test(Sc));
+ok('and stops the moment a newer one starts',
+   /if \(myGen !== _radarGen\) \{ clearInterval\(t\); return; \}/.test(rl));
+// The guard has to run before anything is written, or it writes and then stops.
+ok('it checks before it touches the bar',
+   rl.indexOf('myGen !== _radarGen') < rl.indexOf("fill.style.width = pct"));
+ok('a vanished screen still stops it',
+   /if \(!fill\) \{ clearInterval\(t\); return; \}/.test(rl));
+ok('the delayed text swap checks too',
+   /setTimeout\(function\(\) \{\s*\n\s*if \(myGen !== _radarGen\) return;/.test(rl));
+/* stop() is held in a local variable and called from async handlers that can land
+ * long after the screen they belonged to has gone. */
+ok('and a stale stop does not drive another screen to 100%',
+   /stop: function\(\) \{[\s\S]{0,320}if \(myGen !== _radarGen\) return;[\s\S]{0,120}width = '100%'/.test(Sc));
+
 console.log('--- and the message actually fades ---');
 // The transition on opacity has been declared for as long as the loader has
 // existed and had never once fired: textContent swaps in the same frame.

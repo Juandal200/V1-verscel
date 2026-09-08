@@ -10281,7 +10281,25 @@ var LEVEL_THEMES = {
    * Returns a stop() to clear the interval. The bar creeps to 90% and waits —
    * it never claims to be finished, because the caller decides when that is.
    */
+  /* Which loader owns the screen.
+   *
+   * Every loader writes to one element id, #radarLoaderFill, and each one keeps
+   * its own pct in a closure. The interval stopped itself only when NO fill
+   * element existed — so the moment a second loader rendered, a fill element
+   * existed again and the first interval carried on, writing ITS percentage to
+   * the new bar. Two timers, two different numbers, 900ms apart, one element:
+   * the bar jumped backwards and forwards between them.
+   *
+   * That is the shrinking. It was never the step size and never the heading
+   * height — both of those were real and both are fixed, and neither was this.
+   * A progress bar that goes backwards is two progress bars.
+   *
+   * Same shape as _navToken, which this app already uses for exactly this class
+   * of problem: take a number on the way in, and stop the moment it moves. */
+  var _radarGen = 0;
+
   function renderRadarLoader(eyebrow, messages, hint) {
+    var myGen = ++_radarGen;
     var msgs = Array.isArray(messages) ? messages : [String(messages || 'Loading\u2026')];
     var host = byId('contentArea');
     if (!host) return { stop: function() {} };
@@ -10305,6 +10323,9 @@ var LEVEL_THEMES = {
 
     var i = 0, pct = 0;
     var t = setInterval(function() {
+      // A newer loader has the screen. This one is finished, whatever it was
+      // counting — and it must not touch a bar it no longer owns.
+      if (myGen !== _radarGen) { clearInterval(t); return; }
       /* A steady approach to 90, not a random walk toward it.
        *
        * This used to add a random 3–13% each tick, so the bar lurched: a long
@@ -10314,7 +10335,10 @@ var LEVEL_THEMES = {
        * which is what a progress bar is read as promising. */
       pct = pct + (90 - pct) * 0.18;
       var fill = byId('radarLoaderFill');
-      if (fill) fill.style.width = pct + '%';
+      // Screen moved on entirely. Callers that render over the loader do not have
+      // to remember to call stop().
+      if (!fill) { clearInterval(t); return; }
+      fill.style.width = pct + '%';
       if (msgs.length > 1) {
         i = (i + 1) % msgs.length;
         var el = byId('radarLoaderMsg');
@@ -10326,6 +10350,7 @@ var LEVEL_THEMES = {
         if (el) {
           el.style.opacity = '0';
           setTimeout(function() {
+            if (myGen !== _radarGen) return;
             var e2 = byId('radarLoaderMsg');
             if (!e2) return;
             e2.textContent = msgs[i];
@@ -10333,15 +10358,15 @@ var LEVEL_THEMES = {
           }, 250);
         }
       }
-      // Self-terminate once the screen has moved on. Callers that render over the
-      // loader do not have to remember to call stop(), so the interval can never
-      // outlive the thing it was animating.
-      if (!fill) clearInterval(t);
     }, 900);
 
     return {
       stop: function() {
         clearInterval(t);
+        // A stale handle must not drive somebody else's bar to 100%. Screens hold
+        // these in local variables and call stop() from an async handler that can
+        // land long after the screen it belonged to has gone.
+        if (myGen !== _radarGen) return;
         var fill = byId('radarLoaderFill');
         if (fill) fill.style.width = '100%';
       }
