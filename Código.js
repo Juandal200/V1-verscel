@@ -28,6 +28,17 @@ function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
 
+    // Which environment this request belongs to, before anything else reads a
+    // property or opens a sheet — including the Wompi branch below and the allowlist
+    // rejection, so even a refused action is recorded against the right database.
+    //
+    // The proxy sets this from its own APP_ENV; the browser never sends it. Absent
+    // means production, which is what triggers and editor runs need. envAssert-
+    // Deployment_ then checks that answer against the deployment actually running, so
+    // a QA proxy that dropped the field fails loudly rather than writing production.
+    envSet_(body.env);
+    envAssertDeployment_();
+
     // Wompi payment webhook
     if (body.event === 'transaction.updated' &&
         body.data && body.data.transaction &&
@@ -55,6 +66,8 @@ function doPost(e) {
     // Standard API call
     var action  = String(body.action || '');
     var args    = Array.isArray(body.args) ? body.args : [];
+
+    envLogContext_(action);
 
     var allowed = action === 'getClientConfigJson' ||
                   /^api[A-Z]/.test(action) ||
@@ -112,13 +125,29 @@ function runFixModuleQuizHeaders() {
 }
 
 function getClientConfigJson() {
-  var props = PropertiesService.getScriptProperties();
-
   return JSON.stringify({
     appName: getAppConfigValue_('APP_NAME', 'Icao Aerocomms'),
     appVersion: getAppConfigValue_('APP_VERSION', '2.0.0'),
-    googleClientId: props.getProperty(getAppConfigValue_('PROP_GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_ID')) || '',
-    vapidPublicKey: 'BJK-LMuMcS3KgR8UgCDrrXZXxWfMxHUEPOHfccZe1X--zup0w6usmuTxfCgLrVFe_ncg3ei0Lt-XDfqrY4QaBbA'
+    // Both of these are per-environment, and both were not.
+    //
+    // googleClientId came straight from the shared property store, so QA would have
+    // served the production client id — and sign-in fails unless the QA origin is
+    // listed on that client anyway.
+    //
+    // vapidPublicKey was worse: a hardcoded literal, so a QA browser would subscribe
+    // to push using the PRODUCTION key while the QA server signed with a different
+    // private one, and every QA notification would fail validation. Giving QA fresh
+    // keys in Vercel alone could never have fixed that; the public half is handed to
+    // the browser from here.
+    //
+    // The literal stays as the production default because that is what production is
+    // using today and it is a public key by design. QA gets nothing unless
+    // VAPID_PUBLIC_KEY_QA is set — silence is the correct answer for an unconfigured
+    // QA, since a wrong key looks like it works right up until nothing arrives.
+    googleClientId: envProperty_(getAppConfigValue_('PROP_GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_ID')),
+    vapidPublicKey: envProperty_('VAPID_PUBLIC_KEY',
+      'BJK-LMuMcS3KgR8UgCDrrXZXxWfMxHUEPOHfccZe1X--zup0w6usmuTxfCgLrVFe_ncg3ei0Lt-XDfqrY4QaBbA'),
+    environment: envName_()
   });
 }
 

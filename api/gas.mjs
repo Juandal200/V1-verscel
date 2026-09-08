@@ -10,7 +10,19 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ ok: false, error: 'Method not allowed' }); return; }
 
   try {
-    const body = JSON.stringify(req.body);
+    // Stamp the environment onto every call.
+    //
+    // Apps Script serves production and QA from two deployments of one project, and a
+    // project has ONE property store — so the backend cannot look up which environment
+    // it is. It has to be told, and this is the only place that knows: APP_ENV is set
+    // per Vercel project, so the QA project sends 'qa' and production sends
+    // 'production'. The browser has no say in it, which is the point.
+    //
+    // Absent means production, matching what every caller did before this existed.
+    const body = JSON.stringify({
+      ...req.body,
+      env: process.env.APP_ENV === 'qa' ? 'qa' : 'production'
+    });
 
     // Which call this is. Every log line below used to say only that something
     // timed out, so a 45-second failure told us nothing about what was slow and

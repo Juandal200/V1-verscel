@@ -46,11 +46,15 @@ function dbWithReadScope_(fn) {
  * is worth more than a silent one that looks like it worked.
  */
 function dbGetSpreadsheetId_() {
-  var spreadsheetId = PropertiesService.getScriptProperties()
-    .getProperty(CONFIG.PROP_DB_SPREADSHEET_ID);
+  var spreadsheetId = envProperty_(CONFIG.PROP_DB_SPREADSHEET_ID);
 
   if (!spreadsheetId) {
-    throw new Error('Database not configured. Run setupDatabase() first.');
+    // Naming the environment matters: in QA this means DB_SPREADSHEET_ID_QA is not
+    // set, and the one thing that must NOT happen next is falling back to the
+    // production database because the QA one is missing.
+    throw new Error('Database not configured for ' + envName_() + '. Set ' +
+                    CONFIG.PROP_DB_SPREADSHEET_ID + (envIsQa_() ? '_QA' : '') +
+                    ' in Script Properties, or run setupDatabase().');
   }
 
   return spreadsheetId;
@@ -72,8 +76,9 @@ function dbGetSpreadsheet_() {
  * Routing them through here is what lets a QA environment later append a suffix in one
  * place instead of four. */
 function driveFolder_(name) {
-  var it = DriveApp.getFoldersByName(name);
-  return it.hasNext() ? it.next() : DriveApp.createFolder(name);
+  var scoped = name + envFolderSuffix_();
+  var it = DriveApp.getFoldersByName(scoped);
+  return it.hasNext() ? it.next() : DriveApp.createFolder(scoped);
 }
 
 function dbGetSheet_(sheetName) {
