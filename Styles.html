@@ -254,7 +254,18 @@
     min-height: 100vh;
   }
 
-  .screen.active {
+  /* A returning student never sees the sign-in form.
+   The attribute is set by an inline script before the first paint, from a token
+   already in localStorage. It hides the login card and shows the app shell, so
+   the restore happens behind the interface rather than behind a form asking for
+   a code the student does not need to enter.
+   It is removed the moment the app is entered, or when the server says the
+   session is genuinely finished — after which this rule stops applying and the
+   form behaves exactly as it always did. */
+html[data-booting-session] #loginScreen { display: none !important; }
+html[data-booting-session] #appScreen   { display: flex !important; flex-direction: column; }
+
+.screen.active {
     display: flex;
   }
 

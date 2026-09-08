@@ -32,6 +32,27 @@
 </head>
 
 <body>
+  <!-- Which screen a signed-in student sees first.
+       loginScreen carried `active` in the markup, so EVERY load painted a sign-in
+       form — and only swapped to the app once two megabytes of script had parsed,
+       DOMContentLoaded had fired and the session cache had been read. On a phone
+       that is invisible, because an installed app is resumed rather than
+       reloaded. On a desktop it is a sign-in form on every refresh, which is
+       indistinguishable from having been signed out, and students signed in
+       again because the screen asked them to.
+       The token is in localStorage before any of that runs, so the decision can
+       be made here, before the first paint. Nothing is trusted from it beyond
+       "there is a session to restore" — the server still decides whether it is
+       valid, and handleServerError still returns to this form when it is not. -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('icao_session_token') ||
+                sessionStorage.getItem('icao_session_token');
+        if (t) document.documentElement.setAttribute('data-booting-session', '1');
+      } catch (e) {}
+    })();
+  </script>
   <div class="app-shell">
 
     <section id="loginScreen" class="screen active">

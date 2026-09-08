@@ -839,6 +839,16 @@
   }
 
   function showScreen(screenId) {
+    /* The pre-paint hint has done its job.
+     *
+     * data-booting-session is set in the document head from a token in
+     * localStorage, so a returning student sees the app shell instead of a
+     * sign-in form while the session restores. Once anything decides which
+     * screen to show — the app on a successful restore, the login form when the
+     * server says the session is finished — that decision is the real one and
+     * the hint must stop overriding it. */
+    try { document.documentElement.removeAttribute('data-booting-session'); } catch (e) {}
+
     Array.prototype.slice.call(document.querySelectorAll('.screen')).forEach(function(screen) {
       screen.classList.remove('active');
     });
@@ -1331,8 +1341,14 @@
     localStorage.setItem('icao_session_token', AppState.sessionToken);
     sessionStorage.setItem('icao_session_token', AppState.sessionToken);
 
-    // If the login response already includes XP/streak data (merged by apiVerifyLoginCode),
-    // populate vars and skip the separate getMyCompletedLevels call in enterApplication.
+    /* verifyOtpAndCreateSession returns { ok, sessionToken, user, home } and has
+     * never returned mergedXp, so this branch has never run: the home cache was
+     * not written at sign-in, and _bootstrapLoaded was never set, which cost an
+     * extra getMyCompletedLevels round trip on every login.
+     *
+     * The XP block still depends on the field being there. The cache write does
+     * not — user, home and accessStatus are all present above, and they are what
+     * makes the next load instant instead of a round trip behind a form. */
     if (res.mergedXp !== undefined) {
       window._lmsLmsXp         = res.lmsXp         || 0;
       window._lmsSimXp         = (res.mergedXp || 0) - (res.lmsXp || 0);
@@ -1341,8 +1357,8 @@
       window._lmsLastActiveAt  = res.lastActiveAt  || '';
       window._lmsStreakFreezes = res.streakFreezes || 0;
       window._bootstrapLoaded  = true;
-      _aeroSaveCache();
     }
+    _aeroSaveCache();
 
     enterApplication();
   }
