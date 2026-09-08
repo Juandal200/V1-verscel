@@ -26907,7 +26907,33 @@ var LEVEL_THEMES = {
 
   function _scEl(id) { return document.getElementById(id); }
 
+  /* One set of answer controls at a time.
+   *
+   * The exam shell was built for the CONVERSATIONAL sitting, and carries its own
+   * input bar at the bottom: a microphone button and a textarea reading "Speak via
+   * mic or type and press Enter...". The scripted exam draws its OWN controls into
+   * teaCards above it — a textarea, Submit answer, Replay recording, Repeat
+   * question, Next — and nothing hid the bar underneath.
+   *
+   * So a candidate sat looking at two microphones, two text boxes and two ways to
+   * submit, one of which did nothing. That is the overlap reported as F-0006: the
+   * listening and tap-to-speak controls colliding with speak, write and press
+   * enter. They were not overlapping by a few pixels; they were two different
+   * exams' interfaces on one page.
+   *
+   * The bar belongs to the conversational exam. _teaScriptedMode hides it while a
+   * scripted sitting is running and _unlockExamUI honours that, so the fallback to
+   * live grading — which does need the bar — still gets it back. */
+  function _teaScriptedMode(on) {
+    _t._scripted = !!on;
+    var bar = document.querySelector('.tea-input-bar');
+    if (bar) bar.style.display = on ? 'none' : '';
+  }
+
   function _scStage(html) {
+    // A scripted sitting brings its own controls; the conversational bar is not
+    // part of it.
+    _teaScriptedMode(true);
     var cards = _scEl('teaCards');
     if (cards) { cards.innerHTML = html; return; }
     // The exam shell is not up yet — which is exactly when the refusals are shown,
@@ -27247,8 +27273,8 @@ var LEVEL_THEMES = {
                  String(step.section || '').indexOf('2') === 0;
     var canAsk = step.text && _sc.promptReplaysLeft > 0;
     var replay =
-      (canRec ? '<button class="btn secondary" id="scReplay" style="margin-right:8px;">\u21bb Replay recording</button>' : '') +
-      (canAsk ? '<button class="btn secondary" id="scRepeat" style="margin-right:8px;">\u21bb Repeat question</button>' : '');
+      (canRec ? '<button class="btn secondary" id="scReplay">\u21bb Replay recording</button>' : '') +
+      (canAsk ? '<button class="btn secondary" id="scRepeat">\u21bb Repeat question</button>' : '');
     return '' +
       '<div style="padding:16px;">' +
         _scImagesFor(step) +
@@ -27260,7 +27286,10 @@ var LEVEL_THEMES = {
           '</span>' +
         '</div>' +
         '<div id="scAnswer"></div>' +
-        '<div style="margin-top:14px;">' + replay +
+        // A row, not three buttons spacing themselves. Each carried its own
+        // margin-right in a plain div, so on a phone they ran off the side rather
+        // than wrapping.
+        '<div class="btn-row" style="margin-top:14px;">' + replay +
           '<button class="btn primary" id="scNext">Next →</button>' +
         '</div>' +
         '<p style="margin:10px 0 0;font-size: 0.72rem;color:var(--muted,#808080);">' +
@@ -28712,6 +28741,10 @@ var LEVEL_THEMES = {
   // grading) has to put it back or the candidate is left with no way to reply.
   function _unlockExamUI() {
     _t._examDone = false;
+    // Reached when the grading pipeline fails and the sitting falls back to live
+    // conversational grading — which is the one case that genuinely needs the bar.
+    // A scripted sitting never does.
+    _t._scripted = false;
     var bar = document.querySelector('.tea-input-bar');
     if (bar) bar.style.display = '';
   }

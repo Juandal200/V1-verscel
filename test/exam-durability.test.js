@@ -70,6 +70,34 @@ ok('all three call it',
 ok('a transient failure keeps the session and says so',
    (S.match(/Could not reach server\. Check your connection and refresh\./g) || []).length >= 2);
 
+console.log('--- one set of answer controls at a time (F-0006) ---');
+/* The exam shell was built for the CONVERSATIONAL sitting and carries its own
+ * input bar: a microphone and a textarea reading "Speak via mic or type and press
+ * Enter...". The scripted exam draws its OWN controls above it — a textarea,
+ * Submit answer, Replay recording, Repeat question, Next — and nothing hid the bar
+ * underneath.
+ *
+ * So a candidate sat looking at two microphones, two text boxes and two ways to
+ * submit, one of which did nothing. Reported as buttons overlapping; it was two
+ * different exams' interfaces on one page. */
+ok('a scripted sitting says so',      /function _teaScriptedMode\(on\)/.test(S));
+ok('and hides the conversational bar',
+   /bar\.style\.display = on \? 'none' : ''/.test(S));
+ok('every scripted screen declares it',
+   /function _scStage\(html\) \{[\s\S]{0,200}_teaScriptedMode\(true\);/.test(S));
+// The fallback to live grading is the one case that genuinely needs the bar back.
+ok('unlocking clears the flag as well as showing the bar',
+   /function _unlockExamUI\(\)[\s\S]{0,400}_t\._scripted = false;/.test(S));
+
+console.log('--- and the action row is a row ---');
+const ask = S.slice(S.indexOf('var canAsk = step.text'), S.indexOf('var canAsk = step.text') + 1600);
+ok('the buttons no longer space themselves',
+   !/id="scReplay" style="margin-right/.test(ask) && !/id="scRepeat" style="margin-right/.test(ask));
+ok('a container owns the spacing',  /<div class="btn-row"/.test(ask));
+const C2 = fs.readFileSync(__dirname + '/../Styles.html', 'utf8');
+ok('and it wraps rather than running off the side',
+   /\.btn-row \{[\s\S]{0,140}flex-wrap: wrap;/.test(C2));
+
 console.log('--- the boot path already knew this, and still does ---');
 // Four attempts with backoff, and it says out loud that the session is still good.
 ok('boot retries rather than giving up',   /_bootAttempt < 4/.test(S));

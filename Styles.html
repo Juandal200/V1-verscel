@@ -2295,6 +2295,20 @@
   .streak-event-scrim, .streak-event-card { transition: none; }
 }
 
+/* A row of buttons, spaced by the row.
+ *
+ * The exam's action row was a plain div and each button carried its own
+ * margin-right, so on a phone three of them ran off the side instead of wrapping
+ * onto a second line. A container that owns the spacing is the whole fix, and it
+ * is one class rather than an inline margin on every button that ever joins them. */
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.btn-row > .btn { flex: 0 1 auto; }
+
 .flag-shell {
   display: inline-grid;
   place-items: center;
