@@ -704,7 +704,7 @@
           .withFailureHandler(function(err) { console.warn('[bootstrap bg]', err); })
           .apiGetAppBootstrap(AppState.sessionToken);
       } else {
-        setLoginMessage('Restoring session...');
+        setLoginMessage('Restoring session...', 'boot');
         // No cache to fall back on, so this call is the only thing between the
         // user and the app — and it had no timeout at all. A slow Apps Script cold
         // start left "Restoring session..." on screen indefinitely with no way
@@ -718,22 +718,32 @@
         // form, and it says so explicitly.
         var _bootDone    = false;
         var _bootAttempt = 0;
+        var _bootTimerRef = null;
+
+        // Called when the student signs in rather than waiting for the restore.
+        window._abortBootRestore = function () {
+          _bootDone = true;
+          if (_bootTimerRef) { clearTimeout(_bootTimerRef); _bootTimerRef = null; }
+        };
 
         function _bootstrapAttempt() {
           _bootAttempt++;
           _bootDone = false;
+          // Attempt one says nothing beyond what is already on screen. A cold
+          // start usually resolves inside twenty seconds and nobody needs to be
+          // told a retry count they did not ask for.
           setLoginMessage(_bootAttempt === 1
             ? 'Restoring session\u2026'
-            : 'Still connecting\u2026 (attempt ' + _bootAttempt + ')');
+            : 'Reconnecting\u2026', 'boot');
 
-          var _bootTimer = setTimeout(function() {
+          var _bootTimer = _bootTimerRef = setTimeout(function() {
             if (_bootDone) return;
             _bootDone = true;
             // Back off, but keep trying. Apps Script cold starts are slow, not
             // permanent, and every retry lands on a warmer instance.
             if (_bootAttempt < 4) { _bootstrapAttempt(); return; }
             setLoginMessage('The server is not responding. Your session is still ' +
-                            'valid — tap Send access code to retry, or try again shortly.');
+                            'valid — tap Send access code to retry, or try again shortly.', 'boot');
           }, _bootAttempt === 1 ? 20000 : 30000);
 
           google.script.run
@@ -754,7 +764,7 @@
               }
               if (_bootAttempt < 4) { _bootstrapAttempt(); return; }
               setLoginMessage('The server is not responding. Your session is still ' +
-                              'valid — please try again shortly.');
+                              'valid — please try again shortly.', 'boot');
             })
             .apiGetAppBootstrap(AppState.sessionToken);
         }
@@ -848,7 +858,26 @@
     if (contentArea) contentArea.style.display = isSquadron ? 'none' : '';
   }
 
-  function setLoginMessage(message) {
+  /* Who owns the login message.
+   *
+   * #loginMessage is one element with thirty-three writers, and two entirely
+   * separate operations were writing to it at once.
+   *
+   * A session token with no cached home data sends boot down a retry path —
+   * four attempts, twenty and thirty second timeouts, up to a hundred and ten
+   * seconds of "Still connecting… (attempt 2)". Meanwhile the login form is on
+   * screen, so the student simply signs in. Their code is requested, sent, and
+   * confirmed — and then a boot timer fires and writes its retry over the top.
+   *
+   * The code HAD arrived. The message on screen was about something else
+   * entirely, and read as though the request had failed.
+   *
+   * So: once the student has acted, the background stops being allowed to speak.
+   * Their own message is the only one that can be about what they just did. */
+  var _loginBusy = false;
+
+  function setLoginMessage(message, source) {
+    if (source === 'boot' && _loginBusy) return;
     var el = byId('loginMessage');
     if (!el) return;
     el.textContent = message || '';
@@ -1116,6 +1145,19 @@
     }, 1000);
   }
 
+  /* The student has taken over.
+   *
+   * Signing in fresh replaces whatever token boot was trying to restore, so the
+   * retry is not merely noisy at that point — it is working on a session that is
+   * about to be thrown away. It stops, and it stops talking.
+   *
+   * _abortBootRestore is set by the boot path itself, so this does nothing at all
+   * on a load that never started one. */
+  function _loginTakesOver() {
+    _loginBusy = true;
+    try { if (window._abortBootRestore) window._abortBootRestore(); } catch (e) {}
+  }
+
   function requestLoginCode() {
     var email = byId('loginEmail').value.trim().toLowerCase();
 
@@ -1129,6 +1171,7 @@
       return;
     }
 
+    _loginTakesOver();
     setLoginMessage('Sending access code...');
     setLoginButtonsDisabled(true);
 
@@ -1200,6 +1243,7 @@
       return;
     }
 
+    _loginTakesOver();
     setLoginMessage('Verifying code...');
     setLoginButtonsDisabled(true);
 
