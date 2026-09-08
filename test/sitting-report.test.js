@@ -71,7 +71,22 @@ ok('and the screen itself is gated too',
 console.log('--- the checkpoint has room around it ---');
 ok('it sits inside the grid',
    /level-map-grid-pro">' \+ tierCards \+\s*\n\s*_buildExamCard\(tier\.examNum\) \+ '<\/div>'/.test(S));
-ok('so the grid\'s own gap applies',  /\.level-map-grid-pro \{[\s\S]{0,140}gap: 18px/.test(C));
+const Cg = C.replace(/\/\*[\s\S]*?\*\//g, '');
+ok('so the grid\'s own gap applies',  /\.level-map-grid-pro \{[\s\S]{0,140}gap: 18px/.test(Cg));
+/* auto-fit collapses tracks that are EMPTY, and the checkpoint spans
+ * grid-column: 1 / -1 — an item in every track, so no track was ever empty and
+ * none could collapse. A 2000px screen kept FIVE columns, three cards filled the
+ * first three, and the last two were the dead band down the right. The wider the
+ * monitor, the worse it looked. A tier has exactly three levels; the count is
+ * not something to discover at runtime. */
+ok('the column count is fixed, not discovered',
+   /\.level-map-grid-pro \{[\s\S]{0,120}grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/.test(Cg));
+ok('and no auto-fit is left to be defeated by the full-width card',
+   !/level-map-grid-pro[\s\S]{0,120}auto-fit/.test(Cg));
+ok('the map is capped and centred rather than stretched to the monitor',
+   /\.level-map-grid-pro,\s*\n\.sim-tier-header \{[\s\S]{0,120}max-width: 1180px/.test(Cg));
+ok('and it steps down before the cards get too narrow',
+   /@media \(max-width: 1080px\) \{[\s\S]{0,120}repeat\(2, minmax\(0, 1fr\)\)/.test(Cg));
 /* Read the stripped stylesheet, not the raw one. This matched inside a fixed
  * 200-character window from the selector, and a comment added above the rule
  * pushed the declaration past it — so the check failed while the CSS was

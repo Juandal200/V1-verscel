@@ -1428,11 +1428,35 @@ html[data-booting-session] #appScreen   { display: flex !important; flex-directi
   margin-bottom: 18px;
 }
 
+/* Three columns, because a tier is three levels.
+   This was repeat(auto-fit, minmax(340px, 1fr)). auto-fit collapses tracks that
+   are EMPTY — and the checkpoint card spans grid-column: 1 / -1, which puts an
+   item in every track, so no track was ever empty and none could collapse. On a
+   2000px screen the grid therefore kept FIVE columns, the three level cards
+   filled the first three, and the last two rendered as the dead band down the
+   right-hand side. The wider the screen, the worse it got.
+   A tier has exactly three levels, so the count is not something to discover. */
 .level-map-grid-pro {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
   align-items: stretch;
+}
+
+/* And the map does not stretch to whatever width the monitor happens to be.
+   Nothing capped the content column, so on a wide desktop three cards were
+   pulled to six hundred pixels each with their contents stranded at the corners.
+   Centred inside a readable measure, the leftover width becomes symmetrical
+   margin instead of an empty right-hand third. */
+.level-map-grid-pro,
+.sim-tier-header {
+  max-width: 1180px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (max-width: 1080px) {
+  .level-map-grid-pro { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .level-card-pro {
@@ -8548,7 +8572,7 @@ button, .btn, .nav-item, input, textarea, select {
 @media (max-width: 1100px) {
   .main { padding: 22px; }
   .sim-layout { grid-template-columns: 1fr; }
-  .level-map-grid-pro { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .level-map-grid-pro { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .analytics-hero { padding: 22px; }
   .senior-certificate-card { padding: 32px; }
 }
