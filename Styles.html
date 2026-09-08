@@ -40,14 +40,18 @@
     --muted: #808080;
     --cyan: #aaaaaa;
     --silver: #bebebe;
-    --green: #22c55e;
+    /* Deepened from #22c55e, which is the stock bright green everything on the
+       web uses — a 100/100 read as somebody else's brand rather than ours. Still
+       unmistakably a success colour and still 5.9:1 on the panel, but it sits
+       inside a black-and-navy product instead of shouting over it. */
+    --green: #2ea55c;
     --yellow: #eab308;
     --red: #ef4444;
     /* The same three as a triplet, so a translucent form of them can be written
        as a token. Without these, every faint green success wash and red error
        tint in the app had to be a literal — which is exactly why there are
        hundreds of them, and why none of them follows the theme. */
-    --green-rgb:  34, 197, 94;
+    --green-rgb:  46, 165, 92;
     --yellow-rgb: 234, 179, 8;
     --red-rgb:    239, 68, 68;
     --white: #ffffff;
@@ -2492,7 +2496,7 @@
   height: 9px;
   border-radius: 999px;
   background: var(--green);
-  box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.14);
+  box-shadow: 0 0 0 6px rgba(var(--green-rgb), 0.14);
 }
 
 .sim-visual-host {
@@ -2701,8 +2705,8 @@
 }
 
 .sim-feedback-box.success {
-  background: rgba(6, 78, 59, 0.26);
-  border-color: rgba(16, 185, 129, 0.24);
+  background: rgba(var(--green-rgb), 0.26);
+  border-color: rgba(var(--green-rgb), 0.24);
   color: var(--text);
 }
 
@@ -3397,7 +3401,7 @@ body.sim-paused #simMediaPauseBtn {
   height: 9px;
   border-radius: 999px;
   background: var(--green);
-  box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.16);
+  box-shadow: 0 0 0 6px rgba(var(--green-rgb), 0.16);
 }
 
 .sim-visual-priority-host {
@@ -3889,8 +3893,8 @@ mark.atc-highlight {
 }
 
 .sim-feedback-box.success {
-  background: rgba(6, 78, 59, 0.26);
-  border-color: rgba(16, 185, 129, 0.24);
+  background: rgba(var(--green-rgb), 0.26);
+  border-color: rgba(var(--green-rgb), 0.24);
   color: var(--text);
 }
 
@@ -4197,8 +4201,8 @@ mark.atc-highlight {
 }
 
 .admin-form-message.is-ok {
-  background: rgba(6, 78, 59, 0.24);
-  border-color: rgba(16, 185, 129, 0.28);
+  background: rgba(var(--green-rgb), 0.24);
+  border-color: rgba(var(--green-rgb), 0.28);
   color: var(--text);
 }
 
@@ -4252,7 +4256,7 @@ mark.atc-highlight {
   border: 1px solid var(--line-strong);
   background:
     radial-gradient(circle at 18% 25%, rgba(var(--lift-rgb), 0.16), transparent 34%),
-    radial-gradient(circle at 85% 15%, rgba(16, 185, 129, 0.12), transparent 28%),
+    radial-gradient(circle at 85% 15%, rgba(var(--green-rgb), 0.12), transparent 28%),
     linear-gradient(135deg, var(--panel), rgba(3, 7, 18, 0.98));
   display: grid;
   grid-template-columns: 164px 1fr;
@@ -4628,8 +4632,8 @@ mark.atc-highlight {
   gap: 5px;
   border-radius: 12px;
   padding: 10px 15px;
-  border: 1px solid rgba(16, 185, 129, 0.28);
-  background: rgba(6, 78, 59, 0.28);
+  border: 1px solid rgba(var(--green-rgb), 0.28);
+  background: rgba(var(--green-rgb), 0.28);
 }
 
 .senior-verdict span {
@@ -5218,7 +5222,7 @@ body.sim-focus-mode .topbar-avatar {
 }
 
 .status.ACTIVE {
-  background: rgba(16, 185, 129, 0.18);
+  background: rgba(var(--green-rgb), 0.18);
   color: var(--green);
 }
 
@@ -5595,7 +5599,7 @@ body.sim-focus-mode .topbar-avatar {
 }
 
 .status.ACTIVE {
-  background: rgba(16, 185, 129, 0.18);
+  background: rgba(var(--green-rgb), 0.18);
   color: var(--green);
 }
 
@@ -8230,7 +8234,7 @@ body.sim-focus-mode .topbar-avatar {
   min-height:44px; padding:10px 14px; border-radius: 8px;
   margin:12px 0; font-size: 0.82rem;
 }
-.icao-test-feedback.success { background:rgba(6,78,59,0.26); border:1px solid rgba(16,185,129,0.24); color:var(--text); }
+.icao-test-feedback.success { background:rgba(var(--green-rgb), 0.26); border:1px solid rgba(var(--green-rgb), 0.24); color:var(--text); }
 .icao-test-feedback.danger  { background:rgba(127,29,29,0.22); border:1px solid rgba(var(--red-rgb), 0.24); color:var(--text); }
 
 /* ─── PANEL CLOSE BUTTON ─── */

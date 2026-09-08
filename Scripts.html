@@ -2284,14 +2284,14 @@
         '<button class="btn ' + (activeTab === 'testimonials'  ? 'primary' : 'secondary') + '" onclick="renderAdminTestimonials()">Testimonials</button>' +
         '<button class="btn ' + (activeTab === 'tour'          ? 'primary' : 'secondary') + '" onclick="renderAdminTour()">Tour Reset</button>' +
         '<button class="btn ' + (activeTab === 'evaltests'    ? 'primary' : 'secondary') + '" onclick="renderAdminReadbackTests()">Eval Tests</button>' +
-        '<button class="btn ' + (activeTab === 'incentives'   ? 'primary' : 'secondary') + '" onclick="renderAdminIncentives()">⚡ Incentives</button>' +
+        '<button class="btn ' + (activeTab === 'incentives'   ? 'primary' : 'secondary') + '" onclick="renderAdminIncentives()">' + uiIconInline('bolt') + 'Incentives</button>' +
         '<button class="btn ' + (activeTab === 'invites'      ? 'primary' : 'secondary') + '" onclick="renderAdminInvites()">✉ Invites</button>' +
         '<button class="btn ' + (activeTab === 'subscriptions'? 'primary' : 'secondary') + '" onclick="renderAdminSubscriptions()">' + uiIconInline('card') + 'Subscriptions</button>' +
-        '<button class="btn secondary" onclick="window.renderFirstFlight && window.renderFirstFlight()" title="Preview the First Flight onboarding screen">🛫 Preview First Flight</button>' +
-        '<button class="btn ' + (activeTab === 'modules'       ? 'primary' : 'secondary') + '" onclick="renderAdminModules()">📚 Modules</button>' +
-        '<button class="btn ' + (activeTab === 'speakingqueue' ? 'primary' : 'secondary') + '" onclick="renderAdminSpeakingQueue()">🎙 Speaking Queue</button>' +
-        '<button class="btn ' + (activeTab === 'progress'      ? 'primary' : 'secondary') + '" onclick="renderAdminProgress()">📊 Progress</button>' +
-        '<button class="btn ' + (activeTab === 'challenges'    ? 'primary' : 'secondary') + '" onclick="renderAdminDailyChallenges()">⚡ Daily</button>' +
+        '<button class="btn secondary" onclick="window.renderFirstFlight && window.renderFirstFlight()" title="Preview the First Flight onboarding screen">' + uiIconInline('plane') + 'Preview First Flight</button>' +
+        '<button class="btn ' + (activeTab === 'modules'       ? 'primary' : 'secondary') + '" onclick="renderAdminModules()">' + uiIconInline('book') + 'Modules</button>' +
+        '<button class="btn ' + (activeTab === 'speakingqueue' ? 'primary' : 'secondary') + '" onclick="renderAdminSpeakingQueue()">' + uiIconInline('mic') + 'Speaking Queue</button>' +
+        '<button class="btn ' + (activeTab === 'progress'      ? 'primary' : 'secondary') + '" onclick="renderAdminProgress()">' + uiIconInline('chart') + 'Progress</button>' +
+        '<button class="btn ' + (activeTab === 'challenges'    ? 'primary' : 'secondary') + '" onclick="renderAdminDailyChallenges()">' + uiIconInline('bolt') + 'Daily</button>' +
       '</div>';
   }
 
@@ -2461,7 +2461,7 @@
           var instrNav =
             '<div style="display:flex;gap:10px;margin-bottom:20px;">' +
               '<button class="btn primary" style="padding:6px 14px;font-size:0.82rem;" disabled>Groups</button>' +
-              '<button class="btn secondary" style="padding:6px 14px;font-size:0.82rem;" onclick="renderInstructorProgress()">📊 Progress</button>' +
+              '<button class="btn secondary" style="padding:6px 14px;font-size:0.82rem;" onclick="renderInstructorProgress()">' + uiIconInline('chart') + 'Progress</button>' +
             '</div>';
           var rows = res.groups.map(function(g) {
             return '<tr>' +
@@ -2616,7 +2616,7 @@
           '<td style="text-align:center;color:var(--muted);font-size:0.82rem;">' + safeText(u.totalAttempts || 0) + '</td>' +
           '<td style="text-align:center;color:var(--muted);font-size:0.82rem;">' + safeText(u.lastActivity || '—') + '</td>' +
           (isInstructor
-            ? '<td><button class="btn secondary" style="padding:4px 10px;font-size: 0.82rem;" onclick="_progLoadStudent(\'' + safeJs(u.userId) + '\',\'' + safeJs(u.name || u.email) + '\',\'renderGroupDetail(\\\'' + safeJs(groupId) + '\\\')\')">📊 Progress</button></td>'
+            ? '<td><button class="btn secondary" style="padding:4px 10px;font-size: 0.82rem;" onclick="_progLoadStudent(\'' + safeJs(u.userId) + '\',\'' + safeJs(u.name || u.email) + '\',\'renderGroupDetail(\\\'' + safeJs(groupId) + '\\\')\')">' + uiIconInline('chart') + 'Progress</button></td>'
             : '<td><button class="btn danger" style="padding:4px 10px;font-size: 0.82rem;" onclick="adminMoveStudentGroup(\'' + safeJs(groupId) + '\',\'' + safeJs(u.userId) + '\',\'remove\')">Remove</button></td>') +
         '</tr>';
     });
@@ -2643,7 +2643,7 @@
         (isInstructor ? '' : renderAdminTabs('groups')) +
         '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
           '<button class="btn secondary" style="padding:6px 12px;font-size: 0.72rem;" onclick="' + backFn + '">' + backLabel + '</button>' +
-          (isInstructor ? '<button class="btn secondary" style="padding:6px 12px;font-size: 0.72rem;" onclick="renderInstructorProgress()">📊 Progress Search</button>' : '') +
+          (isInstructor ? '<button class="btn secondary" style="padding:6px 12px;font-size: 0.72rem;" onclick="renderInstructorProgress()">' + uiIconInline('chart') + 'Progress Search</button>' : '') +
         '</div>' +
 
         '<h3 style="margin:0 0 4px;">Group members (' + members.length + ')</h3>' +
@@ -3552,7 +3552,7 @@
     var summaryColor = routesWithIssues === 0 ? 'var(--green)' : 'var(--red)';
     var summaryMsg = routesWithIssues === 0
       ? '✓ All ' + totalRoutes + ' routes look good — no issues detected.'
-      : '⚠ ' + routesWithIssues + ' of ' + totalRoutes + ' routes have issues that need attention.';
+      : uiIconInline('alert') + routesWithIssues + ' of ' + totalRoutes + ' routes have issues that need attention.';
 
     var html =
       '<div class="panel">' +
@@ -3570,7 +3570,7 @@
         '<div style="padding:10px 14px;border-radius: 4px;background:var(--panel-soft);border:1px solid var(--line);font-size:0.82rem;margin-bottom:20px;line-height:1.6;">' +
           '<strong>Legend:</strong> ' +
           '<span style="color:var(--red);">✗ Missing field</span> · ' +
-          '<span style="color:var(--yellow);">⚠ Consistency issue</span> — keyword not found in ATC text or expected readback · ' +
+          '<span style="color:var(--yellow);">' + uiIconInline('alert') + 'Consistency issue</span> — keyword not found in ATC text or expected readback · ' +
           '<span style="color:var(--green);">✓ OK</span>' +
         '</div>';
 
@@ -3610,7 +3610,7 @@
 
                 var atcCell = phase.hasAtcText
                   ? (phase.duplicateAtcText
-                      ? '<span style="color:var(--yellow);" title="Same ATC text in another phase of this route">⚠ ' + safeText(phase.atcPreview) + '</span>'
+                      ? '<span style="color:var(--yellow);" title="Same ATC text in another phase of this route">' + uiIconInline('alert') + safeText(phase.atcPreview) + '</span>'
                       : safeText(phase.atcPreview))
                   : '<span style="color:var(--red);font-weight:600;">— missing —</span>';
 
@@ -3624,7 +3624,7 @@
                 } else if (phase.hasConsistencyIssue) {
                   var details = [];
                   if (phase.kwMissingInAtc && phase.kwMissingInAtc.length) {
-                    details.push('<span style="color:var(--yellow);" title="These keywords not found in ATC text">⚠ not in ATC: ' + safeText(phase.kwMissingInAtc.join(', ')) + '</span>');
+                    details.push('<span style="color:var(--yellow);" title="These keywords not found in ATC text">' + uiIconInline('alert') + 'not in ATC: ' + safeText(phase.kwMissingInAtc.join(', ')) + '</span>');
                   }
                   if (phase.kwMissingInReadback && phase.kwMissingInReadback.length) {
                     details.push('<span style="color:var(--red);" title="These keywords not found in expected readback">✗ not in readback: ' + safeText(phase.kwMissingInReadback.join(', ')) + '</span>');
@@ -12090,12 +12090,12 @@ var LEVEL_THEMES = {
             '<span style="font-size:1rem;">⏱ Resets: <strong style="color:var(--text);">' + safeText(endLocal) + '</strong>' +
             ' &nbsp;— <span style="color:' + countdownColor + ';font-weight:700;">' + safeText(countdown) + '</span></span>';
         } else {
-          info.innerHTML = '<span style="color:var(--yellow);">⚠ Could not load tour info — buttons still work.</span>';
+          info.innerHTML = '<span style="color:var(--yellow);">' + uiIconInline('alert') + 'Could not load tour info — buttons still work.</span>';
         }
       })
       .withFailureHandler(function() {
         var info = byId('tourResetInfo');
-        if (info) info.innerHTML = '<span style="color:var(--yellow);">⚠ Could not load tour info — buttons still work.</span>';
+        if (info) info.innerHTML = '<span style="color:var(--yellow);">' + uiIconInline('alert') + 'Could not load tour info — buttons still work.</span>';
       })
       .apiGetActiveTour(AppState.sessionToken);
   }
@@ -13272,14 +13272,19 @@ var LEVEL_THEMES = {
   function _renderVrConfigUI(cfg) {
     var w = cfg.weights || { double: 8, critical: 17, priority: 45, hot: 30 };
     var pins = cfg.pinned || [];
-    var eventLabels = { double: '⚡ Double XP Sector', critical: '🔴 Critical Scenario', priority: '🚨 Priority Dispatch', hot: '📡 Hot Sector' };
+    /* Split, because the consumer below escapes what it renders — and an escaped
+       SVG is an SVG printed as source. The mark goes in raw, the words go through
+       safeText, and neither one has to trust the other. */
+    var eventIcons  = { double: 'bolt', critical: 'dot', priority: 'bell', hot: 'tower' };
+    var eventLabels = { double: 'Double XP Sector', critical: 'Critical Scenario', priority: 'Priority Dispatch', hot: 'Hot Sector' };
 
     var pinsHtml = pins.length
       ? pins.map(function(p, i) {
           var expired = p.until && p.until < new Date().toISOString().slice(0,10);
           return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(var(--lift-rgb), 0.03);border-radius:8px;margin-bottom:6px;' + (expired ? 'opacity:0.45;' : '') + '">' +
             '<span style="min-width:70px;font-weight:700;color:var(--text);">Level ' + safeText(p.level) + '</span>' +
-            '<span style="flex:1;font-size: 0.82rem;">' + safeText(eventLabels[p.type] || p.type) + '</span>' +
+            '<span style="flex:1;font-size: 0.82rem;">' + uiIconInline(eventIcons[p.type] || 'dot') +
+              safeText(eventLabels[p.type] || p.type) + '</span>' +
             '<span style="font-size: 0.72rem;color:var(--muted);font-family:var(--font-instrument);">' + (p.until ? 'until ' + safeText(p.until) : 'permanent') + (expired ? ' · EXPIRED' : '') + '</span>' +
             '<button class="btn secondary" style="padding:4px 10px;font-size:0.72rem;" onclick="adminVrRemovePin(' + i + ')">Remove</button>' +
           '</div>';
@@ -13428,7 +13433,7 @@ var LEVEL_THEMES = {
     var sum = _vrWeightSum();
     var msg = byId('vrSaveMsg');
     if (sum !== 100) {
-      if (msg) msg.innerHTML = '<span style="color:var(--red);">⚠ Weights must sum to 100 (currently ' + sum + ')</span>';
+      if (msg) msg.innerHTML = '<span style="color:var(--red);">' + uiIconInline('alert') + 'Weights must sum to 100 (currently ' + sum + ')</span>';
       return;
     }
     var cfg = _vrReadFormConfig();
@@ -13467,11 +13472,12 @@ var LEVEL_THEMES = {
     window._vrConfig = saved;
 
     var colors = { double:'var(--yellow)', critical:'var(--red)', priority:'var(--yellow)', hot:'var(--accent)', none:'var(--line)' };
-    var eventLabels = { double:'⚡ Double XP', critical:'🔴 Critical', priority:'🚨 Priority', hot:'📡 Hot Sector', none:'No event' };
+    var eventIcons  = { double:'bolt', critical:'dot', priority:'bell', hot:'tower', none:'none' };
+    var eventLabels = { double:'Double XP', critical:'Critical', priority:'Priority', hot:'Hot Sector', none:'No event' };
     var rows = Object.keys(counts).map(function(k) {
       var n = counts[k];
       return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">' +
-        '<span style="width:120px;font-size: 0.82rem;color:' + (colors[k]||'var(--text)') + ';font-weight:700;">' + (eventLabels[k]||k) + '</span>' +
+        '<span style="width:120px;font-size: 0.82rem;color:' + (colors[k]||'var(--text)') + ';font-weight:700;">' + uiIconInline(eventIcons[k] || 'none') + (eventLabels[k]||k) + '</span>' +
         '<div style="flex:1;height:14px;background:rgba(var(--lift-rgb), 0.06);border-radius:4px;overflow:hidden;">' +
           '<div style="height:100%;width:' + Math.min(100,Math.round(n/20*100)) + '%;background:' + (colors[k]||'var(--text)') + ';border-radius:4px;"></div>' +
         '</div>' +
@@ -14342,8 +14348,8 @@ var LEVEL_THEMES = {
 
     var adminHtml = isAdmin ?
       '<div class="avm-divider"></div>' +
-      '<button class="avm-item" onclick="renderAdminNav();window.toggleAvatarMenu()"><span class="avm-icon">⚙️</span>Admin Panel</button>' +
-      (typeof renderAdminAnalytics === 'function' ? '<button class="avm-item" onclick="renderAdminAnalytics();window.toggleAvatarMenu()"><span class="avm-icon">📊</span>Analytics</button>' : '') : '';
+      '<button class="avm-item" onclick="renderAdminNav();window.toggleAvatarMenu()"><span class="avm-icon">' + uiIconInline('tools') + '</span>Admin Panel</button>' +
+      (typeof renderAdminAnalytics === 'function' ? '<button class="avm-item" onclick="renderAdminAnalytics();window.toggleAvatarMenu()"><span class="avm-icon">' + uiIconInline('chart') + '</span>Analytics</button>' : '') : '';
 
     var menu = document.createElement('div');
     menu.id = '_avatarMenu';
@@ -14357,7 +14363,7 @@ var LEVEL_THEMES = {
       '</div>' +
       adminHtml +
       '<div class="avm-divider"></div>' +
-      '<button class="avm-item" onclick="toggleTheme();var m=byId(\'_avatarMenu\');if(m)m.remove();"><span class="avm-icon">🌓</span>' + themeLabel + '</button>' +
+      '<button class="avm-item" onclick="toggleTheme();var m=byId(\'_avatarMenu\');if(m)m.remove();"><span class="avm-icon">' + uiIconInline('moon') + '</span>' + themeLabel + '</button>' +
       '<div class="avm-divider"></div>' +
       '<button class="avm-item avm-signout" onclick="logout()"><span class="avm-icon">↪</span>Sign out</button>';
 
@@ -16845,7 +16851,7 @@ var LEVEL_THEMES = {
             '<div style="font-size: 1.6rem;font-weight:800;color:' + (overallPct >= 85 ? 'var(--green)' : overallPct >= 50 ? 'var(--yellow)' : 'var(--text)') + ';">' + overallPct + '%</div>' +
           '</div>' +
           '<div style="flex:0;display:flex;align-items:center;">' +
-            '<button class="btn primary" style="padding:10px 18px;font-size:0.82rem;" onclick="_downloadProgressPdf()">⬇ Download PDF</button>' +
+            '<button class="btn primary" style="padding:10px 18px;font-size:0.82rem;" onclick="_downloadProgressPdf()">&darr; Download PDF</button>' +
           '</div>' +
         '</div>' +
         // Skills table
@@ -17193,12 +17199,12 @@ var LEVEL_THEMES = {
   // ── Unified module builder sub-navigation ────────────────────────────────────
   function _moduleBuilderSubnav(moduleId, title, activeTab, addLabel, addOnclick) {
     var tabs = [
-      { key: 'videos',    label: '🎬 Videos',    fn: 'renderAdminModuleVideos'    },
-      { key: 'grammar',   label: '📝 Grammar',   fn: 'renderAdminModuleGrammar'   },
-      { key: 'listening', label: '🔊 Listening',  fn: 'renderAdminModuleListening' },
-      { key: 'speaking',  label: '🎙 Speaking',   fn: 'renderAdminModuleSpeaking'  },
-      { key: 'quiz',      label: '🏆 Quiz/Eval',  fn: 'renderAdminModuleQuiz'      },
-      { key: 'scenarios', label: '📡 Scenarios',  fn: 'renderAdminModuleScenarios' }
+      { key: 'videos',    label: uiIconInline('video')   + 'Videos',    fn: 'renderAdminModuleVideos'    },
+      { key: 'grammar',   label: uiIconInline('paper')   + 'Grammar',   fn: 'renderAdminModuleGrammar'   },
+      { key: 'listening', label: uiIconInline('speaker') + 'Listening', fn: 'renderAdminModuleListening' },
+      { key: 'speaking',  label: uiIconInline('mic')     + 'Speaking',  fn: 'renderAdminModuleSpeaking'  },
+      { key: 'quiz',      label: uiIconInline('trophy')  + 'Quiz/Eval', fn: 'renderAdminModuleQuiz'      },
+      { key: 'scenarios', label: uiIconInline('tower')   + 'Scenarios', fn: 'renderAdminModuleScenarios' }
     ];
     var tabHtml = tabs.map(function(t) {
       var isActive = t.key === activeTab;
@@ -17250,7 +17256,7 @@ var LEVEL_THEMES = {
         '<td style="padding:10px 12px;text-align:center;">' + statusBadge + '</td>' +
         '<td style="padding:10px 12px;text-align:center;">' + counts + '</td>' +
         '<td style="padding:10px 12px;text-align:right;white-space:nowrap;">' +
-          '<button class="btn secondary" style="padding:4px 10px;font-size: 0.72rem;margin-right:6px;" onclick="renderAdminModuleEdit(\'' + m.moduleId + '\')">⚙ Settings</button>' +
+          '<button class="btn secondary" style="padding:4px 10px;font-size: 0.72rem;margin-right:6px;" onclick="renderAdminModuleEdit(\'' + m.moduleId + '\')">' + uiIconInline('tools') + 'Settings</button>' +
           '<button class="btn primary"   style="padding:4px 12px;font-size: 0.72rem;" onclick="renderAdminModuleVideos(\'' + m.moduleId + '\',\'' + safeJs(m.title) + '\')">Manage →</button>' +
         '</td>' +
       '</tr>';
@@ -19715,7 +19721,7 @@ var LEVEL_THEMES = {
           '<h2 style="font-size: 1rem;font-weight:700;color:var(--text);margin:0;">My Progress</h2>' +
           (student.name ? '<div style="font-size: 0.82rem;color:var(--muted);margin-top:3px;">' + h(student.name) + '</div>' : '') +
         '</div>' +
-        '<button class="btn secondary" style="font-size: 0.82rem;padding:8px 16px;flex-shrink:0;" onclick="_downloadUnifiedProgressPdf()">⬇ Download Report</button>' +
+        '<button class="btn secondary" style="font-size: 0.82rem;padding:8px 16px;flex-shrink:0;" onclick="_downloadUnifiedProgressPdf()">&darr; Download Report</button>' +
       '</div>';
 
     content.innerHTML =

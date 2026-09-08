@@ -22,12 +22,26 @@ const strip = t => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/[^\n]*/
 const Sc = strip(S), Cc = strip(C);
 
 console.log('--- the tokens still hold the values, and still differ by theme ---');
+/* --green was deepened from #22c55e — the stock bright green everything on the
+ * web uses, which made a 100/100 read as somebody else's brand. The LIGHT theme
+ * kept #166534: it was already a deep forest green on paper, and the printed
+ * report's palette in ConfigService is pinned to that exact value, so moving it
+ * would have quietly desynchronised the email from the app. Only what was wrong
+ * changed. */
 ok('dark declares all three',
-   /--green: #22c55e/.test(Cc) && /--yellow: #eab308/.test(Cc) && /--red: #ef4444/.test(Cc));
+   /--green: #2ea55c/.test(Cc) && /--yellow: #eab308/.test(Cc) && /--red: #ef4444/.test(Cc));
+ok('and the stock green is gone from the dark theme', !/#22c55e/.test(Cc));
 ok('light declares all three, and differently',
    /--green: #166534/.test(Cc) && /--yellow: #92400e/.test(Cc) && /--red: #b91c1c/.test(Cc));
 ok('and the triplets exist for translucent forms',
-   /--green-rgb:\s+34, 197, 94/.test(Cc) && /--red-rgb:\s+185, 28, 28/.test(Cc));
+   /--green-rgb:\s+46, 165, 92/.test(Cc) && /--red-rgb:\s+185, 28, 28/.test(Cc));
+ok('the triplet matches the hex it stands for',
+   /--green: #2ea55c/.test(Cc) && /--green-rgb:\s+46, 165, 92/.test(Cc));
+/* Fifteen literals of #064e3b and #10b981 — an emerald in no palette, used as a
+ * success wash and its border — went with it. They were a different green from
+ * --green, so the earlier token sweep never saw them. */
+ok('and the emerald that was never in the palette is gone',
+   !/6,\s*78,\s*59/.test(Cc) && !/16,\s*185,\s*129/.test(Cc));
 
 console.log('--- nothing else spells them out ---');
 // The definitions are the only legitimate use, so they are subtracted first.
@@ -38,13 +52,13 @@ const bodyC = Cc.replace(defs, '');
 const rt = S.indexOf('var REPORT_TOKENS =');
 const bodyS = Sc.slice(0, rt) + Sc.slice(Sc.indexOf("}';", rt) + 3);
 
-[['#ef4444','--red'], ['#22c55e','--green'], ['#eab308','--yellow'], ['#0e65f4','--accent']]
+[['#ef4444','--red'], ['#2ea55c','--green'], ['#eab308','--yellow'], ['#0e65f4','--accent']]
   .forEach(([lit, tok]) => {
     ok(lit + ' appears nowhere but the definitions (use ' + tok + ')',
        !new RegExp(lit, 'i').test(bodyC) && !new RegExp(lit, 'i').test(bodyS));
   });
 [['239\\s*,\\s*68\\s*,\\s*68','--red-rgb'],
- ['34\\s*,\\s*197\\s*,\\s*94','--green-rgb'],
+ ['46\\s*,\\s*165\\s*,\\s*92','--green-rgb'],
  ['234\\s*,\\s*179\\s*,\\s*8','--yellow-rgb'],
  // A second green six points off the first, used to mean the same thing.
  ['22\\s*,\\s*163\\s*,\\s*74','--green-rgb']].forEach(([pat, tok]) => {
