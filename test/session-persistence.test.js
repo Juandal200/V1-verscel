@@ -50,6 +50,32 @@ ok('so entering the app clears it',       /function enterApplication\(\)[\s\S]{0
 ok('and so does being sent back to login',
    /showScreen\('loginScreen'\)/.test(Sc));
 
+console.log('--- and the shell is never empty, or a dead end ---');
+/* Showing the app shell instead of a sign-in form was right. The shell being
+ * EMPTY was not: a slow restore put a student in front of a topbar and nothing
+ * else, which is worse than the form it replaced. Worse still, every path that
+ * gives up wrote its explanation into a login form that data-booting-session was
+ * hiding — so a rejected session, or four failed attempts, left an empty shell
+ * with the reason invisible behind it and no way forward. */
+ok('the content area ships with something in it',
+   /id="contentArea"[\s\S]{0,400}class="boot-placeholder"/.test(Ic));
+ok('it says what is happening',   /Restoring your session/.test(Ic));
+// No attribute controls it: it lives inside contentArea, so it is invisible while
+// the app screen is hidden, and the first render to set innerHTML removes it.
+ok('and nothing has to remember to clear it',
+   !/data-booting-session[^\n]{0,60}boot-placeholder/.test(Cc));
+ok('it is styled to fill the shell', /\.boot-placeholder \{[\s\S]{0,220}min-height: 50vh/.test(Cc));
+
+console.log('--- every dead end can still reach the form ---');
+ok('a rejected session reveals it',
+   /if \(!appScreen \|\| !appScreen\.classList\.contains\('active'\)\) \{[\s\S]{0,700}showScreen\('loginScreen'\);\s*\n\s*setLoginMessage\(message\);/.test(Sc));
+ok('and so does giving up after four attempts',
+   (Sc.match(/showScreen\('loginScreen'\);\s*\n\s*setLoginMessage\('The server is not responding/g) || []).length === 2);
+// showScreen is what strips the override, so revealing the form and clearing the
+// hint are the same act — they cannot drift apart.
+ok('revealing the form is what clears the hint',
+   /function showScreen\(screenId\) \{[\s\S]{0,140}removeAttribute\('data-booting-session'\)/.test(Sc));
+
 console.log('--- the cache is written when the session is created ---');
 ok('the login response really has no mergedXp',
    !/mergedXp/.test(A.slice(A.indexOf('verifyOtpAndCreateSession'),

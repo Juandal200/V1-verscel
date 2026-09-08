@@ -780,6 +780,8 @@
             // Back off, but keep trying. Apps Script cold starts are slow, not
             // permanent, and every retry lands on a warmer instance.
             if (_bootAttempt < 4) { _bootstrapAttempt(); return; }
+            // Four attempts have failed. The form has to be VISIBLE to say so — data-booting-session is still hiding it behind an app shell with nothing in it, and a message nobody can read is not a message.
+            showScreen('loginScreen');
             setLoginMessage('The server is not responding. Your session is still ' +
                             'valid — tap Send access code to retry, or try again shortly.', 'boot');
           }, _bootAttempt === 1 ? 20000 : 30000);
@@ -801,6 +803,8 @@
                 return;
               }
               if (_bootAttempt < 4) { _bootstrapAttempt(); return; }
+              // Four attempts have failed. The form has to be VISIBLE to say so — data-booting-session is still hiding it behind an app shell with nothing in it, and a message nobody can read is not a message.
+              showScreen('loginScreen');
               setLoginMessage('The server is not responding. Your session is still ' +
                               'valid — please try again shortly.', 'boot');
             })
@@ -978,6 +982,16 @@
     var appScreen = byId('appScreen');
 
     if (!appScreen || !appScreen.classList.contains('active')) {
+      /* Put the form back on screen before writing to it.
+       *
+       * A boot that has not finished shows the app shell through
+       * data-booting-session, which is a CSS override rather than the `active`
+       * class — so appScreen is VISIBLE here while this branch correctly decides
+       * the student is not in the app yet. Setting a login message and returning
+       * left them looking at an empty shell with the message hidden behind it and
+       * no way forward. showScreen clears the override, so the form is actually
+       * there to read it. */
+      showScreen('loginScreen');
       setLoginMessage(message);
       return;
     }

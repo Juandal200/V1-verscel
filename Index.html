@@ -157,7 +157,20 @@
         <!-- topbar: admin VIEW AS controls are injected here by JS -->
         <header class="topbar topbar-slim" id="topbarAdminZone"></header>
 
-        <section id="contentArea" class="content-grid"></section>
+        <section id="contentArea" class="content-grid">
+          <!-- Something to look at while the session restores.
+               Showing the app shell instead of a sign-in form was right, but the
+               shell was EMPTY until renderHome ran — so a slow restore put a
+               student in front of a topbar and nothing else, which is worse than
+               the form it replaced.
+               No attribute controls this. It lives inside contentArea, so it is
+               invisible while the app screen is hidden, and the first render to
+               set innerHTML removes it — whichever render that turns out to be. -->
+          <div class="boot-placeholder">
+            <div class="boot-placeholder-spinner"></div>
+            <p>Restoring your session&hellip;</p>
+          </div>
+        </section>
 
         <div id="gamification-module" style="display:none;max-width:720px;margin:28px auto;">
           <?!= include('GamificationUI'); ?>
