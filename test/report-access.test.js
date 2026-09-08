@@ -62,9 +62,20 @@ console.log('--- the two proxies ask who is calling ---');
   ok(name + ' checks the session',  /async function sessionValid\(token\)/.test(src));
   ok(name + ' refuses with a 403',
      (src.match(/res\.status\(403\)\.json\(\{ ok: false, code: 'FORBIDDEN'/g) || []).length === 2);
-  ok(name + ' no longer answers every origin',
+  ok(name + ' never answers a wildcard origin',
      !/setHeader\('Access-Control-Allow-Origin', '\*'\)/.test(src) &&
-     /setHeader\('Access-Control-Allow-Origin', APP_ORIGIN \|\| '\*'\)/.test(src));
+     !/APP_ORIGIN \|\| '\*'/.test(src));
+  /* The first version allowed everything when APP_ORIGIN was unset, so the lock
+   * did nothing until somebody set a dashboard value, in the right environment,
+   * and redeployed — three chances to end up silently unprotected, and it took
+   * two of them. The request already carries the answer: a cross-site call has
+   * the attacker's Origin and our Host, and they do not match. */
+  ok(name + ' compares Origin to Host with nothing configured',
+     /new URL\(origin\)\.host === host/.test(src));
+  ok(name + ' and an unset override does not mean "allow anyone"',
+     !/if \(!APP_ORIGIN\) return true;/.test(src));
+  ok(name + ' a missing Origin header is still not evidence',
+     /if \(!origin\) return true;/.test(src));
   /* The presence check is what carries the weight, and it is free: an anonymous
    * caller has no token and is refused without Apps Script being asked anything.
    *

@@ -614,15 +614,32 @@ async function saveToGAS(payload) {
  * in the change that is meant to be closing routes. */
 // Reuses GAS_WEBHOOK_URL, declared above — one URL per file, not two.
 
-// Unset means "not configured yet", which must not lock the app out. Set
-// APP_ORIGIN in Vercel to the live origin to switch this on.
+/* The origin check works with no configuration.
+ *
+ * This first read an APP_ORIGIN environment variable and allowed everything when
+ * it was unset — which meant the lock did nothing until somebody set a value in
+ * a dashboard correctly, in the right environment, and redeployed. That was
+ * three chances to silently end up with no protection at all, and it took two of
+ * them: the variable was added and the endpoint still answered every origin.
+ *
+ * A security control that depends on a manual step nobody can verify from
+ * outside is not a control. The request already carries everything needed: a
+ * cross-site call has an Origin of the attacker's site and a Host of ours, and
+ * they will not match. So the default IS the check, and there is nothing to
+ * configure, nothing to redeploy, and nothing to get wrong.
+ *
+ * APP_ORIGIN still overrides, for the case where the app is legitimately served
+ * from a different host than it calls. */
 const APP_ORIGIN = process.env.APP_ORIGIN || '';
 
 function originAllowed(req) {
   const origin = req.headers.origin || '';
-  if (!origin) return true;        // same-origin fetches often send no Origin header
-  if (!APP_ORIGIN) return true;    // not configured
-  return origin === APP_ORIGIN;
+  // Same-origin fetches frequently omit the header entirely; server-to-server
+  // callers never send one. Absence is not evidence of anything.
+  if (!origin) return true;
+  if (APP_ORIGIN) return origin === APP_ORIGIN;
+  const host = req.headers.host || '';
+  try { return new URL(origin).host === host; } catch (e) { return false; }
 }
 
 async function sessionValid(token) {
@@ -662,7 +679,9 @@ async function sessionValid(token) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', APP_ORIGIN || '*');
+  // Echo the origin we actually accept, never '*'.
+  res.setHeader('Access-Control-Allow-Origin',
+    APP_ORIGIN || (originAllowed(req) ? (req.headers.origin || '') : ''));
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
