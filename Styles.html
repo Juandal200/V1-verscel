@@ -824,10 +824,20 @@
     text-align: center;
   }
 
+  /* Disabled has to stay readable. It just must not look pressable.
+     Expressed as opacity: 0.55, the label came out at 4.18:1 on the dark theme
+     and 3.82:1 on the light one — both under the 4.5:1 floor, and the light one
+     is where a disabled Send button was reported as nearly invisible.
+     Opacity is also multiplicative: a faded button inside a faded card fades
+     twice, which is how .exam-play-btn at 0.35 inside a dimmed panel disappeared
+     entirely. Explicit colours do not compound. */
   .btn:disabled {
-    opacity: 0.55;
+    background: var(--panel);
+    border-color: var(--line);
+    color: var(--muted);
     cursor: not-allowed;
     transform: none;
+    box-shadow: none;
   }
 
   .btn.primary {
@@ -1422,7 +1432,17 @@
 }
 
 .level-card-pro.is-locked {
-  opacity: 0.66;
+  /* This dimmed the whole card, which took --muted text inside it to 2.76:1.
+     A card can read as unavailable without its own label becoming unreadable —
+     the padlock and the button already say so. The imagery fades; the words do
+     not. */
+  border-color: var(--line);
+}
+
+.level-card-pro.is-locked img,
+.level-card-pro.is-locked .aero-mark,
+.level-card-pro.is-locked .lc-phase-pill {
+  opacity: 0.55;
 }
 
 /* ── Variable Ratio Priority Clearance system ─────────────────────────────── */
@@ -7050,7 +7070,7 @@ body.sim-focus-mode .topbar-avatar {
   flex-shrink: 0;
   white-space: nowrap;
 }
-.admin-student-view-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.admin-student-view-btn:disabled { color: var(--muted); background: var(--panel); cursor: not-allowed; }
 
 /* ── Admin student view header ───────────────────────────────────── */
 .admin-sv-header {
@@ -10450,7 +10470,7 @@ p, li, td, th, h1, h2, h3, h4,
   transition: background 0.15s var(--ease), border-color 0.15s var(--ease), opacity 0.15s var(--ease);
 }
 .hf-play-btn:hover:not(:disabled) { background: rgba(168,85,247,0.18); border-color: rgba(168,85,247,0.5); }
-.hf-play-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.hf-play-btn:disabled { color: var(--muted); background: var(--panel); cursor: not-allowed; }
 .hf-play-btn.loading  { color: var(--accent); border-color: var(--line); background: rgba(var(--lift-rgb), 0.03); }
 .hf-play-btn.playing  { color: var(--accent); border-color: rgba(var(--accent-rgb), 0.4); background: rgba(var(--accent-rgb), 0.10); }
 
@@ -10870,7 +10890,7 @@ p, li, td, th, h1, h2, h3, h4,
 .exam-play-btn:hover { background: rgba(var(--lift-rgb), 0.1); border-color: var(--line-strong); }
 .exam-play-btn.ff-playing { color: var(--yellow); border-color: rgba(251,191,36,0.5); background: rgba(251,191,36,0.07); }
 .exam-play-btn.exam-play-disabled,
-.exam-play-btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+.exam-play-btn:disabled { color: var(--muted); background: var(--panel); cursor: not-allowed; pointer-events: none; }
 .exam-play-count {
   font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
   color: var(--muted); text-transform: uppercase;

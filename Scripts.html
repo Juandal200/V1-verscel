@@ -12640,7 +12640,7 @@ var LEVEL_THEMES = {
           'ATC training with the phraseology of the job, in the accents you will actually hear, across routine traffic and emergencies.' +
         '</p>' +
         '<div id="subPlanCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;align-items:stretch;">' +
-          '<p style="color:var(--muted);font-size: 0.82rem;margin:auto;">Cargando planes…</p>' +
+          '<p style="color:var(--muted);font-size: 0.82rem;margin:auto;">Loading plans…</p>' +
         '</div>' +
         '<div id="subPayStatus" class="sub-pay-status" style="margin-top:16px;text-align:center;"></div>' +
       '</div>';
@@ -25187,7 +25187,7 @@ var LEVEL_THEMES = {
         '<div class="exam-result-body">' +
           '<div style="font-size: 2rem;margin:10px 0 6px;">&#127919;</div>' +
           '<p style="font-size: 2rem;font-weight: 800;color:#fff;margin:0 0 4px;">Level ' + level + '</p>' +
-          '<p style="font-size: 0.82rem;color:#8fa3bb;margin:0 0 22px;line-height:1.5;">' + _esc(levelMsg) + '</p>' +
+          '<p style="font-size: 0.82rem;color:var(--muted);margin:0 0 22px;line-height:1.5;">' + _esc(levelMsg) + '</p>' +
           '<div style="display:flex;gap:24px;justify-content:center;margin-bottom:26px;">' +
             '<div style="text-align:center;">' +
               '<div style="font-size: 1.6rem;font-weight: 800;color:' + (r1 >= 75 ? 'var(--accent)' : 'var(--red)') + ';">' + r1 + '%</div>' +
@@ -25645,7 +25645,7 @@ var LEVEL_THEMES = {
       // to matter. Colour it as it goes, and say so once. It is NOT enforced: cutting
       // someone off mid-answer would destroy the sitting, and in a real examination
       // the timing is the examiner's judgement, not a stopwatch.
-      if (m >= 30)      { el.style.color = '#e05252'; }
+      if (m >= 30)      { el.style.color = 'var(--red)'; }
       else if (m >= 25) { el.style.color = '#e0a252'; }
 
       if (m >= 25 && !_t._timeWarned) {
@@ -26079,7 +26079,7 @@ var LEVEL_THEMES = {
         '<div class="tea-part-badge" style="font-size: 0.72rem;padding:4px 14px;white-space:nowrap;">' + meta.title + '</div>' +
         '<div style="flex:1;height:1px;background:rgba(var(--lift-rgb), 0.06);"></div>' +
       '</div>' +
-      '<div style="font-size:0.72rem;color:#4a6280;">' + meta.sub + '</div>';
+      '<div style="font-size:0.72rem;color:var(--muted);">' + meta.sub + '</div>';
     chat.appendChild(div); _scrollChat();
   }
 
@@ -26336,8 +26336,12 @@ var LEVEL_THEMES = {
 
   var _TEA_DESCRIPTORS = ['pronunciation','structure','vocabulary','fluency','comprehension','interactions'];
 
+  /* The same ladder as _renderScoreJSON's, and it has to stay the same one:
+     accent above 5, green for an operational 4, red below, muted for a
+     descriptor that was never assessed. Two ladders in private hex drifted into
+     disagreeing about what a band looks like. */
   function _teaBandColor(b) {
-    return b >= 5 ? 'var(--accent)' : b === 4 ? '#5b9bd5' : b > 0 ? '#e05252' : '#3a4a5a';
+    return b >= 5 ? 'var(--accent)' : b === 4 ? 'var(--green)' : b > 0 ? 'var(--red)' : 'var(--muted)';
   }
 
 
@@ -26907,12 +26911,12 @@ var LEVEL_THEMES = {
         '<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;">' +
           TEA_IMAGES.map(function(img, i) {
             return '<div style="flex:1 1 46%;min-width:180px;">' +
-              '<div style="font-size:0.62rem;letter-spacing: 0.12em;color:#5b7690;' +
+              '<div style="font-size:0.62rem;letter-spacing: 0.12em;color:var(--muted);' +
                 'text-transform:uppercase;margin-bottom:4px;">Image ' + (i + 1) + '</div>' +
               (img.src
                 ? '<img src="' + _esc(img.src) + '" alt="Image ' + (i + 1) + '" ' +
                   'style="width:100%;border-radius:8px;display:block;">'
-                : '<div style="font-size:0.72rem;color:#8fa3bb;line-height:1.5;">' +
+                : '<div style="font-size:0.72rem;color:var(--muted);line-height:1.5;">' +
                   _esc(img.desc || '') + '</div>') +
             '</div>';
           }).join('') +
@@ -27294,7 +27298,7 @@ var LEVEL_THEMES = {
     var host = _scEl('contentArea');
     if (host) {
       host.innerHTML =
-        '<div style="min-height:calc(100vh - 60px);background:#080c10;padding:26px 16px;">' +
+        '<div style="min-height:calc(100vh - 60px);background:var(--bg);padding:26px 16px;">' +
           '<div style="max-width:560px;margin:0 auto;">' + html + '</div>' +
         '</div>';
       try { window.scrollTo(0, 0); } catch (e) {}
@@ -27609,7 +27613,7 @@ var LEVEL_THEMES = {
       urls.map(function (u, i) {
         return '<figure style="margin:0;">' +
           (many ? '<figcaption style="margin:0 0 4px;font-size: 0.62rem;font-weight:700;' +
-                  'letter-spacing: 0.12em;text-transform:uppercase;color:#4a6280;">Image ' + (i + 1) + '</figcaption>' : '') +
+                  'letter-spacing: 0.12em;text-transform:uppercase;color:var(--muted);">Image ' + (i + 1) + '</figcaption>' : '') +
           '<img src="' + _esc(u) + '" alt="' + _esc(step.label || ('Image ' + (i + 1))) + '" ' +
           'style="width:100%;max-height:' + (many ? '30vh' : '46vh') + ';object-fit:contain;border-radius: 12px;">' +
         '</figure>';
@@ -27882,7 +27886,7 @@ var LEVEL_THEMES = {
       var on = el.getAttribute('data-bank') === window._teaPickedVersion;
       el.style.borderColor = on ? 'var(--accent)' : 'rgba(255,255,255,0.12)';
       el.style.background  = on ? 'rgba(var(--accent-rgb), 0.10)' : 'rgba(255,255,255,0.02)';
-      el.style.color       = on ? '#dde6f0' : '#8fa3bb';
+      el.style.color       = on ? '#dde6f0' : 'var(--muted)';
     });
     _teaSyncBeginBtn();
   };
@@ -27912,7 +27916,7 @@ var LEVEL_THEMES = {
             'style="flex:1;min-width:104px;padding:10px 8px;border-radius:12px;cursor:' +
               (ready ? 'pointer' : 'not-allowed') + ';font-family:inherit;' +
             'border:1px solid var(--line);background:rgba(var(--lift-rgb), 0.03);' +
-            'color:' + (ready ? '#8fa3bb' : '#3d4d5c') + ';text-align:center;">' +
+            'color:' + (ready ? 'var(--muted)' : '#3d4d5c') + ';text-align:center;">' +
               '<div style="font-size:1.15rem;line-height:1.2;">' + flag + '</div>' +
               '<div style="font-size: 0.82rem;font-weight:700;margin-top:3px;">' + _esc(title) + '</div>' +
               '<div style="font-size: 0.72rem;opacity:.75;">' + _esc(sub) + '</div>' +
@@ -27927,7 +27931,7 @@ var LEVEL_THEMES = {
         // one without a word on screen. Every paper is now a deliberate tap.
         host2.innerHTML =
           '<p style="margin:0 0 8px;font-size:0.72rem;font-weight:700;letter-spacing: 0.12em;' +
-            'text-transform:uppercase;color:#4a6280;text-align:center;">Choose your paper</p>' +
+            'text-transform:uppercase;color:var(--muted);text-align:center;">Choose your paper</p>' +
           '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">' +
             res.versions.map(function (v) {
               return opt(v.bank, v.flag, v.name, v.accent + (v.ready ? '' : ' · not ready'), v.ready);
@@ -27972,7 +27976,7 @@ var LEVEL_THEMES = {
 
   function _teaPickerNote(msg) {
     return '<p style="margin:0;padding:8px 10px;border-radius: 8px;text-align:center;' +
-      'font-size:0.72rem;line-height:1.45;color:#8fa3bb;' +
+      'font-size:0.72rem;line-height:1.45;color:var(--muted);' +
       'background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);">' +
       _esc(msg) + '</p>';
   }
@@ -27999,7 +28003,7 @@ var LEVEL_THEMES = {
     var el = document.createElement('div');
     el.id = 'teaVersionBadge';
     el.style.cssText = 'margin:0 16px 10px;padding:7px 12px;border-radius: 8px;' +
-      'font-size:0.72rem;letter-spacing: 0.04em;color:#8fa3bb;text-align:center;' +
+      'font-size:0.72rem;letter-spacing: 0.04em;color:var(--muted);text-align:center;' +
       'background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);';
     el.innerHTML = 'Sitting ' + _esc(name) + (drawn ? ' \u00b7 drawn at random' : '');
     cards.parentNode.insertBefore(el, cards);
@@ -28407,7 +28411,7 @@ var LEVEL_THEMES = {
     descriptors.forEach(function(d) {
       var s = _bandOf(sv[d]);
       var na = (s === 0) || (_typed && _unheard[d]);
-      var sc = na ? '#3a4a5a' : s >= 5 ? 'var(--accent)' : s === 4 ? '#5b9bd5' : '#e05252';
+      var sc = na ? 'var(--muted)' : s >= 5 ? 'var(--accent)' : s === 4 ? 'var(--green)' : 'var(--red)';
       html += '<div class="tea-score-descriptor"' + (na ? ' style="opacity:.72;"' : '') + '>';
       html += '<div class="tea-score-descriptor-header">';
       html += '<span class="tea-score-descriptor-name">' + d.charAt(0).toUpperCase() + d.slice(1) + '</span>';
@@ -28435,7 +28439,7 @@ var LEVEL_THEMES = {
 
     if (_typed) {
       html += '<div style="margin-top:12px;padding:11px 14px;border-radius: 8px;' +
-        'background:#1a2230;border:1px solid #2d3a4a;font-size: 0.82rem;color:#8fa3bb;' +
+        'background:#1a2230;border:1px solid #2d3a4a;font-size: 0.82rem;color:var(--muted);' +
         'line-height:1.6;">' +
         '<b style="color:#e0a252;">This band is partial.</b> You typed your answers, ' +
         'so two of the six descriptors could not be assessed and the overall band is ' +
@@ -28527,12 +28531,12 @@ var LEVEL_THEMES = {
     // candidate on a locked screen with a band and nothing to do — least of all
     // after a low band — is the wrong note to finish on.
     html += '<div style="margin-top:18px;padding-top:16px;border-top:1px solid #2d3a4a;text-align:center;">' +
-      '<div style="font-size:0.9rem;color:#c8d8e8;font-weight:700;margin-bottom:6px;">' +
+      '<div style="font-size:0.9rem;color:var(--text);font-weight:700;margin-bottom:6px;">' +
         (band >= 4
           ? 'Well done — that is at or above the operational standard.'
           : 'This is a practice test, and the gap it shows is a workable one.') +
       '</div>' +
-      '<div style="font-size: 0.82rem;color:#8fa3bb;line-height:1.6;max-width:460px;margin:0 auto 16px;">' +
+      '<div style="font-size: 0.82rem;color:var(--muted);line-height:1.6;max-width:460px;margin:0 auto 16px;">' +
         (band >= 4
           ? 'Keep practising to hold this level under pressure — the routes and daily challenge are the fastest way to do that.'
           : 'Every descriptor above says what to work on next. Run the training routes, then take this test again and watch the bands move.') +
@@ -28670,13 +28674,13 @@ var LEVEL_THEMES = {
     var host = document.getElementById('contentArea'); if (!host) return;
     if (_t._gradingLoader && _t._gradingLoader.stop) { try { _t._gradingLoader.stop(); } catch (e) {} }
     host.innerHTML =
-      '<div style="min-height:calc(100vh - 60px);background:#080c10;display:flex;' +
+      '<div style="min-height:calc(100vh - 60px);background:var(--bg);display:flex;' +
         'align-items:center;justify-content:center;padding:24px;">' +
         '<div style="max-width:420px;text-align:center;">' +
           '<div style="font-size:2rem;margin-bottom:12px;">\u26A0\uFE0F</div>' +
-          '<div style="font-size: 1rem;font-weight:800;color:#dde2e6;margin-bottom:8px;">' +
+          '<div style="font-size: 1rem;font-weight:800;color:var(--text);margin-bottom:8px;">' +
             'The report could not be produced</div>' +
-          '<div style="font-size: 0.82rem;color:#8fa3bb;line-height:1.6;margin-bottom:20px;">' +
+          '<div style="font-size: 0.82rem;color:var(--muted);line-height:1.6;margin-bottom:20px;">' +
             'Your examination and everything you said were saved before scoring began, ' +
             'so nothing is lost. Only the scoring step failed, and that is usually ' +
             'temporary — try it again, or come back to it from My results.</div>' +
@@ -28804,13 +28808,30 @@ var LEVEL_THEMES = {
     return !!(a && a.status === 'free');
   }
 
-  function _showReportScreen(json) {
+    /* This screen used to carry its own palette.
+   *
+   * Sixteen hex literals, including a background of var(--bg) that it painted in
+   * BOTH themes — so on the light theme the result of an examination was a black
+   * island in a white app. That part nobody reported. What they reported was the
+   * text on it, and against that ground four of the colours were below the
+   * minimum: the section titles at 3.1:1, the sub-labels and band-0 markers at
+   * 2.2:1, the empty-state subtitle at 4.2:1, and — worst placed of all — the
+   * disclaimer saying this is not an official ICAO rating, at 3.9:1.
+   *
+   * The band colours become the palette's own: accent for 5 and above, green for
+   * an operational 4, red below that, muted for a descriptor that was never
+   * assessed. A ladder rather than six unrelated hues.
+   *
+   * The one palette left alone is dimColor in the admin block above, which needs
+   * six visually distinct hues to tell the ICAO descriptors apart and is only
+   * drawn for an instructor. */
+function _showReportScreen(json) {
     if (_t._gradingLoader && _t._gradingLoader.stop) { try { _t._gradingLoader.stop(); } catch (e) {} }
     if (_t.timerIv) clearInterval(_t.timerIv);
     var host = document.getElementById('contentArea');
     if (!host) return;
     host.innerHTML =
-      '<div style="min-height:calc(100vh - 60px);background:#080c10;padding:26px 16px 60px;overflow-y:auto;">' +
+      '<div style="min-height:calc(100vh - 60px);background:var(--bg);padding:26px 16px 60px;overflow-y:auto;">' +
         '<div style="max-width:760px;margin:0 auto;">' +
           '<div style="text-align:center;margin-bottom:20px;">' +
             '<div class="tea-part-badge" style="font-size: 0.72rem;padding:5px 16px;">ICAO TEST · RESULT</div>' +
@@ -28869,7 +28890,7 @@ var LEVEL_THEMES = {
           // a candidate to believe they hold a rating they do not hold, which could
           // send someone into a real assessment — or a cockpit — on a false premise.
           '<p style="margin:18px auto 0;max-width:620px;text-align:center;' +
-            'font-size: 0.72rem;line-height:1.6;color:#5d7186;">' +
+            'font-size: 0.72rem;line-height:1.6;color:var(--muted);">' +
             'This is a practice result, assessed against the ICAO Doc 9835 rating ' +
             'scale. It is not an official ICAO language proficiency rating and ' +
             'cannot be used for licensing. Only an authorised examiner can issue one.' +
@@ -28883,9 +28904,9 @@ var LEVEL_THEMES = {
   window._teaMyResults = function() {
     var host = document.getElementById('contentArea'); if (!host) return;
     host.innerHTML =
-      '<div style="min-height:calc(100vh - 60px);background:#080c10;padding:26px 16px 60px;">' +
+      '<div style="min-height:calc(100vh - 60px);background:var(--bg);padding:26px 16px 60px;">' +
         '<div style="max-width:760px;margin:0 auto;">' +
-          '<div style="text-align:center;color:#4a6280;font-size: 0.82rem;padding:40px 0;">Loading your results…</div>' +
+          '<div style="text-align:center;color:var(--muted);font-size: 0.82rem;padding:40px 0;">Loading your results…</div>' +
         '</div>' +
       '</div>';
 
@@ -28898,7 +28919,7 @@ var LEVEL_THEMES = {
   };
 
   function _teaBandColorFor(b) {
-    return b >= 5 ? 'var(--accent)' : b === 4 ? '#5b9bd5' : b > 0 ? '#e05252' : '#3a4a5a';
+    return b >= 5 ? 'var(--accent)' : b === 4 ? 'var(--green)' : b > 0 ? 'var(--red)' : 'var(--muted)';
   }
 
   function _renderMyResults(res) {
@@ -28908,8 +28929,8 @@ var LEVEL_THEMES = {
 
     function head(title, sub) {
       return '<div style="margin:22px 0 10px;">' +
-        '<div style="font-size: 0.72rem;letter-spacing: 0.12em;color:#4a6280;text-transform:uppercase;">' + title + '</div>' +
-        (sub ? '<div style="font-size: 0.72rem;color:#3a4a5a;margin-top:3px;">' + sub + '</div>' : '') +
+        '<div style="font-size: 0.72rem;letter-spacing: 0.12em;color:var(--muted);text-transform:uppercase;">' + title + '</div>' +
+        (sub ? '<div style="font-size: 0.72rem;color:var(--muted);margin-top:3px;">' + sub + '</div>' : '') +
       '</div>';
     }
 
@@ -28933,10 +28954,10 @@ var LEVEL_THEMES = {
     function _lockedBars() {
       return _TEA_DESCRIPTORS.map(function (k) {
         return '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;">' +
-          '<div style="width:92px;font-size:0.62rem;letter-spacing: 0.06em;color:#4a6280;' +
+          '<div style="width:92px;font-size:0.62rem;letter-spacing: 0.06em;color:var(--muted);' +
             'text-transform:uppercase;">' + k + '</div>' +
           '<div style="flex:1;height:5px;border-radius: 4px;background:rgba(var(--lift-rgb), 0.06);"></div>' +
-          '<div style="width:16px;font-size:0.62rem;color:#3a4a5a;text-align:right;">&#8226;</div>' +
+          '<div style="width:16px;font-size:0.62rem;color:var(--muted);text-align:right;">&#8226;</div>' +
         '</div>';
       }).join('');
     }
@@ -28985,8 +29006,8 @@ var LEVEL_THEMES = {
       return _TEA_DESCRIPTORS.map(function(k) {
         var v = Number(scores[k]) || 0;
         return '<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px;">' +
-          '<div style="width:92px;font-size:0.62rem;letter-spacing: 0.06em;color:#4a6280;text-transform:uppercase;">' + k + '</div>' +
-          '<div style="flex:1;height:5px;background:#161f2b;border-radius: 4px;overflow:hidden;">' +
+          '<div style="width:92px;font-size:0.62rem;letter-spacing: 0.06em;color:var(--muted);text-transform:uppercase;">' + k + '</div>' +
+          '<div style="flex:1;height:5px;background:var(--line);border-radius: 4px;overflow:hidden;">' +
             '<div style="height:100%;width:' + (v > 0 ? (v / 6) * 100 : 0) + '%;background:' + _teaBandColorFor(v) + ';"></div>' +
           '</div>' +
           '<div style="width:20px;text-align:right;font-size: 0.72rem;font-weight:800;color:' + _teaBandColorFor(v) + ';">' +
@@ -29005,13 +29026,13 @@ var LEVEL_THEMES = {
     var body = '';
 
     if (!res || !res.ok) {
-      body = '<div style="text-align:center;color:#e05252;font-size: 0.82rem;padding:40px 0;">' +
+      body = '<div style="text-align:center;color:var(--red);font-size: 0.82rem;padding:40px 0;">' +
              _esc((res && res.error) || 'Could not load your results.') + '</div>';
     } else if (!results.length && !sections.length) {
       body = '<div style="text-align:center;padding:48px 16px;">' +
         '<div style="display:flex;justify-content:center;margin-bottom:10px;color:var(--accent);">' + uiIcon('headset', 30) + '</div>' +
-        '<div style="font-size: 0.9rem;color:#c8d8e8;font-weight:700;margin-bottom:6px;">No results yet</div>' +
-        '<div style="font-size:0.82rem;color:#5b7690;max-width:380px;margin:0 auto;">' +
+        '<div style="font-size: 0.9rem;color:var(--text);font-weight:700;margin-bottom:6px;">No results yet</div>' +
+        '<div style="font-size:0.82rem;color:var(--muted);max-width:380px;margin:0 auto;">' +
           'Sit the ICAO Language Proficiency Test and your band, your six descriptor ' +
           'scores and the examiner\'s notes will appear here.</div>' +
       '</div>';
@@ -29036,11 +29057,11 @@ var LEVEL_THEMES = {
             '<div style="display:flex;gap:12px;align-items:center;margin-bottom:10px;">' +
               bandChip(r.band) +
               '<div style="flex:1;min-width:0;">' +
-                '<div style="font-size: 0.9rem;font-weight:800;color:#dde2e6;">' +
+                '<div style="font-size: 0.9rem;font-weight:800;color:var(--text);">' +
                   (r.band >= 5 ? 'Extended' : r.band === 4 ? 'Operational' :
                    r.band === 3 ? 'Pre-Operational' : 'Below Operational') +
                 '</div>' +
-                '<div style="font-size:0.72rem;color:#5b7690;">' + _esc(when(r.date)) +
+                '<div style="font-size:0.72rem;color:var(--muted);">' + _esc(when(r.date)) +
                   (r.version ? ' · version ' + _esc(r.version) : '') +
                   (r.source === 'conversation' ? ' · typed answers' : '') +
                 '</div>' +
@@ -29056,8 +29077,8 @@ var LEVEL_THEMES = {
           return '<div class="tea-score-box" style="margin-bottom:8px;opacity:.78;">' +
             '<div style="display:flex;gap:10px;align-items:center;">' +
               bandChip(r.band) +
-              '<div><div style="font-size:0.82rem;font-weight:700;color:#c8d8e8;">Part ' + _esc(r.scope) + '</div>' +
-              '<div style="font-size: 0.72rem;color:#5b7690;">' + _esc(when(r.date)) + '</div></div>' +
+              '<div><div style="font-size:0.82rem;font-weight:700;color:var(--text);">Part ' + _esc(r.scope) + '</div>' +
+              '<div style="font-size: 0.72rem;color:var(--muted);">' + _esc(when(r.date)) + '</div></div>' +
             '</div>' +
           '</div>';
         }).join('');
@@ -29070,7 +29091,7 @@ var LEVEL_THEMES = {
     }
 
     host.innerHTML =
-      '<div style="min-height:calc(100vh - 60px);background:#080c10;padding:26px 16px 60px;overflow-y:auto;">' +
+      '<div style="min-height:calc(100vh - 60px);background:var(--bg);padding:26px 16px 60px;overflow-y:auto;">' +
         '<div style="max-width:760px;margin:0 auto;">' +
           '<div style="text-align:center;margin-bottom:6px;">' +
             '<div class="tea-part-badge" style="font-size: 0.72rem;padding:5px 16px;">MY ICAO TEST HISTORY</div>' +
