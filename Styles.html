@@ -4349,6 +4349,10 @@ mark.atc-highlight {
   padding: 40px 24px;
 }
 
+/* Every colour in the radar is the accent.
+   Five literals of #6366f1 lived here — the wash, the rings, both stops of the
+   sweep and the aircraft's halo — so the loader was indigo on a black-and-white
+   product, and stayed indigo when the theme changed. */
 .completion-loading-radar {
   width: 200px;
   height: 200px;
@@ -4356,13 +4360,13 @@ mark.atc-highlight {
   position: relative;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle, rgba(99,102,241,0.13), transparent 60%);
+  background: radial-gradient(circle, rgba(var(--accent-rgb), 0.13), transparent 60%);
 }
 
 .completion-radar-ring {
   position: absolute;
   border-radius: 999px;
-  border: 1px solid rgba(99,102,241,0.3);
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
 }
 
 .completion-radar-ring.r1 { width: 66px; height: 66px; }
@@ -4373,7 +4377,7 @@ mark.atc-highlight {
   position: absolute;
   left: 50%; top: 50%;
   width: 100px; height: 2px;
-  background: linear-gradient(90deg, rgba(99,102,241,0.95), rgba(99,102,241,0.25), transparent);
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.95), rgba(var(--accent-rgb), 0.25), transparent);
   transform-origin: 0 50%;
   animation: seniorSweep 2.8s linear infinite;
 }
@@ -4383,7 +4387,7 @@ mark.atc-highlight {
   z-index: 3;
   font-size: 2rem;
   color: var(--accent);
-  filter: drop-shadow(0 0 14px rgba(99,102,241,0.7));
+  filter: drop-shadow(0 0 14px rgba(var(--accent-rgb), 0.7));
 }
 
 .completion-loading-text {
@@ -4391,11 +4395,22 @@ mark.atc-highlight {
   max-width: 420px;
 }
 
+/* Two lines of room, whether the message needs them or not.
+   The loader cycles messages between seventeen and forty-eight characters, and
+   at 1.35rem in a 420px column the short ones take one line and the long ones
+   take two. With no reserved height the heading grew and shrank every 900ms and
+   shoved the progress bar and the hint up and down with it — which is the bar
+   that was reported as "moving like the size". It was not the bar. It was the
+   line of text above it. */
 .completion-loading-text h2 {
   font-size: 1.35rem;
   font-weight: 700;
   margin: 8px 0 20px;
-  transition: opacity 0.4s var(--ease);
+  min-height: 2.7em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.25s var(--ease);
 }
 
 .completion-loading-bar {
@@ -4403,7 +4418,7 @@ mark.atc-highlight {
   max-width: 320px;
   height: 6px;
   border-radius: 22px;
-  background: rgba(99,102,241,0.15);
+  background: rgba(var(--accent-rgb), 0.15);
   margin: 0 auto;
   overflow: hidden;
 }
@@ -4414,7 +4429,7 @@ mark.atc-highlight {
   border-radius: 22px;
   background: linear-gradient(90deg, var(--accent), var(--accent));
   transition: width 0.4s var(--ease);
-  box-shadow: 0 0 10px rgba(99,102,241,0.5);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.5);
 }
 
 .certificate-home-shell {
@@ -6345,7 +6360,9 @@ body.sim-focus-mode .topbar-avatar {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  opacity: 0.85;
+  /* No opacity. These are 0.62rem — under ten pixels — and each one is already
+     a deliberate colour. Dimming them to 85% took every tier below the contrast
+     its colour was picked to hit. */
 }
 
 .prog-level-map {

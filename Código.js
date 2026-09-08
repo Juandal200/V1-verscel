@@ -7111,6 +7111,37 @@ function apiMigrateSchema(sessionToken) {
 
 // ─── ADMIN STUDENT PROGRESS VIEW ─────────────────────────────────────────────
 
+/* How long a student has actually been here.
+ *
+ * "Time Trained" used to be the sum of responseTimeSec across their Attempts —
+ * the seconds between a scenario appearing and the Submit button being pressed.
+ * That is typing time, and it is a small fraction of a training session:
+ *
+ *   - listening to the controller, reading the feedback, retrying a phrase,
+ *     the crew tab, the level map, the shop — all counted as zero
+ *   - the mock test writes to TEA Results, not Attempts, so a full forty-minute
+ *     sitting contributed nothing at all
+ *   - Attemptservice clamps anything over an hour to zero, so a student who
+ *     stepped away mid-scenario had that answer counted as no time rather than
+ *     as too much
+ *
+ * A forty-five minute session reported as about four minutes, which is why it
+ * read as broken rather than as narrow.
+ *
+ * UserActivity.totalActiveSeconds is the real thing: the client counts a second
+ * for every second the student is on the campus and has moved, typed, scrolled
+ * or tapped within the last five minutes, and stops counting when they have not.
+ * It does not care which screen they are on, which is the point — it is time on
+ * the campus, not time attributed to a task. */
+function campusSeconds_(userId) {
+  try {
+    var activity = dbFindOne_('UserActivity', 'userId', String(userId || ''));
+    return Number((activity || {}).totalActiveSeconds || 0);
+  } catch (e) {
+    return 0;
+  }
+}
+
 function apiAdminGetStudentProgress(sessionToken, targetUserId) {
   try {
     AuthService.requireRole(sessionToken, ['ADMIN']);
@@ -7190,7 +7221,7 @@ function apiAdminGetStudentProgress(sessionToken, targetUserId) {
       } catch(e) { /* non-fatal */ }
     }
 
-    var totalTimeSec = attempts.reduce(function(s, r) { return s + Number(r.responseTimeSec || 0); }, 0);
+    var totalTimeSec = campusSeconds_(publicUser.userId);
 
     // Recompute avgCompleteness fresh from first attempts so stale Progress sheet
     // values (or nulls from rows predating the column) don't inflate the display.
@@ -7264,14 +7295,15 @@ function apiAdminSendProgressReport(sessionToken, payload) {
       ? Math.round(scored.reduce(function(s,r){ return s+Number(r.score||0); }, 0) / scored.length) : 0;
     var passed   = attempts.filter(function(r){ return r.correct===true || String(r.correct).toUpperCase()==='TRUE'; });
     var passRate = totalAttempts ? Math.round((passed.length / totalAttempts) * 100) : 0;
-    var totalTimeSec = attempts.reduce(function(s, r){ return s + Number(r.responseTimeSec || 0); }, 0);
+    var totalTimeSec = campusSeconds_(publicUser.userId);
 
-    // Time per route: level|country → seconds
-    var timeByRoute = {};
-    attempts.forEach(function(r) {
-      var key = String(r.level||'') + '|' + String(r.country||'').toUpperCase();
-      timeByRoute[key] = (timeByRoute[key] || 0) + Number(r.responseTimeSec || 0);
-    });
+    /* No per-route time any more.
+     *
+     * Campus time is one number and cannot honestly be divided between routes —
+     * the student who spends twenty minutes reading feedback on level three is
+     * not doing that "in" any route the tracker can name. Splitting one figure
+     * across six rows would have invented six figures. The Time Spent column is
+     * gone rather than filled with something made up. */
 
     var completedRoutes = progress.filter(function(r){
       return r.completed === true || String(r.completed).toUpperCase() === 'TRUE';
@@ -7301,8 +7333,6 @@ function apiAdminSendProgressReport(sessionToken, payload) {
       var far  = (row.firstAttemptRate != null && row.firstAttemptRate !== '') ? Number(row.firstAttemptRate) : null;
       var perf = (row.performanceScore != null && row.performanceScore !== '') ? Number(row.performanceScore) : null;
       var done = row.completed === true || String(row.completed).toUpperCase() === 'TRUE';
-      var routeKey = String(row.level||'') + '|' + String(row.country||'').toUpperCase();
-      var routeTime = _formatTimeSec_(timeByRoute[routeKey] || 0);
       var sc = s >= 80 ? R.good : s >= 60 ? R.warn : (s > 0 ? R.bad : R.dim);
       var pc = perf !== null ? (perf >= 80 ? R.good : perf >= 60 ? R.warn : R.bad) : R.dim;
       var statusTxt = done ? '&#10003; Complete' : (Number(row.progressPct||0) + '% done');
@@ -7313,7 +7343,6 @@ function apiAdminSendProgressReport(sessionToken, payload) {
           '<td style="padding:11px 14px;text-align:center;font-weight:700;color:' + sc + '">' + (s>0?s+'%':'&mdash;') + '</td>' +
           '<td style="padding:11px 14px;text-align:center;color:' + R.body + ';">' + (far!==null?far+'%':'&mdash;') + '</td>' +
           '<td style="padding:11px 14px;text-align:center;font-weight:700;color:' + pc + '">' + (perf!==null?perf+'%':'&mdash;') + '</td>' +
-          '<td style="padding:11px 14px;text-align:center;color:' + R.body + ';">' + routeTime + '</td>' +
           '<td style="padding:11px 14px;text-align:center;font-weight:700;color:' + statusColor + '">' + statusTxt + '</td>' +
         '</tr>';
     });
@@ -7385,7 +7414,6 @@ function apiAdminSendProgressReport(sessionToken, payload) {
                   '<th style="' + thS + 'center;">Score</th>' +
                   '<th style="' + thS + 'center;">1st Attempt</th>' +
                   '<th style="' + thS + 'center;">Performance</th>' +
-                  '<th style="' + thS + 'center;">Time Spent</th>' +
                   '<th style="' + thS + 'center;">Status</th>' +
                 '</tr></thead>' +
                 '<tbody>' + tableRows + '</tbody>' +

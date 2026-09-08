@@ -1647,6 +1647,18 @@
       _injectViewAsSwitcher();
     }
 
+    /* Time on the campus starts counting here, above every gate below.
+     *
+     * It used to be started on the line after renderHome(), which sits behind two
+     * returns: the First Flight gate and the saved-route restore. So the two
+     * students most likely to be training — the brand new one being walked through
+     * their first scenario, and the one resuming a route they left half-finished —
+     * were the two whose time was never counted at all.
+     *
+     * There is nothing about this that needs the home screen. It needs a session,
+     * and by this line there is one. */
+    _startActiveTimeTracker();
+
     // Access gate — check before rendering anything
     // No 'expired' gate here any more. A lapsed subscriber drops to the free tier
     // rather than being shut out: they keep every result and certificate they
@@ -1678,7 +1690,6 @@
     }
 
     renderHome();
-    _startActiveTimeTracker();
 
     setTimeout(function() {
       if (byId('appScreen') && byId('appScreen').classList.contains('active') && typeof window.renderHome === 'function') {
@@ -10177,13 +10188,33 @@ var LEVEL_THEMES = {
 
     var i = 0, pct = 0;
     var t = setInterval(function() {
-      pct = Math.min(pct + (Math.random() * 10 + 3), 90);
+      /* A steady approach to 90, not a random walk toward it.
+       *
+       * This used to add a random 3–13% each tick, so the bar lurched: a long
+       * jump, then a crawl, then another long jump, with no relation to how much
+       * was left to do. Closing a fixed share of the remaining distance each tick
+       * moves quickly at the start, slows as it approaches, and never jumps —
+       * which is what a progress bar is read as promising. */
+      pct = pct + (90 - pct) * 0.18;
       var fill = byId('radarLoaderFill');
       if (fill) fill.style.width = pct + '%';
       if (msgs.length > 1) {
         i = (i + 1) % msgs.length;
         var el = byId('radarLoaderMsg');
-        if (el) el.textContent = msgs[i];
+        /* The stylesheet has always declared a transition on opacity here, and it
+         * has never once fired: textContent swaps the text in the same frame, so
+         * there was nothing to transition between. Fading out first gives the
+         * declared transition something to do, and the swap happens while the
+         * text is invisible. */
+        if (el) {
+          el.style.opacity = '0';
+          setTimeout(function() {
+            var e2 = byId('radarLoaderMsg');
+            if (!e2) return;
+            e2.textContent = msgs[i];
+            e2.style.opacity = '1';
+          }, 250);
+        }
       }
       // Self-terminate once the screen has moved on. Callers that render over the
       // loader do not have to remember to call stop(), so the interval can never
@@ -19369,7 +19400,23 @@ var LEVEL_THEMES = {
     { label: 'Junior Captain',  levels: [1,2,3],    color: 'var(--accent)', glow: 'rgba(14,101,244,0.35)'  },
     { label: 'Senior Captain',  levels: [4,5,6],    color: 'var(--muted)', glow: 'rgba(192,199,209,0.30)' },
     { label: 'Instructor Captain', levels: [7,8,9],  color: 'var(--yellow)', glow: 'rgba(218,165,32,0.35)'  },
-    { label: 'Chief Pilot',     levels: [10],       color: '#990011', glow: 'rgba(153,0,17,0.40)'    }
+    /* Chief Pilot was #990011 — 2.1:1 on the dark ground.
+     *
+     * That is below the 3:1 floor for a graphic and less than half the 4.5:1 a
+     * label needs, and the tier label is 0.62rem at 85% opacity, so in practice
+     * the level ten route cards and their legend read as black on black. On the
+     * light theme the same colour is 8.8:1 and looked fine, which is why it
+     * survived: it was only ever wrong on the theme almost everyone uses.
+     *
+     * It cannot be a token. Four call sites build translucent forms of it by
+     * appending hex alpha to the string — tier.color + '20' for a badge fill,
+     * + '50' for its border, + '80' and + '88' on the leaderboard — and a CSS
+     * variable with two hex digits stuck on the end is not a colour. So it stays
+     * a literal, and the literal is chosen to clear 4.3:1 on BOTH grounds rather
+     * than to look right on one.
+     *
+     * Still a crimson, and still the only red-toned rank in the set. */
+    { label: 'Chief Pilot',     levels: [10],       color: '#e0384a', glow: 'rgba(224,56,74,0.40)'   }
   ];
 
   function _progTierForLevel(lvl) {
@@ -19504,7 +19551,7 @@ var LEVEL_THEMES = {
       '<div class="prog-stats-row">' +
         _pStat('Avg Score',    avgScore + '%',          avgScore >= 90 ? 'Excellent' : avgScore >= 70 ? 'Good' : 'Keep going', _progScoreColor(avgScore)) +
         _pStat('Pass Rate',    passRate + '%',          'Read-backs accepted', passRate >= 80 ? 'var(--green)' : 'var(--yellow)') +
-        _pStat('Time Trained', _formatTimeSec(timeSec), 'Total training time', 'var(--cyan)') +
+        _pStat('Time Trained', _formatTimeSec(timeSec), 'Time on the campus', 'var(--cyan)') +
         _pStat('Read-backs',   attempts,                'Total submitted', 'var(--silver)') +
       '</div>';
 
@@ -19707,7 +19754,7 @@ var LEVEL_THEMES = {
       '<div class="prog-stats-row">' +
         _pStat('Avg Score',     avgScore + '%',           'All read-backs',     _progScoreColor(avgScore)) +
         _pStat('Pass Rate',     passRate + '%',           'Read-backs accepted', passRate >= 80 ? 'var(--green)' : 'var(--yellow)') +
-        _pStat('Time Trained',  _formatTimeSec(timeSec),  'Total training time', 'var(--cyan)') +
+        _pStat('Time Trained',  _formatTimeSec(timeSec),  'Time on the campus', 'var(--cyan)') +
         _pStat('Attempts',      attempts,                 'Total submitted',    'var(--silver)') +
       '</div>';
 
@@ -22229,12 +22276,12 @@ var LEVEL_THEMES = {
                 '<div class="prog-mix-bar">' +
                   '<div style="width:' + sPctOv + '%;background:var(--accent)" title="Students"></div>' +
                   '<div style="width:' + iPctOv + '%;background:var(--yellow)" title="Instructors"></div>' +
-                  '<div style="width:' + aPctOv + '%;background:#990011" title="Admins"></div>' +
+                  '<div style="width:' + aPctOv + '%;background:#e0384a" title="Admins"></div>' +
                 '</div>' +
                 '<div class="prog-mix-legend">' +
                   '<span><i style="background:var(--accent)"></i>Students <strong>' + (adm.students || 0) + '</strong></span>' +
                   '<span><i style="background:var(--yellow)"></i>Instructors <strong>' + (adm.instructors || 0) + '</strong></span>' +
-                  '<span><i style="background:#990011"></i>Admins <strong>' + (adm.admins || 0) + '</strong></span>' +
+                  '<span><i style="background:#e0384a"></i>Admins <strong>' + (adm.admins || 0) + '</strong></span>' +
                 '</div>' +
               '</div>';
             var userMixSectionOv = _progSection('User Breakdown', totalUsersOv + ' total', userMixOv);
@@ -23609,7 +23656,7 @@ var LEVEL_THEMES = {
 
   // Rank tier definition — single source of truth used by renderer and chip helper
   var GAM_TIERS = [
-    { key: 'chief',      label: 'Chief',      abbr: 'CHIEF', color: '#990011', glow: 'rgba(153,0,17,0.28)',   stripes: 4 },
+    { key: 'chief',      label: 'Chief',      abbr: 'CHIEF', color: '#e0384a', glow: 'rgba(224,56,74,0.28)',  stripes: 4 },
     { key: 'instructor', label: 'Instructor', abbr: 'INSTR', color: 'var(--yellow)', glow: 'rgba(218,165,32,0.28)', stripes: 3 },
     { key: 'senior',     label: 'Senior',     abbr: 'SR',    color: 'var(--muted)', glow: 'rgba(192,199,209,0.22)',stripes: 2 },
     { key: 'junior',     label: 'Junior',     abbr: 'JR',    color: 'var(--accent)', glow: 'rgba(14,101,244,0.25)', stripes: 1 }
