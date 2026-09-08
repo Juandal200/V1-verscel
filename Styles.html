@@ -4497,14 +4497,20 @@ mark.atc-highlight {
    shoved the progress bar and the hint up and down with it — which is the bar
    that was reported as "moving like the size". It was not the bar. It was the
    line of text above it. */
+/* Two lines of room, and text that still wraps into them.
+   Reserving the height was right — the messages run from seventeen to
+   forty-eight characters and the block used to grow and shrink around them.
+   Doing it with display:flex was not: a flex item will not shrink below its
+   content, so the longest messages stopped wrapping and ran off the side of the
+   card instead. Grid centres the same way and lets the text wrap. */
 .completion-loading-text h2 {
   font-size: 1.35rem;
   font-weight: 700;
   margin: 8px 0 20px;
   min-height: 2.7em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
+  overflow-wrap: anywhere;
   transition: opacity 0.25s var(--ease);
 }
 

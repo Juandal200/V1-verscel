@@ -75,14 +75,20 @@ const h2 = Cc.slice(Cc.indexOf('.completion-loading-text h2 {'),
  * pushed the bar and the hint with it. Two lines are reserved whether they are
  * used or not. */
 ok('two lines are reserved',        /min-height: 2\.7em/.test(h2));
-ok('and a short one is centred in them',
-   /align-items: center/.test(h2) && /justify-content: center/.test(h2));
+/* Reserving the height was right. Doing it with display:flex was not — a flex
+ * item will not shrink below its content, so the longest messages stopped
+ * wrapping and ran off the side of the card. Grid centres the same way and lets
+ * the text wrap. */
+ok('and it centres with grid, which still wraps',
+   /display: grid/.test(h2) && /place-items: center/.test(h2));
+ok('flex is gone, because flex would not wrap',  !/display: flex/.test(h2));
+ok('and a word longer than the box still breaks', /overflow-wrap: anywhere/.test(h2));
 
 console.log('--- the fill advances, it does not lurch ---');
 const rl = Sc.slice(Sc.indexOf('function renderRadarLoader'),
                     Sc.indexOf('function renderRadarLoader') + 3000);
 ok('no random step',               !/Math\.random\(\) \* 10 \+ 3/.test(rl));
-ok('a fixed share of what is left', /pct = pct \+ \(90 - pct\) \* 0\.18/.test(rl));
+ok('a fixed share of what is left', /pct = _radarPct = pct \+ \(90 - pct\) \* 0\.18/.test(rl));
 ok('it still stops short of the end so stop() can finish it',
    /fill\.style\.width = '100%'/.test(rl));
 
@@ -110,6 +116,29 @@ ok('the delayed text swap checks too',
  * long after the screen they belonged to has gone. */
 ok('and a stale stop does not drive another screen to 100%',
    /stop: function\(\) \{[\s\S]{0,320}if \(myGen !== _radarGen\) return;[\s\S]{0,120}width = '100%'/.test(Sc));
+
+console.log('--- and it never restarts at zero mid-wait ---');
+/* THIS is the shrinking, reported three times. The generation guard stopped two
+ * timers writing at once and did not fix it, because each loader still BEGAN at
+ * zero — so when one screen handed over to the next, the bar went from most of
+ * the way across back to nothing and set off again. The simulator entry renders
+ * three loaders in a row, so it did that three times.
+ *
+ * Progress belongs to the wait, not to whichever function is doing the waiting. */
+ok('the progress outlives the loader that made it', /var _radarPct = 0;/.test(Sc));
+ok('a new loader picks up where the last one stopped',
+   /var i = 0, pct = _radarPct;/.test(rl));
+ok('and keeps the shared value current',
+   /pct = _radarPct = pct \+ \(90 - pct\) \* 0\.18;/.test(rl));
+// Painted into the markup, or a handover flashes an empty bar for 900ms.
+ok('the carried value is on the element from the first frame',
+   /var pctStart = _radarPct;/.test(rl) &&
+   /id="radarLoaderFill" style="width:' \+ pctStart \+ '%"/.test(rl));
+// stop() is what ends a wait, so stop() is what resets.
+ok('only ending a wait puts it back to zero',
+   /stop: function\(\) \{[\s\S]{0,200}_radarPct = 0;/.test(Sc));
+ok('and a stale handle cannot reset a live one',
+   /stop: function\(\) \{[\s\S]{0,320}if \(myGen !== _radarGen\) return;/.test(Sc));
 
 console.log('--- and the message actually fades ---');
 // The transition on opacity has been declared for as long as the loader has

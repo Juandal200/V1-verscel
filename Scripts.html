@@ -10327,10 +10327,24 @@ var LEVEL_THEMES = {
    * Same shape as _navToken, which this app already uses for exactly this class
    * of problem: take a number on the way in, and stop the moment it moves. */
   var _radarGen = 0;
+  /* How far the bar had got.
+   *
+   * This is the shrinking, and the generation guard did not fix it — it only
+   * stopped two timers writing at once. Each loader still began at zero, so when
+   * one screen handed over to the next the bar went from most of the way across
+   * back to nothing and set off again. Three sequential loads, three restarts.
+   *
+   * Progress belongs to the wait, not to whichever function is doing the waiting.
+   * A loader that replaces another picks up where it left off. stop() is what
+   * ends a wait, so stop() is what puts it back to zero. */
+  var _radarPct = 0;
 
   function renderRadarLoader(eyebrow, messages, hint) {
     var myGen = ++_radarGen;
     var msgs = Array.isArray(messages) ? messages : [String(messages || 'Loading\u2026')];
+    // Painted into the markup, so a handover does not flash an empty bar for the
+    // 900ms before the first tick.
+    var pctStart = _radarPct;
     var host = byId('contentArea');
     if (!host) return { stop: function() {} };
 
@@ -10346,12 +10360,12 @@ var LEVEL_THEMES = {
         '<div class="completion-loading-text">' +
           '<p class="eyebrow" style="letter-spacing: 0.12em;">' + safeText(eyebrow || '') + '</p>' +
           '<h2 id="radarLoaderMsg">' + safeText(msgs[0]) + '</h2>' +
-          '<div class="completion-loading-bar"><div class="completion-loading-fill" id="radarLoaderFill"></div></div>' +
+          '<div class="completion-loading-bar"><div class="completion-loading-fill" id="radarLoaderFill" style="width:' + pctStart + '%"></div></div>' +
           '<p id="radarLoaderHint" style="font-size: 0.82rem;color:var(--muted);margin-top:10px;">' + safeText(hint || '') + '</p>' +
         '</div>' +
       '</div>';
 
-    var i = 0, pct = 0;
+    var i = 0, pct = _radarPct;
     var t = setInterval(function() {
       // A newer loader has the screen. This one is finished, whatever it was
       // counting — and it must not touch a bar it no longer owns.
@@ -10363,7 +10377,7 @@ var LEVEL_THEMES = {
        * was left to do. Closing a fixed share of the remaining distance each tick
        * moves quickly at the start, slows as it approaches, and never jumps —
        * which is what a progress bar is read as promising. */
-      pct = pct + (90 - pct) * 0.18;
+      pct = _radarPct = pct + (90 - pct) * 0.18;
       var fill = byId('radarLoaderFill');
       // Screen moved on entirely. Callers that render over the loader do not have
       // to remember to call stop().
@@ -10393,6 +10407,8 @@ var LEVEL_THEMES = {
     return {
       stop: function() {
         clearInterval(t);
+        // The wait is over, whoever asked. The next one starts from nothing.
+        _radarPct = 0;
         // A stale handle must not drive somebody else's bar to 100%. Screens hold
         // these in local variables and call stop() from an async handler that can
         // land long after the screen it belonged to has gone.
