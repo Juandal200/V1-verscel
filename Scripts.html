@@ -718,7 +718,17 @@
         // Silent background bootstrap — updates all state and re-saves cache
         google.script.run
           .withSuccessHandler(function(res) {
-            if (!res || !res.ok) return;
+            // `return` on ok:false is what made the 8th invisible: a timeout
+            // arrives here as a perfectly successful HTTP 200 carrying ok:false,
+            // and this walked past it. Still silent on screen — the cache is
+            // already rendered — but no longer silent in the record.
+            if (!res || !res.ok) {
+              if (window._reportBackgroundFailure) {
+                window._reportBackgroundFailure('bootstrapRestoreRefresh',
+                  (res && (res.message || res.error)) || 'unknown');
+              }
+              return;
+            }
             AppState.user         = res.user;
             AppState.home         = res.home;
             AppState.accessStatus = res.accessStatus || null;
@@ -739,7 +749,12 @@
             _homeDataFreshAt = Date.now();
             _aeroSaveCache();
           })
-          .withFailureHandler(function(err) { console.warn('[bootstrap bg]', err); })
+          .withFailureHandler(function(err) {
+            console.warn('[bootstrap bg]', err);
+            if (window._reportBackgroundFailure) {
+              window._reportBackgroundFailure('bootstrapRestoreRefresh', (err && err.message) || err);
+            }
+          })
           .apiGetAppBootstrap(AppState.sessionToken);
       } else {
         setLoginMessage('Restoring session...', 'boot');
@@ -1854,6 +1869,35 @@
   // did not: google.script.run is shimmed onto /api/gas here, and a proxy timeout
   // comes back as a perfectly successful HTTP 200 carrying ok:false — so it lands
   // in the SUCCESS handler below and walked straight past the thing I had silenced.
+  /* A background failure that nobody can see afterwards.
+   *
+   * The home refresh fails silently by design — the student is looking at
+   * something else and did not ask for it — and that part is right. What was
+   * wrong is that it left no trace anywhere we own: a console.warn lives in one
+   * browser for as long as that tab is open, so the only record of the outage on
+   * the 8th was a screenshot.
+   *
+   * apiLogClientEvent already exists, is already role-gated, and already writes
+   * to ClientEvents with eventType 'client_error'. This routes the silent paths
+   * into it so there is one place to look.
+   *
+   * Throttled, because the whole point is that these failures come in runs. Four
+   * timeouts in four minutes must not be four rows per student per outage; one
+   * row every ten minutes is enough to establish that it happened and for how
+   * long. */
+  var _bgFailReportedAt = 0;
+  window._reportBackgroundFailure = _reportBackgroundFailure;
+  function _reportBackgroundFailure(source, detail) {
+    try {
+      var now = Date.now();
+      if (now - _bgFailReportedAt < 10 * 60 * 1000) return;
+      _bgFailReportedAt = now;
+      if (window._reportClientError) {
+        window._reportClientError(source, new Error(String(detail || 'unknown')));
+      }
+    } catch (e) {}
+  }
+
   function refreshMeAndHome(callback, silent) {
     if (!AppState.sessionToken) {
       showScreen('loginScreen');
@@ -1874,6 +1918,7 @@
             // started it.
             if (window.console) console.warn('[home] background refresh failed, will retry later:',
               (res && res.message) || 'unknown');
+            _reportBackgroundFailure('homeBackgroundRefresh', (res && (res.message || res.error)) || 'unknown');
           } else {
             showContentError(res && res.message ? res.message : 'Could not load dashboard. Refresh to try again.');
           }
@@ -1897,8 +1942,9 @@
         if (window.console && console.warn) {
           console.warn('[bootstrap] background refresh failed:', err && err.message ? err.message : err);
         }
-        // Deliberately silent on screen. The user is looking at something else and
-        // did not ask for this.
+        // Deliberately silent ON SCREEN — the user is looking at something else
+        // and did not ask for this. Not silent in the record.
+        _reportBackgroundFailure('homeBackgroundRefresh', (err && err.message) || err);
       })
       .apiGetAppBootstrap(AppState.sessionToken);
   }
