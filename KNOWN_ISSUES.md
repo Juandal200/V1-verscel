@@ -25,6 +25,29 @@ Apps Script answering HTML is not hypothetical. It is documented in `api/gas.mjs
 and has been observed on this deployment on more than one day, in both directions
 on different days.
 
+**2026-09-08: it is sustained, not occasional.** Six consecutive POSTs to the
+live deployment — two actions, three rounds — every one of them answered with
+the consent page rather than JSON:
+
+    apiIcaoGraderTranscripts  -> HTML consent page  x3
+    apiGetIcaoAdminReport     -> HTML consent page  x3
+
+Earlier the same day the first of those returned proper JSON
+(`{"ok":false,"code":"FORBIDDEN","error":"Not authorised."}`), so the deployment
+had not changed — its answer had.
+
+Two consequences.
+
+1. **Severity.** The fail-open window is not a spike measured in seconds. For
+   the length of a run like that, every request carrying any non-empty string as
+   a token is admitted with no role and no plan.
+
+2. **Evidence.** A single probe against this deployment proves nothing. An HTML
+   answer does not mean an action is missing, and a JSON answer on one attempt
+   does not mean the next will parse. Anything that turns on "is this action
+   live" needs repeated attempts and an explicit inconclusive result — not one
+   curl.
+
 **Consequence** Any caller who invents a token string can reach Gemini through
 `/api/tea` for as long as Apps Script is misbehaving. There is no rate limit on
 that path and each call is a paid generation.
