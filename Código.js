@@ -311,9 +311,6 @@ function getUserAccessStatus_(user) {
   return _accessFor_('FREE');
 }
 
-// Lightweight no-op — called on page load to warm up the GAS runtime before the user logs in.
-function apiPing() { return { ok: true }; }
-
 // Single bootstrap call replacing apiGetMe + getMyCompletedLevels for session-restore path.
 function apiGetAppBootstrap(sessionToken) {
   // Every load runs this, and it used to read the same sheets several times over:

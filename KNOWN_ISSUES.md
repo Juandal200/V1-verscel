@@ -962,3 +962,53 @@ students to distrust the parts that are telling the truth.
 
 **What is not verifiable from the repo (rule 6).** How the restored button looks
 on screen. That is rendered geometry.
+
+---
+
+## A backgrounded tab spent execution slots all day
+
+**Status** **Fixed** — the two gamification polls check `visibilityState`, and the
+keep-warm ping is deleted. Recorded because the keep-warm was added deliberately,
+for a reason that was sound when the ceiling was not the constraint, and undoing
+a deliberate trade should be legible.
+
+**No bot ID.** This came out of the concurrency analysis on 2026-09-09, not from
+a defect report.
+
+**What was happening.** Three timers reached `doPost` on a fixed cadence,
+regardless of what the student was doing or whether the page was on screen:
+
+| call | cadence | calls/hr |
+|---|---|---|
+| `apiPing` (keep-warm) | 120s, visible only | 30 |
+| `getNotificationCounts` | 60s, always | 60 |
+| `getMyCompletedLevels` (rank) | 5 min, always | 12 |
+
+`_gamStopPoll` is reached only by signing out, and neither gamification timer
+checked visibility — so a student who opened the app in the morning and left it
+in a background tab kept polling all day. `executeAs: USER_DEPLOYING` means those
+requests spend slots from the same 30-execution budget as every other student.
+
+**Why the keep-warm went rather than being guarded.** Its cost is measured and
+its benefit is not. `apiPing`'s whole body was `return {ok:true}`, and `doPost`'s
+floor is 1.7–5.9s regardless — so it held a slot for roughly the measured 3.5s
+median every 120s per visible tab, about a quarter of what an idle student costs.
+Against that, nobody has measured a cold-versus-warm difference on this path, and
+the ping only ever fired while the student was idle, which is when a cold start
+matters least. During a route the real calls keep the instance warm anyway.
+
+**The part that is not a pure win.** Guarding a poll trades traffic for staleness.
+Without a catch-up, a student returning to the tab would see a stale badge for up
+to 60 seconds and a stale rank for up to five minutes. `_gamOnVisible` refreshes
+the badges on every return and the rank only once its five minutes have actually
+elapsed, so tab-flipping cannot turn the expensive poll into a poll-per-switch.
+The guard is only correct because returning is treated as a reason to poll.
+
+**What is left naming a deleted function.** Two comments still cite `apiPing` as
+a past measurement — `Gamification.js` and `test/rank-cost.test.js`. Both are
+historical records of why the rank cache exists, and both were left alone rather
+than edited under rule 4. If either becomes confusing, that is a ticket.
+
+**What would reopen it.** A measured cold-start penalty on the first action after
+an idle gap. The answer then is a ping tied to intent — on the screen before an
+action — not a timer.

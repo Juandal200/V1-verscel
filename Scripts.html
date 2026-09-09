@@ -783,59 +783,28 @@
 
   window.AppState = AppState;
 
-  // Re-warm GAS when the user returns to the app after it was backgrounded.
-  // GAS goes cold after ~10 min of inactivity; a ping here eliminates the cold-start
-  // delay on the next real action (simulator start, lesson, etc.).
-  var _lastHiddenAt = 0;
-  document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'hidden') {
-      _lastHiddenAt = Date.now();
-      _aeroStopKeepWarm();
-    } else if (document.visibilityState === 'visible') {
-      // Ping on EVERY return, not only after five minutes. Apps Script discards
-      // the instance far sooner than that, and the whole project — twenty-three
-      // thousand lines across twenty-six files — is recompiled before the next
-      // call runs a line of our code. Warming it while the user is still deciding
-      // what to tap costs one trivial request and saves them the wait.
-      _aeroWarmPing();
-      _aeroStartKeepWarm();
-      _lastHiddenAt = 0;
-    }
-  });
-
-  /* ─── Keeping the server awake ────────────────────────────────────────────
-   * The instance is dropped after a few minutes idle and the next call pays to
-   * rebuild it. That is the wait behind "the server took too long" — on desktop
-   * as much as on a phone, since it is the server and not the device.
+  /* ─── The keep-warm ping is gone ──────────────────────────────────────────
+   * It pinged apiPing every two minutes while the app was on screen, plus once
+   * on load and once on every return to the tab, to stop the Apps Script
+   * instance going cold.
    *
-   * A ping every two minutes while the app is on screen keeps it alive. apiPing
-   * returns {ok:true} and touches nothing, so the cost is one request; the cost
-   * of not doing it is a cold start landing on whatever the user pressed.
+   * It was removed because its cost is measured and its benefit is not.
    *
-   * Stopped when the page is hidden: warming a server for someone who is not
-   * there is just traffic.
+   * The cost: apiPing goes through google.script.run to doPost like anything
+   * else, and doPost's floor is 1.7–5.9s even for a function whose whole body is
+   * `return {ok:true}`. At the measured 3.5s median that is one of thirty
+   * project-wide execution slots held for 3.5s every 120s per visible tab — about
+   * a quarter of what a student costs while doing nothing. executeAs is
+   * USER_DEPLOYING, so those thirty slots are shared by every student at once.
+   *
+   * The benefit: nobody has measured a cold-versus-warm difference on this path.
+   * And the ping only ever fired while the student was idle — which is when a
+   * cold start matters least, because they are not pressing anything. During a
+   * route the real calls keep the instance warm on their own.
+   *
+   * If a cold start does turn out to hurt, the answer is a measurement first and
+   * then a ping tied to intent — on the screen before an action, not on a clock.
    * ─────────────────────────────────────────────────────────────────────── */
-  var _aeroWarmTimer = null;
-
-  function _aeroWarmPing() {
-    try {
-      google.script.run.withSuccessHandler(function(){}).withFailureHandler(function(){}).apiPing();
-    } catch (e) {}
-  }
-
-  function _aeroStartKeepWarm() {
-    if (_aeroWarmTimer) return;
-    _aeroWarmTimer = setInterval(function() {
-      if (document.visibilityState !== 'visible') return;
-      _aeroWarmPing();
-    }, 120000);
-  }
-
-  function _aeroStopKeepWarm() {
-    if (!_aeroWarmTimer) return;
-    clearInterval(_aeroWarmTimer);
-    _aeroWarmTimer = null;
-  }
 
   window.addEventListener('load', function() {
     bindLoginEnterKeys();
@@ -868,13 +837,6 @@
         document.addEventListener(ev, prime, { passive: true, once: true });
       });
     })();
-
-    // Warmup ping — fires immediately to wake the GAS runtime before any user action.
-    // By the time credentials are entered and submitted, the cold-start penalty is gone.
-    _aeroWarmPing();
-    // And keep it awake for as long as the app is on screen, or it goes cold again
-    // in the gap between signing in and pressing anything.
-    _aeroStartKeepWarm();
 
     if (AppState.sessionToken) {
       var _startCache = _aeroReadCache();
@@ -24412,8 +24374,19 @@ var LEVEL_THEMES = {
       .getMyCompletedLevels(AppState.sessionToken);
   }
 
+  /* Nobody is looking, so nothing is asked.
+   *
+   * These two ran for the life of the tab. A student who opened the app in the
+   * morning and left it in a background tab kept asking the server for badge
+   * counts every sixty seconds and their rank every five minutes, all day, on a
+   * screen nobody could see — seventy-two calls an hour each, against a
+   * thirty-slot budget shared by every student at once.
+   *
+   * _aeroStartKeepWarm already guarded itself this way before it was deleted.
+   * These two never did, and _gamStopPoll is reached only by signing out. */
   function _gamPoll() {
     if (!window.AppState || !AppState.sessionToken) return;
+    if (document.visibilityState !== 'visible') return;
     google.script.run
       .withSuccessHandler(function (res) {
         if (res.status !== 'success') return;
@@ -24441,7 +24414,29 @@ var LEVEL_THEMES = {
   var _GAM_RANK_EVERY = 5 * 60 * 1000;
   function _gamRankPoll() {
     if (!window.AppState || !AppState.sessionToken) return;
+    if (document.visibilityState !== 'visible') return;
+    _gam.lastRankAt = Date.now();
     _refreshTopbarRank();
+  }
+
+  /* Coming back to the tab is not the same as waiting for the next tick.
+   *
+   * Without this, guarding the timers would have traded traffic for staleness:
+   * a student returning to the tab would see yesterday's badge count for up to
+   * sixty seconds and their old rank for up to five minutes. The guard is only
+   * correct if returning is a reason to poll.
+   *
+   * The badges refresh on every return — they are cheap, and their latency is
+   * what a student notices. The rank does not, unless the five minutes it would
+   * have waited anyway have actually passed, so flipping between tabs cannot
+   * turn the expensive one into a poll-per-switch. */
+  function _gamOnVisible() {
+    if (document.visibilityState !== 'visible') return;
+    if (!window.AppState || !AppState.sessionToken) return;
+    _gamPoll();
+    if (!_gam.lastRankAt || (Date.now() - _gam.lastRankAt) >= _GAM_RANK_EVERY) {
+      _gamRankPoll();
+    }
   }
 
   function _gamStartPoll() {
@@ -24453,6 +24448,7 @@ var LEVEL_THEMES = {
     clearInterval(_gam.rankTimer);
     _gam.pollTimer = setInterval(_gamPoll,     60000);
     _gam.rankTimer = setInterval(_gamRankPoll, _GAM_RANK_EVERY);
+    document.addEventListener('visibilitychange', _gamOnVisible);
   }
 
   /* Something to stop it with.
@@ -24465,6 +24461,10 @@ var LEVEL_THEMES = {
     clearInterval(_gam.rankTimer);
     _gam.pollTimer = null;
     _gam.rankTimer = null;
+    // Named, not an inline closure, so this can actually remove it. Signing out
+    // has to end the catch-up too, or a hidden tab starts polling again the
+    // moment it is looked at.
+    document.removeEventListener('visibilitychange', _gamOnVisible);
   }
   window._gamStopPoll = _gamStopPoll;
 
