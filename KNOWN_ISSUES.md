@@ -482,3 +482,44 @@ inflate a student's count.
 **What is genuinely at risk when they fail:** the route-completion state, the
 level-unlock roll-up, the debrief, and the certificate auto-save. Real, and worth
 telling the student about. Just not their answers.
+
+---
+
+## T-5 / T-6 — the replay threshold: named on both sides, now compared
+
+**Status** T-5 **closed**. T-6 **closed by parity test**, not by removing the
+duplication — the duplication is structural and stays.
+
+**T-5's commit subject overstated it.** `cbb378b`, "one named default per
+runtime instead of seven loose literals", reads as closure. It replaced seven
+`|| 2` literals with a named constant on each side, which was worth doing, and
+it left **two independent values**:
+
+    Scripts.html      var _DEFAULT_REPLAY_THRESHOLD = 2;
+    ConfigService.js  var DEFAULT_REPLAY_THRESHOLD  = 2;
+
+Nothing compared them. Either could have been edited alone, every suite would
+have stayed green, and the simulator would have allowed a different number of
+replays than the server graded against — a student penalised for using a control
+the app offered them. Audit #2 found the gap; the subject line is why nobody
+looked.
+
+**Why the duplication stays.** The boundary is genuine. The client cannot import
+from `ConfigService.js` and Apps Script cannot import from `Scripts.html`. There
+is no shared module to put the number in, so CLAUDE.md's rule applies: where a
+boundary forces two copies, compare them directly rather than leaving a comment
+asking them to agree.
+
+**What closes it.** `test/threshold-parity.test.js` reads both declarations and
+asserts equality, checks no consumer has drifted back to a literal on either
+side, and checks the client declaration still precedes its first use — a
+declaration that moves below `AtcReplayGate` would make the gate read `undefined`
+and every replay free. Proven able to fail, in both directions:
+
+    # server changed to 3
+    FAIL  client 2 === server 3 — client 2, server 3
+    # a literal put back in Código.js
+    FAIL  Código.js never does either — replayThreshold || 2
+
+**If the number ever needs to change**, change it in both files in one commit.
+The test is what makes forgetting loud instead of silent.
