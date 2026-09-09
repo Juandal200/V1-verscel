@@ -287,3 +287,84 @@ Whether Apps Script was rate-limiting, out of quota, or simply slow. That needs
 the Cloud Logging for the deployment — `[GAS PROXY] <action> <ms>ms status=…` is
 logged for every call that returns, and the timeouts log
 `[GAS PROXY] <action> timed out after 45s`. Both are in Vercel's function logs.
+
+---
+
+## (no ID) — one project-wide lock is the write model of the whole product
+
+**Status** Open by decision. Filed, not acted on. Design change, not a task.
+
+`dbWithScriptLock_` takes `LockService.getScriptLock()` — **project-wide, not
+per-user** — and **40 call sites** still use it after `apiTrackActiveTime` was
+taken off it: every LMS write, attempt saves, OTP and login, scenario writes,
+user creation.
+
+**Per-user locking is not available.** `appsscript.json` sets
+`"executeAs": "USER_DEPLOYING"`, so every request runs as the owner and
+`LockService.getUserLock()` resolves to that same single identity. There is no
+narrower lock to switch to without changing how the web app is deployed.
+
+**Why it matters at thirty students.** The lock is held across I/O, not
+arithmetic — a typical site does `dbFindOne_` (a full sheet read) then
+`dbUpdateByRow_` (a row read plus a row write) inside the critical section. As
+arithmetic, not measurement: *N* concurrent writers × hold seconds approaching
+1 second of wall clock per second is saturation. Login and attempt-save are the
+two that will contend first, and an attempt save happens in the middle of an
+exercise.
+
+`waitLock(20000)` throws after twenty seconds, and that throw becomes
+`apiError_` → `{ok:false}` → HTTP 200 → the client's success handler. So the
+failure mode under contention is silence, everywhere it is used.
+
+**Not verifiable from here** (rule 6): the actual hold duration. The observed
+logs cannot separate it from the platform floor — `apiPing` does no I/O at all
+and still took 1686–5906 ms.
+
+**Shape of a fix, for whoever picks this up:** the read-modify-write pattern is
+what forces the lock. Writes that are appends, or that target a row by key
+without reading the whole sheet first, do not need one. That is a data-access
+change across 40 sites, not a patch.
+
+---
+
+## (no ID) — three stale Apps Script deployments are live and callable
+
+**Status** Open. Housekeeping, but the kind that has bitten this project four
+times.
+
+`clasp deployments` lists four. Production calls `@667`. The other three —
+**`@HEAD`, `@309`, `@311`** — are still deployed and still answer requests.
+
+`@HEAD` is the dangerous one: it serves whatever is currently pushed, so any
+`clasp push` changes its behaviour immediately, without a `clasp deploy`. Anyone
+holding that URL is running unreviewed code.
+
+Nothing in the repo points at them — all four `api/*.mjs` files carry the same
+`AKfycbx4…` production ID and `GAS_WEBHOOK_URL` is unset, both confirmed
+2026-09-08 — so this is not currently a split-deployment fault. It is an open
+door.
+
+**Fix** `clasp undeploy <deploymentId>` for the three, once it is confirmed
+nothing external (a bookmark, an old PWA install, a webhook) still calls them.
+That confirmation cannot be made from the repo.
+
+---
+
+## (not a defect) — PIPELINE_SECRET and APP_ORIGIN are Production-only
+
+**Status** Recorded so nobody chases it.
+
+Vercel holds nine environment variables. Seven are set for Production **and**
+Preview; `PIPELINE_SECRET` and `APP_ORIGIN` are Production-only.
+
+The consequence is expected and correct: **a preview deployment cannot reach the
+grader.** `transcriptsFor` sends `PIPELINE_SECRET` to `apiIcaoGraderTranscripts`,
+which refuses an empty one, so a preview build fails every Part 2 audio item with
+*"The examiner could not be given the recording to mark against."* And
+`APP_ORIGIN` being unset on preview means the origin check falls back to
+comparing `Origin` against `Host`, which is the designed default and still works.
+
+So: previews can run the app, sign in, and take the simulator, but cannot grade a
+scripted exam. If that is ever wanted, both variables need Preview values — and
+`PIPELINE_SECRET` would then have to match Script Properties, which means preview
+and production would share a credential. Not recommended.
