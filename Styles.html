@@ -10581,7 +10581,9 @@ p, li, td, th, h1, h2, h3, h4,
 .hf-search-input {
   width: 100%; background: var(--bg);
   border: 1px solid var(--line); border-radius: 8px;
-  padding: 11px 14px 11px 38px;
+  /* 38px on the left used to reserve room for a magnifier. The mark went with
+     F-0010; the space it sat in had to go with it. */
+  padding: 11px 14px;
   font-size: 0.82rem; color: var(--text); outline: none;
   transition: border-color 0.15s var(--ease);
 }
