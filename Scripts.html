@@ -17009,9 +17009,70 @@ var LEVEL_THEMES = {
       '--font-ui:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,Arial,sans-serif;' +
     '}';
 
+  /* Say it out loud, and write it down.
+   *
+   * "Something went wrong" was reported once and could never be diagnosed,
+   * because nothing about a client failure left the browser: the report paths
+   * either said nothing at all or wrote to console.error, which nobody reads
+   * after the fact.
+   *
+   * apiLogClientEvent already exists, is already role-gated, already writes to
+   * the ClientEvents sheet, and validateEventPayload_ accepts any eventType — so
+   * this adds no Apps Script code and no new endpoint.
+   *
+   * Fire and forget, and wrapped in its own try/catch. It is called from inside
+   * catch blocks, where a throw would replace a handled failure with an unhandled
+   * one. It must never be able to make things worse than it found them. */
+  function _reportClientError(source, err) {
+    try {
+      if (window.console) console.error('[' + source + ']', err);
+      if (!(window.AppState && AppState.sessionToken)) return;
+      google.script.run
+        .withSuccessHandler(function () {})
+        .withFailureHandler(function () {})
+        .apiLogClientEvent(AppState.sessionToken, {
+          eventType: 'client_error',
+          source:    String(source || ''),
+          message:   String((err && err.message) || err || ''),
+          stack:     String((err && err.stack) || '').slice(0, 900),
+          userAgent: String(navigator.userAgent || '').slice(0, 200)
+        });
+    } catch (e) {}
+  }
+  window._reportClientError = _reportClientError;
+
+  /* Both report downloads open a window and write into it, and both used to fail
+   * in silence: no data meant an early return, and a blocked pop-up meant an
+   * if-statement that simply did not run. Two ways to press a button and have
+   * nothing happen and nothing said.
+   *
+   * One place to open the window, so both get the same message and the next one
+   * added gets it too. */
+  function _openReportWindow(html, source) {
+    var win = null;
+    try { win = window.open('', '_blank'); } catch (e) { win = null; }
+    if (!win) {
+      var m = 'Your browser blocked the report window. Allow pop-ups for this site and try again.';
+      if (typeof window._gToast === 'function') window._gToast(m, 'err');
+      _reportClientError(source, new Error('window.open returned null — pop-up blocked'));
+      return false;
+    }
+    win.document.write(html);
+    win.document.close();
+    return true;
+  }
+
   function _downloadProgressPdf() {
+   try {
     var res = _lastProgressReportData;
-    if (!res) return;
+    if (!res) {
+      // Not an error — the report simply has not arrived yet. Said plainly rather
+      // than swallowed, because a button that does nothing reads as broken.
+      if (typeof window._gToast === 'function') {
+        window._gToast('Your report has not finished loading yet. Give it a moment and try again.', 'err');
+      }
+      return;
+    }
     var mods   = res.modules || [];
     var totalH = Math.floor((res.totalActiveSeconds || 0) / 3600);
     var totalM = Math.floor(((res.totalActiveSeconds || 0) % 3600) / 60);
@@ -17074,11 +17135,17 @@ var LEVEL_THEMES = {
       '</table>' +
       '</body></html>';
 
-    var win = window.open('', '_blank');
-    if (win) { win.document.write(html); win.document.close(); }
+    _openReportWindow(html, 'downloadProgressPdf');
+   } catch (e) {
+     if (typeof window._gToast === 'function') {
+       window._gToast('The report could not be produced. Nothing was lost — try again.', 'err');
+     }
+     _reportClientError('downloadProgressPdf', e);
+   }
   }
 
   function _downloadUnifiedProgressPdf() {
+   try {
     var atc     = _progStudentData || {};
     var lms     = _progLmsData     || {};
     var eff     = atc.effectiveness || {};
@@ -17196,8 +17263,13 @@ var LEVEL_THEMES = {
 
       '</body></html>';
 
-    var win = window.open('', '_blank');
-    if (win) { win.document.write(html); win.document.close(); }
+    _openReportWindow(html, 'downloadUnifiedProgressPdf');
+   } catch (e) {
+     if (typeof window._gToast === 'function') {
+       window._gToast('The report could not be produced. Nothing was lost — try again.', 'err');
+     }
+     _reportClientError('downloadUnifiedProgressPdf', e);
+   }
   }
 
   // ── Admin Progress tab ────────────────────────────────────────────────────────
@@ -26559,7 +26631,11 @@ var LEVEL_THEMES = {
       } catch (e) {
         // The result is already saved and already on its way to the sheet. Say so,
         // rather than letting the error boundary imply it was lost.
-        if (window.console) console.error('[ICAO test] report screen failed', e);
+        // Runs only when _showReportScreen has already thrown, so this cannot
+        // affect a sitting that worked. It used to write to console.error and
+        // stop there — which is why the one report failure ever seen could not
+        // be diagnosed afterwards.
+        if (window._reportClientError) window._reportClientError('icaoReportScreen', e);
         _teaShowReportFallback(jsonData, e);
       }
       // The examiner does not read the result out.
