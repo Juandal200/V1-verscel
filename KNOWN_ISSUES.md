@@ -523,3 +523,45 @@ and every replay free. Proven able to fail, in both directions:
 
 **If the number ever needs to change**, change it in both files in one commit.
 The test is what makes forgetting loud instead of silent.
+
+---
+
+## (retracted) — the "74 call sites swallow failures" list is not a finding
+
+**Status** **Retracted.** The list was produced by a pattern match, not by
+reading the call sites, and where it was checked it was wrong half the time.
+
+**What was claimed.** During A2 I reported 74 `google.script.run` call sites
+across 52 distinct actions where "nothing reacts to a failure on either path",
+and singled out eight submit actions as the dangerous ones.
+
+**What the method actually was.** For each call site, look ahead about 900
+characters from each handler and search for one of a fixed set of reaction
+patterns — `showContentError`, a toast, a `console` call, an `else`. Anything
+without a match was listed. I labelled it "candidates needing per-site
+confirmation, not a verdict", which was correct, and then wrote a sentence that
+was not.
+
+**What confirmation found.** Of the eight submit actions, **four already handled
+failure properly** and the matcher had simply missed how:
+
+    apiSubmitExam          _examError('Could not record exam result.')
+    apiSubmitPlacementTest _placementError(…)
+    apiModuleSubmitQuiz    a red message, on both of its two sites
+    apiSaveCertificate #2  "Could not save certificate — contact your instructor"
+
+Four of eight is a 50% error rate on the only subset anyone checked.
+
+**The specific false statement.** I wrote: *"A student submits an exam and a
+failure says nothing."* That was **false for both exam submits** — the two
+places where it would have mattered most. `apiSubmitExam` and
+`apiSubmitPlacementTest` have shown a failure message the whole time.
+
+**Status of the remaining 66 sites: unknown, and not to be treated as findings.**
+They have never been read. Assume a similar error rate. Anyone working from that
+list must confirm each site individually before changing it — which is what the
+confirmation step is for, and it did its job.
+
+**What is genuinely established** is only the eight actions on
+`SERVER_ERROR_ACTIONS` in `shim.js`, each of which was read, migrated and
+asserted individually in `test/shim-server-errors.test.js`.
