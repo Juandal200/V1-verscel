@@ -957,6 +957,25 @@ function apiFinalizeRoute(sessionToken, payload) {
     var scenarioIds = payload.scenarioIds || [];
     if (!scenarioIds.length) return { ok: false, error: 'No scenarios given.' };
 
+    /* One read scope for the whole route.
+     *
+     * updateUserProgress reads Attempts and Progress in full, and this called it
+     * once per scenario — so an eight-phase route paid SIXTEEN full-sheet reads to
+     * produce one Progress row, and the cost grew with the Attempts sheet. Nothing
+     * opened a scope, so dbReadAll_'s _DB_SCOPE cache was never armed on this path.
+     * With one, the same route reads each sheet once.
+     *
+     * Safe across the writes inside the loop, and that was checked rather than
+     * assumed: dbAppend_ and dbUpdateByRow_ both write THROUGH to a live scope
+     * (they push the new row with its __rowNumber, and merge an updated row back),
+     * so a later iteration still sees what an earlier one wrote. dbDeleteByRow_
+     * drops the cache instead, because deleting shifts every __rowNumber — nothing
+     * on this path deletes.
+     *
+     * Nesting is explicitly tolerated: dbWithReadScope_ only clears the outermost,
+     * so this cannot disturb apiSubmitAttempt, which opens one of its own. */
+    return dbWithReadScope_(function () {
+
     // Read the scenario rows once for the whole route rather than once per phase.
     var byId = {};
     readSheetObjectsV5Hard_('Scenarios').forEach(function(r) {
@@ -999,6 +1018,8 @@ function apiFinalizeRoute(sessionToken, payload) {
       lmsStreakDays: lmsStreakDays,
       streakEvent:   streakEvent
     };
+
+    });   // dbWithReadScope_
   } catch (err) {
     return apiError_('apiFinalizeRoute', err);
   }
