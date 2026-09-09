@@ -1902,18 +1902,42 @@ function apiTrackActiveTime(sessionToken, seconds) {
     seconds = Math.max(0, Math.min(Number(seconds) || 0, 3600));
     if (!seconds) return { ok: true };
 
-    dbWithScriptLock_(function() {
-      var existing = dbFindOne_('UserActivity', 'userId', caller.userId);
-      var now = now_();
-      if (existing) {
-        dbUpdateByRow_('UserActivity', existing.__rowNumber, {
-          totalActiveSeconds: Number(existing.totalActiveSeconds || 0) + seconds,
-          updatedAt: now
-        });
-      } else {
-        dbAppend_('UserActivity', { userId: caller.userId, totalActiveSeconds: seconds, updatedAt: now });
-      }
-    });
+    /* No script lock here, deliberately, and this is the one write path where
+     * that is the right call.
+     *
+     * dbWithScriptLock_ takes LockService.getScriptLock() — PROJECT-WIDE, not
+     * per-user. Forty-one write paths share it. Per-user locking is not
+     * available to us: appsscript.json deploys the web app with
+     * executeAs: USER_DEPLOYING, so every request runs as the owner and
+     * getUserLock() would resolve to that same one identity.
+     *
+     * This was the only lock site on a TIMER, firing for every signed-in
+     * student on every screen, so it set the floor for how many students the
+     * project can carry before login and attempt-saves start queueing behind
+     * campus-time bookkeeping.
+     *
+     * WHAT THE LOCK WAS PROTECTING. A read-modify-write of one integer that is
+     * rendered as "Xh Ym" on the progress screens and in the PDF. Not a grade,
+     * not a gate, not a billing input. The race it prevents is two concurrent
+     * syncs for the SAME user — two tabs, or a phone and a laptop — losing one
+     * increment from a figure displayed in minutes.
+     *
+     * WHAT IT COST WHEN IT FAILED. waitLock(20000) throws after twenty seconds.
+     * The throw becomes apiError_ -> { ok: false } -> HTTP 200 -> the client's
+     * success handler. So under contention — the exact condition the lock
+     * exists for — it dropped the same increment it was protecting, silently.
+     * Removing it cannot lose more than keeping it did, and it stops one
+     * student's bookkeeping delaying another student's examination. */
+    var existing = dbFindOne_('UserActivity', 'userId', caller.userId);
+    var now = now_();
+    if (existing) {
+      dbUpdateByRow_('UserActivity', existing.__rowNumber, {
+        totalActiveSeconds: Number(existing.totalActiveSeconds || 0) + seconds,
+        updatedAt: now
+      });
+    } else {
+      dbAppend_('UserActivity', { userId: caller.userId, totalActiveSeconds: seconds, updatedAt: now });
+    }
     return { ok: true };
   } catch(err) {
     return apiError_('apiTrackActiveTime', err);

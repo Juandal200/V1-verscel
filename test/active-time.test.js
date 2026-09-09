@@ -141,5 +141,36 @@ ok('and a second attempt still carries them, so they were not dropped',
    JSON.parse(e.beacons[1].payload.parts[0]).args[1] === 4,
    e.beacons.length === 2 ? String(JSON.parse(e.beacons[1].payload.parts[0]).args[1]) : 'no second attempt');
 
+/* And the server half: the only lock site on a timer is no longer one.
+ *
+ * Read from stripped source — the replacement comment names dbWithScriptLock_
+ * to explain why it is gone, and a raw count would find it there. */
+console.log('\nthe project-wide lock is off the timer path:');
+const L = fs.readFileSync(__dirname + '/../LMSModuleService.js', 'utf8');
+const Lc = L.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/[^\n]*/g, '$1');
+function grabIn(src, sig) {
+  const i = src.indexOf(sig); if (i < 0) return null;
+  let d = 0;
+  for (let k = src.indexOf('{', i); k < src.length; k++) {
+    if (src[k] === '{') d++; else if (src[k] === '}') { d--; if (!d) return src.slice(i, k + 1); }
+  }
+  return null;
+}
+const track = grabIn(Lc, 'function apiTrackActiveTime(');
+ok('apiTrackActiveTime found', !!track);
+ok('it no longer takes the script lock', track && track.indexOf('dbWithScriptLock_') === -1);
+// It must still do the work, or the metric stops moving.
+ok('and still reads, updates and appends',
+   track && /dbFindOne_\('UserActivity'/.test(track) &&
+            /dbUpdateByRow_\('UserActivity'/.test(track) &&
+            /dbAppend_\('UserActivity'/.test(track));
+// Every other write path keeps it — this is one considered exception, not a sweep.
+const others = (Lc.match(/dbWithScriptLock_\(function/g) || []).length;
+ok('the other write paths in this file keep it (' + others + ')', others >= 15);
+// Per-user locking is not an option, and the reason is in appsscript.json.
+const APP = JSON.parse(fs.readFileSync(__dirname + '/../appsscript.json', 'utf8'));
+ok('the web app still executes as the deploying user, so getUserLock is no alternative',
+   APP.webapp && APP.webapp.executeAs === 'USER_DEPLOYING', APP.webapp && APP.webapp.executeAs);
+
 console.log(fails ? ('\n' + fails + ' FAILING') : '\nall green');
 process.exit(fails ? 1 : 0);
