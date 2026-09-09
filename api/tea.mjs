@@ -400,16 +400,19 @@ async function sessionValid(token) {
     // an unknown role as a refusal.
     if (/^\s*(<!doctype|<html)/i.test(text || '')) {
       console.warn('[auth] Apps Script answered HTML, not JSON — allowing on token presence, role unknown.');
-      return { role: '' };
+      return { role: '', status: '' };
     }
     let j = null;
     try { j = JSON.parse(text); } catch (e) { j = null; }
     if (!j) {
       console.warn('[auth] Apps Script answer was unparseable — allowing on token presence, role unknown.');
-      return { role: '' };
+      return { role: '', status: '' };
     }
     if (j.ok === false) return null;
-    return { role: String((j.user && j.user.role) || '').toUpperCase() };
+    return {
+      role:   String((j.user && j.user.role) || '').toUpperCase(),
+      status: String((j.accessStatus && j.accessStatus.status) || '')
+    };
   } catch (e) {
     console.warn('[auth] session check could not complete (' + e.message + ') — allowing on token presence, role unknown.');
     return { role: '' };
@@ -430,6 +433,96 @@ async function sessionValid(token) {
  * because Apps Script intermittently answers HTML and refusing would end live
  * examinations. This one has no such excuse: if the role cannot be established,
  * the answer is no. */
+/* The same six, withheld the same way, as api/tea-pipeline.mjs.
+ *
+ * The two paths emit different shapes — the pipeline's schema gives each
+ * descriptor as { score, feedback }, the conversational [EXAM_COMPLETE] contract
+ * gives a bare integer — so this handles both rather than assuming one. It is a
+ * copy of the pipeline's function on purpose: the alternative is a shared module
+ * inside api/, and every file in that directory becomes a public route.
+ *
+ * admin_view is nulled as well. The contract says [EXAM_COMPLETE] returns
+ * student_view and nothing else, and F-0021 gates the [ADMIN_REPORT] request that
+ * asks for the rest — but a model does not always obey "exactly this, nothing
+ * else", and the client function this replaces explicitly forced admin_view to
+ * null, which suggests somebody once watched it arrive uninvited. */
+const TEA_DESCRIPTORS = ['pronunciation','structure','vocabulary','fluency','comprehension','interactions'];
+
+function withholdDescriptors(sv) {
+  const out = { ...sv };
+  TEA_DESCRIPTORS.forEach(function (k) {
+    const v = sv[k];
+    out[k] = (v && typeof v === 'object') ? { score: 0, feedback: '' } : 0;
+  });
+  if (sv.summary !== undefined) out.summary = '';
+  return out;
+}
+
+/* An occurrence of the catch below, made visible rather than silent.
+ *
+ * Written to ClientEvents through apiLogClientEvent — the same sheet and the same
+ * eventType the client's own error reporting uses, so there is one place to look
+ * rather than two. Not awaited: this runs while a candidate is waiting for a
+ * report, and a logging call must never be the thing that delays it. */
+function logServerError(token, source, err) {
+  console.error('[tea] ' + source + ': ' + ((err && err.message) || err));
+  try {
+    if (!token) return;
+    fetch(GAS_AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'apiLogClientEvent', args: [token, {
+        eventType: 'client_error',
+        source:    source,
+        message:   String((err && err.message) || err || ''),
+        stack:     String((err && err.stack) || '').slice(0, 900)
+      }] }),
+      redirect: 'follow',
+    }).catch(function () {});
+  } catch (e) {}
+}
+
+/* The report the candidate is entitled to, and no more.
+ *
+ * This path returns the model's TEXT, not a typed object — the client parses the
+ * outermost {...} out of it. So the withholding has to happen on the message
+ * itself, which is the only place in this proxy that rewrites what the examiner
+ * said. It is deliberately narrow: a message that does not parse, or that carries
+ * no student_view, is returned byte-identical. A spoken turn cannot match,
+ * because a spoken turn is not a JSON object.
+ *
+ * Once it HAS parsed and IS a report, there is no way out but withheld. Zeroing
+ * six properties on a plain object and re-stringifying it does not realistically
+ * throw — so a catch that returned the original would be protecting an empty set
+ * at the cost of the thing it exists for, and if it ever did fire, something is
+ * wrong enough that shipping real descriptors is the wrong answer. */
+function withholdInMessage(message, token) {
+  const raw = String(message || '');
+  let parsed = null;
+  try {
+    const t = raw.trim().replace(/^```[a-z]*\s*/i, '').replace(/```\s*$/, '').trim();
+    const a = t.indexOf('{'), b = t.lastIndexOf('}');
+    if (a === -1 || b <= a) return { message: raw, withheld: false };
+    parsed = JSON.parse(t.slice(a, b + 1));
+  } catch (e) {
+    return { message: raw, withheld: false };   // not a payload: normal operation
+  }
+  if (!parsed || !parsed.student_view) return { message: raw, withheld: false };
+
+  try {
+    const out = { ...parsed, student_view: withholdDescriptors(parsed.student_view) };
+    if ('admin_view' in out) out.admin_view = null;
+    return { message: JSON.stringify(out), withheld: true };
+  } catch (e) {
+    logServerError(token, 'teaWithholdDescriptors', e);
+    // Band only. Never the original.
+    const band = Number((parsed.student_view || {}).overall_band) || 0;
+    const min  = { student_view: { overall_band: band }, admin_view: null };
+    TEA_DESCRIPTORS.forEach(function (k) { min.student_view[k] = 0; });
+    return { message: JSON.stringify(min), withheld: true };
+  }
+}
+
 function asksForAdminReport(history) {
   return Array.isArray(history) && history.some(m =>
     typeof m?.content === 'string' && m.content.indexOf('[ADMIN_REPORT') !== -1);
@@ -539,6 +632,8 @@ export default async function handler(req, res) {
     res.status(403).json({ ok: false, code: 'FORBIDDEN', error: 'Sign in to use this endpoint' });
     return;
   }
+  // '' means the plan could not be established — treated as free, as in D-1.
+  const paidPlan = caller.status !== 'free' && caller.status !== '';
   if (asksForAdminReport((req.body || {}).history) &&
       caller.role !== 'ADMIN' && caller.role !== 'INSTRUCTOR') {
     console.warn('[tea] ADMIN_REPORT refused for role "' + caller.role + '"');
@@ -705,7 +800,18 @@ export default async function handler(req, res) {
       data.candidates[0].content.parts &&
       data.candidates[0].content.parts[0].text;
 
-    res.status(200).json({ ok: true, message: text || '' });
+    /* Withheld here, before serialization, not redacted in the browser.
+     * api/tea-pipeline.mjs does the same for the scripted sitting; this is the
+     * fallback path it hands over to when scripted grading fails, and it was
+     * still sending every descriptor. */
+    if (paidPlan) {
+      res.status(200).json({ ok: true, message: text || '' });
+    } else {
+      const held = withholdInMessage(text || '', (req.body || {}).sessionToken);
+      res.status(200).json(held.withheld
+        ? { ok: true, message: held.message, descriptorsWithheld: true }
+        : { ok: true, message: held.message });
+    }
 
   } catch (err) {
     console.error('[TEA]', err.message);
