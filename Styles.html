@@ -4485,8 +4485,24 @@ mark.atc-highlight {
   filter: drop-shadow(0 0 14px rgba(var(--accent-rgb), 0.7));
 }
 
+/* A fixed width, so the bar under it stops changing size.
+ *
+ * The height was reserved (see the h2 below) and the vertical jump went away.
+ * The horizontal one stayed, and it is the same fault on the other axis: this
+ * block had max-width and no width, and .completion-loading-shell is a column
+ * flex with align-items:center — which makes a child shrink-to-fit its content.
+ * So the block was as wide as whichever message was on screen, clamped at 420px.
+ * "Checking exam and placement status…" is forty-eight characters and hit the
+ * clamp; "Preparing the level map…" is twenty-four and collapsed to about half
+ * of it. .completion-loading-bar is width:100% of this block, so the bar grew
+ * and shrank with the sentence above it, every 900ms.
+ *
+ * width:100% makes the block the same size whatever the message says, and
+ * max-width still caps it. text-align:center and the bar's margin:0 auto keep
+ * everything centred exactly as before. */
 .completion-loading-text {
   text-align: center;
+  width: 100%;
   max-width: 420px;
 }
 
