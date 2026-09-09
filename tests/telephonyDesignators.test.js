@@ -1,103 +1,65 @@
-// Unit tests for Issue 4 — telephony designator TTS preprocessing
-// Run: node tests/telephonyDesignators.test.js
-
+/* Call signs, checked against the list the product actually uses.
+ *
+ * The old suite pasted a stub and said so in its header — "stubs (mirrors
+ * TTSService.js logic)". A mirror is only a mirror while somebody polishes it.
+ * This one asserted "Speedbird 2 1 7 heavy"; the product says "Speedbird two
+ * one seven heavy", and the suite was green throughout.
+ *
+ * TELEPHONY_DESIGNATORS is lifted from the source too, so a designator added
+ * there is covered here without anyone remembering to add it twice. */
 'use strict';
+const { TTS, missing, designators, say } = require('./_ttslift');
 
-var passed = 0;
-var failed = 0;
-
+let passed = 0, failed = 0;
 function assert(label, condition, detail) {
-  if (condition) {
-    console.log('  ✓ ' + label);
-    passed++;
-  } else {
-    console.error('  ✗ ' + label + (detail ? ' — ' + detail : ''));
-    failed++;
-  }
+  if (condition) { console.log('  ✓ ' + label); passed++; }
+  else { console.error('  ✗ ' + label + (detail ? ' — ' + detail : '')); failed++; }
 }
 
-// ---------- stubs (mirrors TTSService.js logic) ----------
+console.log('\ntelephony designators, from TTSService.js\n');
+assert('the pronunciation chain lifted', missing.length === 0, missing.join(', '));
+assert('and so did the designator list', !!designators);
+if (!TTS) { console.error('\ncannot continue'); process.exit(1); }
 
-var TELEPHONY_DESIGNATORS = [
-  'FASTAIR','SPEEDBIRD','CACTUS','REACH',
-  'UNITED','AMERICAN','DELTA','BRITISH'
-];
+console.log('\na designator is title-cased and its number spoken in ICAO words:');
+[['SPEEDBIRD 217 HEAVY', 'Speedbird two one seven heavy'],
+ ['DELTA 123',           'Delta one two three'],
+ ['CACTUS 444',          'Cactus four four four'],
+ ['UNITED 1',            'United one'],
+ ['AMERICAN 52',         'American five two'],
+ ['FASTAIR 345',         'Fastair three four five'],
+ ['REACH 701',           'Reach seven zero one'],
+ ['BRITISH 92 SUPER',    'British niner two super'],
+].forEach(([input, expected]) => {
+  const got = say(input);
+  assert(input + ' → "' + expected + '"', got === expected, 'got "' + got + '"');
+});
 
-function expandDigitsIcao(numStr) {
-  return String(numStr || '').split('').join(' ');
-}
+// 9 is "niner" in ICAO, and that is the whole reason this runs through the
+// product rather than a mirror of it — a stub is exactly where a "nine" creeps
+// back in and nothing notices.
+console.log('\nnine is niner:');
+assert('BRITISH 92 says niner, not nine',
+       say('BRITISH 92 SUPER').indexOf('niner') !== -1 && say('BRITISH 92 SUPER').indexOf('nine ') === -1,
+       say('BRITISH 92 SUPER'));
 
-function prepareAtcPronunciation(text) {
-  var out = String(text || '').trim().toUpperCase();
+console.log('\ncase and suffixes:');
+assert('lowercase input is handled',
+       say('speedbird 217 heavy') === 'Speedbird two one seven heavy', say('speedbird 217 heavy'));
+assert('HEAVY is kept',  say('DELTA 456 HEAVY').indexOf('heavy') !== -1, say('DELTA 456 HEAVY'));
+assert('no suffix invents none',
+       say('UNITED 10') === 'United one zero', say('UNITED 10'));
 
-  // 10b. Telephony designators (the step under test)
-  var tdPattern = new RegExp(
-    '\\b(' + TELEPHONY_DESIGNATORS.join('|') + ')\\s+(\\d{1,4})(?:\\s+(HEAVY|SUPER))?\\b', 'gi'
-  );
-  out = out.replace(tdPattern, function(_, designator, num, suffix) {
-    return designator.charAt(0).toUpperCase() + designator.slice(1).toLowerCase() +
-           ' ' + expandDigitsIcao(num) +
-           (suffix ? ' ' + suffix.toLowerCase() : '');
-  });
+console.log('\nevery designator in the list is actually handled:');
+const list = new Function(designators + '\nreturn TELEPHONY_DESIGNATORS;')();
+assert('the list is not empty', list.length > 0);
+const unhandled = list.filter(d => {
+  const out = say(d + ' 123');
+  // Handled means title-cased and the number spoken — not left in shouting caps.
+  return out === (d + ' 123') || /\d/.test(out);
+});
+assert('all ' + list.length + ' designators are expanded', unhandled.length === 0,
+       'unhandled: ' + JSON.stringify(unhandled));
 
-  return out;
-}
-
-// ---------- tests ----------
-
-console.log('\nIssue 4 — telephony designator preprocessing\n');
-
-// Core seeded designators
-console.log('Seeded designators:');
-assert('SPEEDBIRD 217 HEAVY → "Speedbird 2 1 7 heavy"',
-       prepareAtcPronunciation('SPEEDBIRD 217 HEAVY') === 'Speedbird 2 1 7 heavy',
-       'got "' + prepareAtcPronunciation('SPEEDBIRD 217 HEAVY') + '"');
-
-assert('DELTA 123 → "Delta 1 2 3" (not skipped)',
-       prepareAtcPronunciation('DELTA 123') === 'Delta 1 2 3',
-       'got "' + prepareAtcPronunciation('DELTA 123') + '"');
-
-assert('CACTUS 444 → "Cactus 4 4 4"',
-       prepareAtcPronunciation('CACTUS 444') === 'Cactus 4 4 4',
-       'got "' + prepareAtcPronunciation('CACTUS 444') + '"');
-
-assert('UNITED 1 → "United 1"',
-       prepareAtcPronunciation('UNITED 1') === 'United 1',
-       'got "' + prepareAtcPronunciation('UNITED 1') + '"');
-
-assert('AMERICAN 52 → "American 5 2"',
-       prepareAtcPronunciation('AMERICAN 52') === 'American 5 2',
-       'got "' + prepareAtcPronunciation('AMERICAN 52') + '"');
-
-assert('FASTAIR 345 → "Fastair 3 4 5"',
-       prepareAtcPronunciation('FASTAIR 345') === 'Fastair 3 4 5',
-       'got "' + prepareAtcPronunciation('FASTAIR 345') + '"');
-
-assert('REACH 701 → "Reach 7 0 1"',
-       prepareAtcPronunciation('REACH 701') === 'Reach 7 0 1',
-       'got "' + prepareAtcPronunciation('REACH 701') + '"');
-
-assert('BRITISH 92 SUPER → "British 9 2 super"',
-       prepareAtcPronunciation('BRITISH 92 SUPER') === 'British 9 2 super',
-       'got "' + prepareAtcPronunciation('BRITISH 92 SUPER') + '"');
-
-// Case-insensitive input
-console.log('\nCase-insensitive input:');
-assert('lowercase "speedbird 217 heavy" works',
-       prepareAtcPronunciation('speedbird 217 heavy').indexOf('Speedbird') !== -1 &&
-       prepareAtcPronunciation('speedbird 217 heavy').indexOf('2 1 7') !== -1,
-       'got "' + prepareAtcPronunciation('speedbird 217 heavy') + '"');
-
-// HEAVY / SUPER suffix optional
-console.log('\nHEAVY/SUPER suffix:');
-assert('DELTA 456 HEAVY → includes "heavy"',
-       prepareAtcPronunciation('DELTA 456 HEAVY').indexOf('heavy') !== -1,
-       'got "' + prepareAtcPronunciation('DELTA 456 HEAVY') + '"');
-
-assert('UNITED 10 (no suffix) → no trailing word',
-       prepareAtcPronunciation('UNITED 10') === 'United 1 0',
-       'got "' + prepareAtcPronunciation('UNITED 10') + '"');
-
-// ---------- summary ----------
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-if (failed > 0) process.exit(1);
+console.log('\n' + passed + ' passed, ' + failed + ' failed\n');
+process.exit(failed ? 1 : 0);

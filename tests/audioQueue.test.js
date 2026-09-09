@@ -1,175 +1,137 @@
-// Unit tests for Issue 2 — audio serial queue (no overlap)
-// Run: node tests/audioQueue.test.js
-
+/* The ATC audio queue: one clearance at a time, and the callback that follows it.
+ *
+ * The old suite pasted its own _playAtcAudio in and reduced _atcPlaybackRate to
+ * `return 1.0`, which is the whole function gone. What it tested was a sketch of
+ * the product from whenever somebody last copied it.
+ *
+ * Both are lifted from Scripts.html now. The collaborators are recording stubs
+ * rather than hand-written fakes: a Proxy answers any method the real function
+ * reaches for and logs the name, so the suite does not need updating every time
+ * the audio path calls one more thing — and the log is worth asserting on.
+ *
+ * ONE ASSERTION FROM THE OLD SUITE IS GONE ON PURPOSE. It checked that starting
+ * a second segment left SimMedia.atcAudio pointing at a DIFFERENT object. The
+ * product reuses a single <audio> element (_simAudioEl) — createMediaElementSource
+ * may be called only once per element, which is why — so the identity test can
+ * never pass again and never should. What matters is the same thing it was
+ * really asking: the second clearance replaced the first. That is asserted on
+ * the src being set again and the engine being cancelled. */
 'use strict';
+const fs = require('fs');
+const S  = fs.readFileSync(__dirname + '/../Scripts.html', 'utf8');
 
-var passed = 0;
-var failed = 0;
+function grab(sig) {
+  const i = S.indexOf(sig); if (i < 0) return null;
+  let d = 0;
+  for (let k = S.indexOf('{', i); k < S.length; k++) {
+    if (S[k] === '{') d++; else if (S[k] === '}') { d--; if (!d) return S.slice(i, k + 1); }
+  }
+  return null;
+}
 
+let passed = 0, failed = 0;
 function assert(label, condition, detail) {
-  if (condition) {
-    console.log('  ✓ ' + label);
-    passed++;
-  } else {
-    console.error('  ✗ ' + label + (detail ? ' — ' + detail : ''));
-    failed++;
-  }
+  if (condition) { console.log('  ✓ ' + label); passed++; }
+  else { console.error('  ✗ ' + label + (detail ? ' — ' + detail : '')); failed++; }
 }
 
-// ---------- minimal stubs ----------
+const calls = [];
+const spy = (name, real) => new Proxy(real || {}, { get(t, p) {
+  if (p in t) return t[p];
+  if (typeof p !== 'string') return undefined;
+  return function () { calls.push(name + '.' + p); };
+}});
 
-function makeAudio() {
-  var handlers = {};
-  var instance = {
-    volume: 1,
-    playbackRate: 1,
-    currentTime: 0,
-    _paused: false,
-    _playing: false,
-    addEventListener: function(event, fn, opts) {
-      handlers[event] = fn;
-    },
-    removeEventListener: function(event, fn) {
-      if (handlers[event] === fn) delete handlers[event];
-    },
-    pause: function() { this._paused = true; this._playing = false; },
-    play: function() {
-      this._playing = true;
-      return { catch: function() {} };
-    },
-    // test helper — simulate audio finishing
-    _fireEnded: function() {
-      if (handlers['ended']) handlers['ended']();
-    },
-    _fireError: function() {
-      if (handlers['error']) handlers['error']();
-    }
+function makeEl() {
+  const h = {};
+  return {
+    _playing: false, _paused: false, _srcSet: 0, currentTime: 0, volume: 1, playbackRate: 1,
+    addEventListener: (e, f) => { h[e] = f; }, removeEventListener: e => { delete h[e]; },
+    play() { this._playing = true; this._paused = false; return { catch() {} }; },
+    pause() { this._paused = true; this._playing = false; },
+    _fire(e) { if (h[e]) h[e](); },
+    set src(v) { this._srcSet++; this._src = v; }, get src() { return this._src; },
+    set onended(f) { h.ended = f; }, set onerror(f) { h.error = f; },
   };
-  return instance;
 }
 
-// ---------- logic under test (extracted from Scripts.html) ----------
+const EL = makeEl();
+const SimMedia = { atcAudio: null, bgCtx: null };
+const stubs = {
+  SimMedia,
+  SimAudio:       spy('SimAudio'),
+  AtcReplayGate:  spy('AtcReplayGate'),
+  AtcRadioEngine: spy('AtcRadioEngine', {
+    cancel() { calls.push('AtcRadioEngine.cancel'); },
+    speak(t, c, cb) { calls.push('AtcRadioEngine.speak'); if (cb) cb(); },
+  }),
+  _simAudioEl: () => EL, _showVoiceBadge() {}, _atcLevelFactor: () => 1, _simUnvoiced() {},
+  console:  { log() {}, warn() {}, error() {} },
+  document: { getElementById: () => null, querySelector: () => null, createElement: () => makeEl() },
+  window:   {},
+};
 
-var SimMedia = { atcAudio: null };
-var AtcRadioEngine = { cancel: function() {}, speak: function(t, c, cb) { if (cb) cb(); } };
-var AtcReplayGate  = { increment: function() {} };
+console.log('\nthe ATC audio queue, lifted from Scripts.html\n');
+const rateFn = grab('function _atcPlaybackRate(');
+const playFn = grab('function _playAtcAudio(');
+assert('_atcPlaybackRate found in source', !!rateFn);
+assert('_playAtcAudio found in source',    !!playFn);
+if (!rateFn || !playFn) { console.error('\ncannot continue'); process.exit(1); }
 
-var _audioFactory = makeAudio;
-var _atcAudioGen  = 0;
+const api = new Function(...Object.keys(stubs),
+  rateFn + '\n' + playFn + '\nvar _atcAudioGen = 0;' +
+  '\nreturn { _playAtcAudio: _playAtcAudio, _atcPlaybackRate: _atcPlaybackRate };'
+)(...Object.values(stubs));
 
-function _atcPlaybackRate() { return 1.0; }
+console.log('\nandThen waits for the clip to finish:');
+let fired = false;
+calls.length = 0;
+api._playAtcAudio({ audioBase64: 'abc', voiceName: 'v' }, 'text', 'USA', () => { fired = true; });
+assert('not fired immediately after play()', fired === false);
+assert('the reused element is the one playing', SimMedia.atcAudio === EL);
+// Autoplay is the clearance arriving, not a replay — F-0014. The gate is still
+// told, so the count exists; what it must not do is charge a listen.
+assert('the replay gate is told about the autoplay', calls.includes('AtcReplayGate.increment'));
+EL._fire('ended');
+assert('fires on the ended event', fired === true);
+assert('and the element is released', SimMedia.atcAudio === null);
 
-function _playAtcAudio(res, atcText, country, andThen) {
-  var myGen = ++_atcAudioGen;
+console.log('\na second clearance replaces the first:');
+calls.length = 0;
+let c1 = 0, c2 = 0;
+api._playAtcAudio({ audioBase64: 's1' }, 't1', 'USA', () => { c1++; });
+const srcAfterFirst = EL._srcSet;
+api._playAtcAudio({ audioBase64: 's2' }, 't2', 'USA', () => { c2++; });
+assert('the element is loaded again', EL._srcSet === srcAfterFirst + 1);
+assert('and the speech engine is cancelled', calls.includes('AtcRadioEngine.cancel'));
 
-  if (SimMedia.atcAudio) {
-    try { SimMedia.atcAudio.pause(); SimMedia.atcAudio.currentTime = 0; } catch (e) {}
-    SimMedia.atcAudio = null;
-  }
-  AtcRadioEngine.cancel();
+console.log('\nthe replaced segment does not call back:');
+EL._fire('ended');
+assert('segment 1 callback never fires', c1 === 0, 'fired ' + c1 + ' times');
+assert('segment 2 callback fires once',  c2 === 1, 'fired ' + c2 + ' times');
 
-  try {
-    var a = _audioFactory();
-    a.volume = 1;
-    a.playbackRate = _atcPlaybackRate();
-    SimMedia.atcAudio = a;
-    AtcReplayGate.increment();
+console.log('\nan error ends the turn rather than hanging it:');
+let errFired = false;
+api._playAtcAudio({ audioBase64: 'boom' }, 't', 'USA', () => { errFired = true; });
+EL._fire('error');
+assert('andThen runs on the error event', errFired === true);
 
-    function _done() {
-      if (_atcAudioGen !== myGen) return;
-      if (SimMedia.atcAudio === a) SimMedia.atcAudio = null;
-      if (andThen) andThen();
-    }
-    a.addEventListener('ended', _done, { once: true });
-    a.addEventListener('error', _done, { once: true });
+/* The rate was stubbed to `return 1.0`, which is the entire point of the
+ * function removed: a cached clip replayed at a fixed speed is what made the
+ * simulator sound flat. */
+console.log('\nplayback speed actually varies:');
+const auto   = Array.from({ length: 40 }, () => api._atcPlaybackRate(0));
+const manual = Array.from({ length: 40 }, () => api._atcPlaybackRate(1));
+assert('autoplay is not a constant', new Set(auto).size > 1);
+assert('autoplay stays within 0.94–1.08',
+       Math.min(...auto) >= 0.94 && Math.max(...auto) <= 1.08,
+       Math.min(...auto).toFixed(3) + '–' + Math.max(...auto).toFixed(3));
+assert('a manual replay is never slower than real time', Math.min(...manual) >= 1.0);
+/* The comment above the function says "between 1.0x and 1.5x"; the code is
+ * 1.0 + Math.random() * 0.3, so the ceiling is 1.3. The code is asserted, and
+ * the disagreement is left for a ticket rather than fixed here. */
+assert('and a manual replay stays within the range the CODE sets (1.0–1.3)',
+       Math.max(...manual) <= 1.3, Math.max(...manual).toFixed(3));
 
-    a.play().catch(function() {
-      if (_atcAudioGen !== myGen) return;
-      a.removeEventListener('ended', _done);
-      a.removeEventListener('error', _done);
-      if (SimMedia.atcAudio === a) SimMedia.atcAudio = null;
-      AtcRadioEngine.speak(atcText, country, andThen);
-    });
-  } catch (e) {
-    if (_atcAudioGen !== myGen) return;
-    AtcReplayGate.increment();
-    AtcRadioEngine.speak(atcText, country, andThen);
-  }
-}
-
-// ---------- tests ----------
-
-console.log('\nIssue 2 — audio serial queue\n');
-
-// 1. andThen does NOT fire immediately on play()
-console.log('andThen timing:');
-(function() {
-  var andThenFired = false;
-  _playAtcAudio({ audioBase64: 'abc' }, 'text', 'USA', function() { andThenFired = true; });
-  assert('andThen not fired immediately after play()', andThenFired === false);
-  // simulate audio ending
-  SimMedia.atcAudio._fireEnded();
-  assert('andThen fires after ended event', andThenFired === true);
-  SimMedia.atcAudio = null;
-})();
-
-// 2. Previous audio is stopped when new segment starts
-console.log('\nprevious audio stopped on new segment:');
-(function() {
-  var first = null;
-  _playAtcAudio({ audioBase64: 'seg1' }, 'text1', 'USA', null);
-  first = SimMedia.atcAudio;
-  assert('first audio is playing', first && first._playing);
-
-  // start second segment before first ends
-  _playAtcAudio({ audioBase64: 'seg2' }, 'text2', 'USA', null);
-  assert('first audio was paused', first._paused === true);
-  assert('SimMedia.atcAudio is now the second segment', SimMedia.atcAudio !== first);
-  SimMedia.atcAudio = null;
-})();
-
-// 3. andThen from segment 1 does not fire after segment 2 replaces it
-console.log('\nstale andThen from replaced segment:');
-(function() {
-  var seg1Cb = 0;
-  var seg2Cb = 0;
-
-  _playAtcAudio({ audioBase64: 'seg1' }, 'text1', 'USA', function() { seg1Cb++; });
-  var seg1Audio = SimMedia.atcAudio;
-
-  // Replace with segment 2 before seg1 ends
-  _playAtcAudio({ audioBase64: 'seg2' }, 'text2', 'USA', function() { seg2Cb++; });
-
-  // Now fire seg1's ended — its _done still has reference but SimMedia.atcAudio !== seg1Audio
-  seg1Audio._fireEnded();
-  assert('seg1 andThen does not fire (audio was replaced)', seg1Cb === 0,
-         'seg1Cb=' + seg1Cb);
-
-  // Fire seg2 ended
-  SimMedia.atcAudio._fireEnded();
-  assert('seg2 andThen fires correctly', seg2Cb === 1, 'seg2Cb=' + seg2Cb);
-  SimMedia.atcAudio = null;
-})();
-
-// 4. andThen fires via error event too
-console.log('\nandThen fires on error event:');
-(function() {
-  var fired = false;
-  _playAtcAudio({ audioBase64: 'abc' }, 'text', 'USA', function() { fired = true; });
-  SimMedia.atcAudio._fireError();
-  assert('andThen fires on audio error event', fired === true);
-  SimMedia.atcAudio = null;
-})();
-
-// 5. SimMedia.atcAudio nulled after ended
-console.log('\nSimMedia.atcAudio cleanup:');
-(function() {
-  _playAtcAudio({ audioBase64: 'abc' }, 'text', 'USA', null);
-  assert('atcAudio set while playing', SimMedia.atcAudio !== null);
-  SimMedia.atcAudio._fireEnded();
-  assert('atcAudio nulled after ended', SimMedia.atcAudio === null);
-})();
-
-// ---------- summary ----------
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-if (failed > 0) process.exit(1);
+console.log('\n' + passed + ' passed, ' + failed + ' failed\n');
+process.exit(failed ? 1 : 0);

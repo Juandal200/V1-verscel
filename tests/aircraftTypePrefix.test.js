@@ -1,59 +1,54 @@
-// Unit tests for Issue 5 — aircraft type prefix expansion
-// Run: node tests/aircraftTypePrefix.test.js
-
+/* Aircraft type prefixes, checked where they are actually expanded.
+ *
+ * The old suite defined its own expandTypePrefix and tested that. There is no
+ * such function in the product — the expansion is step 9b inside
+ * prepareAtcPronunciation_ — so the suite tested a reimplementation of a step,
+ * and the reimplementation had drifted: it asserted "Boeing 7 4 7" while the
+ * product says "Boeing seven four seven".
+ *
+ * A test of a function that does not exist cannot fail for the right reason.
+ * This one runs the real pass. */
 'use strict';
+const { TTS, missing, say } = require('./_ttslift');
 
-var passed = 0;
-var failed = 0;
-
+let passed = 0, failed = 0;
 function assert(label, condition, detail) {
-  if (condition) {
-    console.log('  ✓ ' + label);
-    passed++;
-  } else {
-    console.error('  ✗ ' + label + (detail ? ' — ' + detail : ''));
-    failed++;
-  }
+  if (condition) { console.log('  ✓ ' + label); passed++; }
+  else { console.error('  ✗ ' + label + (detail ? ' — ' + detail : '')); failed++; }
 }
 
-// ---------- stub matching TTSService.js step 9b ----------
+console.log('\naircraft type prefixes, through prepareAtcPronunciation_\n');
+assert('the pronunciation chain lifted', missing.length === 0, missing.join(', '));
+if (!TTS) { console.error('\ncannot continue'); process.exit(1); }
 
-var TYPE_PREFIXES = { 'CRJ':'C R J', 'MD':'M D', 'B':'Boeing', 'A':'Airbus', 'E':'Embraer' };
+console.log('\nknown manufacturers are named:');
+[['B747',   'Boeing seven four seven'],
+ ['A320',   'Airbus three two zero'],
+ ['E175',   'Embraer one seven five'],
+ ['b737',   'Boeing seven three seven'],
+ ['a319',   'Airbus three one niner'],
+].forEach(([input, expected]) => {
+  const got = say(input);
+  assert(input + ' → "' + expected + '"', got === expected, 'got "' + got + '"');
+});
 
-function expandDigitsIcao(numStr) {
-  return String(numStr || '').split('').join(' ');
-}
+console.log('\nan unknown prefix is spelled, not guessed:');
+assert('MD11 → "M D one one"',        say('MD11')   === 'M D one one',        say('MD11'));
+assert('CRJ700 → "C R J seven zero zero"',
+       say('CRJ700') === 'C R J seven zero zero', say('CRJ700'));
 
-function expandTypePrefix(text) {
-  return String(text || '').replace(/\b(CRJ|MD|B|A|E)(\d{2,4})\b/gi, function(_, prefix, digits) {
-    return TYPE_PREFIXES[prefix.toUpperCase()] + ' ' + expandDigitsIcao(digits);
-  });
-}
+console.log('\nin a sentence:');
+const sentence = say('Boeing B737 on stand 4');
+assert('the type is expanded inside a line', sentence.indexOf('Boeing seven three seven') !== -1, sentence);
 
-// ---------- tests ----------
+console.log('\nedges:');
+// One digit is not a type, so nothing should fire.
+assert('B7 is left alone',            say('B7') === 'B7', say('B7'));
+// Five digits is not a type either — but the letter is still spelled, because
+// a lone B in a clearance is Bravo. Recorded as the behaviour, not the intent.
+assert('B12345 is not read as a type', say('B12345').indexOf('Boeing') === -1, say('B12345'));
+assert('plain words are untouched apart from spelled initialisms',
+       say('cleared ILS approach') === 'cleared I L S approach', say('cleared ILS approach'));
 
-console.log('\nIssue 5 — aircraft type prefix expansion\n');
-
-console.log('Individual type codes:');
-assert('B747  → "Boeing 7 4 7"',   expandTypePrefix('B747')  === 'Boeing 7 4 7',   'got "' + expandTypePrefix('B747') + '"');
-assert('A320  → "Airbus 3 2 0"',   expandTypePrefix('A320')  === 'Airbus 3 2 0',   'got "' + expandTypePrefix('A320') + '"');
-assert('E175  → "Embraer 1 7 5"',  expandTypePrefix('E175')  === 'Embraer 1 7 5',  'got "' + expandTypePrefix('E175') + '"');
-assert('MD11  → "M D 1 1"',        expandTypePrefix('MD11')  === 'M D 1 1',         'got "' + expandTypePrefix('MD11') + '"');
-assert('CRJ700 → "C R J 7 0 0"',   expandTypePrefix('CRJ700') === 'C R J 7 0 0',   'got "' + expandTypePrefix('CRJ700') + '"');
-
-console.log('\nCase-insensitive input:');
-assert('b737 → "Boeing 7 3 7"',    expandTypePrefix('b737')  === 'Boeing 7 3 7',   'got "' + expandTypePrefix('b737') + '"');
-assert('a319 → "Airbus 3 1 9"',    expandTypePrefix('a319')  === 'Airbus 3 1 9',   'got "' + expandTypePrefix('a319') + '"');
-
-console.log('\nIn sentence context:');
-var sentence = expandTypePrefix('traffic is a B737 on final');
-assert('B737 expanded in sentence', sentence.indexOf('Boeing 7 3 7') !== -1, 'got "' + sentence + '"');
-
-console.log('\nEdge cases:');
-assert('B7 (too short, 1 digit) — no match', expandTypePrefix('B7') === 'B7');
-assert('B12345 (5 digits) — no match',        expandTypePrefix('B12345') === 'B12345');
-assert('plain text unchanged',                expandTypePrefix('cleared ILS approach') === 'cleared ILS approach');
-
-// ---------- summary ----------
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-if (failed > 0) process.exit(1);
+console.log('\n' + passed + ' passed, ' + failed + ' failed\n');
+process.exit(failed ? 1 : 0);

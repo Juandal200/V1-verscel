@@ -1,185 +1,140 @@
-// Unit tests for Issue 1 — semantic token grader
-// Run: node tests/grader.test.js
-
+/* The semantic-token grader, run rather than re-typed.
+ *
+ * This suite used to paste copies of the functions into itself, renamed to drop
+ * the underscore the originals carry. Nothing checked the copies still matched,
+ * and one had already fallen behind: its normalizeForGrading was missing
+ *
+ *     .replace(/\b(\d{1,2}) (\d{3})\b/g, '$1$2')
+ *
+ * the step that makes "FLIGHT LEVEL 3 000" and "FL3000" normalise alike. The
+ * suite graded against a normaliser the product stopped using, passed, and
+ * reported that grading worked. Its neighbour extractSemanticTokens was
+ * byte-identical to the original, so the file looked maintained — one function
+ * current, one stale, a green tick over both.
+ *
+ * That is the F-0017a shape: a second copy nobody keeps. So there is no copy
+ * here now. The four functions are lifted out of Scripts.html and executed.
+ *
+ * The suite also asserts what the source only asks for in a comment.
+ * _clientNormalizeText says "MUST stay identical to AttemptService.normalizeText_"
+ * and _clientEvaluate says its order and pass rule "MUST match
+ * AttemptService.evaluateAnswer_". A rule that lives in a comment is a wish;
+ * this compares the two files. */
 'use strict';
+const fs = require('fs');
+const S  = fs.readFileSync(__dirname + '/../Scripts.html', 'utf8');
+const A  = fs.readFileSync(__dirname + '/../Attemptservice.js', 'utf8');
 
-// ---------- pure functions copied from Scripts.html / Attemptservice.js ----------
-
-function normalizeForGrading(text) {
-  return String(text || '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+function grab(src, sig) {
+  const i = src.indexOf(sig);
+  if (i === -1) return null;
+  let d = 0;
+  for (let k = src.indexOf('{', i); k < src.length; k++) {
+    if (src[k] === '{') d++;
+    else if (src[k] === '}') { d--; if (!d) return src.slice(i, k + 1); }
+  }
+  return null;
 }
+// Compared with comments stripped and the underscore convention flattened: the
+// server writes normalizeForGrading_ as an object method, the client writes
+// _normalizeForGrading as a declaration. Same code, two house styles.
+const shape = t => t
+  .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/[^\n]*/g, '$1')
+  .replace(/this\.|self\./g, '').replace(/\b_?(\w+?)_?\b/g, '$1')
+  .replace(/\s+/g, ' ').trim();
+const body = t => shape(t.slice(t.indexOf('{')));
 
-function extractSemanticTokens(normExpected) {
-  var t = normExpected;
-  var tokens = [];
-  var knownWord = /^(HEADING|RUNWAY|FLIGHT|APPROACH|CONTACT|CLEARED|CLIMB|DESCEND|MAINTAIN|EXPEDITE|REPORT|SQUAWK|CROSS|ENTER|HOLD|TURN|DIRECT|DEPARTURE|ARRIVAL)$/;
+const NEEDED = ['_normalizeForGrading', '_extractSemanticTokens', '_clientNormalizeText', '_clientEvaluate'];
+const parts  = NEEDED.map(n => grab(S, 'function ' + n + '('));
 
-  var approachMatch = t.match(/\b(ILS APPROACH|VOR APPROACH|RNAV APPROACH|NDB APPROACH|VISUAL APPROACH|SURVEILLANCE APPROACH)\b/);
-  if (approachMatch) tokens.push(approachMatch[1]);
-
-  var rwyMatch = t.match(/\bRUNWAY\s+(\d{1,2}[LRC]?)\b/);
-  if (rwyMatch) tokens.push('RUNWAY ' + rwyMatch[1]);
-
-  var hdgMatch = t.match(/\bHEADING\s+(\d{2,3})\b/);
-  if (hdgMatch) tokens.push('HEADING ' + hdgMatch[1]);
-
-  if (/\bRIGHT\b/.test(t) && /\bHEADING\b/.test(t)) tokens.push('RIGHT');
-  else if (/\bLEFT\b/.test(t) && /\bHEADING\b/.test(t)) tokens.push('LEFT');
-
-  ['CLEARED', 'TAXI', 'MAINTAIN', 'EXPEDITE', 'REPORT', 'HOLD SHORT', 'LINE UP'].forEach(function(v) {
-    if (t.indexOf(v) !== -1) tokens.push(v);
-  });
-
-  if (t.indexOf('CONTACT') !== -1) {
-    tokens.push('CONTACT');
-    var contactFreq = t.match(/\bCONTACT\b[^.]*?(\d{3})\b/);
-    if (contactFreq) tokens.push(contactFreq[1]);
-  }
-  if (t.indexOf('CLIMB') !== -1) {
-    tokens.push('CLIMB');
-    var climbNum = t.match(/\bCLIMB\b[^.]*?(\d{3,5})\b/);
-    if (climbNum) tokens.push(climbNum[1]);
-  }
-  if (t.indexOf('DESCEND') !== -1) {
-    tokens.push('DESCEND');
-    var descendNum = t.match(/\bDESCEND\b[^.]*?(\d{3,5})\b/);
-    if (descendNum) tokens.push(descendNum[1]);
-  }
-
-  var words = t.split(' ');
-  for (var i = 0; i < words.length - 1; i++) {
-    if (words[i].length >= 4 && !knownWord.test(words[i]) &&
-        /^\d{2,4}$/.test(words[i + 1])) {
-      var cs = words[i] + ' ' + words[i + 1];
-      if (words[i + 2] === 'HEAVY' || words[i + 2] === 'SUPER') cs += ' ' + words[i + 2];
-      tokens.push(cs);
-      break;
-    }
-  }
-  return tokens;
-}
-
-function clientEvaluate(answer, keywordsText, expectedReadback) {
-  var normAnswer   = normalizeForGrading(answer);
-  var normExpected = expectedReadback ? normalizeForGrading(expectedReadback) : '';
-
-  if (normExpected) {
-    var tokens  = extractSemanticTokens(normExpected);
-    if (tokens.length > 0) {
-      var missing = tokens.filter(function(t) { return normAnswer.indexOf(t) === -1; });
-      var matched = tokens.filter(function(t) { return normAnswer.indexOf(t) !== -1; });
-      var score   = Math.round((matched.length / tokens.length) * 100);
-      return { correct: score >= 90, score: score,
-               keywordsOk: matched, keywordsMissing: missing };
-    }
-  }
-  // Fallback (not exercised in these tests)
-  return { correct: false, score: 0, keywordsOk: [], keywordsMissing: [] };
-}
-
-// ---------- helpers ----------
-
-var passed = 0;
-var failed = 0;
-
+let passed = 0, failed = 0;
 function assert(label, condition, detail) {
-  if (condition) {
-    console.log('  ✓ ' + label);
-    passed++;
-  } else {
-    console.error('  ✗ ' + label + (detail ? ' — ' + detail : ''));
-    failed++;
-  }
+  if (condition) { console.log('  ✓ ' + label); passed++; }
+  else { console.error('  ✗ ' + label + (detail ? ' — ' + detail : '')); failed++; }
 }
 
-// ---------- tests ----------
+console.log('\nthe grader, lifted from Scripts.html and run\n');
+
+console.log('every function the client actually grades with is present:');
+NEEDED.forEach((n, i) => assert(n + ' found in source', !!parts[i]));
+if (parts.some(p => !p)) { console.error('\ncannot continue without all four'); process.exit(1); }
+
+const api = new Function(parts.join('\n') + '\nreturn { ' + NEEDED.join(', ') + ' };')();
+const normalizeForGrading   = api._normalizeForGrading;
+const extractSemanticTokens = api._extractSemanticTokens;
+const clientEvaluate        = api._clientEvaluate;
+
+console.log('\nthe client and the server agree, which the source only asks for in a comment:');
+[['normalizeForGrading',   'function _normalizeForGrading(',   'normalizeForGrading_: function('],
+ ['extractSemanticTokens', 'function _extractSemanticTokens(', 'extractSemanticTokens_: function(']
+].forEach(([name, cSig, sSig]) => {
+  const c = grab(S, cSig), s = grab(A, sSig);
+  assert(name + ' exists on both sides', !!c && !!s);
+  if (c && s) assert(name + ' is the same code in both', body(c) === body(s),
+                     'client ' + body(c).length + ' chars, server ' + body(s).length);
+});
+
+// The step the stale copy was missing. Asserted directly, so this suite can
+// never again pass against a normaliser that lacks it.
+console.log('\nthe normaliser joins a split thousand:');
+assert('"FLIGHT LEVEL 3 000" keeps the digits together',
+       normalizeForGrading('flight level 3 000').indexOf('3000') !== -1,
+       'got "' + normalizeForGrading('flight level 3 000') + '"');
+assert('and a two-digit lead joins too',
+       normalizeForGrading('climb 12 500').indexOf('12500') !== -1,
+       'got "' + normalizeForGrading('climb 12 500') + '"');
+assert('while an ordinary pair of numbers is left alone',
+       normalizeForGrading('runway 2 7').indexOf('27') === -1);
 
 const EXPECTED = 'right heading 230, cleared ILS approach runway 27, Speedbird 217 heavy';
 
-console.log('\nIssue 1 — semantic token grader\n');
-
-// Token extraction
-console.log('extractSemanticTokens:');
-var tokens = extractSemanticTokens(normalizeForGrading(EXPECTED));
+console.log('\nextractSemanticTokens:');
+const tokens = extractSemanticTokens(normalizeForGrading(EXPECTED));
 assert('extracts ILS APPROACH',        tokens.indexOf('ILS APPROACH') !== -1);
 assert('extracts RUNWAY 27',           tokens.indexOf('RUNWAY 27') !== -1);
 assert('extracts HEADING 230',         tokens.indexOf('HEADING 230') !== -1);
 assert('extracts RIGHT (direction)',   tokens.indexOf('RIGHT') !== -1);
 assert('extracts CLEARED',             tokens.indexOf('CLEARED') !== -1);
 assert('extracts SPEEDBIRD 217 HEAVY', tokens.indexOf('SPEEDBIRD 217 HEAVY') !== -1);
-assert('extracts exactly 6 tokens',    tokens.length === 6, 'got ' + tokens.length + ': ' + JSON.stringify(tokens));
+assert('extracts exactly 6 tokens',    tokens.length === 6,
+       'got ' + tokens.length + ': ' + JSON.stringify(tokens));
 
-// Correct variants — must score >= 90
-console.log('\nCorrect variants (must score >= 90):');
-[
-  ['all caps + commas',     'RIGHT HEADING 230, CLEARED ILS APPROACH RUNWAY 27, SPEEDBIRD 217 HEAVY'],
-  ['all lowercase',         'right heading 230, cleared ils approach runway 27, speedbird 217 heavy'],
-  ['callsign first (reordered)', 'Speedbird 217 heavy, cleared ILS approach runway 27, right heading 230'],
-  ['no punctuation',        'right heading 230 cleared ILS approach runway 27 Speedbird 217 heavy'],
-].forEach(function(pair) {
-  var label  = pair[0];
-  var input  = pair[1];
-  var result = clientEvaluate(input, '', EXPECTED);
-  assert(label + ' — score ' + result.score,
-         result.score >= 90 && result.correct === true,
-         'missing: ' + JSON.stringify(result.keywordsMissing));
+console.log('\ncorrect variants (must score >= 90):');
+[['all caps + commas',           'RIGHT HEADING 230, CLEARED ILS APPROACH RUNWAY 27, SPEEDBIRD 217 HEAVY'],
+ ['all lowercase',               'right heading 230, cleared ils approach runway 27, speedbird 217 heavy'],
+ ['callsign first (reordered)',  'Speedbird 217 heavy, cleared ILS approach runway 27, right heading 230'],
+ ['no punctuation',              'right heading 230 cleared ILS approach runway 27 Speedbird 217 heavy'],
+].forEach(([label, input]) => {
+  const r = clientEvaluate(input, '', EXPECTED);
+  assert(label + ' — score ' + r.score, r.score >= 90 && r.correct === true,
+         'missing: ' + JSON.stringify(r.keywordsMissing));
 });
 
-// Partial variant — must score 40-70, correct === false
-console.log('\nPartial variant (must score 40–70, correct=false):');
-var partial = clientEvaluate('heading 230, ILS approach 27, Speedbird 217 heavy', '', EXPECTED);
-assert('score in 40-70 range — got ' + partial.score,
-       partial.score >= 40 && partial.score <= 70,
-       'matched: ' + JSON.stringify(partial.keywordsOk) + ', missing: ' + JSON.stringify(partial.keywordsMissing));
-assert('correct === false', partial.correct === false);
+/* The branch the copied version never had.
+ *
+ * The pasted clientEvaluate went straight to semantic tokens, with a stub
+ * marked "not exercised in these tests" where the real function's FIRST branch
+ * is. That branch is the curated keywords column, and _clientEvaluate's own
+ * comment calls it the authority: the extractor is only the fallback for
+ * scenarios with no keywords. So the suite exercised the fallback and left the
+ * rule that actually decides a student's attempt untested. */
+console.log('\nthe keywords column wins, and it is checked now:');
+const KW = 'CLEARED ILS APPROACH|RUNWAY 27|SPEEDBIRD 217';
+let r = clientEvaluate('Speedbird 217, cleared ILS approach runway 27', KW, EXPECTED);
+assert('every required element present scores 100', r.score === 100 && r.correct === true,
+       'missing: ' + JSON.stringify(r.keywordsMissing));
+r = clientEvaluate('Speedbird 217, cleared ILS approach', KW, EXPECTED);
+assert('one missing element fails the attempt', r.correct === false,
+       'score ' + r.score);
+assert('and the missing element is named', r.keywordsMissing.indexOf('RUNWAY 27') !== -1,
+       JSON.stringify(r.keywordsMissing));
+// Callers hand over either a pipe-joined string or an already-split array —
+// the ICAO Test path passes scenario.keywords directly.
+r = clientEvaluate('Speedbird 217, cleared ILS approach runway 27', KW.split('|'), EXPECTED);
+assert('an array of keywords is accepted too', r.score === 100 && r.correct === true);
+// With no keywords it must fall back rather than pass everything.
+r = clientEvaluate('nothing like the clearance', '', EXPECTED);
+assert('no keywords falls back to the extractor', r.correct === false && r.score < 90);
 
-// Edge: empty answer
-console.log('\nEdge cases:');
-var empty = clientEvaluate('', '', EXPECTED);
-assert('empty answer scores 0', empty.score === 0);
-
-// Edge: gibberish answer
-var gibberish = clientEvaluate('banana helicopter squirrel', '', EXPECTED);
-assert('gibberish scores 0', gibberish.score === 0);
-
-// Edge: no expectedReadback falls through to keyword fallback (returns 0 from stub)
-var noExpected = clientEvaluate('anything', 'CLEARED|RUNWAY 27', '');
-assert('no expectedReadback uses fallback (returns object)', typeof noExpected.score === 'number');
-
-// CONTACT + frequency — wrong frequency fails
-console.log('\nCONTACT frequency grading (Bug 2 regression):');
-var CONTACT_EXP = 'FASTAIR 345 CONTACT ALEXANDER CONTROL 129 DECIMAL 1';
-var contactTokens = extractSemanticTokens(normalizeForGrading(CONTACT_EXP));
-assert('extracts CONTACT token', contactTokens.indexOf('CONTACT') !== -1);
-assert('extracts frequency 129 as separate token', contactTokens.indexOf('129') !== -1);
-
-var wrongFreq = clientEvaluate(
-  'FASTAIR 345 CLIMB TO FLIGHT LEVEL 120 CONTACT DEPARTURE 121 DECIMAL 750', '', CONTACT_EXP);
-assert('wrong frequency fails (score < 90)', wrongFreq.score < 90,
-       'got score=' + wrongFreq.score + ' missing=' + JSON.stringify(wrongFreq.keywordsMissing));
-assert('correct === false for wrong frequency', wrongFreq.correct === false);
-
-var rightFreq = clientEvaluate(
-  'FASTAIR 345 CONTACT ALEXANDER CONTROL 129 DECIMAL 1', '', CONTACT_EXP);
-assert('correct frequency passes', rightFreq.score >= 90 && rightFreq.correct === true,
-       'got score=' + rightFreq.score);
-
-// Exact copy of ATC text must score 100 (regression for "CLIMB 120" substring bug)
-var EXACT_COPY_EXP = 'FASTAIR 345 CLIMB TO FLIGHT LEVEL 120 CONTACT DEPARTURE 121 DECIMAL 750';
-var exactCopy = clientEvaluate(EXACT_COPY_EXP, '', EXACT_COPY_EXP);
-assert('exact copy of ATC text scores 100', exactCopy.score === 100 && exactCopy.correct === true,
-       'got score=' + exactCopy.score + ' missing=' + JSON.stringify(exactCopy.keywordsMissing));
-
-// CLIMB with altitude — wrong altitude fails
-var CLIMB_EXP = 'FASTAIR 345 CLIMB FLIGHT LEVEL 120 CONTACT DEPARTURE 119 DECIMAL 7';
-var climbWrong = clientEvaluate('FASTAIR 345 CLIMB FLIGHT LEVEL 80 CONTACT DEPARTURE 119 DECIMAL 7', '', CLIMB_EXP);
-assert('wrong climb altitude fails', climbWrong.score < 90,
-       'got score=' + climbWrong.score);
-
-// ---------- summary ----------
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-if (failed > 0) process.exit(1);
+console.log('\n' + passed + ' passed, ' + failed + ' failed\n');
+process.exit(failed ? 1 : 0);

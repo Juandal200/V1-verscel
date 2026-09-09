@@ -1,108 +1,100 @@
-// Unit tests for Issue 7 — Expected readback hidden behind "Show answer"
-// Run: node tests/feedbackCard.test.js
-
+/* What a student is told after an attempt — and what they are deliberately not.
+ *
+ * The suite that used to be here asserted a card with a "Show answer" button, an
+ * inline "Expected:" line, and a hidden #fbExpected element carrying the answer
+ * text. None of those exist in the product. Not renamed — gone, and gone on
+ * purpose. renderAttemptFeedback says so in its own comment: the expected
+ * read-back is what the student is meant to stop listening for, "and listening
+ * is the whole skill", so the screen gives the score and sends them back to the
+ * radio. What was missed is still written to the attempt row for an instructor.
+ *
+ * So the old suite was not merely stale. It asserted the opposite of a decision,
+ * and if anyone had believed it they would have put the answer back on the
+ * screen to make it pass. That is worse than a test that fails.
+ *
+ * This one runs the real renderAttemptFeedback and guards the decision. */
 'use strict';
+const fs = require('fs');
+const S  = fs.readFileSync(__dirname + '/../Scripts.html', 'utf8');
 
-var passed = 0;
-var failed = 0;
-
-function assert(label, condition, detail) {
-  if (condition) {
-    console.log('  ✓ ' + label);
-    passed++;
-  } else {
-    console.error('  ✗ ' + label + (detail ? ' — ' + detail : ''));
-    failed++;
+function grab(sig) {
+  const i = S.indexOf(sig); if (i < 0) return null;
+  let d = 0;
+  for (let k = S.indexOf('{', i); k < S.length; k++) {
+    if (S[k] === '{') d++; else if (S[k] === '}') { d--; if (!d) return S.slice(i, k + 1); }
   }
+  return null;
 }
 
-// ---------- minimal safeText stub ----------
-
-function safeText(s) {
-  return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+let passed = 0, failed = 0;
+function assert(label, condition, detail) {
+  if (condition) { console.log('  ✓ ' + label); passed++; }
+  else { console.error('  ✗ ' + label + (detail ? ' — ' + detail : '')); failed++; }
 }
 
-// ---------- renderAttemptFeedback HTML builder (extracted logic) ----------
+console.log('\nattempt feedback, from Scripts.html\n');
 
-function buildFeedbackHtml(res) {
-  var evaluation = res.evaluation || {};
-  var missing = evaluation.keywordsMissing || [];
-  var ok = evaluation.correct === true;
+const body = grab('function renderAttemptFeedback(');
+assert('renderAttemptFeedback found in source', !!body);
+if (!body) { console.error('\ncannot continue'); process.exit(1); }
 
-  var expectedHtml = res.expectedAnswer
-    ? (function(s){ var l = String(s||'').toLowerCase(); return l.charAt(0).toUpperCase()+l.slice(1); })(res.expectedAnswer)
-    : '';
+// What the card is written INTO, captured instead of rendered.
+const anything = () => new Proxy({}, { get: (t, p) => (p in t ? t[p] : function () {}) });
 
-  return (
-    '<h3>' + (ok ? '✓ Read-back accepted' : '✗ Non-standard read-back') + '</h3>' +
-    '<p><strong>Score:</strong> ' + safeText(evaluation.score || 0) + '/100</p>' +
-    (missing.length
-      ? '<p><strong>Missing:</strong> ' + safeText(missing.map(function(k){ return k.toLowerCase(); }).join(', ')) + '</p>'
-      : '<p style="color:#6ee7b7;"><strong>✓ All required elements included.</strong></p>') +
-    (!ok && expectedHtml
-      ? '<div style="margin-top:6px;">' +
-          '<button class="btn secondary" style="font-size:0.8rem;padding:4px 10px;" onclick="var d=document.getElementById(\'fbExpected\');d.style.display=d.style.display===\'none\'?\'\':\'none\'">Show answer</button>' +
-          '<p id="fbExpected" style="display:none;margin-top:6px;"><em>' + safeText(expectedHtml) + '</em></p>' +
-        '</div>'
-      : '')
-  );
-}
+let written = '';
+const el = { set innerHTML(v) { written = v; }, get innerHTML() { return written; },
+             style: {}, className: '', appendChild() {}, addEventListener() {} };
+const AppState = { training: { currentIndex: 0, scenarios: [{}, {}, {}], completedScenarioIds: {} } };
+const stubs = {
+  AppState,
+  byId: () => el,
+  safeText: v => String(v == null ? '' : v).replace(/[<>&]/g, ''),
+  getRouteProgressPct: () => 33,
+  isCurrentScenarioCompleted: () => false,
+  goToNextScenario() {}, retryCurrentScenario() {}, renderTrainingFinished() {},
+  setImmersiveFeedback(html) { written = html; },
+  uiIcon: () => '<svg></svg>', uiIconInline: () => '<svg></svg>',
+  document: { getElementById: () => el, querySelector: () => el, createElement: () => el },
+  window: {}, console: { log() {}, warn() {}, error() {} },
+  // Collaborators the card reaches for on the way past. A Proxy answers
+  // whatever it asks for, so the suite does not break the next time the
+  // feedback path gains a call.
+  SimAudio:  anything(), SimMedia: anything(), AtcRadioEngine: anything(),
+  Gamification: anything(), _showXpFloat() {}, _showSimToast() {},
+};
+const render = new Function(...Object.keys(stubs), body + '\nreturn renderAttemptFeedback;')(...Object.values(stubs));
 
-// ---------- tests ----------
+function html(res) { written = ''; render(res); return written; }
 
-var EXPECTED_TEXT = 'right heading 230, cleared ILS approach runway 27, Speedbird 217 heavy';
+const EXPECTED = 'right heading 230, cleared ILS approach runway 27';
+const failed_  = html({ evaluation: { correct: false, score: 50,
+                                      keywordsMissing: ['heading 230', 'runway 27'],
+                                      keywordsOk: [] }, expectedAnswer: EXPECTED });
+const ok_      = html({ evaluation: { correct: true, score: 100,
+                                      keywordsMissing: [], keywordsOk: ['heading 230'] },
+                        expectedAnswer: EXPECTED });
 
-console.log('\nIssue 7 — feedback card Expected readback\n');
+console.log('a failed attempt does not hand over the answer:');
+assert('the expected read-back is not in the markup', failed_.indexOf(EXPECTED) === -1);
+assert('nor any part of it',                          failed_.indexOf('heading 230') === -1,
+       'found it — the answer is on screen again');
+assert('there is no "Show answer" control',           failed_.indexOf('Show answer') === -1);
+assert('and nothing hides it in the DOM instead',     failed_.indexOf('fbExpected') === -1);
+// Never fix by hiding: display:none on the answer would still have sent it.
+assert('no hidden element carries it',
+       !/display:\s*none[^>]*>[^<]*heading 230/.test(failed_));
 
-// Failure card
-console.log('Failure card:');
-var failHtml = buildFeedbackHtml({
-  evaluation: { correct: false, score: 50, keywordsMissing: ['HEADING 230', 'RUNWAY 27'] },
-  expectedAnswer: EXPECTED_TEXT
-});
+console.log('\nbut the student is told where they stand:');
+assert('the card was written at all', failed_.length > 0);
+assert('a passed attempt says so',    /All required elements/.test(ok_));
+assert('a failed attempt does not',   !/All required elements/.test(failed_));
 
-assert('does NOT show Expected inline',
-       failHtml.indexOf('<strong>Expected:</strong>') === -1);
+console.log('\nand the feedback widget is offered either way:');
+/* This was `ok ? widget : ''`, so feedback came only from students who had just
+ * succeeded — F-0012. A failed phase is where the useful signal is. */
+const widgetIn = h => /feedback-card|Rate this scenario/.test(h);
+assert('after a pass', widgetIn(ok_));
+assert('after a fail', widgetIn(failed_), 'the F-0012 regression is back');
 
-assert('has "Show answer" button',
-       failHtml.indexOf('Show answer') !== -1);
-
-assert('expected text is present but hidden (display:none)',
-       failHtml.indexOf('display:none') !== -1 &&
-       failHtml.indexOf('fbExpected') !== -1);
-
-assert('expected text is inside the hidden element (not exposed)',
-       (function() {
-         var hiddenStart = failHtml.indexOf('fbExpected');
-         var expectedPos = failHtml.toLowerCase().indexOf('right heading');
-         return hiddenStart !== -1 && expectedPos > hiddenStart;
-       })());
-
-assert('Missing keywords shown', failHtml.indexOf('heading 230') !== -1);
-assert('Score shown',            failHtml.indexOf('50/100') !== -1);
-
-// Success card
-console.log('\nSuccess card:');
-var okHtml = buildFeedbackHtml({
-  evaluation: { correct: true, score: 100, keywordsMissing: [] },
-  expectedAnswer: EXPECTED_TEXT
-});
-
-assert('no "Show answer" button on success',  okHtml.indexOf('Show answer') === -1);
-assert('no Expected inline on success',        okHtml.indexOf('<strong>Expected:</strong>') === -1);
-assert('no fbExpected element on success',     okHtml.indexOf('fbExpected') === -1);
-assert('all-included message shown',           okHtml.indexOf('All required elements') !== -1);
-
-// Failure with no expectedAnswer — no Show answer button
-console.log('\nFailure with no expectedAnswer:');
-var failNoExpHtml = buildFeedbackHtml({
-  evaluation: { correct: false, score: 30, keywordsMissing: ['CLIMB'] },
-  expectedAnswer: ''
-});
-assert('no "Show answer" when expectedAnswer is empty', failNoExpHtml.indexOf('Show answer') === -1);
-
-// ---------- summary ----------
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-if (failed > 0) process.exit(1);
+console.log('\n' + passed + ' passed, ' + failed + ' failed\n');
+process.exit(failed ? 1 : 0);
