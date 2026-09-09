@@ -982,15 +982,44 @@ function apiFinalizeRoute(sessionToken, payload) {
       byId[String(r.scenarioId || '').trim()] = r;
     });
 
+    /* One write per (level, country), not one per scenario.
+     *
+     * updateUserProgress derives everything from scenario.level, scenario.country
+     * and the Attempts sheet — the scenario id is never used in the calculation.
+     * A route is one level and one country, so calling it once per phase computed
+     * the SAME progressData eight times and wrote the same row eight times.
+     *
+     * Each of those calls took its own dbWithScriptLock_, and that lock is
+     * project-wide: LockService.getScriptLock(), shared by 40 write paths, with no
+     * per-user alternative because appsscript.json deploys with
+     * executeAs: USER_DEPLOYING. Eight acquire/release cycles per route completion
+     * is what set the ceiling on concurrent students, and it rose with the sheet.
+     *
+     * Grouping is not an approximation of that work — it removes work that was
+     * duplicated. A list spanning several levels still writes once per distinct
+     * pair, which is what it should always have done.
+     *
+     * `done` keeps its meaning: scenarios finalised, not groups. Each group
+     * remembers how many scenarios it stands for and contributes them only if its
+     * write succeeded. */
     var progress = null, done = 0, missing = [];
+    var groups = {}, order = [];
     scenarioIds.forEach(function(id) {
       var sc = byId[String(id || '').trim()];
       if (!sc) { missing.push(id); return; }
+      var key = Number(sc.level || 0) + '||' +
+                ProgressService.normalizeCountry_(sc.country || '');
+      if (!groups[key]) { groups[key] = { scenario: sc, count: 0 }; order.push(key); }
+      groups[key].count++;
+    });
+
+    order.forEach(function(key) {
+      var g = groups[key];
       try {
-        progress = ProgressService.updateUserProgress(user, sc);
-        done++;
+        progress = ProgressService.updateUserProgress(user, g.scenario);
+        done += g.count;
       } catch (e) {
-        Logger.log('[finalizeRoute] ' + id + ': ' + e.message);
+        Logger.log('[finalizeRoute] ' + key + ': ' + e.message);
       }
     });
 

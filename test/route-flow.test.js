@@ -24,7 +24,26 @@ console.log('--- the summary is rebuilt once, at the end ---');
 ok('there is an endpoint for it',        /function apiFinalizeRoute/.test(A));
 const fin = A.slice(A.indexOf('function apiFinalizeRoute'));
 ok('it reads the scenarios once for the route', /readSheetObjectsV5Hard_\('Scenarios'\)/.test(fin));
-ok('it updates progress per scenario',   /ProgressService\.updateUserProgress\(user, sc\)/.test(fin));
+/* THIS ASSERTION CHANGED BY DESIGN, and that is worth saying rather than
+ * quietly editing. It required updateUserProgress to be called with each
+ * scenario in turn — "per scenario" — which is precisely what the route
+ * completion stopped doing.
+ *
+ * updateUserProgress keys only on scenario.level and scenario.country and the
+ * Attempts sheet; the scenario id never enters the calculation. So an
+ * eight-phase route was computing the same numbers eight times and taking the
+ * project-wide script lock eight times to write the same row. It now groups by
+ * (level, country) and writes once per distinct pair.
+ *
+ * The property that survives is the one the ticket cared about: the summary is
+ * rebuilt at the end from the scenario rows, not trusted from the client. The
+ * call count is asserted by execution in test/finalize-one-write.test.js. */
+ok('it rebuilds progress from the scenario rows',
+   /ProgressService\.updateUserProgress\(user, g\.scenario\)/.test(fin));
+ok('grouped by level and country, not one call per scenario',
+   /ProgressService\.normalizeCountry_\(sc\.country/.test(fin) && /order\.forEach/.test(fin));
+ok('and a route completion opens one read scope for the whole loop',
+   /dbWithReadScope_\(function \(\) \{/.test(fin));
 ok('it settles XP for the whole route',  /lmsAddXp_\(user\.userId, 25 \* correct\)/.test(fin));
 ok('a missing scenario does not stop it',/missing\.push\(id\)/.test(fin));
 ok('the client calls it before the debrief',
