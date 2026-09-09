@@ -7815,7 +7815,7 @@ function apiGetLevelConfig(sessionToken, level) {
     var key = 'LEVEL_CONFIG_' + Number(level || 1);
     var raw = PropertiesService.getScriptProperties().getProperty(key);
     var cfg = raw ? JSON.parse(raw) : {};
-    return { ok: true, level: Number(level || 1), replayThreshold: Number(cfg.replayThreshold || 2) };
+    return { ok: true, level: Number(level || 1), replayThreshold: Number(cfg.replayThreshold || DEFAULT_REPLAY_THRESHOLD) };
   } catch(err) {
     return apiError_('apiGetLevelConfig', err);
   }
@@ -7870,7 +7870,7 @@ function apiGetAllLevelConfigs(sessionToken) {
       var cfg = raw ? JSON.parse(raw) : {};
       return {
         level:          l,
-        replayThreshold: Number(cfg.replayThreshold || 2),
+        replayThreshold: Number(cfg.replayThreshold || DEFAULT_REPLAY_THRESHOLD),
         enableControls:  cfg.enableControls !== undefined ? !!cfg.enableControls : true,
         startAltitude:   Number(cfg.startAltitude || (3000 + l * 1000)),
         startHeading:    Number(cfg.startHeading  || 360) || 360,
@@ -7935,7 +7935,7 @@ function apiAdminSaveLevelConfig(sessionToken, payload) {
     AuthService.requireRole(sessionToken, ['ADMIN']);
     payload = payload || {};
     var level          = Number(payload.level          || 1);
-    var threshold      = Number(payload.replayThreshold || 2);
+    var threshold      = Number(payload.replayThreshold || DEFAULT_REPLAY_THRESHOLD);
     var enableControls = payload.enableControls !== undefined ? !!payload.enableControls : true;
     var startAltitude  = Number(payload.startAltitude  || 0) || undefined;
     var startHeading   = Number(payload.startHeading   || 0) || undefined;
@@ -7993,7 +7993,7 @@ function apiAdminApplyDifficultyPreset(sessionToken, payload) {
     payload = payload || {};
     var level     = Number(payload.level || 1);
     var preset    = String(payload.preset || 'off').toLowerCase();
-    var threshold = Number(payload.replayThreshold || 2);
+    var threshold = Number(payload.replayThreshold || DEFAULT_REPLAY_THRESHOLD);
     if (threshold < 1) threshold = 1;
 
     var PRESETS = {

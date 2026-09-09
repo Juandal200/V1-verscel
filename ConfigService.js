@@ -18,6 +18,24 @@ var CONFIG = {
   SESSION_TTL_SECONDS: 2592000
 };
 
+/* How many replays unlock the ATC text when no level says otherwise.
+ *
+ * This literal was in seven places across two runtimes - four in Codigo.js, three
+ * in the client - all reading 2 and none of them knowing about the others. They
+ * agreed, which is not the same as being kept in agreement: moving the intended
+ * default meant finding all seven, and missing one leaves the client gating at a
+ * different number than the server reports, which is exactly the confusion
+ * F-0015 was raised about.
+ *
+ * The real value is per-level, in Script Properties under LEVEL_CONFIG_<n>. This
+ * is only what answers when that is unset or unreachable.
+ *
+ * The client keeps its own copy, and must: sites 6 and 7 there are the fallback
+ * for when the server is the thing that failed, so they cannot read this. Two
+ * constants, one per runtime, both named the same thing - so a grep for
+ * REPLAY_THRESHOLD finds every place the default lives. */
+var DEFAULT_REPLAY_THRESHOLD = 2;
+
 var ROLES = {
   ADMIN: 'ADMIN',
   INSTRUCTOR: 'INSTRUCTOR',

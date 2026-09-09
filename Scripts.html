@@ -3870,7 +3870,7 @@
           '<span class="diff-desc">' + safeText(meta.desc) + '</span>' +
         '</div>' +
         '<div class="diff-pills">' + _diffPillsHtml(lvl, diff) + '</div>' +
-        '<label class="diff-rt-label">Replays <input type="number" id="diffRt_' + lvl + '" value="' + safeText(l.replayThreshold || 2) + '" min="1" max="10" class="diff-rt-input"></label>' +
+        '<label class="diff-rt-label">Replays <input type="number" id="diffRt_' + lvl + '" value="' + safeText(l.replayThreshold || _DEFAULT_REPLAY_THRESHOLD) + '" min="1" max="10" class="diff-rt-input"></label>' +
         '<button class="btn primary diff-apply-btn" onclick="adminApplyDiff(' + lvl + ')">Apply</button>' +
         '<span class="diff-status" id="diffStatus_' + lvl + '"></span>' +
       '</div>';
@@ -6509,8 +6509,9 @@ var LEVEL_THEMES = {
    * but it is now a decision rather than a silence. */
   function _replayThresholdUnavailable(andThen) {
     if (AppState.training._thresholdRetried) {
-      AppState.training.replayThreshold = 2;
-      console.warn('[ICAO] level config unavailable; running at the default threshold of 2');
+      AppState.training.replayThreshold = _DEFAULT_REPLAY_THRESHOLD;
+      console.warn('[ICAO] level config unavailable; running at the default threshold of ' +
+                   _DEFAULT_REPLAY_THRESHOLD);
       _simToast('Using the default difficulty — the level settings could not be loaded.');
       andThen();
       return;
@@ -7079,11 +7080,19 @@ var LEVEL_THEMES = {
    * The automatic first playback is not a replay: it is the exercise starting.
    * Text unlocks once the student has asked to hear it _threshold more times.
    ***********************/
+  /* The client's own copy of the default, and it has to be its own.
+   *
+   * ConfigService.js carries DEFAULT_REPLAY_THRESHOLD for the server. This cannot
+   * read it: both uses below are the fallback for when the server is exactly what
+   * could not be reached. Same name, same value, two runtimes — so one grep finds
+   * both, and a future change cannot quietly move one and not the other. */
+  var _DEFAULT_REPLAY_THRESHOLD = 2;
+
   var AtcReplayGate = (function () {
     var _count      = 0;
     var _isRevealed = false;
     var _origText   = '';
-    var _threshold  = 2;   // admin-configurable per level; loaded at route start
+    var _threshold  = _DEFAULT_REPLAY_THRESHOLD;   // per level; loaded at route start
     /* Which message the gate is currently counting for.
      *
      * init() used to reset unconditionally, and simMediaInit() calls it. Retry
