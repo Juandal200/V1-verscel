@@ -27568,6 +27568,9 @@ var LEVEL_THEMES = {
   // the file the row points at.
   var _scAudio   = {};   // "BANK|itemId" -> response
   var _scAudioIn = {};   // "BANK|itemId" -> [callback] while a fetch is in flight
+  // Warmed on the briefing screen and deliberately NOT cleared by _scAudioReset,
+  // which runs on the way into a sitting and would discard it a moment too soon.
+  var _scPreAudio = {};  // "BANK|itemId" -> response, from the pre-warm
 
   function _scAudioKey(step) {
     return String(_sc.bank || '') + '|' + String((step && step.id) || '');
@@ -27579,6 +27582,8 @@ var LEVEL_THEMES = {
   function _scFetchAudio(step, onDone) {
     var key = _scAudioKey(step);
     if (_scAudio[key]) { onDone(_scAudio[key]); return; }
+    // Warmed while the candidate was reading the rules.
+    if (_scPreAudio[key]) { _scAudio[key] = _scPreAudio[key]; onDone(_scAudio[key]); return; }
     if (_scAudioIn[key]) { _scAudioIn[key].push(onDone); return; }
     _scAudioIn[key] = [onDone];
 
@@ -28127,6 +28132,8 @@ var LEVEL_THEMES = {
 
   window._teaSelectVersion = function (bank) {
     window._teaPickedVersion = String(bank || '');
+    // The paper is known now; Begin is several seconds away. Fetch it in that gap.
+    try { _teaFetchScript(window._teaPickedVersion); } catch (e) {}
     Array.prototype.slice.call(document.querySelectorAll('.tea-ver-opt')).forEach(function (el) {
       var on = el.getAttribute('data-bank') === window._teaPickedVersion;
       el.style.borderColor = on ? 'var(--accent)' : 'rgba(255,255,255,0.12)';
@@ -28252,6 +28259,75 @@ var LEVEL_THEMES = {
       'background:rgba(var(--lift-rgb), 0.03);border:1px solid var(--line);';
     el.innerHTML = 'Sitting ' + _esc(name) + (drawn ? ' \u00b7 drawn at random' : '');
     cards.parentNode.insertBefore(el, cards);
+  }
+
+  /* The paper, fetched once, by whoever needs it first.
+   *
+   * apiGetIcaoTestScript used to be called from inside apiReserveIcaoExam's
+   * success handler, so the two ran strictly one after the other — each with its
+   * own 45-second budget — and the candidate waited out both. They have no data
+   * dependency: this call needs a session and a bank, and the bank is known the
+   * moment a paper is picked, several seconds before Begin is pressed.
+   *
+   * So the fetch starts at the pick and this holds the result. Whoever asks
+   * later — normally _teaStartScripted, after the reservation clears — gets it
+   * immediately if it has landed, joins the in-flight call if it has not, and
+   * issues a fresh one only for a different paper.
+   *
+   * The reservation still gates the exam. Nothing here starts a sitting; it only
+   * removes the waiting from between the two. */
+  var _scScriptPre = null;   // { bank, state:'pending'|'ok'|'fail', res, err, waiters }
+
+  function _teaFetchScript(bank, onOk, onFail) {
+    var key = String(bank || '');
+    var p   = _scScriptPre;
+
+    if (p && p.bank === key) {
+      if (p.state === 'ok')   { if (onOk)   onOk(p.res);   return; }
+      if (p.state === 'fail') { if (onFail) onFail(p.err); return; }
+      if (onOk || onFail) p.waiters.push({ ok: onOk, fail: onFail });
+      return;                                   // in flight — join it
+    }
+
+    p = _scScriptPre = { bank: key, state: 'pending', res: null, err: null, waiters: [] };
+    if (onOk || onFail) p.waiters.push({ ok: onOk, fail: onFail });
+
+    function _flush(field) {
+      var ws = p.waiters; p.waiters = [];
+      ws.forEach(function (w) { try { if (w[field]) w[field](field === 'ok' ? p.res : p.err); } catch (e) {} });
+    }
+    google.script.run
+      .withSuccessHandler(function (res) { p.state = 'ok';   p.res = res; _flush('ok');   _teaPrewarmFirstAudio(res); })
+      .withFailureHandler(function (e)   { p.state = 'fail'; p.err = e;   _flush('fail'); })
+      .apiGetIcaoTestScript(AppState.sessionToken, key);
+  }
+
+  /* (a) The first recording, warmed while the rules are still on screen.
+   *
+   * Fire and forget in the strictest sense: no caller waits on it, every failure
+   * is swallowed, and nothing about starting an exam consults it. It only fills a
+   * cache _scFetchAudio already reads. If it has not finished by the time the
+   * examiner speaks, the normal fetch happens exactly as before.
+   *
+   * Its own cache, not _scAudio, because _teaStartScripted calls _scAudioReset()
+   * on the way in — a paper must not serve the previous one's recordings — and
+   * that would throw this away moments before it was needed. */
+  function _teaPrewarmFirstAudio(res) {
+    try {
+      var steps = (res && res.steps) || [];
+      var bank  = String((res && res.bank) || '');
+      var first = null;
+      for (var i = 0; i < steps.length && i < 4 && !first; i++) {
+        if (steps[i] && steps[i].id) first = steps[i];
+      }
+      if (!first) return;
+      var key = bank + '|' + String(first.id);
+      if (_scPreAudio[key] || _scAudio[key]) return;
+      google.script.run
+        .withSuccessHandler(function (a) { if (a && a.ok && a.audioBase64) _scPreAudio[key] = a; })
+        .withFailureHandler(function () {})
+        .apiGetIcaoTestAudio(AppState.sessionToken, first.id, bank);
+    } catch (e) {}
   }
 
   window._teaBeginScripted = function (bank) {
@@ -28423,8 +28499,7 @@ var LEVEL_THEMES = {
         '</div>');
     }, 45000);
 
-    google.script.run
-      .withSuccessHandler(function (res) {
+    _teaFetchScript(bank, function (res) {
         if (_sSettled) return;
         _sSettled = true; clearTimeout(_sGiveUp);
         loader.stop();
@@ -28480,8 +28555,7 @@ var LEVEL_THEMES = {
         _teaShowVersionBadge(_sc.bank, bank);
         _teaShowMicNotice();
         _scNextStep();
-      })
-      .withFailureHandler(function (e) {
+      }, function (e) {
         if (_sSettled) return;
         _sSettled = true; clearTimeout(_sGiveUp);
         loader.stop();
@@ -28525,8 +28599,7 @@ var LEVEL_THEMES = {
             'Nothing was started and no attempt was used. Please try again.</p>' +
           '<button class="btn primary" onclick="window.renderTeaExam()">Try again</button>' +
           '</div>');
-      })
-      .apiGetIcaoTestScript(AppState.sessionToken, String(bank || ''));
+      });
   };
 
   function _showFinishBtn() {
