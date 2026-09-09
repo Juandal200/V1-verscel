@@ -8,7 +8,7 @@ export const config = {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Expected-Readback');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
   if (req.method !== 'POST') {
@@ -56,9 +56,17 @@ export default async function handler(req, res) {
      * one, which is exactly right when the ambiguity is between "turn right" and
      * "tongue right".
      *
-     * There is a 224-token limit and the tail is what counts, so the scenario's own
-     * expected read-back goes last: the closer a phrase is to the end of the prompt,
-     * the more weight it carries.
+     * What it must NOT contain is the answer.
+     *
+     * The scenario's expected read-back used to be appended here, on the reasoning
+     * that the tail of a prompt carries the most weight and the sharpest possible
+     * hint for a read-back is the clearance being read back. It is the sharpest
+     * possible hint. It is also the answer, and at temperature 0 with silence to
+     * transcribe, the prompt is what Whisper returns — so a student who tapped the
+     * microphone, said nothing, and tapped it again got the correct read-back typed
+     * into the box for them and scored on it. The vocabulary below still separates
+     * "turn right" from "tongue right"; both headings are in it. Nothing here is
+     * specific to the question being asked any more.
      *
      * _BASE_FIXES in the client — forty entries repairing "queue and h" to QNH and
      * "squork" to SQUAWK — is the same job done afterwards, by hand, and only for
@@ -76,14 +84,9 @@ export default async function handler(req, res) {
       'mike november oscar papa quebec romeo sierra tango uniform victor whiskey ' +
       'x-ray yankee zulu.';
 
-    // The client sends the clearance this answer is a read-back OF. Header rather
-    // than body, because the body is the raw audio.
-    const expected = String(req.headers['x-expected-readback'] || '')
-      .slice(0, 400)
-      .replace(/[\r\n]+/g, ' ')
-      .trim();
-
-    formData.append('prompt', expected ? PHRASEOLOGY + ' ' + expected : PHRASEOLOGY);
+    // The same prompt for every request. Nothing about the scenario, and in
+    // particular nothing about its answer, reaches this call.
+    formData.append('prompt', PHRASEOLOGY);
     // Deterministic. Left to its own devices Whisper invents when it is unsure, and
     // an invented word is scored as a wrong one.
     formData.append('temperature', '0');

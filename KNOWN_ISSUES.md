@@ -871,3 +871,54 @@ failure mode deliberately, for no user.
 non-English interface — which is a commercial choice, not a code one. At that
 point the cost above is worth paying, and the work starts with a string
 catalogue, not with a framework.
+
+---
+
+## Saying nothing scored full marks
+
+**Status** **Fixed** — silence is stopped in the browser, the answer no longer
+travels to Whisper, and an echo is rejected if one ever gets back. Recorded
+because it took three separate correct-looking decisions to produce, and each
+one is still tempting on its own.
+
+**No bot ID.** Reported directly with a screenshot on 2026-09-08, not through
+the Telegram bot, so no ticket ID was issued and none is invented here.
+
+**What was reported.** A student opened a level, tapped the microphone, said
+nothing, tapped it again — and was marked correct.
+
+**How it worked.** Three things, all of them individually defensible:
+
+1. The recorder's only test on a take was `e.data.size > 0`. Silence has bytes.
+2. The scenario's expected read-back was sent to Whisper as its bias prompt —
+   the sharpest possible hint for a read-back is the clearance being read back,
+   and the tail of a Whisper prompt carries the most weight, so it went last.
+3. `temperature: 0`. Deterministic, so it does not invent when unsure.
+
+Given no signal, a prompt and no temperature to wander with, Whisper returns the
+prompt. So the answer left with the audio and came back as the transcript, was
+written into the textarea, and was graded. The casing is what identified it:
+`_spellDigits` writes lowercase digit words and the correction table maps
+`niner → NINER`, so `09` came back as `zero NINER` — mixed case no other path in
+the file produces.
+
+**What it cost.** It defeated the replay gate — "ATC TEXT HIDDEN — UNLOCKS AFTER
+4 REPLAYS" is worth nothing if the answer is one silent tap away — and it wrote
+a false attempt row, so the Attempts sheet has scores in it that nobody earned.
+
+**Why the prompt is not simply back with a shorter answer in it.** There is no
+version of "some of the answer" that is safe. The general phraseology vocabulary
+is what the prompt was actually for: it separates "turn right" from "tongue
+right", and both headings are in the list. Nothing scenario-specific reaches
+that call any more.
+
+**The part that is unverifiable from the repo (rule 6).** How many false attempt
+rows already exist. That is Sheets data. The thresholds are also reasoned rather
+than measured against student recordings — 0.02 peak RMS as a silence floor,
+0.10 as loud-on-its-own, 1.8 peak-over-median as the dynamics test. Both are set
+to let a marginal take through rather than block it, because rejecting a real
+answer is worse than an exploit that takes deliberate silence to trigger. Real
+recordings would tighten them; nothing in this repository can.
+
+**What would reopen it.** A student reporting "we didn't hear anything" on a take
+they actually spoke. That is the failure direction that matters.

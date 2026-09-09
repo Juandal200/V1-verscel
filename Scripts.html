@@ -127,6 +127,163 @@
     return best !== null ? best : '';
   }
 
+  /* Did anybody actually say anything.
+   *
+   * A student opened a level, tapped the microphone, said nothing, tapped it
+   * again — and was marked correct. Three things had to line up for that, and
+   * all three were true:
+   *
+   *   1. The recorder's only test was `e.data.size > 0`. Silence has bytes.
+   *   2. The exact expected read-back was sent to Whisper as its bias prompt.
+   *   3. Whisper at temperature 0, given no signal and a prompt, returns the
+   *      prompt.
+   *
+   * So the answer went out with the audio and came back as the transcript, was
+   * written into the box, and was graded — defeating the replay gate and
+   * writing a false attempt to the Attempts sheet. (2) is gone; this is (1).
+   *
+   * The recording is metered while it runs and the take is judged on two
+   * numbers, because neither is sufficient on its own:
+   *
+   *   peak RMS — loud enough to be a voice at all. Not enough by itself:
+   *     getUserMedia enables automatic gain control by default, and AGC with
+   *     no signal to work on lifts the room's noise floor to meet it.
+   *   dynamics — peak over median. This is what AGC cannot fake. Speech is
+   *     bursty; a boosted room is flat. A quiet-but-real take passes on this,
+   *     and a loud take is let through on volume alone in case a genuinely
+   *     noisy classroom flattens the ratio.
+   *
+   * These numbers are reasoned, not measured against student recordings — the
+   * failure they must avoid is rejecting a real answer, so both are set to let
+   * a marginal take through rather than block it. */
+  var _MIC_SILENCE_RMS = 0.02;   // a peak under this is a room, not a person
+  var _MIC_LOUD_RMS    = 0.10;   // and over this, loud enough on its own
+  var _MIC_DYNAMICS    = 1.8;    // peak / median — speech is bursty, noise is not
+  var _MIC_MIN_MS      = 400;    // a take shorter than this is a mis-tap
+  var _MIC_UNHEARD     = 'We didn\u2019t hear anything \u2014 tap to speak again.';
+
+  var _gMicMeter    = null;
+  var _gMicStartedAt = 0;
+
+  function _micMeterStart(stream) {
+    _gMicMeter = { samples: [], ctx: null, timer: null, metered: false };
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;                 // unmetered: _micTake reports metered:false
+      var ctx = new AC();
+      if (ctx.resume) { try { ctx.resume(); } catch (e) {} }
+      var an = ctx.createAnalyser();
+      an.fftSize = 2048;
+      ctx.createMediaStreamSource(stream).connect(an);
+      // Byte time-domain data rather than float: the float call is missing on
+      // older Safari, and this is the same measurement scaled to 0..255.
+      var buf = new Uint8Array(an.fftSize);
+      var m = _gMicMeter;
+      m.ctx = ctx;
+      m.metered = true;
+      m.timer = setInterval(function () {
+        an.getByteTimeDomainData(buf);
+        var sum = 0;
+        for (var i = 0; i < buf.length; i++) {
+          var v = (buf[i] - 128) / 128;
+          sum += v * v;
+        }
+        m.samples.push(Math.sqrt(sum / buf.length));
+      }, 60);
+    } catch (e) {
+      // A meter that will not start must not stop a student recording. The take
+      // goes through unmetered and is judged on its length alone.
+      if (_gMicMeter) _gMicMeter.metered = false;
+    }
+  }
+
+  function _micTake() {
+    var m = _gMicMeter;
+    _gMicMeter = null;
+    if (!m) return { metered: false, peak: 0, dynamics: 0 };
+    if (m.timer) clearInterval(m.timer);
+    if (m.ctx) { try { m.ctx.close(); } catch (e) {} }
+    var xs = m.samples.slice().sort(function (a, b) { return a - b; });
+    if (!xs.length) return { metered: false, peak: 0, dynamics: 0 };
+    var peak   = xs[xs.length - 1];
+    var median = xs[Math.floor(xs.length / 2)];
+    return {
+      metered:  m.metered,
+      peak:     peak,
+      // Guarded: a digitally silent take has median 0 and would divide by it.
+      dynamics: median > 0.0005 ? (peak / median) : (peak > 0 ? 99 : 0)
+    };
+  }
+
+  function _micSpoke(take, durMs) {
+    if (durMs < _MIC_MIN_MS) return false;
+    if (!take.metered) return true;           // no meter, no opinion
+    if (take.peak < _MIC_SILENCE_RMS) return false;
+    return take.peak >= _MIC_LOUD_RMS || take.dynamics >= _MIC_DYNAMICS;
+  }
+
+  /* Where "we didn't hear anything" goes.
+   *
+   * Five screens share this recorder and their buttons are not the same shape —
+   * the simulator's is a full-width bar, the TEA examiner's is a 44px circle —
+   * so the message cannot live in the label. It sits after the button instead,
+   * and is taken away the moment the student taps again. */
+  function _micNotice(btn, text) {
+    if (!btn || !btn.parentNode) return;
+    var el = btn.parentNode.querySelector('.mic-notice');
+    if (!text) { if (el) el.remove(); return; }
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'mic-notice';
+      el.setAttribute('role', 'status');
+      btn.parentNode.insertBefore(el, btn.nextSibling);
+    }
+    el.textContent = text;
+  }
+
+  /* A take nobody spoke into is not an attempt.
+   *
+   * Nothing is written to the textarea and onTranscript is never called, so no
+   * answer is submitted and no attempt is recorded. The button goes straight
+   * back to usable — the student's next move is to tap it again. */
+  function _micNotHeard(btn) {
+    _resetBtn(btn);
+    _micNotice(btn, _MIC_UNHEARD);
+  }
+
+  // Word-for-word comparison for the collision guard below: case, punctuation
+  // and spacing are not what distinguishes an answer from an echo.
+  function _micNorm(text) {
+    return String(text || '').toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  /* The collision guard.
+   *
+   * The prompt no longer carries the answer, so Whisper cannot be handed it to
+   * read back. This is the belt to that brace, for the case where the answer
+   * reaches the transcript by some route this file does not know about: if what
+   * came back is EXACTLY the expected read-back and the audio was too quiet or
+   * too short to have contained it, it did not come from the candidate.
+   *
+   * The condition matters. A correct read-back IS the expected text word for
+   * word — that is the exercise — so an exact match alone proves nothing and
+   * rejecting on it would fail every student who got it right. Only an exact
+   * match off audio that could not have carried it is a non-attempt. */
+  function _micCantContain(text, durMs) {
+    var words = _micNorm(text).split(' ').filter(Boolean).length;
+    // Four words a second is faster than anyone reads back a clearance.
+    return words > 0 && durMs > 0 && durMs < (words / 4) * 1000;
+  }
+
+  function _micIsEcho(transcript, expected, take, durMs) {
+    if (!expected) return false;
+    var a = _micNorm(transcript);
+    if (!a || a !== _micNorm(expected)) return false;
+    if (_micCantContain(transcript, durMs)) return true;
+    return take.metered && take.peak < _MIC_LOUD_RMS && take.dynamics < _MIC_DYNAMICS;
+  }
+
   function _resetBtn(btn) {
     if (!btn) return;
     btn.classList.remove('listening', 'processing');
@@ -174,6 +331,7 @@
 
   window.startMicInput = function(textareaId, btnId, expectedReadback, onTranscript) {
     var btn = document.getElementById(btnId);
+    _micNotice(btn, '');
 
     // Second tap while recording → stop
     if (_gMicActive) {
@@ -234,22 +392,28 @@
           var mime = _gMicRecorder.mimeType || 'audio/webm';
           var blob = new Blob(_gMicChunks, { type: mime });
 
-          // The clearance travels with the audio.
+          var _take  = _micTake();
+          var _durMs = _gMicStartedAt ? (Date.now() - _gMicStartedAt) : 0;
+          _gMicStartedAt = 0;
+
+          // Silence never leaves the browser. No request, no transcript, no
+          // answer in the box, and nothing for the grader to record.
+          if (!_micSpoke(_take, _durMs)) { _micNotHeard(btn); return; }
+
+          // The clearance no longer travels with the audio.
           //
-          // Whisper takes a prompt that biases it toward a vocabulary, and the best
-          // possible prompt for a read-back is the clearance being read back. It is
-          // a hint, not a filter: a candidate who says something else still gets
-          // what they said. What it fixes is the ambiguous case — "turn right" and
-          // "tongue right" sound alike, and only one of them is aviation.
+          // Whisper takes a prompt that biases it toward a vocabulary, and the
+          // scenario's own expected read-back used to go in it — the sharpest
+          // possible hint, and also the answer. At temperature 0 with nothing
+          // to transcribe, the prompt is what comes back, so the hint was
+          // being returned as the student's words and graded as them.
+          //
+          // The general phraseology vocabulary stays, on the server, where the
+          // disambiguation actually comes from: "turn left heading" and "turn
+          // right heading" are both in it, which is what separates "turn right"
+          // from "tongue right". What is gone is the one string that made the
+          // echo worth having.
           var _hdrs = { 'Content-Type': mime };
-          if (expected) {
-            // Latin-1 only in a header value, and a clearance can carry a degree
-            // sign or an en dash. Stripped rather than encoded — the prompt is a
-            // hint and does not need to be exact.
-            var _exp = String(expected).replace(/[^\x20-\x7E]/g, ' ')
-                                       .replace(/\s+/g, ' ').trim().slice(0, 400);
-            if (_exp) _hdrs['X-Expected-Readback'] = _exp;
-          }
 
           fetch('/api/whisper', {
             method:  'POST',
@@ -260,6 +424,10 @@
           .then(function(data) {
             _resetBtn(btn);
             if (data.ok && data.transcript) {
+              if (_micIsEcho(data.transcript, expected, _take, _durMs)) {
+                _micNotHeard(btn);
+                return;
+              }
               var corrected = _applyFixes(data.transcript, _scenarioFixes(expected));
               var ta = document.getElementById(textareaId);
               if (ta) { ta.value = corrected; ta.focus(); ta.dispatchEvent(new Event('input')); }
@@ -281,6 +449,8 @@
         };
 
         if (btn) { btn.classList.add('listening'); btn.innerHTML = '&#9679; Listening&hellip; tap to stop'; }
+        _micMeterStart(stream);
+        _gMicStartedAt = Date.now();
         _gMicRecorder.start();
       })
       .catch(function(err) {

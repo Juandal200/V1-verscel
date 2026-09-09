@@ -82,20 +82,39 @@ ok('a right answer is still told it was right',
 ok('the attempt row still carries every keyword',
    /keywordsMissing:\s*\(la\.keywordsMissing\s*\|\|\s*\[\]\)\.join\('\|'\)/.test(S));
 
+/* --- the transcriber is told what KIND of thing it is listening to ---
+ *
+ * Five assertions here used to require the opposite of what follows. They
+ * required the scenario's expected read-back to be appended to the Whisper
+ * prompt, and required the header that carried it — on the reasoning that the
+ * tail of a prompt has the most weight and the sharpest hint for a read-back is
+ * the clearance being read back.
+ *
+ * That reasoning was right about prompting and wrong about the product. The
+ * hint was the answer. At temperature 0 with silence to transcribe, Whisper
+ * returns the prompt — so a student who tapped the microphone, said nothing and
+ * tapped again got the correct read-back typed into the box and scored on it.
+ *
+ * The assertions are reversed rather than deleted, because the thing that must
+ * not come back is exactly what they used to demand. The vocabulary stays: it
+ * is what separates "turn right" from "tongue right", and neither of those is
+ * the answer to anything. */
 console.log('--- the transcriber is told what it is listening to ---');
 ok('a prompt is sent',            /formData\.append\('prompt'/.test(W));
 ok('it carries ICAO phraseology', /const PHRASEOLOGY =/.test(W) && /cleared for takeoff/i.test(W));
-ok('and the clearance this answer reads back',
-   /x-expected-readback/.test(W) && /PHRASEOLOGY \+ ' ' \+ expected/.test(W));
-// The tail of a Whisper prompt carries the most weight, so the scenario goes last.
-ok('the scenario goes last, where the weight is',
-   W.indexOf('PHRASEOLOGY') < W.indexOf("PHRASEOLOGY + ' ' + expected"));
+ok('and it is the same prompt for every request',
+   /formData\.append\('prompt', PHRASEOLOGY\);/.test(W));
+ok('the scenario\'s own answer is NOT appended to it',
+   !/PHRASEOLOGY \+ ' ' \+/.test(W));
 ok('it does not invent when unsure', /formData\.append\('temperature', '0'\)/.test(W));
-ok('the header is allowed through CORS',
-   /Allow-Headers[^)]*X-Expected-Readback/.test(W));
-ok('the client sends it',         /X-Expected-Readback/.test(S));
-ok('stripped to what a header may carry',
-   /replace\(\/\[\^\\x20-\\x7E\]\/g, ' '\)/.test(S));
+ok('the proxy does not read an expected-readback header',
+   !/x-expected-readback/i.test(W));
+ok('nor allow one through CORS',  !/X-Expected-Readback/.test(W));
+ok('and the client does not send one', !/X-Expected-Readback/.test(S));
+// What the prompt is FOR still works: the ambiguity it resolves is between two
+// aviation phrases, and both are in the list.
+ok('both headings are still in the vocabulary',
+   /turn left heading, turn right heading/.test(W));
 
 console.log('--- and the fallback picks the best guess, not the first ---');
 ok('it asks for several',        /maxAlternatives = 5;/.test(S));

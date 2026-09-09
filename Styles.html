@@ -8220,6 +8220,16 @@ body.sim-focus-mode .topbar-avatar {
   transition:background 0.25s var(--ease), border-color 0.25s var(--ease), color 0.25s var(--ease);
 }
 .demo-mic-btn:hover { border-color:var(--line); color:var(--text); }
+
+/* "We didn't hear anything." The microphone's own message, placed after
+   whichever button was tapped. Five screens share the recorder and their
+   buttons are different shapes — a full-width bar in the simulator, a 44px
+   circle in the TEA examiner — so this cannot live in a label. */
+.mic-notice {
+  margin: -2px 0 8px; padding: 0 2px;
+  color: var(--yellow); font-size: 0.82rem; font-weight: 600;
+  line-height: 1.35; text-align: center;
+}
 .demo-mic-btn.listening {
   background:#450a0a; border-color:var(--red); color:var(--muted);
   animation:demo-mic-pulse 1.2s infinite;
