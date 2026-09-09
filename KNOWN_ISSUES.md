@@ -114,7 +114,15 @@ knowable, and on the live conversational report path D-1 exists to close.
 
 `api/tea-pipeline.mjs` never had this: all four of its returns carry `status`.
 
-**Fix** One key, so the three fail-open branches agree.
+**Fix** One key, so the three fail-open branches agreed.
+
+**Superseded by T-8.** Those three branches no longer exist. T-8 replaced all of
+them with a single `return SESSION_UNAVAILABLE;` that refuses, so there is no
+longer a caller object with an empty status for `paidPlan` to misread — the
+request does not reach that line at all. This entry is kept because the defect
+was real and the way it was found matters, but anyone reading it against HEAD
+will not find the code it describes. Caught by the final-pass sweep, which is
+what that sweep is for.
 
 Verified by execution, not by regex: a harness drives the real `sessionValid`
 down each failure mode and computes the real `paidPlan` expression from whatever
