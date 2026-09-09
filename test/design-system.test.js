@@ -99,8 +99,11 @@ const ents = [...ALL.matchAll(/&#(\d{3,7});/g)].map(m => Number(m[1]));
 console.log('    ' + ents.length + ' character entities, all intact');
 // A floor rather than a target: this catches a sweep deleting them, not a
 // deliberate replacement. It fell from 151 to 139 when the plan cards' eleven
-// colour emoji became drawn icons, which is the direction of travel.
-ok('and the marks are still there', ents.length > 120);
+// colour emoji became drawn icons, and from 139 to 104 when F-0010 swept the
+// rest of the client. Both are the direction of travel, so the floor moves with
+// them — what it still catches is a pass that eats entities without meaning to.
+// The two assertions either side are the ones that cannot be relaxed.
+ok('and the marks are still there', ents.length > 95);
 ok('every one of them is a real code point',
    ents.every(n => n > 0 && n <= 0x10FFFF));
 

@@ -130,7 +130,7 @@
   function _resetBtn(btn) {
     if (!btn) return;
     btn.classList.remove('listening', 'processing');
-    btn.innerHTML = '&#127908; Tap to speak';
+    btn.innerHTML = window.uiIconInline('mic') + 'Tap to speak';
     btn.disabled  = false;
   }
 
@@ -2163,7 +2163,7 @@
 
       var teaCard = _homeCard({
         gradient:   'linear-gradient(to top,rgba(0,0,0,.75) 0%,rgba(0,0,0,.25) 60%,rgba(0,0,0,.1) 100%),url(https://lh3.googleusercontent.com/d/1CafVOCY_ckW3OlYXv0lluoATFl659brv) center/cover no-repeat',
-        icon:       { bg: 'var(--accent)', emoji: '📋' },
+        icon:       { bg: 'var(--accent)', emoji: uiIcon('paper', 20) },
         badge:      'Practice test',
         title:      'ICAO-based practice test',
         subtitle:   'Marked on the six ICAO descriptors',
@@ -3042,7 +3042,7 @@
 
             '<div class="cabina-card">' +
               '<div class="cabina-card-header">' +
-                '<span class="cabina-card-label">&#128225; Radio ATC &nbsp;&bull;&nbsp; FREQ 119.1 MHz</span>' +
+                '<span class="cabina-card-label">' + uiIconInline('tower') + 'Radio ATC &nbsp;&bull;&nbsp; FREQ 119.1 MHz</span>' +
                 '<span class="cabina-led amber"></span>' +
               '</div>' +
               '<div class="cabina-radio-display">' +
@@ -5003,7 +5003,7 @@
   function getCountryUi(country) {
     var raw = String(country || '').trim();
     var key = raw.toUpperCase();
-    return COUNTRY_UI[key] || { code: '', emoji: '🌐', label: raw || 'Unknown country', accent: 'International ATC' };
+    return COUNTRY_UI[key] || { code: '', emoji: uiIcon('globe', 18), label: raw || 'Unknown country', accent: 'International ATC' };
   }
 
   function getFlagHtml(country, sizeClass) {
@@ -5279,7 +5279,7 @@
       btnLabel = 'Retry Exam'; btnCls = 'primary'; btnAction = 'onclick="window._examOpen && window._examOpen(' + examNum + ')"';
       badgeCls = 'exam-badge-warn'; badgeText = '1 LEFT';
     } else {
-      icon = '📋'; heading = 'Checkpoint ' + examNum;
+      icon = uiIcon('paper', 28); heading = 'Checkpoint ' + examNum;
       sub = '8 phases · Pass ' + EXAM_PASS_PCT + '% · Unlocks Level ' + nextLvl;
       btnLabel = 'Start Exam'; btnCls = 'primary'; btnAction = 'onclick="window._examOpen && window._examOpen(' + examNum + ')"';
       badgeCls = 'exam-badge-avail'; badgeText = 'EXAM';
@@ -5315,7 +5315,7 @@
       var lvl = ps.placedAtLevel || 1;
       return '<article class="level-card-pro placement-card placement-card-taken">' +
         '<div class="level-card-top">' +
-          '<div class="level-icon-pro">&#127919;</div>' +
+          '<div class="level-icon-pro">' + uiIcon('target', 28) + '</div>' +
           '<div class="level-title-block">' +
             '<p class="eyebrow">Placement</p>' +
             '<h3>Placement Test &mdash; Complete</h3>' +
@@ -5330,7 +5330,7 @@
     }
     return '<article class="level-card-pro placement-card">' +
       '<div class="level-card-top">' +
-        '<div class="level-icon-pro">&#127919;</div>' +
+        '<div class="level-icon-pro">' + uiIcon('target', 28) + '</div>' +
         '<div class="level-title-block">' +
           '<p class="eyebrow">Optional &middot; One-Time</p>' +
           '<h3>Placement Test</h3>' +
@@ -5415,7 +5415,7 @@ var LEVEL_THEMES = {
         gradient:  base.gradient || LEVEL_CARD_SURFACE,
         border:    base.border   || 'var(--line-strong)',
         accent:    m.accent || base.accent || 'var(--muted)',
-        icon:      m.icon   || base.icon   || '\u2708\uFE0F',
+        icon:      m.icon   || base.icon   || uiIcon('plane', 26),
         tag:       m.tag    || m.name,
         phases:    (m.phases && m.phases.length) ? m.phases : (base.phases || []),
         desc:      m.description || base.desc || '',
@@ -5478,7 +5478,7 @@ var LEVEL_THEMES = {
           return '<article class="tea-score-box" style="margin-bottom:10px;padding:16px;' +
               (locked ? 'opacity:.62;' : '') + '">' +
             '<div style="display:flex;gap:14px;align-items:center;">' +
-              '<div style="font-size: 1.6rem;line-height:1;">' + (locked ? '\uD83D\uDD12' : (m.icon || '\uD83C\uDF96')) + '</div>' +
+              '<div style="font-size: 1.6rem;line-height:1;">' + (locked ? uiIcon('locked', 26) : (m.icon || uiIcon('seal', 26))) + '</div>' +
               '<div style="flex:1;min-width:0;">' +
                 '<p class="eyebrow" style="margin:0 0 3px;">Level ' + n + '</p>' +
                 '<div style="font-size:1rem;font-weight:800;color:var(--text);">' +
@@ -6096,7 +6096,7 @@ var LEVEL_THEMES = {
     var _nextCp  = Math.round(50 * (1 + 0.10 * _wkLvls));
     var _multip  = Math.round((1 + 0.10 * _wkLvls) * 10) / 10;
     var _cpStrip = _wkLvls >= 10
-      ? '<div style="margin-top:10px;padding:7px 14px;background:rgba(218,165,32,0.08);border:1px solid rgba(218,165,32,0.25);border-radius:8px;font-size: 0.72rem;color:var(--yellow);font-weight:700;letter-spacing: 0.04em;">🏆 Full week complete — 725 CP earned</div>'
+      ? '<div style="margin-top:10px;padding:7px 14px;background:rgba(218,165,32,0.08);border:1px solid rgba(218,165,32,0.25);border-radius:8px;font-size: 0.72rem;color:var(--yellow);font-weight:700;letter-spacing: 0.04em;">' + uiIconInline('trophy') + 'Full week complete — 725 CP earned</div>'
       : '<div style="margin-top:10px;padding:7px 14px;background:rgba(var(--accent-rgb), 0.06);border:1px solid rgba(var(--accent-rgb), 0.18);border-radius:8px;font-size: 0.72rem;color:var(--accent);letter-spacing: 0.04em;">' +
           '⚡ Complete this level → <strong>+' + _nextCp + ' CP</strong> <span style="color:var(--muted);">(' + _multip + '× multiplier)</span>' +
         '</div>';
@@ -7155,7 +7155,7 @@ var LEVEL_THEMES = {
         el.classList.remove('atc-text-revealed');
         el.innerHTML =
           '<div class="atc-hidden-mask">' +
-            '<span class="atc-hidden-icon">&#127911;</span>' +
+            '<span class="atc-hidden-icon">' + uiIcon('headset', 18) + '</span>' +
             '<span class="atc-hidden-copy">ATC text hidden — unlocks after ' + _threshold + ' replay' + (_threshold !== 1 ? 's' : '') + '.</span>' +
           '</div>';
       }
@@ -9326,7 +9326,7 @@ var LEVEL_THEMES = {
               var h = byId('simVisualHost');
               if (h) h.innerHTML =
                 '<div class="sim-video-frame" style="display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--muted);font-size:0.82rem;">' +
-                  '<span style="font-size: 1.6rem;">&#128225;</span>' +
+                  '<span>' + uiIcon('tower', 26) + '</span>' +
                   '<span>Video unavailable</span>' +
                   '<span style="font-size:0.72rem;opacity:0.6;">Training continues without visual</span>' +
                 '</div>';
@@ -10883,7 +10883,7 @@ var LEVEL_THEMES = {
         '<div class="icao-test-radio-card icao-readback-card">' +
           '<p class="icao-test-radio-label">Your read-back</p>' +
           '<textarea id="icaoReadback" class="sim-readback-priority-input" placeholder="Type your pilot read-back here..." style="margin-bottom:10px;"></textarea>' +
-          '<button id="icaoMicBtn" class="demo-mic-btn" style="margin-bottom:10px;" onclick="startMicInput(\'icaoReadback\',\'icaoMicBtn\')">&#127908; Tap to speak</button>' +
+          '<button id="icaoMicBtn" class="demo-mic-btn" style="margin-bottom:10px;" onclick="startMicInput(\'icaoReadback\',\'icaoMicBtn\')">' + uiIconInline('mic') + 'Tap to speak</button>' +
           '<div id="icaoTestFeedback"></div>' +
           '<div style="display:flex;gap:10px;margin-top:8px;">' +
             '<button class="btn primary big-action" id="icaoSubmitBtn" onclick="icaoTestSubmitAnswer()">Submit read-back</button>' +
@@ -12233,8 +12233,8 @@ var LEVEL_THEMES = {
           '<button class="btn danger"     id="tourResetBtn"     onclick="adminConfirmResetTour()">Close Tour &amp; Reset Weekly XP</button>' +
           '<button class="btn primary"    id="tourEmailBtn"     onclick="adminConfirmSendEmails()">Send Weekly Email to All Students</button>' +
           '<button class="btn secondary"  id="tourTestEmailBtn" onclick="adminSendTestEmail()">Send Test Email to Me</button>' +
-          '<button class="btn secondary"  id="tourEmailLogBtn"  onclick="adminShowEmailLog()">&#128196; Email Log</button>' +
-          '<button class="btn secondary"  id="tourTtsDiagBtn"   onclick="adminDiagnoseTts()">&#127908; Voice Check</button>' +
+          '<button class="btn secondary"  id="tourEmailLogBtn"  onclick="adminShowEmailLog()">' + uiIconInline('paper') + 'Email Log</button>' +
+          '<button class="btn secondary"  id="tourTtsDiagBtn"   onclick="adminDiagnoseTts()">' + uiIconInline('mic') + 'Voice Check</button>' +
         '</div>' +
         '<div id="tourResetMsg" style="margin-top:8px;"></div>' +
         '<div id="tourEmailLogPanel" style="margin-top:20px;display:none;"></div>' +
@@ -13702,7 +13702,7 @@ var LEVEL_THEMES = {
     var placementTaken = (ps.status === 'taken');
     var placementCard =
       '<article class="lms-module-card">' +
-        '<div class="lms-module-icon">&#127919;</div>' +
+        '<div class="lms-module-icon">' + uiIcon('target', 28) + '</div>' +
         '<div class="lms-module-body">' +
           '<h4 class="lms-module-title">Placement Test</h4>' +
           '<p class="lms-module-desc">' + (placementTaken
@@ -13719,7 +13719,7 @@ var LEVEL_THEMES = {
     // Build ICAO test card as lms-module-card
     var icaoCard =
       '<article class="lms-module-card">' +
-        '<div class="lms-module-icon">&#128203;</div>' +
+        '<div class="lms-module-icon">' + uiIcon('paper', 28) + '</div>' +
         '<div class="lms-module-body">' +
           '<h4 class="lms-module-title">ICAO Comprehension Test</h4>' +
           '<p class="lms-module-desc">10 scenarios &middot; 5 accents &middot; Band 1&ndash;6 rating</p>' +
@@ -14029,9 +14029,9 @@ var LEVEL_THEMES = {
   function renderNonRoutineModule() {
     setActiveNav('Simulator');
     var zones = [
-      { id: 'Health',      icon: '&#128138;', color: 'var(--yellow)', sub: 'Passenger or crew health events'     },
+      { id: 'Health',      icon: uiIcon('medic', 18), color: 'var(--yellow)', sub: 'Passenger or crew health events'     },
       { id: 'Maintenance', icon: '&#9881;',   color: 'var(--accent)', sub: 'Aircraft system or technical failures' },
-      { id: 'Legal',       icon: '&#128274;', color: 'var(--accent)', sub: 'Threat, disruptive passenger or breach' }
+      { id: 'Legal',       icon: uiIcon('locked', 18), color: 'var(--accent)', sub: 'Threat, disruptive passenger or breach' }
     ];
 
     var zonesHtml = zones.map(function(z) {
@@ -14906,7 +14906,7 @@ var LEVEL_THEMES = {
         '<div style="position:absolute;inset:0;background:radial-gradient(ellipse 55% 50% at 50% 50%,' + ORANGE + '22 0%,transparent 70%);pointer-events:none;"></div>' +
         '<button onclick="event.stopPropagation();_streakDismiss();" style="position:absolute;top:20px;right:24px;background:rgba(var(--lift-rgb), 0.06);border:none;color:var(--muted);font-size: 1.15rem;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:1;">&#10005;</button>' +
         '<div id="_streakCard" style="text-align:center;transform:scale(0.75);opacity:0;transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1),opacity 0.4s ease;padding:0 20px;pointer-events:none;max-width:min(420px,calc(100vw - 32px));">' +
-          '<div id="_streakFlame" style="font-size:clamp(2.6rem,11vw,3.6rem);line-height:1;margin-bottom:14px;filter:drop-shadow(0 0 26px ' + ORANGE + ');transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);">&#128293;</div>' +
+          '<div id="_streakFlame" style="font-size:clamp(2.6rem,11vw,3.6rem);line-height:1;margin-bottom:14px;filter:drop-shadow(0 0 26px ' + ORANGE + ');transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1);display:flex;justify-content:center;">' + uiIcon('fire', 52) + '</div>' +
           '<div style="font-size:0.72rem;font-weight:800;letter-spacing: 0.2em;color:' + ORANGE_LT + ';text-transform:uppercase;margin-bottom:10px;">' + safeText(headline) + '</div>' +
           '<div style="font-size:clamp(3.2rem,15vw,5rem);font-weight: 800;color:#fff;letter-spacing: -0.02em;line-height:1;text-shadow:0 0 44px ' + ORANGE + ',0 0 90px ' + ORANGE + '55;">' + days + '</div>' +
           '<div style="font-size: 0.82rem;font-weight:800;letter-spacing: 0.12em;text-transform:uppercase;color:var(--muted);margin-top:6px;">' + (days === 1 ? 'day' : 'days') + ' in a row</div>' +
@@ -15053,7 +15053,7 @@ var LEVEL_THEMES = {
             '<span style="font-size: 0.72rem;font-weight:800;letter-spacing: 0.12em;color:var(--text);text-transform:uppercase;">Module</span>' +
           '</div>' +
           // Lock overlay
-          (locked ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:2rem;background:rgba(var(--scrim-rgb), 0.26);">🔒</div>' : '') +
+          (locked ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(var(--scrim-rgb), 0.26);">' + uiIcon('locked', 30) + '</div>' : '') +
           // Completed ribbon
           (completed ? '<div style="position:absolute;top:10px;right:10px;background:var(--green);border-radius: 22px;padding:2px 10px;font-size: 0.72rem;font-weight:800;letter-spacing: 0.08em;color:#fff;">✓ DONE</div>' : '') +
         '</div>';
@@ -15093,7 +15093,7 @@ var LEVEL_THEMES = {
         ? '<button class="btn ' + (completed ? 'secondary' : 'primary') + '" style="font-size: 0.82rem;padding:7px 16px;width:100%;" onclick="event.stopPropagation();renderModuleDetail(\'' + m.moduleId + '\')">' +
             (completed ? 'Review Module' : sectionsDone > 0 ? 'Continue →' : 'Start Module →') +
           '</button>'
-        : '<button class="btn secondary" style="font-size: 0.82rem;padding:7px 16px;width:100%;opacity:0.5;cursor:not-allowed;" disabled>🔒 Locked</button>';
+        : '<button class="btn secondary" style="font-size: 0.82rem;padding:7px 16px;width:100%;opacity:0.5;cursor:not-allowed;" disabled>' + uiIconInline('locked') + 'Locked</button>';
 
       return '<div class="lms-module-card-wrap" style="' + (!locked ? 'cursor:pointer;' : 'opacity:0.65;') + '"' +
         (!locked ? ' onclick="renderModuleDetail(\'' + m.moduleId + '\')"' : '') + '>' +
@@ -15512,7 +15512,7 @@ var LEVEL_THEMES = {
         '<span style="font-size:1rem;">' + icon + '</span>' +
         '<span style="font-weight:700;color:' + color + ';font-size: 0.9rem;">' + label + '</span>' +
         (done ? '<span style="margin-left:auto;font-size: 0.72rem;font-weight:700;color:var(--green);background:rgba(var(--green-rgb), .1);padding:2px 8px;border-radius: 22px;">✓ Complete</span>' : '') +
-        (locked ? '<span style="margin-left:auto;font-size: 0.72rem;color:var(--muted);">🔒 Locked</span>' : '') +
+        (locked ? '<span style="margin-left:auto;font-size: 0.72rem;color:var(--muted);">' + uiIconInline('locked') + 'Locked</span>' : '') +
       '</div>';
     }
 
@@ -15640,7 +15640,7 @@ var LEVEL_THEMES = {
 
     var listeningBody = _stationHead('2', uiIconInline('headset'), 'Listening Station', listeningDone, !grammarPassed);
     if (!grammarPassed) {
-      listeningBody += '<div style="padding:16px 20px;font-size: 0.9rem;color:var(--muted);">🔒 Complete Grammar Station to unlock.</div>';
+      listeningBody += '<div style="padding:16px 20px;font-size: 0.9rem;color:var(--muted);">' + uiIconInline('locked') + 'Complete Grammar Station to unlock.</div>';
     } else {
       listeningBody += '<div style="padding:16px 20px;">' +
         _renderListeningFormat(shortClips, 'short', listeningShortPassed, prog.listeningShortScore || 0, prog.listeningShortAttempts || 0, prog.listeningShortCooldown || null) +
@@ -15701,7 +15701,7 @@ var LEVEL_THEMES = {
     var productionBody = _stationHead('3', uiIconInline('mic'), 'Speaking Production', speakingGraded, !listeningUnlocked);
 
     if (!listeningUnlocked) {
-      productionBody += '<div style="padding:16px 20px;font-size: 0.9rem;color:var(--muted);">🔒 Complete Listening Station to unlock.</div>';
+      productionBody += '<div style="padding:16px 20px;font-size: 0.9rem;color:var(--muted);">' + uiIconInline('locked') + 'Complete Listening Station to unlock.</div>';
     } else if (speakingGraded) {
       productionBody += '<div style="padding:18px 20px;display:flex;align-items:center;gap:14px;background:rgba(var(--green-rgb), .04);">' +
         '<span style="font-size:1.6rem;">✅</span>' +
@@ -15745,7 +15745,7 @@ var LEVEL_THEMES = {
     if (prog.evalPassed) {
       evalBody =
         '<div style="padding:32px 20px;text-align:center;">' +
-          (m.badgeImageUrl ? '<img src="' + safeText(m.badgeImageUrl) + '" style="width:72px;height:72px;object-fit:contain;border-radius:12px;margin-bottom:16px;">' : '<div style="font-size: 2rem;margin-bottom:14px;">🏆</div>') +
+          (m.badgeImageUrl ? '<img src="' + safeText(m.badgeImageUrl) + '" style="width:72px;height:72px;object-fit:contain;border-radius:12px;margin-bottom:16px;">' : '<div style="margin-bottom:14px;display:flex;justify-content:center;">' + uiIcon('trophy', 32) + '</div>') +
           '<h3 style="margin:0 0 6px;color:var(--green);">Module Complete!</h3>' +
           '<p style="margin:0;color:var(--muted);">Final score: <strong style="color:var(--text);">' + prog.evalScore + '%</strong> — Badge awarded.</p>' +
         '</div>';
@@ -15805,7 +15805,7 @@ var LEVEL_THEMES = {
           '<span>' + icon + '</span>' +
           '<span>' + label + '</span>' +
           (completed ? '<span style="font-size: 0.62rem;color:var(--green);">✓</span>' : '') +
-          (!unlocked ? '<span style="font-size: 0.72rem;">🔒</span>' : '') +
+          (!unlocked ? '<span style="font-size: 0.72rem;">' + uiIcon('locked', 13) + '</span>' : '') +
         '</button>';
     }
 
@@ -15829,7 +15829,7 @@ var LEVEL_THEMES = {
         '<div style="display:flex;align-items:center;gap:7px;padding:7px 16px;background:var(--panel-soft);border-bottom:1px solid var(--line);">' +
           '<span style="font-size: 0.82rem;">' + meta.icon + '</span>' +
           '<span style="font-size: 0.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing: 0.12em;">Section ' + meta.num + ' · ' + meta.label + '</span>' +
-          (completed ? '<span style="margin-left:auto;font-size: 0.62rem;font-weight:700;color:var(--green);background:rgba(var(--green-rgb), .1);border:1px solid rgba(var(--green-rgb), .25);padding:1px 7px;border-radius:8px;">✓ Done</span>' : (!unlocked ? '<span style="margin-left:auto;font-size: 0.82rem;">🔒</span>' : '')) +
+          (completed ? '<span style="margin-left:auto;font-size: 0.62rem;font-weight:700;color:var(--green);background:rgba(var(--green-rgb), .1);border:1px solid rgba(var(--green-rgb), .25);padding:1px 7px;border-radius:8px;">✓ Done</span>' : (!unlocked ? '<span style="margin-left:auto;">' + uiIcon('locked', 14) + '</span>' : '')) +
         '</div>' +
         (unlocked ? bodyHtml :
           '<div style="padding:28px 24px;text-align:center;">' +
@@ -15864,7 +15864,7 @@ var LEVEL_THEMES = {
           'style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(var(--yellow-rgb), .07);border-bottom:1px solid var(--line);border-left:3px solid var(--yellow);cursor:pointer;">' +
           '<span style="font-size: 0.9rem;flex-shrink:0;">' + sectionIcon + '</span>' +
           '<span style="font-size: 0.72rem;font-weight:700;flex:1;color:var(--text);">' + label + '</span>' +
-          '<span style="font-size: 0.62rem;font-weight:800;color:var(--yellow);white-space:nowrap;background:rgba(var(--yellow-rgb), .15);border-radius:8px;padding:2px 7px;">💬 Post to unlock</span>' +
+          '<span style="font-size: 0.62rem;font-weight:800;color:var(--yellow);white-space:nowrap;background:rgba(var(--yellow-rgb), .15);border-radius:8px;padding:2px 7px;">' + uiIconInline('chat') + 'Post to unlock</span>' +
         '</div>';
       }
       return '<div id="outlineHead-' + key + '" onclick="' + (unlocked ? '_lmsShowSection(\'' + key + '\')' : '') + '" ' +
@@ -15872,7 +15872,7 @@ var LEVEL_THEMES = {
         '<span style="font-size: 0.9rem;flex-shrink:0;">' + sectionIcon + '</span>' +
         '<span style="font-size: 0.72rem;font-weight:700;flex:1;color:' + (completed ? 'var(--green)' : unlocked ? 'var(--text)' : 'var(--muted)') + ';">' + label + '</span>' +
         (completed ? '<span style="font-size: 0.72rem;font-weight:700;color:var(--green);">✓</span>' : '') +
-        (!unlocked ? '<span style="font-size: 0.72rem;color:var(--muted);">🔒</span>' : '') +
+        (!unlocked ? '<span style="font-size: 0.72rem;color:var(--muted);">' + uiIcon('locked', 13) + '</span>' : '') +
       '</div>';
     }
 
@@ -15903,7 +15903,7 @@ var LEVEL_THEMES = {
       (scns.length === 0 ? outlineItem('application', uiIconInline('taxi'), null, 'ATC Scenarios', false, appUnlocked, _isNext(false, appUnlocked)) : '') +
 
       outlineSectionHead('evaluation', '4', 'Evaluation', evalUnlocked, lmsBool_(prog.evalPassed)) +
-      (evalQs.length ? outlineItem('evaluation', uiIconInline('paper'), null, 'Final Exam', lmsBool_(prog.evalPassed), evalUnlocked, _isNext(lmsBool_(prog.evalPassed), evalUnlocked)) : outlineItem('evaluation', '🏆', null, 'Final Evaluation', lmsBool_(prog.evalPassed), evalUnlocked, _isNext(lmsBool_(prog.evalPassed), evalUnlocked)));
+      (evalQs.length ? outlineItem('evaluation', uiIconInline('paper'), null, 'Final Exam', lmsBool_(prog.evalPassed), evalUnlocked, _isNext(lmsBool_(prog.evalPassed), evalUnlocked)) : outlineItem('evaluation', uiIconInline('trophy'), null, 'Final Evaluation', lmsBool_(prog.evalPassed), evalUnlocked, _isNext(lmsBool_(prog.evalPassed), evalUnlocked)));
 
     // Right-panel toggle logic (defined here so it closes over moduleId + outlineHtml)
     var _rpModuleId = m.moduleId;
@@ -15983,8 +15983,8 @@ var LEVEL_THEMES = {
 
         // Toggle tabs — Forum LEFT (default), Progress RIGHT
         '<div class="lms-rp-tabs" style="display:flex;border-bottom:1px solid var(--line);flex-shrink:0;">' +
-          '<button id="rpBtnForum"   onclick="_lmsToggleRightPanel(\'forum\')"   style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid var(--cyan);background:none;font-family:inherit;font-size: 0.82rem;font-weight:700;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">💬 Forum<span id="rpForumRequired" style="font-size: 0.62rem;font-weight:800;color:#92400e;background: var(--panel);border-radius: 4px;padding:1px 6px;' + ((!introForumPosted && defaultSection === 'intro') || (expUnlocked && !expForumPosted && defaultSection === 'explanation') ? '' : 'display:none;') + '">Required</span></button>' +
-          '<button id="rpBtnOutline" onclick="_lmsToggleRightPanel(\'outline\')" style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid transparent;background:none;font-family:inherit;font-size: 0.82rem;font-weight:400;color:var(--muted);cursor:pointer;">📋 Progress</button>' +
+          '<button id="rpBtnForum"   onclick="_lmsToggleRightPanel(\'forum\')"   style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid var(--cyan);background:none;font-family:inherit;font-size: 0.82rem;font-weight:700;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;">' + uiIconInline('chat') + 'Forum<span id="rpForumRequired" style="font-size: 0.62rem;font-weight:800;color:#92400e;background: var(--panel);border-radius: 4px;padding:1px 6px;' + ((!introForumPosted && defaultSection === 'intro') || (expUnlocked && !expForumPosted && defaultSection === 'explanation') ? '' : 'display:none;') + '">Required</span></button>' +
+          '<button id="rpBtnOutline" onclick="_lmsToggleRightPanel(\'outline\')" style="flex:1;padding:11px 8px;border:none;border-bottom:2px solid transparent;background:none;font-family:inherit;font-size: 0.82rem;font-weight:400;color:var(--muted);cursor:pointer;">' + uiIconInline('paper') + 'Progress</button>' +
         '</div>' +
 
         // ── Outline / progress view (hidden by default) ──
@@ -16046,10 +16046,10 @@ var LEVEL_THEMES = {
         '<div class="lms-left-col" style="flex:1;min-width:0;overflow-y:auto;">' +
           // Mobile-only horizontal section picker
           '<div class="lms-mobile-section-nav">' +
-            '<button class="lms-msn-btn' + (defaultSection==='intro'?' active':'') + '" data-section="intro" onclick="_lmsShowSection(\'intro\')">📖 Intro' + (lmsBool_(prog.introCompleted) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
-            '<button class="lms-msn-btn' + (defaultSection==='explanation'?' active':'') + '" data-section="explanation"' + (!expUnlocked?' disabled':' onclick="_lmsShowSection(\'explanation\')"') + '>🎓 Explain' + (lmsBool_(prog.explanationCompleted) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
-            '<button class="lms-msn-btn' + (defaultSection==='application'?' active':'') + '" data-section="application"' + (!appUnlocked?' disabled':' onclick="_lmsShowSection(\'application\')"') + '>🛫 Apply' + (lmsBool_(prog.applicationCompleted) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
-            '<button class="lms-msn-btn' + (defaultSection==='evaluation'?' active':'') + '" data-section="evaluation"' + (!evalUnlocked?' disabled':' onclick="_lmsShowSection(\'evaluation\')"') + '>🏆 Eval' + (lmsBool_(prog.evalPassed) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
+            '<button class="lms-msn-btn' + (defaultSection==='intro'?' active':'') + '" data-section="intro" onclick="_lmsShowSection(\'intro\')">' + uiIconInline('book') + 'Intro' + (lmsBool_(prog.introCompleted) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
+            '<button class="lms-msn-btn' + (defaultSection==='explanation'?' active':'') + '" data-section="explanation"' + (!expUnlocked?' disabled':' onclick="_lmsShowSection(\'explanation\')"') + '>' + uiIconInline('cap') + 'Explain' + (lmsBool_(prog.explanationCompleted) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
+            '<button class="lms-msn-btn' + (defaultSection==='application'?' active':'') + '" data-section="application"' + (!appUnlocked?' disabled':' onclick="_lmsShowSection(\'application\')"') + '>' + uiIconInline('plane') + 'Apply' + (lmsBool_(prog.applicationCompleted) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
+            '<button class="lms-msn-btn' + (defaultSection==='evaluation'?' active':'') + '" data-section="evaluation"' + (!evalUnlocked?' disabled':' onclick="_lmsShowSection(\'evaluation\')"') + '>' + uiIconInline('trophy') + 'Eval' + (lmsBool_(prog.evalPassed) ? '<span class="msn-done">✓</span>' : '') + '</button>' +
           '</div>' +
           introPanelHtml + expPanelHtml + appPanelHtml + evalPanelHtml +
         '</div>' +
@@ -16437,7 +16437,7 @@ var LEVEL_THEMES = {
       var audioPart = isListening
         ? '<div style="margin-bottom:12px;">' +
             '<button id="evalAudioBtn_' + safeText(q.questionId) + '" class="btn secondary" style="font-size:0.82rem;padding:6px 14px;" ' +
-            'onclick="_evalLoadAudio(\'' + safeJs(q.questionId) + '\',\'evalAudioBtn_' + safeJs(q.questionId) + '\')">🔊 Play Audio</button>' +
+            'onclick="_evalLoadAudio(\'' + safeJs(q.questionId) + '\',\'evalAudioBtn_' + safeJs(q.questionId) + '\')">' + uiIconInline('speaker') + 'Play Audio</button>' +
           '</div>'
         : '';
 
@@ -16452,7 +16452,7 @@ var LEVEL_THEMES = {
       return '<div style="background:var(--panel);border:1px solid var(--line);border-radius: 8px;padding:18px;margin-bottom:10px;">' +
         '<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;">' +
           '<span style="font-size: 0.72rem;font-weight:800;color:var(--muted);letter-spacing: 0.12em;text-transform:uppercase;white-space:nowrap;">Question ' + (i+1) + ' of ' + qs.length + '</span>' +
-          (isListening ? '<span style="font-size: 0.62rem;font-weight:800;color:var(--cyan);letter-spacing: 0.08em;text-transform:uppercase;background:rgba(14,165,233,.1);padding:1px 6px;border-radius:4px;">🔊 Listening</span>' : '') +
+          (isListening ? '<span style="font-size: 0.62rem;font-weight:800;color:var(--cyan);letter-spacing: 0.08em;text-transform:uppercase;background:rgba(14,165,233,.1);padding:1px 6px;border-radius:4px;">' + uiIconInline('speaker') + 'Listening</span>' : '') +
         '</div>' +
         audioPart +
         '<p style="margin:0 0 14px;font-size: 0.9rem;font-weight:600;line-height:1.45;">' + safeText(q.question) + '</p>' +
@@ -17751,7 +17751,7 @@ var LEVEL_THEMES = {
       return '<span style="font-size: 0.62rem;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(14,165,233,.1);color:var(--cyan);border:1px solid rgba(14,165,233,.25);">EXP</span>';
     }
     function typeBadge(q) {
-      if (q.questionType === 'listening') return '<span style="font-size: 0.62rem;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(139,92,246,.1);color:var(--accent);border:1px solid rgba(139,92,246,.25);">🔊</span>';
+      if (q.questionType === 'listening') return '<span style="font-size: 0.62rem;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(139,92,246,.1);color:var(--accent);border:1px solid rgba(139,92,246,.25);">' + uiIcon('speaker', 13) + '</span>';
       return '';
     }
 
@@ -18730,7 +18730,7 @@ var LEVEL_THEMES = {
       '<div class="panel">' +
         renderAdminTabs('speakingqueue') +
         '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
-          '<h3 style="margin:0;">🎙 Speaking Queue</h3>' +
+          '<h3 style="margin:0;">' + uiIconInline('mic') + 'Speaking Queue</h3>' +
           (pending.length ? '<span style="background:rgba(var(--yellow-rgb), .15);color:var(--yellow);padding:3px 10px;border-radius: 22px;font-size: 0.82rem;font-weight:700;">' + pending.length + ' pending</span>' : '') +
           '<button class="btn secondary" style="margin-left:auto;font-size:0.82rem;" onclick="renderAdminSpeakingQueue()">↻ Refresh</button>' +
         '</div>' +
@@ -23209,7 +23209,7 @@ var LEVEL_THEMES = {
       '<div class="demo-callout">Include: the clearance &plus; QNH value &plus; your callsign</div>' +
       '<div style="margin:12px 0 4px;">' +
         '<textarea id="demoAnswerInput" class="demo-answer" placeholder="Type your readback here&hellip;"></textarea>' +
-        '<button id="demoMicBtn" class="demo-mic-btn" onclick="window._demoMic()">&#127908; Tap to speak</button>' +
+        '<button id="demoMicBtn" class="demo-mic-btn" onclick="window._demoMic()">' + window.uiIconInline('mic') + 'Tap to speak</button>' +
         '<p style="margin:5px 0 0;font-size: 0.72rem;color:var(--text);"><em>Hint: ' + _esc(HINT) + '</em></p>' +
       '</div>' +
       '<div class="demo-footer">' +
@@ -23255,7 +23255,7 @@ var LEVEL_THEMES = {
   function _s5() {
     return (
       '<div style="text-align:center;padding:8px 0 4px;">' +
-        '<div style="font-size: 2rem;margin-bottom:14px;">&#127919;</div>' +
+        '<div style="margin-bottom:14px;display:flex;justify-content:center;">' + window.uiIcon('target', 32) + '</div>' +
         '<h2 style="margin:0 0 10px;color:var(--text);font-size: 1.35rem;">You&apos;ve got it!</h2>' +
         '<p style="color:var(--muted);margin:0 0 20px;line-height:1.6;">ICAO Trainer works in 4 steps: <strong style="color:var(--text);">listen &rarr; read &rarr; respond &rarr; improve</strong>. Every route uses real ATC voices with authentic regional accents.</p>' +
         '<div style="background:var(--panel-soft);border-radius:12px;padding:16px 18px;text-align:left;margin-bottom:22px;">' +
@@ -23518,7 +23518,7 @@ var LEVEL_THEMES = {
           '<span class="gam-pilot-name">' + n + '</span>' +
           '<span class="gam-pilot-email">' + e + '</span>' +
         '</div>' +
-        '<button class="gam-challenge-btn" data-email="' + e + '" data-name="' + n + '">🎯 Challenge</button>' +
+        '<button class="gam-challenge-btn" data-email="' + e + '" data-name="' + n + '">' + window.uiIconInline('target') + 'Challenge</button>' +
       '</div>';
     }).join('');
     _gQA('#gamRoster .gam-challenge-btn').forEach(function (btn) {
@@ -23542,7 +23542,7 @@ var LEVEL_THEMES = {
         '<span class="gam-pilot-name">' + n + '</span>' +
         '<span class="gam-pilot-email">' + e + '</span>' +
       '</div>' +
-      '<button class="gam-challenge-btn" data-email="' + e + '" data-name="' + n + '">🎯 Challenge</button>';
+      '<button class="gam-challenge-btn" data-email="' + e + '" data-name="' + n + '">' + window.uiIconInline('target') + 'Challenge</button>';
     roster.appendChild(card);
     requestAnimationFrame(function () {
       requestAnimationFrame(function () { card.style.opacity = '1'; });
@@ -24435,7 +24435,7 @@ var LEVEL_THEMES = {
             '<span>USA GROUND</span>' +
           '</div>' +
         '</div>' +
-        '<div class="ff-instruction">&#128266;&nbsp; Press <strong>Play</strong> to hear the ATC, then type what the pilot says back.</div>' +
+        '<div class="ff-instruction">' + window.uiIconInline('speaker') + 'Press <strong>Play</strong> to hear the ATC, then type what the pilot says back.</div>' +
         '<div class="ff-sim-area">' +
           '<div class="ff-play-area">' +
             '<button id="ffPlayBtn" class="ff-play-btn" onclick="window._ffPlay()">' +
@@ -24810,7 +24810,7 @@ var LEVEL_THEMES = {
           '<div class="exam-readback-area">' +
             '<label class="exam-readback-label">Your Readback</label>' +
             '<textarea id="examReadbackInput" class="exam-readback-input" rows="3" placeholder="' + (phase.callsign ? 'Callsign: ' + _esc(phase.callsign) + ' — type the pilot readback' : 'Type the pilot readback...') + '"></textarea>' +
-            '<button id="examMicBtn" class="demo-mic-btn" style="margin-top:8px;" onclick="startMicInput(\'examReadbackInput\',\'examMicBtn\')">&#127908; Tap to speak</button>' +
+            '<button id="examMicBtn" class="demo-mic-btn" style="margin-top:8px;" onclick="startMicInput(\'examReadbackInput\',\'examMicBtn\')">' + window.uiIconInline('mic') + 'Tap to speak</button>' +
           '</div>' +
           '<button class="btn primary exam-next-btn" onclick="window._examNext()">' +
             (isLast ? 'Submit Exam' : 'Next Phase &rarr;') +
@@ -25462,7 +25462,7 @@ var LEVEL_THEMES = {
       '<div class="exam-card-overlay exam-result">' +
         '<div class="exam-result-header exam-result-pass" style="font-size: 1rem;letter-spacing: 0.04em;">Placement Complete</div>' +
         '<div class="exam-result-body">' +
-          '<div style="font-size: 2rem;margin:10px 0 6px;">&#127919;</div>' +
+          '<div style="margin:10px 0 6px;display:flex;justify-content:center;">' + window.uiIcon('target', 32) + '</div>' +
           '<p style="font-size: 2rem;font-weight: 800;color:#fff;margin:0 0 4px;">Level ' + level + '</p>' +
           '<p style="font-size: 0.82rem;color:var(--muted);margin:0 0 22px;line-height:1.5;">' + _esc(levelMsg) + '</p>' +
           '<div style="display:flex;gap:24px;justify-content:center;margin-bottom:26px;">' +
@@ -27292,7 +27292,7 @@ var LEVEL_THEMES = {
       btn.title = 'Stop recording';
     } else {
       btn.classList.remove('is-recording');
-      btn.innerHTML = '&#127908;';
+      btn.innerHTML = window.uiIcon('mic');
       btn.title = 'Record your answer';
     }
   }
@@ -27360,7 +27360,7 @@ var LEVEL_THEMES = {
           fetch('/api/whisper', { method:'POST', headers:{'Content-Type': mime}, body: blob })
             .then(function(r) { return r.json(); })
             .then(function(d) {
-              if (btn) { btn.classList.remove('processing'); btn.innerHTML = '&#127908;'; btn.disabled = false; }
+              if (btn) { btn.classList.remove('processing'); btn.innerHTML = window.uiIcon('mic'); btn.disabled = false; }
               if (d.ok && d.transcript) {
                 if (ta) { ta.value = d.transcript; ta.focus(); }
                 _submit();
@@ -27369,7 +27369,7 @@ var LEVEL_THEMES = {
               }
             })
             .catch(function() {
-              if (btn) { btn.classList.remove('processing'); btn.innerHTML = '&#127908;'; btn.disabled = false; }
+              if (btn) { btn.classList.remove('processing'); btn.innerHTML = window.uiIcon('mic'); btn.disabled = false; }
               startMicInput('teaInput', 'teaMic', '', window._teaSubmit);
             });
         };
@@ -29891,7 +29891,7 @@ function _showReportScreen(json) {
       ? '<button onclick="window._teaRunTest()" ' +
           'style="margin-top:4px;padding:8px 20px;background:transparent;border:1px solid var(--line);' +
           'color:var(--accent);border-radius:8px;font-size: 0.82rem;cursor:pointer;">' +
-          '&#128295; Run pipeline test (no exam needed)' +
+          '' + window.uiIconInline('tools') + 'Run pipeline test (no exam needed)' +
         '</button>'
       : '';
 
@@ -30008,7 +30008,7 @@ function _showReportScreen(json) {
         '<div id="teaCards" class="tea-cards"></div>' +
         '<div class="tea-input-bar">' +
           '<button id="teaMic" class="tea-mic-btn" ' +
-            'onclick="window._teaMicToggle()">&#127908;</button>' +
+            'onclick="window._teaMicToggle()">' + window.uiIcon('mic') + '</button>' +
           '<textarea id="teaInput" class="tea-textarea" rows="1" ' +
             'placeholder="Speak via mic or type and press Enter..."></textarea>' +
         '</div>' +
