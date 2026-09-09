@@ -83,8 +83,14 @@ function liftSessionValid(src) {
    * had nothing to do with the code. Caught here rather than shipped, but it is
    * the same trap this file exists to stop, so the reach check below is what
    * actually guards it. */
-  const { sessionValid } = new Function('fetch', 'GAS_AUTH_URL', 'GAS_WEBHOOK_URL', 'console',
-    body + '\nreturn { sessionValid };')(stubTransport(state), 'stub://gas', 'stub://gas', quietConsole);
+  /* sessionValid delegates to _askWhoIsCalling now, and returns a shared
+   * SESSION_UNAVAILABLE sentinel, so both come with it. */
+  const ask = grab(src, 'async function _askWhoIsCalling(') || '';
+  const { sessionValid, SESSION_UNAVAILABLE } = new Function('fetch', 'GAS_AUTH_URL', 'GAS_WEBHOOK_URL', 'console',
+    'const SESSION_UNAVAILABLE = { unavailable: true };\n' + ask + '\n' + body +
+    '\nreturn { sessionValid, SESSION_UNAVAILABLE };'
+  )(stubTransport(state), 'stub://gas', 'stub://gas', quietConsole);
+  liftSessionValid.UNAVAILABLE = SESSION_UNAVAILABLE;
   return async function (mode, token) {
     state.mode = mode; state.calls = 0;
     const caller = await sessionValid(token);
@@ -218,21 +224,26 @@ for (const [name, src] of [['api/tea.mjs', TEAc], ['api/tea-pipeline.mjs', PIPEc
     a = await run('no', 'tok');
     ok(name + ' refuses on an explicit rejection', a.caller === null);
 
-    /* And only on that. Apps Script answers a non-browser client with an HTML
-     * consent page, and api/gas.mjs documents it doing so under load and on cold
-     * starts. A validator that refused whenever it could not get an answer would
-     * 403 real candidates mid-examination. That is T-8: a deliberate trade, and
-     * the reason the next assertion is the one that matters. */
+    /* THIS ASSERTION INVERTED, BY DECISION, AND THAT IS THE POINT.
+     *
+     * It used to require that an HTML consent page, garbage or a timeout did NOT
+     * refuse — the deliberate T-8 trade, taken because refusing would end a live
+     * sitting mid-exam, and taken when the condition looked occasional. Audit #2
+     * showed it is sustained: six consecutive probes returned the consent page.
+     * An unauthenticated caller reaching a paid model call is the worse end of
+     * that trade, so it now refuses after one retry.
+     *
+     * The code is right and this test followed it. Recorded rather than quietly
+     * flipped, because a test that changes direction is exactly where a
+     * regression hides. */
     for (const mode of ['html', 'garbage', 'throw', 'abort']) {
       a = await run(mode, 'tok');
-      ok(name + ' does not refuse on ' + mode + ', so a sitting survives it',
-         a.caller !== null);
-      /* D-1, and the fix in this batch. An unknown plan is a free plan. The
-       * catch branch used to omit status entirely, so paidPlan read undefined —
-       * neither 'free' nor '' — as PAID, and all six descriptors shipped on the
-       * one branch where the plan is least knowable. */
-      ok(name + ' but ' + mode + ' leaves the plan unknown, which withholds',
-         paid(a.caller) === false);
+      ok(name + ' REFUSES on ' + mode + ' rather than passing on token presence',
+         a.caller === liftSessionValid.UNAVAILABLE, JSON.stringify(a.caller));
+      ok(name + '  and never hands back an empty role or plan',
+         !(a.caller && a.caller.role === '') && !(a.caller && a.caller.status === ''));
+      // It tried twice before giving up: the consent page is usually transient.
+      ok(name + '  after one retry, not on the first answer', a.calls === 2, String(a.calls));
     }
 
     a = await run('free', 'tok');

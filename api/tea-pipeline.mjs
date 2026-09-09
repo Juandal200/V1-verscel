@@ -652,41 +652,72 @@ function originAllowed(req) {
  * Returns null when there is no usable session, otherwise { status } where
  * status is 'free', 'active', … or '' when the session looked real but the plan
  * could not be established. An empty status is treated as free below. */
+/* Who is calling, and what to do when Apps Script will not say.
+ *
+ * T-8. This used to fail OPEN: an HTML consent page, an unparseable body or a
+ * timeout all returned a caller object with an empty role, so the request
+ * proceeded on the token merely being a non-empty string. Nothing had checked
+ * the token was real. Audit #2 confirmed six such branches across the two
+ * proxies, and the condition is sustained rather than a spike — six consecutive
+ * probes on 2026-09-08 all came back as the consent page.
+ *
+ * The distinction that fixes it: a PARSED body is authoritative, in both
+ * directions. { ok: false } is a real denial and refuses. Anything unusable —
+ * consent page, garbage, no answer at all — is not evidence about this session
+ * either way, so it is retried once and then refuses.
+ *
+ * It refuses DIFFERENTLY, though, and that matters. A student whose session is
+ * perfectly good must not be told to sign in because the backend is unwell:
+ * that costs them their session for something that is not their fault. null
+ * means "not authorised"; SESSION_UNAVAILABLE means "could not establish", and
+ * the handler says so in those words.
+ *
+ * The trade this replaces was deliberate — failing closed would end a live
+ * sitting mid-exam — and it was taken when the condition looked occasional. It
+ * is not occasional, and an unauthenticated caller reaching a paid model call
+ * is the worse end of the trade. */
+const SESSION_UNAVAILABLE = { unavailable: true };
+
+async function _askWhoIsCalling(token) {
+  // A parsed body, or null when the answer was not usable as evidence.
+  const ac = new AbortController();
+  const t  = setTimeout(() => ac.abort(), 8000);
+  try {
+    const r = await fetch(GAS_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'apiGetMe', args: [token] }),
+      redirect: 'follow',
+      signal: ac.signal,
+    });
+    const text = await r.text();
+    // An HTML consent page is not an answer about this session.
+    if (/^\s*(<!doctype|<html)/i.test(text || '')) return null;
+    try { return JSON.parse(text); } catch (e) { return null; }
+  } catch (e) {
+    return null;                       // aborted, or the network failed
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 async function sessionValid(token) {
   // No token is a definite no, and costs nothing to establish.
   if (!token || typeof token !== 'string') return null;
-  try {
-    const ac = new AbortController();
-    const t  = setTimeout(() => ac.abort(), 8000);
-    let text;
-    try {
-      const r = await fetch(GAS_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'apiGetMe', args: [token] }),
-        redirect: 'follow',
-        signal: ac.signal,
-      });
-      text = await r.text();
-    } finally { clearTimeout(t); }
 
-    // An HTML consent page is not an answer about this session.
-    if (/^\s*(<!doctype|<html)/i.test(text || '')) {
-      console.warn('[auth] Apps Script answered HTML, not JSON — allowing on token presence, plan unknown.');
-      return { status: '' };
-    }
-    let j = null;
-    try { j = JSON.parse(text); } catch (e) { j = null; }
-    if (!j) {
-      console.warn('[auth] Apps Script answer was unparseable — allowing on token presence, plan unknown.');
-      return { status: '' };
-    }
-    if (j.ok === false) return null;
-    return { status: String((j.accessStatus && j.accessStatus.status) || '') };
-  } catch (e) {
-    console.warn('[auth] session check could not complete (' + e.message + ') — allowing on token presence, plan unknown.');
-    return { status: '' };
+  let j = await _askWhoIsCalling(token);
+  if (!j) {
+    // One retry. The consent page is usually transient; two in a row is not.
+    await new Promise((r) => setTimeout(r, 400));
+    j = await _askWhoIsCalling(token);
   }
+  if (!j) {
+    console.warn('[auth] Apps Script gave no usable answer twice — refusing, plan unknown.');
+    return SESSION_UNAVAILABLE;
+  }
+
+  if (j.ok === false) return null;     // a parsed denial is authoritative
+  return { status: String((j.accessStatus && j.accessStatus.status) || '') };
 }
 
 /* The band is given. The reasons are sold.
@@ -737,6 +768,23 @@ export default async function handler(req, res) {
     res.status(403).json({ ok: false, code: 'FORBIDDEN', error: 'Sign in to use this endpoint' });
     return;
   }
+  /* Refused because we could not ask, not because they are unwelcome.
+   *
+   * Telling a student to sign in when their session is fine costs them the
+   * session for a fault that is ours. 200 rather than 403 for the same reason:
+   * the client treats 403 as an authorisation problem and clears the token. */
+  if (caller.unavailable) {
+    res.status(200).json({
+      ok: false,
+      code: 'SESSION_UNCONFIRMED',
+      error: 'We could not confirm your session — the training server is not answering. ' +
+             'Your session is still valid; please try again in a moment.',
+      message: 'We could not confirm your session — the training server is not answering. ' +
+               'Your session is still valid; please try again in a moment.'
+    });
+    return;
+  }
+
   // '' means the plan could not be established — treated as free. See above.
   const paidPlan = caller.status !== 'free' && caller.status !== '';
 

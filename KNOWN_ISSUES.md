@@ -8,7 +8,35 @@ ID is one found while writing up another ticket, and says so.
 
 ## T-8 — `sessionValid` fails open when Apps Script will not answer
 
-**Status** Open. Deliberate, now bounded in scope and documented.
+**Status** **Fixed** — `sessionValid` fails closed in both proxies. Kept for the
+record because the trade it replaced was deliberate, and reversing a deliberate
+trade should be legible.
+
+**What changed.** A parsed body is authoritative in both directions:
+`{ok:false}` refuses, a valid body allows. Anything unusable — consent page,
+garbage, no answer — is retried once and then **refuses**. It refuses as
+`SESSION_UNCONFIRMED` with a 200, not `FORBIDDEN` with a 403, because a student
+whose session is fine must not be told to sign in over a backend fault; a 403
+would make the client clear a perfectly good token.
+
+**Why the original trade was reversed.** It was taken when the condition looked
+occasional. Audit #2 showed it sustained — six consecutive probes on 2026-09-08
+all returned the consent page — and an unauthenticated caller reaching a paid
+model call is the worse end of that trade.
+
+**The cost, stated plainly:** when Apps Script is unwell for more than one retry,
+a student is now blocked instead of let through. That is the intended direction,
+and it is why the refusal says the session is still valid.
+
+Covered by `test/session-fail-closed.test.js`, which also compares the two
+copies — see C3 below.
+
+---
+
+<details><summary>The original entry, for the record</summary>
+
+**Status was** Open. Deliberate, now bounded in scope and documented.
+</details>
 
 **Where** `api/tea.mjs:380-426`, and the separate copy at `api/tea-pipeline.mjs:655-689`.
 
