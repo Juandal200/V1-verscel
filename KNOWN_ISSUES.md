@@ -368,3 +368,50 @@ So: previews can run the app, sign in, and take the simulator, but cannot grade 
 scripted exam. If that is ever wanted, both variables need Preview values — and
 `PIPELINE_SECRET` would then have to match Script Properties, which means preview
 and production would share a credential. Not recommended.
+
+---
+
+## (no ID) — sendBeacon has never worked: every tab close lost the final seconds
+
+**Status** Fixed forward in `474db5e`. Filed because the historical loss is not
+recoverable and explains gaps in data already collected.
+
+`_startActiveTimeTracker` flushed its accumulated seconds on `beforeunload` with:
+
+    navigator.sendBeacon('/api/gas', JSON.stringify({ action: 'apiTrackActiveTime', ... }))
+
+`sendBeacon(url, string)` sends `Content-Type: text/plain`. Vercel parses
+`text/plain` into a **string**, not an object. `api/gas.mjs` then reads
+`req.body.action` off that string, which is `undefined`, so the action resolved
+to `'unknown'`, failed the `/^api[A-Z]/` allowlist, and was refused before it
+ever reached Apps Script. Executed rather than reasoned about:
+
+    action resolved to : "unknown"
+    allowlist passes   : false
+    forwarded to GAS   : {"0":"{","1":"\"","2":"a","3":"c","4":"t"...
+
+**The historical consequence.** Since this shipped, **every tab close has
+silently dropped whatever seconds had accumulated since the last successful
+sync**, for every student. At the old 30-second interval that is up to 30 seconds
+per session; a student who works in short bursts and closes the tab loses a
+slice each time. Campus-time totals in `UserActivity.totalActiveSeconds` are
+therefore **under-reported by an unknown amount for the whole history of the
+feature**, and the shortfall is largest for the students with the most
+fragmented sessions.
+
+It also means `beforeunload` was never the safety net that justified the
+30-second interval — the interval was carrying the whole load on its own.
+
+**Not recoverable.** The requests were refused at the proxy, so nothing was
+written anywhere. There is no log to replay: `api/gas.mjs` would have recorded
+these as `[GAS PROXY] unknown …`, and Vercel's retention is far shorter than the
+feature's life.
+
+**Fixed forward** by sending a `Blob` with `type: 'application/json'`, and by
+binding `pagehide` and `visibilitychange` alongside `beforeunload` —
+`beforeunload` is unreliable on mobile Safari, which is where a session most
+often ends by being swiped away. Covered by `test/active-time.test.js`.
+
+**If campus time is ever used for anything that matters** — a report to an
+employer, a certificate, a billing input — the pre-`474db5e` totals should be
+treated as a floor, not a measurement.
