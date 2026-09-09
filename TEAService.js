@@ -408,6 +408,133 @@ function apiGetMyIcaoResults(sessionToken) {
 
 
 /**
+ * The examiner's working, for the people entitled to read it.
+ *
+ * F-0021 removed the candidate's route to this. _teaFetchAdminReport was deleted
+ * from the client and the [ADMIN_REPORT] instruction is refused by api/tea.mjs
+ * for anyone who is not ADMIN or INSTRUCTOR — which closed the leak and left
+ * instructors with no way in at all. This is that way in, and it is the only one:
+ * a role-gated server endpoint reading what was already filed, rather than asking
+ * a model to produce the marking a second time.
+ *
+ * It re-reads rather than re-generates on purpose. The report an instructor
+ * discusses with a candidate has to be the report the candidate was marked
+ * against; a fresh generation would be a different opinion wearing the same date.
+ *
+ * Two shapes, one endpoint:
+ *   { candidate | userId }            -> the sittings on file for that person
+ *   { candidate | userId, driveUrl }  -> the full admin view of one of them
+ *
+ * The list carries no descriptor detail. Naming the sitting you want is one more
+ * call, and it means an instructor who only wanted to see whether a paper exists
+ * does not pull a transcript out of Drive to find out.
+ *
+ * Server-side only. Nothing in the client calls this yet, deliberately — T-4 asked
+ * for the endpoint, and a screen that shows examiner working needs its own
+ * decision about who sees what and when.
+ */
+function apiGetIcaoAdminReport(sessionToken, payload) {
+  try {
+    // Throws for every other role, including a student holding a valid session.
+    var user = AuthService.requireRole(sessionToken, ['ADMIN', 'INSTRUCTOR']);
+
+    var p         = payload || {};
+    var candidate = String(p.candidate || '').trim().toLowerCase();
+    var wantedId  = String(p.userId    || '').trim();
+    var driveUrl  = String(p.driveUrl  || '').trim();
+    if (!candidate && !wantedId) {
+      return { ok: false, error: 'Name a candidate by email or userId.' };
+    }
+
+    var sheet   = _teaGetOrCreateSheet_();
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 2) return { ok: true, candidate: candidate || wantedId, sittings: [] };
+
+    var width = Math.max(sheet.getLastColumn(), TEA_SHEET_HEADERS.length);
+    var rows  = sheet.getRange(2, 1, lastRow - 1, width).getValues();
+    var idx   = {};
+    TEA_SHEET_HEADERS.forEach(function (h, i) { idx[h] = i; });
+
+    // Either key identifies the person. Candidate is the address the sitting was
+    // filed under and UserId is what the rest of the product joins on; rows
+    // written before UserId existed have only the first.
+    var mine = rows.filter(function (r) {
+      var rowMail = String(r[idx['Candidate']] || '').trim().toLowerCase();
+      var rowId   = String(r[idx['UserId']]    || '').trim();
+      return (candidate && rowMail === candidate) || (wantedId && rowId === wantedId);
+    });
+
+    var sittings = mine.map(function (r) {
+      return {
+        date:        String(r[idx['Date']]         || ''),
+        candidate:   String(r[idx['Candidate']]    || ''),
+        userId:      String(r[idx['UserId']]       || ''),
+        overallBand: Number(r[idx['Overall Band']] || 0) || 0,
+        version:     String(r[idx['Version']]      || ''),
+        source:      String(r[idx['Source']]       || ''),
+        scope:       String(r[idx['Scope']]        || ''),
+        driveUrl:    String(r[idx['Drive Report']] || '')
+      };
+    });
+
+    if (!driveUrl) {
+      console.log('[TEAService] admin report INDEX read by ' + user.email +
+                  ' for ' + (candidate || wantedId) + ' — ' + sittings.length + ' sitting(s)');
+      return { ok: true, candidate: candidate || wantedId, sittings: sittings };
+    }
+
+    /* The requested sitting has to be one of THIS candidate's.
+     *
+     * Without this the driveUrl is an open parameter: an instructor is entitled to
+     * read reports, so requireRole would pass, and any file id in the folder could
+     * be fetched by naming a candidate who has nothing to do with it. The row list
+     * above is the authority on what belongs to whom, so the answer has to come
+     * from inside it. */
+    var row = null;
+    for (var i = 0; i < sittings.length; i++) {
+      if (sittings[i].driveUrl && sittings[i].driveUrl === driveUrl) { row = sittings[i]; break; }
+    }
+    if (!row) return { ok: false, code: 'FORBIDDEN', error: 'That report is not filed under this candidate.' };
+
+    var m = row.driveUrl.match(/[-\w]{25,}/);
+    if (!m) return { ok: false, error: 'The filed report has no readable location.' };
+
+    var doc;
+    try {
+      doc = JSON.parse(DriveApp.getFileById(m[0]).getBlob().getDataAsString());
+    } catch (e) {
+      // A row can outlive its file — the sitting still happened, and saying so is
+      // more useful than an empty report that looks like a clean sheet.
+      return { ok: false, error: 'The filed report could not be read: ' + e.message };
+    }
+
+    console.log('[TEAService] admin report READ by ' + user.email +
+                ' — candidate ' + row.candidate + ', sitting ' + row.date);
+
+    return {
+      ok: true,
+      sitting: row,
+      adminView: {
+        overallBand:            doc.overallBand,
+        scores:                 doc.scores                 || {},
+        annotatedTranscript:    doc.annotatedTranscript     || '',
+        technicalJustification: doc.technicalJustification  || {},
+        // What the CLIENT believed was said, kept apart from what the server heard
+        // on the recordings. When one is full of silence and the other is not, the
+        // bookkeeping failed rather than the candidate — see checkLastIcaoSitting.
+        enrichedTranscript:     doc.enrichedTranscript      || ''
+      }
+    };
+  } catch (err) {
+    return {
+      ok:    false,
+      code:  (err && err.code) || undefined,
+      error: (err && err.message) || 'Could not load the report'
+    };
+  }
+}
+
+/**
  * Saves the transcript of a completed sitting BEFORE it has been scored.
  *
  * Nothing was written until a report existed, so an examination that finished but
