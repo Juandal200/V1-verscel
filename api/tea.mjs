@@ -545,12 +545,27 @@ function asksForAdminReport(history) {
  * Memoised per bank. Vercel reuses a warm container between invocations, so a
  * sitting usually pays for this once rather than on each of its twelve audio
  * turns. */
-const _transcriptCache = new Map();
+const _transcriptCache = new Map();   // bank -> Promise<{ itemId: text }>
 
-async function transcriptsFor(bank) {
+function transcriptsFor(bank) {
   const key = String(bank || '');
-  if (_transcriptCache.has(key)) return _transcriptCache.get(key);
+  const hit = _transcriptCache.get(key);
+  if (hit) return hit;
 
+  const p = _fetchTranscripts(key);
+  _transcriptCache.set(key, p);
+  /* A failed lookup must not become this bank's answer for the life of the
+   * container. Dropped on rejection, so the next asker retries rather than
+   * inheriting one bad minute of Apps Script.
+   *
+   * This handler is also what keeps a fire-and-forget warm-up from surfacing as
+   * an unhandled rejection: the stored promise always has one, and a caller that
+   * awaits it still sees the throw. */
+  p.catch(function () { if (_transcriptCache.get(key) === p) _transcriptCache.delete(key); });
+  return p;
+}
+
+async function _fetchTranscripts(key) {
   const ac = new AbortController();
   const t  = setTimeout(() => ac.abort(), 20000);
   try {
@@ -568,7 +583,6 @@ async function transcriptsFor(bank) {
     if (/^\s*(<!doctype|<html)/i.test(text || '')) throw new Error('Apps Script answered HTML');
     const j = JSON.parse(text);
     if (!j || j.ok !== true || !j.transcripts) throw new Error(j && (j.error || j.code) || 'no transcripts');
-    _transcriptCache.set(key, j.transcripts);
     return j.transcripts;
   } finally { clearTimeout(t); }
 }
@@ -582,6 +596,12 @@ async function transcriptsFor(bank) {
  * the content of, and IcaoTestItemService already treats a transcript-less audio
  * item as a fault serious enough to block a bank. A stalled turn the candidate
  * can retry is better than a score derived from nothing. */
+/* The warm-up gives a caller a way to make this endpoint talk to Apps Script
+ * without spending a model call, so the bank it names is checked for shape
+ * first. transcriptsFor caches on success only, so an unknown-but-well-formed
+ * bank cannot poison the map either. */
+const BANK_SHAPE = /^[A-Za-z0-9_\-]{0,64}$/;
+
 const AUDIO_MARKER = /\[AUDIO_COMPLETE:\s*([A-Za-z0-9_\-]+)/;
 const PLAYED_MARKER = /\[recording played:\s*([A-Za-z0-9_\-]+)\]/;
 
@@ -641,6 +661,41 @@ export default async function handler(req, res) {
     return;
   }
 
+  /* Warm the bank's transcripts and answer nothing else.
+   *
+   * F-0017a moved the answer key out of the browser and put the lookup here, and
+   * the lookup is not cheap: a full Apps Script round trip, measured at 3892ms
+   * cold. injectTranscripts only needs it once an audio marker appears, and the
+   * paper opens with five interview turns — so the entire cost landed on the
+   * candidate's FIRST Part 2 item, in the middle of a sitting, as a pause
+   * between hearing the recording and being asked about it.
+   *
+   * The candidate picks a paper several seconds before pressing Begin, and reads
+   * the rules after that. This spends the round trip in that gap.
+   *
+   * It spends no model call: it returns before GEMINI_API_KEY is even read.
+   * It still requires a session — the checks above have already run — because a
+   * warm-up that anyone could call is a free way to make us call Apps Script. */
+  if ((req.body || {}).warm === true) {
+    const wBank = String((req.body || {}).bank || '');
+    if (!BANK_SHAPE.test(wBank)) {
+      res.status(200).json({ ok: false, error: 'bad bank' });
+      return;
+    }
+    const t0 = Date.now();
+    try {
+      const map = await transcriptsFor(wBank);
+      res.status(200).json({ ok: true, warmed: true, items: Object.keys(map || {}).length, ms: Date.now() - t0 });
+    } catch (e) {
+      // Nothing is broken for the candidate by a failed warm-up — the turn that
+      // needs the transcript will try again. Logged because a warm-up that never
+      // succeeds means the secret pair is wrong, and the exam WILL fail later.
+      console.warn('[tea] warm-up failed for bank "' + wBank + '": ' + e.message);
+      res.status(200).json({ ok: false, warmed: false, ms: Date.now() - t0 });
+    }
+    return;
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     res.status(200).json({ ok: false, error: 'GEMINI_API_KEY not configured' });
@@ -649,6 +704,19 @@ export default async function handler(req, res) {
 
   try {
     const { history: rawHistory, interviewTopics, bank } = req.body;
+
+    /* The cache is per container, and the warm-up above only warms the one that
+     * happened to answer it. Vercel may route the sitting's later turns to a
+     * different instance, which would be cold again at exactly the wrong moment.
+     *
+     * So every turn warms whichever container it lands on. Nothing awaits this:
+     * injectTranscripts below asks for the same promise, and a turn that needs
+     * the transcript now joins this request instead of issuing a second one. By
+     * Part 2 the interview has already sent several turns, so the container
+     * serving the first recording has almost certainly paid this off already. */
+    if (bank && BANK_SHAPE.test(String(bank))) {
+      try { transcriptsFor(String(bank)); } catch (e) {}
+    }
 
     // The candidate's browser no longer carries the answer key, so it is put back
     // here — before the model sees the turn, and never on the way out.

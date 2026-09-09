@@ -28221,6 +28221,7 @@ var LEVEL_THEMES = {
     window._teaPickedVersion = String(bank || '');
     // The paper is known now; Begin is several seconds away. Fetch it in that gap.
     try { _teaFetchScript(window._teaPickedVersion); } catch (e) {}
+    try { _teaWarmGrader(window._teaPickedVersion); } catch (e) {}
     Array.prototype.slice.call(document.querySelectorAll('.tea-ver-opt')).forEach(function (el) {
       var on = el.getAttribute('data-bank') === window._teaPickedVersion;
       el.style.borderColor = on ? 'var(--accent)' : 'rgba(255,255,255,0.12)';
@@ -28414,6 +28415,41 @@ var LEVEL_THEMES = {
         .withSuccessHandler(function (a) { if (a && a.ok && a.audioBase64) _scPreAudio[key] = a; })
         .withFailureHandler(function () {})
         .apiGetIcaoTestAudio(AppState.sessionToken, first.id, bank);
+    } catch (e) {}
+  }
+
+  /* (c) And the examiner's answer key, warmed in the same gap.
+   *
+   * F-0017a took the transcripts out of the browser, which was right — the
+   * candidate was being handed the answers — but it moved the lookup onto the
+   * turn that needs it. That turn is the FIRST Part 2 item: the paper opens with
+   * five interview questions, none of which carry an audio marker, so nothing
+   * asks for the transcripts until the candidate has heard a recording and is
+   * waiting to be asked about it. The lookup is a full Apps Script round trip.
+   *
+   * This asks /api/tea to do that lookup and nothing else, while the version
+   * picker and then the rules are still on screen. No model call is spent: the
+   * proxy answers the warm-up before it reads its API key.
+   *
+   * Fire and forget, like the audio pre-warm above — nothing waits on it, and a
+   * sitting behaves exactly as it did if it never lands. Once per paper, but a
+   * failed warm-up releases the flag so picking the paper again retries rather
+   * than remembering a bad minute. */
+  var _scWarmedBanks = {};
+
+  function _teaWarmGrader(bank) {
+    try {
+      var key = String(bank || '');
+      if (_scWarmedBanks[key]) return;
+      _scWarmedBanks[key] = true;
+      fetch('/api/tea', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ warm: true, bank: key, sessionToken: AppState.sessionToken })
+      })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (!d || d.ok !== true) _scWarmedBanks[key] = false; })
+      .catch(function ()  { _scWarmedBanks[key] = false; });
     } catch (e) {}
   }
 
