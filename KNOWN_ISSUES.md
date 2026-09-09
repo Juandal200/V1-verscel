@@ -1012,3 +1012,94 @@ than edited under rule 4. If either becomes confusing, that is a ticket.
 **What would reopen it.** A measured cold-start penalty on the first action after
 an idle gap. The answer then is a ping tied to intent — on the screen before an
 action — not a timer.
+
+---
+
+## The first call of a cold session takes ~49s and the proxy gives up at 45s
+
+**Status** **Open — measured, not explained.** Left open deliberately rather than
+guessed at. It is not a blocker: it hits one call per cold session and the boot
+retry recovers on the next attempt, which is warm.
+
+**No bot ID.** Found in the Executions panel on 2026-09-08 while measuring the
+Phase 1–3 backend work.
+
+**What was observed.** A single `getMyCompletedLevels` execution of **49.157s** at
+the start of a test session. Every one of the 15+ calls after it completed in
+1.375–5.041s, median ~3.5s.
+
+**Why it is a defect and not just slow.** `api/gas.mjs` aborts at 45,000ms. That
+execution ran 4.157s past it, so Apps Script finished and wrote its cache while
+the browser had already given up. **The Executions panel shows it as a success. It
+was not one for the user.** Anything measured only from that panel will keep
+looking green.
+
+**What it is not.** The obvious explanation was the full-sheet scan, and that was
+wrong. Measured 2026-09-09:
+
+| read | cold | warm |
+|---|---|---|
+| Progress — 210 rows x 20 cols | 667ms | 300ms |
+| Attempts — 3015 rows x 22 cols | 1150ms | 719ms |
+| level map (Scenarios scan) | 380ms | 37ms |
+
+Total sheet I/O on this path is about **one second**. So ~48s of the 49.157s is
+something else, and the "full-sheet scans grow with usage" concern — real, and
+written into CLAUDE.md — is not what is happening here. At 3015 rows there is
+roughly 10x headroom before it becomes one.
+
+**What has not been ruled out.** Four collaborators in `getMyCompletedLevels`
+were never measured: `AuthService.requireRole`, `TourService.getActiveTour`,
+`lmsGetXpData_` and `lmsGetStreak_`. The last two are full `dbReadAll_` reads of
+LmsXp and UserStreaks, and this function never opens a `dbWithReadScope_`, so
+nothing memoises them — the same defect Phase 1 fixed for `apiFinalizeRoute`.
+At the speeds above those should total ~4s, not 48. Beyond them is the platform:
+cold start, recompiling 26 files, queueing.
+
+**How to settle it.** Checkpoint `getMyCompletedLevels`, log the total spent
+inside the function, and subtract that from the duration the Executions panel
+reports for the same execution. The remainder is platform, which no checkpoint
+inside our own code can see because it happens before the first line runs. The
+instrumentation was written and then reverted unused; it is in the conversation
+of 2026-09-09 if it is wanted again.
+
+**What this leaves unmeasured.** Lock hold time inside `dbWithScriptLock_`. Until
+someone has it, any concurrent-user ceiling above ~40 is an estimate: 41 sites
+share one project-wide lock with `waitLock(20000)`, and a queue of ten waiters at
+2s each would exhaust that budget and throw. The instrumentation for this was
+also written and reverted.
+
+**What would close it.** Either the two measurements above, or a decision that one
+slow call per cold session behind a working retry is acceptable — which is a
+product call, not a code one.
+
+---
+
+## The commit-msg hook counts an unchecked command as checked
+
+**Status** **Open.** Found 2026-09-09 by shipping a commit body with `{N}` and
+`{T}` placeholders where the verification output belonged. The hook accepted it
+and reported `2 claimed output(s) re-run and matched`.
+
+**The mechanism.** `.githooks/commit-msg` collects the contiguous block beneath
+each `$ ` line as the claimed output, then skips comparison when that block is
+empty (`if (c.claimed === '') continue;`). The summary line counts
+`checks.length - skipped.length`, and `skipped` holds only the `$!` entries. So a
+command with no claimed output is never compared and is still reported as
+matched.
+
+**Why it matters here.** The hook exists because three times in one week a commit
+body carried a number the command had not printed. It closes that hole only for
+claims that have output beneath them. A claim with nothing beneath it — a
+placeholder, a stray blank line, an indent that does not match the `$` — is
+counted as verified.
+
+**This is the fourth instance of the pattern CLAUDE.md already names twice.** A
+test asserting a button that does not exist, a sendBeacon the proxy refused, a
+hook that parsed no claims and approved everything, and now a hook that compares
+nothing and reports a match. Doing nothing and succeeding are the same observable.
+
+**The fix, when someone takes it.** Either treat an empty claim as a failure, or
+report it distinctly — `1 matched, 1 had nothing to check` — so the summary line
+can never overstate. And the fix is not trusted until a body with an empty claim
+block has been seen rejected.
