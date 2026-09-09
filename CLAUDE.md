@@ -84,3 +84,11 @@ app misreporting a student's own progress is worse than the app being slow.
 - Platform floor is ~1.7-5.9s even for a no-I/O call. Don't attribute that to app code.
 - Full-sheet getDataRange() scans grow with usage. Route reads through dbReadAll_'s
   _DB_SCOPE cache and filter before building row objects.
+
+## The ledger is part of the work
+Closing something updates its KNOWN_ISSUES entry in the same commit that closes it.
+A ledger that describes a fixed defect as open is worse than no ledger — it is a
+second copy of the truth, drifting, which is the failure mode this file already
+warns about twice. Audit #2 found one entry four commits stale, saying "Open,
+nothing changed" about work that had shipped. Sweep every entry against HEAD when
+you touch the file at all.

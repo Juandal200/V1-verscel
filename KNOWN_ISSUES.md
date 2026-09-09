@@ -99,7 +99,7 @@ needs tracking beyond this entry, the ID has to come from the bot.
 
 ---
 
-## (no ID) — a green test asserting nothing: `tests/grader.test.js`
+## (no ID) — a green test asserting nothing: `test/grader.test.js`
 
 **Status** Fixed, `7a6fc26`–`a1ff9a2`. Kept for the record; still worth an ID if
 you want the history tracked.
@@ -191,9 +191,16 @@ or verified from here.
 
 ---
 
-## (no ID) — a failed home refresh is invisible, and the cache is 30 days old
+## (no ID) — a failed home refresh was invisible, and the cache was 30 days old
 
-**Status** Open. Read-only investigation, nothing changed. Needs an ID.
+**Status** **Fixed** — reporting in `8ad89fb`, freshness and TTL in `79bcb51`,
+`ok:false` routing in `7f6337d`. Kept for the record; still worth an ID.
+
+**This entry was stale for four commits.** It said "Open. Read-only
+investigation, nothing changed" while A1 had already set the TTL to seven days
+and wired the reporting, and audit #2 caught it. That is the ledger carrying the
+defect the ledger exists to record, which is why CLAUDE.md now requires closing
+work to update its entry in the same commit.
 
 Observed 2026-09-08 on a signed-in home screen: `getMyCompletedLevels` failed
 twice and `apiGetAppBootstrap` once, all with *"The training server took too long
@@ -287,6 +294,23 @@ Whether Apps Script was rate-limiting, out of quota, or simply slow. That needs
 the Cloud Logging for the deployment — `[GAS PROXY] <action> <ms>ms status=…` is
 logged for every call that returns, and the timeouts log
 `[GAS PROXY] <action> timed out after 45s`. Both are in Vercel's function logs.
+
+### What was actually done
+
+- `_aeroRestoreFromCache` carries `cachedAt` into `_homeDataFreshAt` instead of
+  stamping `Date.now()`, so cached data is honestly old.
+- `_HOME_CACHE_TTL` is `7 * 24 * 60 * 60 * 1000`. The session stays thirty days —
+  staying signed in is a different question from how long stale numbers may be
+  shown as live.
+- A muted notice under the home header, only when the data is old **and** a
+  refresh has failed, with a manual Retry. Verified by execution in all three
+  states.
+- Both refresh paths report to ClientEvents through `_reportClientError`,
+  throttled to one row per ten minutes.
+
+**Still open, and tracked separately:** the endpoint that caused it.
+`getMyCompletedLevels` still performs two raw `getDataRange()` full-sheet scans
+and still shares a 60-second timer with the badge poll. That is A3.
 
 ---
 
