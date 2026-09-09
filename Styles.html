@@ -11143,9 +11143,56 @@ p, li, td, th, h1, h2, h3, h4,
   display:flex; align-items:center; justify-content:space-between;
   padding:14px 18px; border-bottom:1px solid var(--line);
   background:var(--bg);
+  /* The progress bar underneath is absolutely positioned, and without this it
+     would anchor to the page rather than to the header. */
+  position: relative;
 }
 .tea-header-title { font-size: 0.82rem; font-weight:800; letter-spacing: 0.2em; color:var(--muted); text-transform:uppercase; }
-.tea-header-meta  { font-size:0.72rem; color:var(--accent); }
+.tea-header-meta  { font-size:0.72rem; color:var(--accent); display:flex; align-items:center; gap:10px; }
+
+/* Where in the paper. Sits beside the elapsed clock, in the header that already
+   lasts the whole sitting — so "permanent" needed no new surface, only the figure
+   the step list already knew and never showed. */
+.tea-item-count {
+  font-size: 0.72rem; font-weight: 700; color: var(--muted);
+  font-family: var(--font-instrument); white-space: nowrap;
+}
+.tea-progress-bar {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 3px; background: var(--line);
+}
+.tea-progress-fill {
+  height: 100%; width: 0%;
+  background: var(--accent);
+  transition: width 0.4s var(--ease);
+}
+@media (prefers-reduced-motion: reduce) { .tea-progress-fill { transition: none; } }
+
+/* The answer countdown, as a ring around the number it already showed.
+   conic-gradient rather than SVG: one property to animate, no markup to keep in
+   step with the value, and it degrades to no ring at all rather than to a broken
+   one. Tokens throughout — no literals, per the results-screen work. */
+.sc-clock-ring {
+  --pct: 100;
+  position: relative; flex-shrink: 0;
+  width: 46px; height: 46px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: conic-gradient(var(--accent) calc(var(--pct) * 1%), var(--line) 0);
+  transition: background 0.5s linear;
+}
+.sc-clock-ring::before {
+  content: ''; position: absolute; inset: 4px;
+  border-radius: 50%; background: var(--panel);
+}
+.sc-clock-ring.is-low {
+  background: conic-gradient(var(--yellow) calc(var(--pct) * 1%), var(--line) 0);
+}
+.sc-clock-num {
+  position: relative;
+  font-variant-numeric: tabular-nums; font-weight: 800;
+  font-size: 0.82rem; color: var(--muted);
+}
+@media (prefers-reduced-motion: reduce) { .sc-clock-ring { transition: none; } }
 .tea-timer        { font-size: 0.82rem; font-weight:700; color:var(--accent); font-family: var(--font-instrument); }
 
 .tea-chat {

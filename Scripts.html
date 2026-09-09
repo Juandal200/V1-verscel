@@ -27685,6 +27685,7 @@ var LEVEL_THEMES = {
   function _scCountdown(seconds, onExpire) {
     _scClearTimer();
     _sc.deadline = Date.now() + seconds * 1000;
+    var _total = Math.max(1, Number(seconds) || 1);
     function tick() {
       var left = Math.max(0, Math.round((_sc.deadline - Date.now()) / 1000));
       var el = _scEl('scClock');
@@ -27693,6 +27694,15 @@ var LEVEL_THEMES = {
         // Amber inside the last fifteen seconds — enough warning to finish a
         // sentence, not so early that it rushes the whole answer.
         el.style.color = left <= 15 ? 'var(--yellow)' : 'var(--muted,#808080)';
+      }
+      // The ring reads the same two facts the number does: how much is left, and
+      // whether it is the last fifteen seconds. It is decoration over a display
+      // that already worked, so nothing here is allowed to throw.
+      var ring = _scEl('scClockRing');
+      if (ring) {
+        ring.style.setProperty('--pct', Math.max(0, Math.min(100, (left / _total) * 100)));
+        if (left <= 15) ring.classList.add('is-low');
+        else            ring.classList.remove('is-low');
       }
       if (left <= 0) { _scClearTimer(); onExpire(); }
     }
@@ -27918,9 +27928,15 @@ var LEVEL_THEMES = {
         _scImagesFor(step) +
         '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">' +
           '<p class="eyebrow" style="margin:0;">' + _esc(step.section || 'Your answer') + '</p>' +
-          '<span id="scClock" style="font-variant-numeric:tabular-nums;font-weight:800;' +
-          'font-size: 1rem;color:var(--muted,#808080);">' +
-            Math.floor(secs / 60) + ':' + ('0' + (secs % 60)).slice(-2) +
+          /* The ring surrounds the number; it does not replace it.
+             An answer window is 60 to 120 seconds, so the ring moves about three
+             degrees a second — good for "roughly how much is left" at a glance and
+             useless for the decision that actually matters, which is "can I finish
+             this sentence" in the last few seconds. That one needs digits. */
+          '<span id="scClockRing" class="sc-clock-ring">' +
+            '<span id="scClock" class="sc-clock-num">' +
+              Math.floor(secs / 60) + ':' + ('0' + (secs % 60)).slice(-2) +
+            '</span>' +
           '</span>' +
         '</div>' +
         '<div id="scAnswer"></div>' +
@@ -28058,11 +28074,45 @@ var LEVEL_THEMES = {
     setTimeout(fire, 3000);
   }
 
+  /* How many of the steps actually ask the candidate something.
+   * The same test _scNextStep uses to decide whether to open the mic: an answer
+   * window, or a picture to describe. Everything else is the examiner talking. */
+  function _scIsAnswerable(step) {
+    return !!(step && (Number(step.answerSeconds || 0) > 0 || step.imageUrl));
+  }
+
+  function _scUpdateProgress() {
+    try {
+      var steps = _sc.steps || [];
+      var el    = _scEl('teaItemCount');
+      var fill  = _scEl('teaProgressFill');
+      if (!steps.length) {                       // conversational fallback
+        if (el) el.style.display = 'none';
+        if (fill) fill.style.width = '0%';
+        return;
+      }
+      var total = 0, done = 0;
+      for (var i = 0; i < steps.length; i++) {
+        if (!_scIsAnswerable(steps[i])) continue;
+        total++;
+        if (i < _sc.i) done++;
+      }
+      if (!total) { if (el) el.style.display = 'none'; return; }
+      var shown = Math.min(Math.max(done, 1), total);
+      if (el) {
+        el.textContent = 'Item ' + shown + ' / ' + total;
+        el.style.display = '';
+      }
+      if (fill) fill.style.width = Math.round((done / total) * 100) + '%';
+    } catch (e) {}
+  }
+
   function _scNextStep() {
     if (!_sc.running) return;
     if (_sc.i >= _sc.steps.length) { _scFinish(); return; }
 
     var step = _sc.steps[_sc.i++];
+    _scUpdateProgress();
 
     // Start fetching the next picture now, while this step plays out.
     var _peek = _sc.steps[_sc.i];
@@ -29889,7 +29939,18 @@ function _showReportScreen(json) {
                      '</span>';
             }).join('') +
           '</div>' +
-          '<div class="tea-header-meta">Elapsed&nbsp;<span id="teaTimer" class="tea-timer">00:00</span></div>' +
+          /* Which item, out of how many. The rail above says which PART; this says
+             where in it. It counts answerable items only — a paper is 35 steps but
+             16 of them are the examiner speaking, so counting raw steps would jump
+             two or three at a time without asking the candidate anything and would
+             overstate the work by nearly double.
+             Hidden until there is a scripted paper: the conversational fallback has
+             no step list, and "Item 0 / 0" is worse than nothing. */
+          '<div class="tea-header-meta">' +
+            '<span id="teaItemCount" class="tea-item-count" style="display:none;"></span>' +
+            'Elapsed&nbsp;<span id="teaTimer" class="tea-timer">00:00</span>' +
+          '</div>' +
+          '<div class="tea-progress-bar"><div id="teaProgressFill" class="tea-progress-fill"></div></div>' +
         '</div>' +
         '<div class="tea-stage">' +
           '<div id="teaRing" class="tea-ring tea-ring--thinking">' +
