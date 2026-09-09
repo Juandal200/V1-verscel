@@ -489,7 +489,7 @@ var UserService = {
         '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">' +
           row('✈️', 'Level 1 of the ATC radio simulator',
               'Real clearances read by real controller voices. You fly the aircraft and work the radio at the same time.') +
-          row('📝', 'One full ICAO practice test',
+          row('📝', 'One full ICAO-based practice test',
               'The complete examination, marked against all six ICAO descriptors.') +
         '</table>' +
 
@@ -528,7 +528,7 @@ var UserService = {
         'Your account is ready. Nothing to approve, nothing to pay.\n\n' +
         'On the free plan you get:\n' +
         '  - Level 1 of the ATC radio simulator\n' +
-        '  - One full ICAO practice test, marked on all six descriptors\n' +
+        '  - One full ICAO-based practice test, marked on all six descriptors\n' +
         'It does not expire.\n\n' +
         'Put it on your phone: ' + installUrl + '\n\n' +
         'When you are ready, the paid plans open the rest of the levels, add ' +
