@@ -414,8 +414,14 @@ async function sessionValid(token) {
       status: String((j.accessStatus && j.accessStatus.status) || '')
     };
   } catch (e) {
+    /* status: '' is not decoration. The handler reads it as
+     *   paidPlan = status !== 'free' && status !== ''
+     * so an ABSENT key is undefined, which is neither, which is a paid plan —
+     * and the six descriptors ship in full. On the one branch where the plan is
+     * least knowable. The two branches above have always returned it; this one
+     * omitted it and quietly reopened D-1. */
     console.warn('[auth] session check could not complete (' + e.message + ') — allowing on token presence, role unknown.');
-    return { role: '' };
+    return { role: '', status: '' };
   }
 }
 

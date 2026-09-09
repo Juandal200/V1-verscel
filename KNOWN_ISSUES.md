@@ -1,57 +1,75 @@
 # Known issues
 
 Accepted defects and deliberate trades that are not yet fixed. Ticket IDs come
-from the Telegram bot; nothing here is renumbered or inferred.
+from the Telegram bot; nothing here is renumbered or inferred. An entry with no
+ID is one found while writing up another ticket, and says so.
 
 ---
 
-## T-8 — `sessionValid` fails open, and one branch fails open further than intended
+## T-8 — `sessionValid` fails open when Apps Script will not answer
 
-**Where** `api/tea.mjs:380-420`, and the separate copy at `api/tea-pipeline.mjs:655-689`.
+**Status** Open. Deliberate, now bounded in scope and documented.
+
+**Where** `api/tea.mjs:380-426`, and the separate copy at `api/tea-pipeline.mjs:655-689`.
 
 **What happens** When Apps Script answers an HTML consent page, answers something
 unparseable, or does not answer at all, `sessionValid` returns a caller object
 instead of `null`. The request proceeds on the strength of the token being a
 non-empty string — nothing has checked that the token is real.
 
-    api/tea.mjs:402   HTML answer        -> { role: '', status: '' }
-    api/tea.mjs:408   unparseable answer -> { role: '', status: '' }
-    api/tea.mjs:417   threw / timed out  -> { role: '' }
+    api/tea.mjs   HTML answer        -> { role: '', status: '' }
+    api/tea.mjs   unparseable answer -> { role: '', status: '' }
+    api/tea.mjs   threw / timed out  -> { role: '', status: '' }
 
 Apps Script answering HTML is not hypothetical. It is documented in `api/gas.mjs`
 and has been observed on this deployment on more than one day, in both directions
 on different days.
 
-**Consequence 1 — cost.** Any caller who invents a token string can reach Gemini
-through `/api/tea` for as long as Apps Script is misbehaving. There is no rate
-limit on that path and each call is a paid generation.
+**Consequence** Any caller who invents a token string can reach Gemini through
+`/api/tea` for as long as Apps Script is misbehaving. There is no rate limit on
+that path and each call is a paid generation.
 
-**Consequence 2 — the descriptor withholding stops holding.** This one is worse
-than the trade that was signed off, and it is a bug rather than a trade.
+**Why it is open** Failing closed would end live sittings mid-exam whenever
+Apps Script hiccups — a candidate forty minutes into a paper would be signed out
+of their own examination. That trade is deliberate and was taken knowingly. What
+is not deliberate is that it is unbounded and unlogged beyond a `console.warn`.
+
+**What would close it** Bound the open state rather than remove it: a counter, a
+short cache of recently-validated tokens, or a cheap signature the browser cannot
+forge. All three keep a mid-exam candidate on their paper.
+
+**Not the same thing as** the descriptor leak below, which shared this function
+and was a bug rather than a trade.
+
+---
+
+## (no ID) — the throw branch shipped all six descriptors
+
+**Status** Fixed. The commit that added this section carries the change.
+
+Found while writing up T-8, in the same function, and not a trade.
 
 The handler computes:
 
     const paidPlan = caller.status !== 'free' && caller.status !== '';
 
-The comment above it states the intent: `''` means the plan could not be
-established, and is treated as free. Lines 403 and 409 honour that. **Line 418
-does not — it omits `status` entirely**, so `caller.status` is `undefined`,
-`paidPlan` evaluates to `true`, and the six ICAO descriptors are returned in full
-to a caller whose plan is unknown. D-1 exists to stop precisely that, and this
-branch is the one place the plan is least knowable.
+and its own comment states the intent: `''` means the plan could not be
+established, and is treated as free. The HTML and unparseable branches honoured
+that. The `catch` branch returned `{ role: '' }` with **no `status` key**, so
+`caller.status` was `undefined`, which is neither `'free'` nor `''`, so
+`paidPlan` was `true` and `withholdInMessage` was never reached. The six ICAO
+descriptors went out in full — on the one branch where the plan is least
+knowable, and on the live conversational report path D-1 exists to close.
 
-The two proxies do not agree on the shape either: `api/tea-pipeline.mjs` returns
-`{ status: '' }` on all three branches and has no `role` at all.
+`api/tea-pipeline.mjs` never had this: all four of its returns carry `status`.
 
-**Why it is open** Failing closed would end live sittings mid-exam whenever
-Apps Script hiccups — a candidate forty minutes into a paper would be signed out
-of their own examination. That trade is deliberate and was taken knowingly. What
-is not deliberate is that it is unbounded, unlogged beyond a `console.warn`, and
-that line 418 leaks scores the other two branches withhold.
+**Fix** One key, so the three fail-open branches agree.
 
-**Smallest honest fix** Make line 418 return `{ role: '', status: '' }` so the
-three branches agree, then bound the open state — a counter, a short cache of
-recently-validated tokens, or a cheap signature the browser cannot forge.
+Verified by execution, not by regex: a harness drives the real `sessionValid`
+down each failure mode and computes the real `paidPlan` expression from whatever
+it returns. It reports two failures against the code before the fix and none
+after. A regex over source could not have caught this at all — every line it
+would have matched was already correct; the defect was in a key that was absent.
 
-**Not fixed here** Rule 4: no drive-by edits. Rule 8: the second consequence
-needs its own ID from the bot if it is to be tracked separately.
+**No ID** because it was found inside T-8's write-up rather than reported. If it
+needs tracking beyond this entry, the ID has to come from the bot.
