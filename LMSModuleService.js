@@ -125,8 +125,21 @@ function lmsGetXpData_(userId) {
   };
 }
 
+/* XP changes what getMyCompletedLevels reports, so it clears that cache.
+ *
+ * getMyCompletedLevels returns lmsXp, weeklyXp, streakDays and streakFreezes
+ * alongside the level count, and it is cached per user. The cache was cleared
+ * only by ProgressService.updateUserProgress — so a student could earn XP and
+ * keep seeing the old total until the entry expired on its own. Raising the TTL
+ * would have widened that window rather than closed it.
+ *
+ * In a finally, because this function returns from four places and a write that
+ * happened must invalidate even if something after it threw. The invalidation
+ * itself can never break the write: it is guarded here and swallows its own
+ * errors in Gamification.js. */
 function lmsAddXp_(userId, amount) {
   if (!amount) return lmsGetTotalXp_(userId);
+  try {
   var rows = dbReadAll_('LmsXp');
   var existing = rows.filter(function(r) { return String(r.userId || '') === String(userId); })[0];
   var thisMonday = _lmsGetMondayIso_();
@@ -143,6 +156,9 @@ function lmsAddXp_(userId, amount) {
   } else {
     dbAppend_('LmsXp', { userId: userId, lmsXp: amount, weeklyXp: amount, weeklyResetAt: thisMonday });
     return amount;
+  }
+  } finally {
+    try { gamInvalidateCompletedLevels_(userId); } catch (e) {}
   }
 }
 
@@ -265,6 +281,12 @@ function lmsUpdateStreak_(userId) {
     return streakDays;
   } catch(e) {
     return 0;
+  } finally {
+    /* Same reason as lmsAddXp_: streakDays and streakFreezes are part of what
+     * getMyCompletedLevels reports, and every branch above either writes the
+     * streak row or spends a freeze. A finally covers all five exits, including
+     * the early one for a user with no streak row yet. */
+    try { gamInvalidateCompletedLevels_(userId); } catch (e) {}
   }
 }
 

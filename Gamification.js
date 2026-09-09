@@ -642,7 +642,20 @@ function getLeaderboard(limit) {
  * ever drifted from the schema, that swap would mis-read every field on the one
  * table holding all student progress — and per rule 6 the sheet cannot be
  * checked from the repo. */
-var GAM_COMPLETED_CACHE_SECS_  = 600;   // 10 min; invalidated on progress change
+/* Thirty minutes, and that number is only safe because every writer clears it.
+ *
+ * The original ten minutes was not chosen against the poll interval and did not
+ * survive it: the rank poll runs every five minutes, so a ten-minute entry gave
+ * miss, hit, EXPIRE, miss, hit, expire — a flat 50% miss rate on a perfect
+ * network, and a miss is a full read of the Progress sheet.
+ *
+ * Raising it alone would have been wrong. The entry carries lmsXp, weeklyXp,
+ * streakDays and streakFreezes as well as the level count, and only
+ * updateUserProgress used to clear it — so a longer life meant a longer stretch
+ * of a student seeing XP they had already earned reported as missing. lmsAddXp_
+ * and lmsUpdateStreak_ clear it now, so the length is bounded by writes rather
+ * than by the clock. */
+var GAM_COMPLETED_CACHE_SECS_  = 1800;  // 30 min; cleared by every writer
 var GAM_LEVELMAP_CACHE_SECS_   = 1800;  // 30 min; identical for every student
 
 function _gamCompletedCacheKey_(userId) { return 'gamCompleted_' + String(userId || ''); }
