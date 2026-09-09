@@ -1736,7 +1736,10 @@
             if ((res.streakDays || 0) >= 2) _initPushNotifications();
           }
         })
-        .withFailureHandler(function(err) { console.error('[getMyCompletedLevels]', err); })
+        .withFailureHandler(function(err) {
+          console.error('[getMyCompletedLevels]', err);
+          try { if (window._reportClientError) window._reportClientError('getMyCompletedLevels', err); } catch (e) {}
+        })
         .getMyCompletedLevels(AppState.sessionToken);
     }
 
@@ -1980,27 +1983,44 @@
       return;
     }
 
+    /* One failure path, reached from both directions.
+     *
+     * apiGetAppBootstrap is on the shim's SERVER_ERROR_ACTIONS list, so ok:false
+     * now arrives at the failure handler instead of here. That branch used to
+     * hold the auth check and the visible dashboard error, and moving the action
+     * onto the list without moving them would have thrown both away — which is
+     * exactly the regression that made a blanket flip unacceptable for the other
+     * 175 callers. So the logic moved first and the two handlers share it.
+     *
+     * err.serverResponse carries the original body when the shim built the error,
+     * because _serverRejectedToken needs the response, not the message. */
+    function _bootstrapFailed(errOrRes) {
+      var res = (errOrRes && errOrRes.serverResponse) || errOrRes || null;
+      var msg = (errOrRes && errOrRes.message) || (res && (res.message || res.error)) || 'unknown';
+
+      if (_serverRejectedToken(res)) {
+        _clearSession();
+        _showSessionExpiredOverlay();
+        return;
+      }
+      if (silent) {
+        // Nothing is lost: this only tops up XP, streak and plan state, and the
+        // next refresh will carry it. The student may well be mid-exercise on
+        // another screen by now — a 45-second timeout outlives the screen that
+        // started it. A1's notice is what tells them the numbers are old.
+        if (window.console) console.warn('[home] background refresh failed, will retry later:', msg);
+        _reportBackgroundFailure('homeBackgroundRefresh', msg);
+        _homeRefreshFailedAt = Date.now();
+        return;
+      }
+      showContentError(msg && msg !== 'unknown' ? msg : 'Could not load dashboard. Refresh to try again.');
+    }
+
     google.script.run
       .withSuccessHandler(function(res) {
-        if (!res || !res.ok) {
-          var isAuthError = _serverRejectedToken(res);
-          if (isAuthError) {
-            _clearSession();
-            _showSessionExpiredOverlay();
-          } else if (silent) {
-            // Nothing is lost: this only tops up XP, streak and plan state, and the
-            // next refresh will carry it. The student may well be mid-exercise on
-            // another screen by now — a 45-second timeout outlives the screen that
-            // started it.
-            if (window.console) console.warn('[home] background refresh failed, will retry later:',
-              (res && res.message) || 'unknown');
-            _reportBackgroundFailure('homeBackgroundRefresh', (res && (res.message || res.error)) || 'unknown');
-            _homeRefreshFailedAt = Date.now();
-          } else {
-            showContentError(res && res.message ? res.message : 'Could not load dashboard. Refresh to try again.');
-          }
-          return;
-        }
+        // Kept as a belt: an action not yet on the shim's list, or a body that
+        // omits ok entirely, must not be read as success.
+        if (!res || !res.ok) { _bootstrapFailed(res); return; }
 
         AppState.user         = res.user;
         AppState.home         = res.home;
@@ -2016,15 +2036,7 @@
         if (res.mergedXp) _renderTopbarRank(res.mergedXp, res.streakDays || 0);
         if (typeof callback === 'function') callback();
       })
-      .withFailureHandler(function(err) {
-        if (window.console && console.warn) {
-          console.warn('[bootstrap] background refresh failed:', err && err.message ? err.message : err);
-        }
-        // Deliberately silent ON SCREEN — the user is looking at something else
-        // and did not ask for this. Not silent in the record.
-        _reportBackgroundFailure('homeBackgroundRefresh', (err && err.message) || err);
-        _homeRefreshFailedAt = Date.now();
-      })
+      .withFailureHandler(_bootstrapFailed)
       .apiGetAppBootstrap(AppState.sessionToken);
   }
 
@@ -11242,17 +11254,42 @@ var LEVEL_THEMES = {
         '</div>' +
       '</div>';
 
-    // Save result to server
-    google.script.run
-      .withSuccessHandler(function() {})
-      .withFailureHandler(function() {})
-      .apiSaveIcaoTestResult(AppState.sessionToken, {
-        band:            band.band,
-        bandLabel:       band.label,
-        score:           avgScore,
-        replayAvg:       Number(avgReplays),
-        scenarioResults: results
-      });
+    /* The report is already on screen; what may be missing is the record of it.
+     * Held so Retry re-sends this sitting, not a rebuilt one. */
+    var _resPayload = {
+      band:            band.band,
+      bandLabel:       band.label,
+      score:           avgScore,
+      replayAvg:       Number(avgReplays),
+      scenarioResults: results
+    };
+    window._retrySaveTestResult = function () { _saveTestResult(); };
+    function _saveTestResult() {
+      google.script.run
+        .withSuccessHandler(function () {
+          var el = document.getElementById('icaoSaveWarn');
+          if (el && el.parentNode) el.parentNode.removeChild(el);
+        })
+        .withFailureHandler(function (err) {
+          try { if (window._reportClientError) window._reportClientError('saveIcaoTestResult', err); } catch (e) {}
+          try {
+            var host = document.getElementById('contentArea');
+            if (!host) return;
+            var el = document.getElementById('icaoSaveWarn');
+            if (!el) {
+              el = document.createElement('div');
+              el.id = 'icaoSaveWarn';
+              el.className = 'home-stale-note';
+              host.insertBefore(el, host.firstChild);
+            }
+            el.innerHTML = 'Could not record this result \u2014 it won\u2019t appear in your history. ' +
+              '<button type="button" class="home-stale-retry" ' +
+              'onclick="window._retrySaveTestResult && window._retrySaveTestResult()">Retry</button>';
+          } catch (e) {}
+        })
+        .apiSaveIcaoTestResult(AppState.sessionToken, _resPayload);
+    }
+    _saveTestResult();
   }
 
   function renderTrainingFinished() {
@@ -11402,9 +11439,14 @@ var LEVEL_THEMES = {
           return getCountryUi(c.country).label;
         }).join(' · ');
         var certScore = calculateLevelAverageScore(completedLevelInfo);
+        /* No message: the student did not ask for this, and a certificate can be
+         * regenerated. renderLevelCertificateScreen tells them when they DO ask.
+         * Recorded, so a run of failures is visible to us. */
         google.script.run
           .withSuccessHandler(function() {})
-          .withFailureHandler(function() {})
+          .withFailureHandler(function(err) {
+            try { if (window._reportClientError) window._reportClientError('saveCertificateAuto', err); } catch (e) {}
+          })
           .apiSaveCertificate(AppState.sessionToken, { certificateId: certId, level: certLevel, country: certCountries, scoreAvg: certScore });
       }
 
@@ -24119,7 +24161,12 @@ var LEVEL_THEMES = {
           try { localStorage.setItem('_aero_xp_' + (AppState.user && AppState.user.userId || ''), mxp); } catch(e) {}
         }
       })
-      .withFailureHandler(function() {})
+      /* The top-bar rank. A stale badge is not worth a message on screen, but a
+       * run of failures is worth knowing about — this is one of the two calls
+       * that timed out four times in four minutes on the 8th. */
+      .withFailureHandler(function (err) {
+        try { if (window._reportClientError) window._reportClientError('refreshTopbarRank', err); } catch (e) {}
+      })
       .getMyCompletedLevels(AppState.sessionToken);
   }
 
@@ -27684,17 +27731,59 @@ var LEVEL_THEMES = {
     // at all — twenty-five minutes of work gone because the last step timed out.
     // Whether the exam happened and what it scored are separate facts, and the
     // first does not depend on the second.
-    try {
-      google.script.run
-        .withSuccessHandler(function() {})
-        .withFailureHandler(function() {})
-        .apiSaveIcaoTranscript(AppState.sessionToken, {
-          history:  _t.history,
-          bank:     TEA_BANK,
-          scope:    _t.scope || 'FULL',
-          examDate: new Date().toISOString()
-        });
-    } catch (e) {}
+    /* This is the safety net, and it used to fail without telling anyone.
+     *
+     * Both handlers were empty, and a server refusal or a 45-second timeout
+     * arrives as ok:false inside a successful HTTP 200 — so nothing ran on
+     * either path. The one call whose entire purpose is that a finished
+     * examination leaves a trace could fail completely and silently.
+     *
+     * The payload is held so a retry re-sends the same sitting rather than
+     * rebuilding one from state that has moved on. */
+    var _txPayload = {
+      history:  _t.history,
+      bank:     TEA_BANK,
+      scope:    _t.scope || 'FULL',
+      examDate: new Date().toISOString()
+    };
+    window._retrySaveTranscript = function () {
+      var el = document.getElementById('teaSaveWarn');
+      if (el) el.innerHTML = 'Saving\u2026';
+      _saveTranscript();
+    };
+    function _saveTranscript() {
+      try {
+        google.script.run
+          .withSuccessHandler(function () {
+            var el = document.getElementById('teaSaveWarn');
+            if (el) el.parentNode && el.parentNode.removeChild(el);
+          })
+          .withFailureHandler(function (err) {
+            try {
+              if (window._reportClientError) {
+                window._reportClientError('saveIcaoTranscript', err);
+              }
+            } catch (e) {}
+            try {
+              var host = document.getElementById('contentArea');
+              if (!host) return;
+              var el = document.getElementById('teaSaveWarn');
+              if (!el) {
+                el = document.createElement('div');
+                el.id = 'teaSaveWarn';
+                el.className = 'home-stale-note';
+                host.insertBefore(el, host.firstChild);
+              }
+              el.innerHTML = 'We could not save your exam. Your answers are still here \u2014 ' +
+                '<button type="button" class="home-stale-retry" ' +
+                'onclick="window._retrySaveTranscript && window._retrySaveTranscript()">tap Retry</button>' +
+                ', or contact your instructor before closing.';
+            } catch (e) {}
+          })
+          .apiSaveIcaoTranscript(AppState.sessionToken, _txPayload);
+      } catch (e) {}
+    }
+    _saveTranscript();
 
     // An examination that heard nothing does not get to award a band.
     //

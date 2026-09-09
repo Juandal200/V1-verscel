@@ -38,11 +38,16 @@ ok('and it is exported, because the boot path is a different scope',
 
 console.log('\nboth silent paths report:');
 const refresh = grab('function refreshMeAndHome(');
-ok('the silent branch of refreshMeAndHome reports',
+ok('refreshMeAndHome reports its silent failures',
    refresh && /_reportBackgroundFailure\('homeBackgroundRefresh'/.test(refresh));
-ok('and so does its transport failure handler',
-   refresh && (refresh.match(/_reportBackgroundFailure\('homeBackgroundRefresh'/g) || []).length === 2,
-   refresh ? String((refresh.match(/_reportBackgroundFailure\('homeBackgroundRefresh'/g) || []).length) : '0');
+/* This asserted the report appeared TWICE, once per handler. Both handlers now
+ * share one _bootstrapFailed — which is why apiGetAppBootstrap could join the
+ * shim's allowlist without losing its auth check — so it appears once and covers
+ * both. The property is that neither path can fail silently, not how many copies
+ * of the call there are. */
+ok('and both of its handlers reach that path',
+   refresh && /withFailureHandler\(_bootstrapFailed\)/.test(refresh) &&
+              /if \(!res \|\| !res\.ok\) \{ _bootstrapFailed\(res\); return; \}/.test(refresh));
 // The cache-restore bootstrap discarded ok:false with a bare `return`.
 ok('the cache-restore refresh no longer discards ok:false in silence',
    /_reportBackgroundFailure\('bootstrapRestoreRefresh'/.test(SRC));

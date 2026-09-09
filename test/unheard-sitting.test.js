@@ -35,7 +35,19 @@ ok('two answers out of twenty-six',      r.answered === 2 && r.asked === 26);
 ok('that is under half, so it refuses',  r.answered < r.asked / 2);
 
 console.log('--- the refusal is wired in before grading ---');
-const fin = S.slice(S.indexOf('  function _finishExam()'), S.indexOf('  function _finishExam()') + 3000);
+/* The whole function, matched by braces rather than a fixed 3000-character
+ * window. The window broke the moment the transcript save above the check grew
+ * a retry path — the check had not moved, it had simply been pushed out of
+ * sight. A test must not fail because unrelated code above it got longer. */
+function _grabFn(src, sig) {
+  const i = src.indexOf(sig); if (i < 0) return '';
+  let d = 0;
+  for (let k = src.indexOf('{', i); k < src.length; k++) {
+    if (src[k] === '{') d++; else if (src[k] === '}') { d--; if (!d) return src.slice(i, k + 1); }
+  }
+  return '';
+}
+const fin = _grabFn(S, '  function _finishExam()');
 ok('the check runs before either grader',
    fin.indexOf('_teaAnsweredCount()') < fin.indexOf('_t.segments.length > 0'));
 ok('zero answers always refuses',        /_heard\.answered === 0 \|\|/.test(fin));

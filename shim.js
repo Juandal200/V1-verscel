@@ -7,6 +7,39 @@
   // Calls go to /api/gas (Vercel serverless proxy) — never directly to GAS.
   var API = '/api/gas';
 
+  /* Actions whose ok:false is a FAILURE, not a result.
+   *
+   * doPost always answers HTTP 200 — a refusal is {ok:false} in the body — and
+   * api/gas.mjs reports a 45-second timeout the same way. So every server error
+   * arrived here as a success and was handed to onSuccess. Callers that never
+   * looked at .ok therefore swallowed it: apiTrackActiveTime restored its
+   * accumulated seconds from a failure handler that could not run, and a student
+   * could submit into silence.
+   *
+   * Flipping this for EVERY action was measured and rejected: 175 of the 248
+   * google.script.run chains inspect res.ok inside their success handler and act
+   * on it there, so a blanket change would stop 175 error paths running, in one
+   * untested edit, in a 31,000-line file.
+   *
+   * So it is opt-in per action, and the opt-in is a migration: an action goes on
+   * this list only once its callers handle the failure where it will now arrive.
+   * The mechanism is central, the list grows deliberately, and when it covers
+   * everything the default can be inverted safely.
+   *
+   * Ordered by what a failure costs a student. */
+  var SERVER_ERROR_ACTIONS = {
+    // Losing these loses work.
+    apiSaveIcaoTranscript: true,
+    apiSaveIcaoTestResult: true,
+    apiCompleteRoute:      true,
+    apiFinalizeRoute:      true,
+    apiSaveCertificate:    true,
+    // Losing these loses accuracy — a wrong number shown as a right one.
+    apiTrackActiveTime:    true,
+    getMyCompletedLevels:  true,
+    apiGetAppBootstrap:    true
+  };
+
   function _call(action, args, onSuccess, onFailure) {
     fetch(API, {
       method:  'POST',
@@ -20,7 +53,17 @@
         catch (e) { throw new Error('Non-JSON response: ' + text.substring(0, 200)); }
       });
     })
-    .then(function (data) { if (onSuccess) onSuccess(data); })
+    .then(function (data) {
+      if (data && data.ok === false && SERVER_ERROR_ACTIONS[action]) {
+        // Carry the server's own words: callers render err.message, and
+        // api/gas.mjs already puts a readable sentence in both fields.
+        var err = new Error(String(data.message || data.error || 'The server could not complete that.'));
+        err.serverResponse = data;      // code, cause, gasStatus for anyone who wants them
+        if (onFailure) onFailure(err);
+        return;
+      }
+      if (onSuccess) onSuccess(data);
+    })
     .catch(function (err) { if (onFailure) onFailure(err); });
   }
 

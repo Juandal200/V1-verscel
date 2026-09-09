@@ -65,8 +65,15 @@ const code = S.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/[^\n]*/g, '$1
 ok('and the three copies are gone',
    !/!res \|\| res\.code === 'SESSION_ERROR'/.test(code));
 // Three handlers had their own copy. One definition means they cannot drift apart.
-ok('all three call it',
-   (S.match(/isAuthError = _serverRejectedToken\(res\)/g) || []).length === 3);
+/* Counted `isAuthError = _serverRejectedToken(res)` three times, which is a
+ * shape, not the property. refreshMeAndHome now calls the same function without
+ * that intermediate variable — its two handlers share one failure path — so the
+ * count fell while the number of callers rose. What matters is that nobody has a
+ * private copy of the test: every caller goes through the one function. */
+ok('every caller goes through the one function',
+   (code.match(/_serverRejectedToken\(/g) || []).length >= 3);
+ok('and none of them re-implements it',
+   !/res\.code === 'SESSION_ERROR'/.test(code.replace(/function _serverRejectedToken[\s\S]*?\n  \}/, '')));
 ok('a transient failure keeps the session and says so',
    (S.match(/Could not reach server\. Check your connection and refresh\./g) || []).length >= 2);
 
