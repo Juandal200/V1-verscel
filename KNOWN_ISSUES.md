@@ -415,3 +415,46 @@ often ends by being swiped away. Covered by `test/active-time.test.js`.
 **If campus time is ever used for anything that matters** — a report to an
 employer, a certificate, a billing input — the pre-`474db5e` totals should be
 treated as a floor, not a measurement.
+
+---
+
+## (reference) — which call is the durable write, and which are reconciliation
+
+**Status** Not a defect. Recorded because the names do not say it, and getting it
+backwards produced two wrong pieces of student-facing copy in one sitting —
+both approved before anyone checked.
+
+**`apiSubmitAttempt` is the durable write.** It runs as each phase is answered:
+
+    Attemptservice.js   dbAppend_('Attempts', attempt);
+                        ProgressService.updateUserProgress(user, scenario);
+
+By the time a route ends, every answer and every per-scenario progress row is
+already on the sheet.
+
+**`apiFinalizeRoute` and `apiCompleteRoute` are reconciliation calls.** Both
+re-derive the roll-up from what is already stored and hand it back:
+
+    apiFinalizeRoute   iterates the route's scenarioIds, updateUserProgress per scenario,
+                       settles route XP
+    apiCompleteRoute   updateUserProgress once, then returns ALL progress rows
+
+Neither is what saves the student's work.
+
+**Why this matters for copy.** A failure in either one must not tell a student
+their progress was lost — it was not. The true statement is that the route could
+not be confirmed or synced. Saying otherwise is the same class of untruth as the
+home screen presenting stale data as current, pointing the other way: it makes a
+student redo work that is already banked.
+
+**Why it matters for retries.** Both are safe to re-run.
+`ProgressService.updateUserProgress` computes
+`completedScenarios = Object.keys(completedScenarioMap).length` from the Attempts
+sheet rather than incrementing a counter, and writes with `dbUpdateByRow_` when
+the row exists, appending only when it does not. Running either twice produces
+the same row — so a Retry button is honest, and an automatic retry cannot
+inflate a student's count.
+
+**What is genuinely at risk when they fail:** the route-completion state, the
+level-unlock roll-up, the debrief, and the certificate auto-save. Real, and worth
+telling the student about. Just not their answers.
