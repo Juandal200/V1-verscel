@@ -724,3 +724,142 @@ a threshold at one second that this falls under. The test now allows four, names
 which four, and additionally asserts that 0.5s is used **exactly once** and is
 linear — so the exception cannot quietly become a fifth arbitrary speed. Red if
 a new sub-second duration appears anywhere.
+
+---
+
+## F-0010 / D-8 — the emoji sweep is complete; 31 marks remain on purpose
+
+**Status** **Closed by decision.** Not a partial sweep — a finished one with a
+documented remainder. Anyone auditing this should read the remainder as the
+answer, not as work left over.
+
+53 emoji became drawn icons from the 47-name `uiIcon` catalogue. Thirty-one
+remain, and every one of them falls into a category where replacing it would
+make the product worse, not more consistent.
+
+### Why an emoji was being replaced at all
+
+Emoji render differently on every platform and are drawn by the operating
+system, not by us — so they ignore the design tokens, change shape between a Mac
+and a Windows laptop, and in some cases do not render at all. A regional-indicator
+pair has no glyph on Windows and appears as two letters. That is why the sweep
+happened. It is also why it stops where it does: in the places below, the same
+property that makes an emoji inconsistent is the property that makes it work.
+
+### The remainder, by reason
+
+**11 — `LevelService.js`: they are sheet data, not markup.**
+Written into the Levels sheet through `dbAppend_`. Changing the seed changes
+nothing a student sees, because the rows are already written; and the client
+renders `m.icon` raw, so a half-migration prints the word `plane` on the level
+map. Closing this needs a renderer that tolerates both, shipped first, then the
+seed, then a migration over existing rows — and per rule 6 the sheet cannot be
+read from the repo. Tracked in its own entry above.
+
+**9 — `TourService.js`: eight reach no screen, one is an email.**
+The eight are `COMMENDATIONS` icons. The field is never written to the sheet and
+`getMyCareerStats` returns `commendations[]`, which `Scripts.html` never reads —
+its only consumer takes `res.medallions`, which carries no icon. Editing them
+changes nothing. The ninth is inside `_buildWeeklyEmail_`.
+
+**4 — emails (`TourService.js`, `Gamification.js`, `Userservice.js`).**
+Inline SVG does not survive Outlook, and many clients strip or refuse it. An
+emoji entity is the reliable choice in an HTML email; a drawn icon is the
+unreliable one. This is the reverse of the argument that motivated the sweep.
+
+**1 — `api/cron-streak-push.mjs`: a push-notification title.**
+A notification tray renders text. There is nowhere to put an SVG.
+
+**4 — `HumanFactorsModule.html`, `NonRoutineModule.html`: dead files.**
+The modules are rendered by `renderHumanFactorsModule` and
+`renderNonRoutineModule` in `Scripts.html`; these files ship nowhere.
+`grep -c "zone-icon" dist/index.html` returns 0. Editing them is churn with no
+effect.
+
+**1 — `IcaoTestItemService.js`: a server-side data label** (`flag: '🌐'`), a
+fallback string in a table, not markup.
+
+**1 — 🥇🥈🥉 in the ranking** (counted as one site, `Scripts.html`).
+Three medals distinguish first, second and third at a glance. The catalogue has
+`trophy` and nothing that says *second*, so drawing them would make three
+identical icons where the whole point is the difference. Left until the ranking
+screen is designed properly; recorded as a deliberate hold, not an oversight.
+
+**1 — 🧠 on the Human Factors card** — resolved. It is `uiIcon('shield', 28)`
+now; the count above is the two remaining in the dead module files.
+
+### What would reopen this
+
+A new emoji appearing in a rendered client path. The categories above are stable:
+data, email, notification, dead file, and one design decision.
+
+---
+
+## D-9 — replay and retry stay two controls, deliberately
+
+**Status** **Closed by decision.** The ticket asked for one control; the answer
+is two, and the reason is the student's, not the code's.
+
+**What was reported.** In the simulator, Retry and Replay sat next to each other
+and behaved incoherently — *"the text does not unlock because they are all retry
+and not replay"*. D-9 proposed unifying them into a single control.
+
+**What was actually wrong.** Retry rebuilt the stage, which ran `simMediaInit`,
+which autoplayed the clearance — and autoplay is free by design, because hearing
+the message arrive is the exercise starting rather than a replay the student
+asked for. Replay, meanwhile, spent one of a limited number of listens. So Retry
+was a way to hear the clearance again at no cost, sitting beside a button that
+charged for it. A student who wanted to hear it again pressed the free one, the
+unlock counted replays, and the text never unlocked. That is almost certainly
+what the report describes.
+
+**Why they were not merged.** The two controls do different things a student
+needs separately:
+
+- **Retry** gives back *the answer* — clear what you typed and try again.
+- **Replay** gives back *the recording* — hear it once more, and it costs.
+
+Merging them removes the ability to correct an answer without paying a listen.
+On Level 1, that is a student who mistypes a read-back and is charged a listen to
+fix a typo. The options that unified them were considered and declined for that
+reason; the fix was to close the bypass instead — Retry no longer replays the
+clearance, so Replay is the only way to hear it again and the only thing that
+costs.
+
+**And T-7 hardened the case.** The three replay counters measure different things
+on different surfaces — unlocking text, capping a comprehension band, spending an
+exam replay — and are deliberately unequal. A single unified control would have
+to pick one meaning and would silently change what the other two record. Unifying
+now costs more than it did when D-9 was written, and buys the same nothing.
+
+**What would reopen it.** A student report that having two controls is itself
+confusing, once the bypass is gone. That is a different complaint from the one
+filed, and it would need its own observation rather than an inference from this
+one.
+
+---
+
+## F-0025 — internationalisation: not needed
+
+**Status** **Closed by decision** (product owner, 2026-09-09). Not deferred —
+declined.
+
+**What was reported.** A stray Spanish string in the interface, raised as
+evidence that the product needed an internationalisation layer.
+
+**The decision.** The product ships in English and is an *English* proficiency
+trainer: the interface language is part of the exercise, and ICAO assessment is
+conducted in English. One stray string is a typo, not a missing subsystem.
+
+**Why this is worth writing down rather than leaving open.** An i18n layer is not
+a small addition — it touches every rendered string in a 31,000-line file, every
+email template, and every server-side message, and it creates a second copy of
+all user-facing text that must be kept in step. This repository's dominant
+defect for a week has been exactly that shape: two copies of one thing, drifting.
+Adding a translation layer with no second language to serve would import that
+failure mode deliberately, for no user.
+
+**What would reopen it.** A decision to sell into a market that requires a
+non-English interface — which is a commercial choice, not a code one. At that
+point the cost above is worth paying, and the work starts with a string
+catalogue, not with a framework.
