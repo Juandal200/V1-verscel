@@ -16874,7 +16874,19 @@ var LEVEL_THEMES = {
     window._activeTrackerRunning = true;
 
     var IDLE_LIMIT   = 5 * 60 * 1000; // 5 min idle = pause tracking
-    var SYNC_EVERY   = 30 * 1000;     // sync to server every 30s
+    /* Three minutes, not thirty seconds.
+     *
+     * Every sync takes a PROJECT-WIDE ScriptLock on the Apps Script side —
+     * getScriptLock, shared by 41 write paths including attempt saves and login —
+     * and this was the only one of them on a timer, firing for every signed-in
+     * student on every screen. At two writes a minute each, thirty students
+     * serialise against each other and against everything else the backend does.
+     *
+     * The seconds accumulate locally either way, so a longer interval loses
+     * nothing as long as the tail is flushed when the page goes away. That is
+     * what the block below is for, and it had to be fixed before this number
+     * could be raised. */
+    var SYNC_EVERY   = 3 * 60 * 1000; // sync to server every 3 minutes
     var _lastActive  = Date.now();
     var _accumulated = 0;
     var _lastSync    = Date.now();
@@ -16900,12 +16912,46 @@ var LEVEL_THEMES = {
       }
     }, 1000);
 
-    window.addEventListener('beforeunload', function() {
-      if (_accumulated > 0 && AppState && AppState.sessionToken) {
-        navigator.sendBeacon && navigator.sendBeacon('/api/gas', JSON.stringify({
-          action: 'apiTrackActiveTime', args: [AppState.sessionToken, _accumulated]
-        }));
-      }
+    /* The tail, on every way a page can go away.
+     *
+     * THIS NEVER WORKED. sendBeacon(url, string) sends Content-Type
+     * text/plain, Vercel parses text/plain into a STRING, and api/gas.mjs reads
+     * req.body.action off it — which is undefined on a string. The action
+     * resolved to 'unknown', failed the /^api[A-Z]/ allowlist, and the request
+     * was refused before it reached Apps Script. Spreading the same string into
+     * the forwarded body produced {"0":"{","1":"\"","2":"a"...}. Not one second
+     * has ever been saved this way. A Blob carries the content type, so it does.
+     *
+     * beforeunload is unreliable on mobile Safari — often it simply does not
+     * fire, and a phone is where a session is most likely to end by being
+     * swiped away. pagehide and visibilitychange are the events that do fire
+     * there, so all three are bound and the flush is idempotent: it takes the
+     * accumulated seconds and zeroes them, so whichever fires first wins and
+     * the others find nothing to send. */
+    function _flushActiveTime() {
+      if (!(_accumulated > 0) || !AppState || !AppState.sessionToken) return;
+      var secs = _accumulated;
+      _accumulated = 0;
+      _lastSync    = Date.now();
+      var sent = false;
+      try {
+        var payload = JSON.stringify({
+          action: 'apiTrackActiveTime', args: [AppState.sessionToken, secs]
+        });
+        sent = !!(navigator.sendBeacon &&
+                  navigator.sendBeacon('/api/gas',
+                    new Blob([payload], { type: 'application/json' })));
+      } catch (e) {}
+      // Refused or unavailable: keep the seconds rather than drop them. If the
+      // page really is closing they are lost either way, but a hidden tab that
+      // comes back will send them on the next sync.
+      if (!sent) _accumulated += secs;
+    }
+
+    window.addEventListener('beforeunload', _flushActiveTime);
+    window.addEventListener('pagehide', _flushActiveTime);
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState === 'hidden') _flushActiveTime();
     });
   }
 
