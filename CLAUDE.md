@@ -92,3 +92,11 @@ second copy of the truth, drifting, which is the failure mode this file already
 warns about twice. Audit #2 found one entry four commits stale, saying "Open,
 nothing changed" about work that had shipped. Sweep every entry against HEAD when
 you touch the file at all.
+
+## A commit subject describes the outcome, not the intent
+"One named default per runtime" read as closure for work that closed nothing — it
+named two constants and left them free to diverge, and the subject is why nobody
+looked again until an audit. If a change is partial, the subject says so. If it
+names a constant rather than removing a duplicate, the subject says that. The
+body can carry the reasoning; the subject is what someone scanning the log
+believes without reading further.
