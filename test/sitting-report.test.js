@@ -139,6 +139,22 @@ ok('which is styled to be readable',
    /\.flag-code \{[\s\S]{0,200}border: 1px solid var\(--line-strong\)/.test(C));
 ok('every call site still goes through the one function',
    (S.match(/getFlagHtml\(/g) || []).length >= 12);
+/* Counting the call sites was never enough. Six regional-indicator pairs were
+ * hardcoded straight into markup — five in the subscription modal and one in
+ * _ffStart, on the first-flight screen — so getFlagHtml was called fourteen
+ * times and the Windows bug it exists to prevent was still on the Level 1 path.
+ * A count says the function is popular, not that it is the only way through. */
+const RI = /[\u{1F1E6}-\u{1F1FF}]/gu;
+const riEntity = (S.match(/&#(\d+);/g) || [])
+  .map(m => parseInt(m.slice(2, -1), 10))
+  .filter(n => n >= 127462 && n <= 127487);
+ok('no flag is built from regional-indicator entities', riEntity.length === 0);
+// The COUNTRY_UI table still CARRIES an emoji per country; what must not happen
+// is one of them reaching markup. Everything outside the table is checked.
+const table = S.slice(S.indexOf('var COUNTRY_UI = {'), S.indexOf('var AppState = {'));
+const outside = S.replace(table, '');
+ok('and none is written as a literal pair outside the country table',
+   (outside.match(RI) || []).length === 0);
 /* Mexico and Spain carry the plain field. Their real flags ship a coat of arms of
  * 143 KB and 153 KB — engraving about six pixels wide at the size these draw — so
  * the whole set is 11 KB instead of 300 KB. */

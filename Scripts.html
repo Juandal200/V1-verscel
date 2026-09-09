@@ -12883,11 +12883,11 @@ var LEVEL_THEMES = {
           var flagsRow =
             '<p style="margin:0 0 6px;font-size: 0.72rem;font-weight:700;letter-spacing: 0.12em;color:var(--muted);text-transform:uppercase;">Accents included</p>' +
             '<div style="display:flex;justify-content:center;gap:6px;margin-bottom:16px;">' +
-              '<span title="USA" style="font-size: 1.35rem;">&#127482;&#127480;</span>' +
-              '<span title="UK"  style="font-size: 1.35rem;">&#127468;&#127463;</span>' +
-              '<span title="Australia" style="font-size: 1.35rem;">&#127462;&#127482;</span>' +
-              '<span title="Canada" style="font-size: 1.35rem;">&#127464;&#127462;</span>' +
-              '<span title="India" style="font-size: 1.35rem;">&#127470;&#127475;</span>' +
+              getFlagHtml('USA',       'flag-sm') +
+              getFlagHtml('UK',        'flag-sm') +
+              getFlagHtml('AUSTRALIA', 'flag-sm') +
+              getFlagHtml('CANADA',    'flag-sm') +
+              getFlagHtml('INDIA',     'flag-sm') +
             '</div>';
 
           // What you get, as a list rather than buried in a sentence. The two
@@ -24426,7 +24426,14 @@ var LEVEL_THEMES = {
       '<div class="ff-card ff-card-guided">' +
         '<div class="ff-guided-header">' +
           '<div class="ff-mission-tag">GROUND CONTROL</div>' +
-          '<div class="ff-country-flag">&#127482;&#127480; USA GROUND</div>' +
+          /* window., not a bare call: getFlagHtml is declared in the IIFE that
+           * opens at 13602 and this one opens at 1260395. A bare reference across
+           * that boundary is the ReferenceError that locked every new student out
+           * of the simulator in September. The label survives either way. */
+          '<div class="ff-country-flag">' +
+            (window.getFlagHtml ? window.getFlagHtml('USA', 'flag-sm') : '') +
+            '<span>USA GROUND</span>' +
+          '</div>' +
         '</div>' +
         '<div class="ff-instruction">&#128266;&nbsp; Press <strong>Play</strong> to hear the ATC, then type what the pilot says back.</div>' +
         '<div class="ff-sim-area">' +
@@ -30712,7 +30719,12 @@ function _adminDcShowForm(challenge) {
       '<label class="dc-form-label">ATC Accent (Country)</label>' +
       '<select id="dcFormCountry" class="input" style="margin-bottom:16px;">' +
         ['USA','UK','AUSTRALIA','INDIA','CANADA'].map(function(c) {
-          var labels = { USA:'🇺🇸 American ATC', UK:'🇬🇧 British ATC', AUSTRALIA:'🇦🇺 Australian ATC', INDIA:'🇮🇳 Indian ATC', CANADA:'🇨🇦 Canadian ATC' };
+          /* No flag here, and not for consistency's sake: an <option> cannot
+           * contain markup, so getFlagHtml has nothing to render into and a
+           * regional-indicator pair draws as the letters "US" on Windows. The
+           * label already says which accent it is, so the mark was carrying no
+           * meaning the text was not already carrying. */
+          var labels = { USA:'American ATC', UK:'British ATC', AUSTRALIA:'Australian ATC', INDIA:'Indian ATC', CANADA:'Canadian ATC' };
           return '<option value="' + c + '"' + (cCountry === c ? ' selected' : '') + '>' + labels[c] + '</option>';
         }).join('') +
       '</select>' +
