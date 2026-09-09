@@ -61,6 +61,10 @@ const stubs = {
   // feedback path gains a call.
   SimAudio:  anything(), SimMedia: anything(), AtcRadioEngine: anything(),
   Gamification: anything(), _showXpFloat() {}, _showSimToast() {},
+  // The card gives the Send button back now that the verdict is on screen —
+  // it used to be left saying "Evaluating…" for the thirty seconds until the
+  // safety net fired. Stubbed here; test/readback-button.test.js runs the real one.
+  _resetSendReadbackBtn() {},
 };
 const render = new Function(...Object.keys(stubs), body + '\nreturn renderAttemptFeedback;')(...Object.values(stubs));
 

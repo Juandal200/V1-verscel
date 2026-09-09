@@ -10117,13 +10117,28 @@ var LEVEL_THEMES = {
     return null;
   }
 
+  /* One button, found the same way by whoever is touching it.
+   *
+   * The send button is #simSendReadbackBtn and its label is "Send". Both halves
+   * of this looked it up as `.big-action` instead — the FIRST element with that
+   * class in the document — and the verdict renderer fills #simActionRow with
+   * more .big-action buttons a few lines before the reset would run. Two lookups
+   * that can disagree about which element they mean is not a state machine.
+   *
+   * The label is read off the button rather than written from a literal, because
+   * the literal was wrong: it restored "Send read-back" onto a button that had
+   * said "Send" since it was drawn, so the thirty-second safety net renamed it
+   * every time it fired. */
+  function _sendReadbackBtn() {
+    return document.getElementById('simSendReadbackBtn') ||
+           document.querySelector('.big-action[onclick*="immersiveSendReadback"]');
+  }
+
   function _resetSendReadbackBtn() {
-    var btn = document.querySelector('.big-action[onclick*="immersiveSendReadback"]');
-    if (!btn) btn = document.querySelector('.big-action');
-    if (btn && btn.textContent === 'Evaluating…') {
-      btn.disabled = false;
-      btn.textContent = 'Send read-back';
-    }
+    var btn = _sendReadbackBtn();
+    if (!btn) return;
+    btn.disabled = false;
+    btn.textContent = btn.getAttribute('data-idle-label') || 'Send';
   }
 
   function immersiveSendReadback() {
@@ -10135,8 +10150,15 @@ var LEVEL_THEMES = {
       return;
     }
 
-    var sendBtn = document.querySelector('.big-action');
-    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Evaluating…'; }
+    var sendBtn = _sendReadbackBtn();
+    if (sendBtn) {
+      // Remembered here so the reset restores what was on it, not a guess.
+      if (!sendBtn.getAttribute('data-idle-label')) {
+        sendBtn.setAttribute('data-idle-label', sendBtn.textContent);
+      }
+      sendBtn.disabled = true;
+      sendBtn.textContent = 'Evaluating…';
+    }
 
     // Safety net: always re-enable after 30 s regardless of server response
     setTimeout(function() {
@@ -10963,6 +10985,14 @@ var LEVEL_THEMES = {
       else     { SimAudio.wrong();   if (navigator.vibrate) navigator.vibrate([10, 60, 15]); }
     }
     setImmersiveFeedback(html, ok ? 'success' : 'danger', true);
+
+    // The verdict is on screen, so Send read-back is done evaluating.
+    //
+    // Its only reset was the 30-second safety net armed in immersiveSendReadback,
+    // and the verdict arrives in about two — so for the twenty-eight seconds
+    // after a student saw their score the button still said "Evaluating…" and
+    // was disabled. Nothing was broken; the screen just said it was.
+    _resetSendReadbackBtn();
 
     var input = byId('pilotReadback');
     if (input) input.disabled = true;

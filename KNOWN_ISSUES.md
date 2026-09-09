@@ -922,3 +922,43 @@ recordings would tighten them; nothing in this repository can.
 
 **What would reopen it.** A student reporting "we didn't hear anything" on a take
 they actually spoke. That is the failure direction that matters.
+
+---
+
+## "Evaluating…" for thirty seconds after the score was on screen
+
+**Status** **Fixed** — the verdict branch resets the button, and both halves of
+the button's state now look it up the same way. Recorded because the visible
+symptom was one bug and there were three, and the other two were only findable
+by reading what the reset actually did.
+
+**No bot ID.** Found while fixing the microphone exploit above, reported directly
+on 2026-09-08. No Telegram ticket was raised, so no ID is invented here.
+
+**What was reported.** A student sent a read-back, the verdict rendered in about
+two seconds, and the Send button stayed disabled and labelled "Evaluating…" for
+the next twenty-eight.
+
+**The three defects behind it.**
+
+1. `_resetSendReadbackBtn` had exactly one caller: the thirty-second `setTimeout`
+   armed in `immersiveSendReadback`. The branch that renders the verdict never
+   called it. That is the reported symptom.
+2. Both halves looked the button up as `.big-action` — the first element in the
+   document with that class. The verdict renderer fills `#simActionRow` with more
+   `.big-action` buttons a few lines *before* the reset would have run, so the
+   two lookups could disagree about which element they meant. They now share one
+   `_sendReadbackBtn()`.
+3. The reset restored the label `'Send read-back'` onto a button whose markup has
+   said `Send` since it was drawn. So on the one path that did fire, the safety
+   net silently renamed the button. The label is now read off the button before
+   it is overwritten and put back from there.
+
+**Why this is worth an entry rather than a line in the log.** Nothing was broken.
+The submission worked, the score was correct, the attempt was recorded. The
+screen said otherwise for twenty-eight seconds, immediately after telling the
+student they were right — and a product that lies about its own state teaches
+students to distrust the parts that are telling the truth.
+
+**What is not verifiable from the repo (rule 6).** How the restored button looks
+on screen. That is rendered geometry.
