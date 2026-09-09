@@ -74,35 +74,44 @@ ok('and that the free plan allows one sitting',  /one sitting/.test(begin));
 ok('a paying candidate is not shown any of it',
    begin.indexOf('_teaResultsLocked()') < begin.indexOf('On the free plan'));
 
-console.log('--- the blurred report has nothing behind it ---');
-ok('the blur renders a redacted copy',
-   /filter:blur\(7px\)[\s\S]{0,400}_renderScoreJSON\(_teaRedactScores\(json\)/.test(S));
-ok('the unlocked report is untouched',    /: '<div class="tea-score-box">' \+ _renderScoreJSON\(json\)/.test(S));
+console.log('--- the blur is presentation; the gate is on the server ---');
+/* THIS BLOCK USED TO RUN _teaRedactScores, WHICH NO LONGER EXISTS.
+ *
+ * It built a zeroed copy of the six descriptors for display — which meant the
+ * real numbers had already been serialised to the browser and were sitting in
+ * the response. The paywall was a drawing of a gate. D-1 deleted it and moved
+ * the withholding into api/tea-pipeline.mjs and api/tea.mjs, before the response
+ * is written (CLAUDE.md rule 5: never fix by hiding).
+ *
+ * So the assertions moved with the behaviour. What is checked HERE is that the
+ * client no longer redacts and no dead path remains to reintroduce; that the
+ * server actually withholds is asserted where it happens, by execution, in
+ * test/report-access.test.js — not duplicated here. */
+const Sc = S.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/[^\n]*/g, '$1');
+ok('the client no longer carries a redactor',
+   !/function _teaRedactScores/.test(Sc));
+ok('nor calls one',                 !/_teaRedactScores\(/.test(Sc));
+ok('the locked view renders what the server sent, unmodified',
+   /filter:blur\(7px\)[\s\S]{0,320}_renderScoreJSON\(json, \{ bandHeader: false \}\)/.test(Sc));
+ok('the unlocked report is untouched',
+   /: '<div class="tea-score-box">' \+ _renderScoreJSON\(json\)/.test(Sc));
+// The blur is decoration over an already-empty payload. If it ever became the
+// only thing standing between a free candidate and the numbers, that is the bug
+// D-1 fixed, arriving again.
+ok('and the blur is not load-bearing — it is aria-hidden presentation',
+   /filter:blur\(7px\)[\s\S]{0,120}aria-hidden="true"/.test(Sc));
 
-// Run the real redactor and prove nothing survives it.
-const src = S.slice(S.indexOf('  function _teaRedactScores(json)'),
-                    S.indexOf('  function _renderBandHeaderOnly(json)'));
-const redact = new Function(src + 'return _teaRedactScores;')();
-const real = { student_view: {
-  overall_band: 5, pronunciation: 5, structure: 4,
-  vocabulary: { score: 6, feedback: 'wide range' },
-  fluency: 5, comprehension: 4, interactions: 5, summary: 'A strong candidate.'
-}, admin_view: { transcript: 'Ex: ... Ca: I fly the A320 ...' } };
-const out = redact(real);
-// CHANGED 6 Sep 2026. The band is kept on purpose — it is the one number that
-// means something on its own, and withholding it left somebody who had just spoken
-// for half an hour with nothing to be curious about and therefore nothing to buy.
-ok('the band is kept, because that is the hook',
-   out.student_view.overall_band === 5);
-ok('every descriptor is zeroed',
-   ['pronunciation','structure','fluency','comprehension','interactions']
-     .every(k => out.student_view[k] === 0));
-ok('object-shaped scores keep their shape but lose the number',
-   out.student_view.vocabulary.score === 0 && out.student_view.vocabulary.feedback === '');
-ok('the written summary is gone',       out.student_view.summary === '');
-ok('the transcript never reaches it',   !JSON.stringify(out).includes('A320'));
-ok('no reason survives it',
-   !/\b[4-6]\b/.test(JSON.stringify(out).replace(/"overall_band":\d+/, '')));
+console.log('--- the server is where the numbers stop ---');
+const TEA  = fs.readFileSync(__dirname + '/../api/tea.mjs', 'utf8');
+const PIPE = fs.readFileSync(__dirname + '/../api/tea-pipeline.mjs', 'utf8');
+ok('the pipeline withholds before the response is written',
+   /withholdDescriptors\(student_view\)/.test(PIPE));
+ok('and marks the response so the client knows',
+   /descriptorsWithheld: true/.test(PIPE));
+ok('the conversational path withholds in the message',
+   /function withholdInMessage/.test(TEA));
+ok('both keep the band, which is the hook',
+   /overall_band/.test(TEA) && !/overall_band: 0/.test(TEA));
 
 console.log('--- and the result is still never spoken ---');
 ok('no band in any spoken line', !/overall ICAO band is/.test(S));

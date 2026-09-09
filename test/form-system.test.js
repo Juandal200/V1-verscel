@@ -132,12 +132,28 @@ console.log('--- three speeds and one curve ---');
 const tr = values(/transition:\s*([^;"'}<]+)/g).join(' ');
 const durations = new Set([...tr.matchAll(/(?:^|[\s,])(\d*\.?\d+)s\b/g)].map(m => m[1]));
 console.log('    ' + [...durations].sort((a, b) => a - b).join('  '));
-// Above a second the duration is the information: a bar filling over the time a
-// student has to answer is the clock, not a decoration.
+/* Above a second the duration is the information: a bar filling over the time a
+ * student has to answer is the clock, not a decoration.
+ *
+ * 0.5s is the same argument BELOW a second, which the original rule did not
+ * anticipate. .sc-clock-ring animates its conic-gradient between ticks of a
+ * countdown that runs on setInterval(tick, 500) — so the duration is the tick,
+ * and 0.4s would finish early and leave the ring still for 100ms out of every
+ * 500, a visible stutter once a second. It is also `linear`, deliberately: a
+ * clock that eases is lying about the rate time passes.
+ *
+ * So the ceiling is four, and the fourth is named with its reason. The point of
+ * the rule is that a NEW arbitrary speed is caught, and it still is. */
 const quick = [...durations].filter(d => parseFloat(d) <= 1);
-ok(`${quick.length} speeds under a second (was 87 definitions, ceiling 3)`, quick.length <= 3);
-ok('and they are the three that were chosen',
-   quick.every(d => ['0.15', '0.25', '0.4'].includes(d)));
+ok(`${quick.length} speeds under a second (was 87 definitions, ceiling 4)`, quick.length <= 4);
+ok('and they are the four that were chosen',
+   quick.every(d => ['0.15', '0.25', '0.4', '0.5'].includes(d)));
+// The exception has to stay an exception: one rule, tied to the tick it matches.
+const halfSecond = (C.match(/transition:[^;"'}<]*0\.5s/g) || []);
+ok('0.5s is used exactly once, by the countdown ring', halfSecond.length === 1,
+   halfSecond.join(' | '));
+ok('and it is linear, because a clock that eases misreports the rate',
+   /\.sc-clock-ring \{[\s\S]{0,320}transition: background 0\.5s linear;/.test(C));
 ok('the curve is defined once', /--ease:\s*cubic-bezier/.test(C));
 const curves = [...tr.matchAll(/cubic-bezier\([^)]*\)/g)].map(m => m[0]);
 // A spring overshoots on purpose. The 1.56 is the bounce.

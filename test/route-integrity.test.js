@@ -79,8 +79,17 @@ const thr = S.slice(S.indexOf('function _replayThresholdUnavailable'),
                     S.indexOf('function _simToast'));
 ok('a failed config call is retried once', /_thresholdRetried/.test(thr));
 ok('and the student is told before the default is used', /_simToast\(/.test(thr));
-ok('the default is still there, so nobody is refused training',
-   /replayThreshold = 2;/.test(thr));
+/* This wanted the literal `replayThreshold = 2;`. T-5 named that constant, so
+ * the assertion failed while the behaviour it guards — a student is never
+ * refused training because a config call did not answer — was intact. The
+ * property is that a default is applied, not that it is spelled 2 here. */
+ok('the default is still applied, so nobody is refused training',
+   /AppState\.training\.replayThreshold = _DEFAULT_REPLAY_THRESHOLD;/.test(thr));
+ok('and it comes from the named constant, not a literal',
+   !/replayThreshold = \d+;/.test(thr));
+// The value itself is asserted, with its cross-runtime twin, in
+// test/threshold-parity.test.js — not duplicated here.
+ok('which is declared with a value', /var _DEFAULT_REPLAY_THRESHOLD\s*=\s*\d+\s*;/.test(S));
 
 console.log('--- the XP waits for the award to be real ---');
 const submit = S.slice(S.indexOf('function submitScenarioAnswer'),

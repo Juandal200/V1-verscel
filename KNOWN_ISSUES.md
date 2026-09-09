@@ -668,3 +668,59 @@ said otherwise.
 that must fail: a deliberately wrong commit message, a replay of the proxy's own
 parsing, and a per-site confirmation of what the test claimed. See CLAUDE.md,
 "A silent success must be made to fail before it is trusted".
+
+---
+
+## (no ID) — the Apps Script URL is a fallback in all four proxies, by decision
+
+**Status** **Accepted, with a precondition.** One live defect fixed; the
+remaining literal stays until a dashboard change makes removing it safe.
+
+`test/one-database-source.test.js` asserted zero hardcoded Apps Script URLs in
+`api/`, on the reasoning that the URL should come from the environment and throw
+when absent. That is the right end state. It is not reachable today.
+
+**Why not.** `GAS_WEBHOOK_URL` is **unset** in Vercel — nine variables are set,
+that one is not (confirmed 2026-09-08). Throwing on absence takes the entire app
+down: every `google.script.run` call in the client routes through `/api/gas`. The
+change has to start in the dashboard, not the repo:
+
+1. set `GAS_WEBHOOK_URL` for Production **and** Preview to the `@667` deployment;
+2. deploy, and confirm all four proxies still answer;
+3. then delete the literals and restore the assertion to max 0.
+
+**What WAS a live defect, and is fixed.** Two of the four — `api/gas.mjs` and
+`api/cron-streak-push.mjs` — had **no override at all**. Setting the variable
+would have pointed grading at one deployment and login, home and levels at
+another, silently, with both halves apparently working. That is the
+split-deployment failure this project has hit four times, armed and waiting for
+whoever set the variable first. All four now read the same variable and fall back
+to the same literal.
+
+**What the test asserts instead**, because it is true and worth keeping: all four
+read `GAS_WEBHOOK_URL`, exactly one distinct deployment id appears across the
+four fallbacks, and none of them uses the literal as its only source. Red if any
+proxy loses its override, and red if one is pointed somewhere else.
+
+---
+
+## (no ID) — a fourth transition speed, accepted because it is a clock
+
+**Status** **Accepted.** `test/form-system.test.js` ceiling raised from three
+sub-second speeds to four, with the fourth named.
+
+The design system allows three durations under a second — 0.15s, 0.25s, 0.4s —
+on the reasoning that anything longer is carrying information rather than
+decorating. `.sc-clock-ring` added a fourth: `transition: background 0.5s linear`.
+
+**It is the same argument, below a second.** The ring animates a conic-gradient
+between ticks of a countdown running on `setInterval(tick, 500)`. At 0.4s it
+finishes early and sits still for 100ms out of every 500 — a visible stutter once
+a second. And it is `linear` rather than `var(--ease)` deliberately: a clock that
+eases misreports the rate time passes.
+
+So the duration is the tick, and the rule's own exemption applies; it simply had
+a threshold at one second that this falls under. The test now allows four, names
+which four, and additionally asserts that 0.5s is used **exactly once** and is
+linear — so the exception cannot quietly become a fifth arbitrary speed. Red if
+a new sub-second duration appears anywhere.

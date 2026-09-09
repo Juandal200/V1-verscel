@@ -1,5 +1,21 @@
 // ES Module — .mjs extension means clasp never pushes this to GAS
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbx4TnUdFYUb6SNJGsuTQW-rd3eQ2RRFeJCpe0ZsK7s67Y2L4bBx3Ez3l5WSM53yINNa/exec';
+/* One place decides which deployment this talks to.
+ *
+ * Two of the four api/*.mjs files read GAS_WEBHOOK_URL and two hardcoded the
+ * literal with no override. That asymmetry is the split-deployment failure this
+ * project has hit four times: setting the variable to point somewhere else would
+ * have sent grading to one deployment and login, home and levels to another,
+ * silently, with both halves working.
+ *
+ * The literal stays as the fallback ON PURPOSE. GAS_WEBHOOK_URL is currently
+ * unset in Vercel (confirmed 2026-09-08), so throwing when it is absent would
+ * take the whole app down — every google.script.run call routes through
+ * /api/gas. Removing it is a two-step change that has to start in the dashboard:
+ * set the variable, confirm all four still answer, then drop the fallbacks.
+ * Until then, all four agreeing is the property worth having. */
+const GAS_URL =
+  process.env.GAS_WEBHOOK_URL ||
+  'https://script.google.com/macros/s/AKfycbx4TnUdFYUb6SNJGsuTQW-rd3eQ2RRFeJCpe0ZsK7s67Y2L4bBx3Ez3l5WSM53yINNa/exec';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

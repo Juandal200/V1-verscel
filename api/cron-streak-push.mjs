@@ -4,7 +4,13 @@
 
 import webpush from 'web-push';
 
-const GAS_URL         = 'https://script.google.com/macros/s/AKfycbx4TnUdFYUb6SNJGsuTQW-rd3eQ2RRFeJCpe0ZsK7s67Y2L4bBx3Ez3l5WSM53yINNa/exec';
+/* Same rule as the other three: the environment decides which deployment this
+ * talks to, with the production literal as the fallback until GAS_WEBHOOK_URL is
+ * actually set. Two of the four used to have no override at all, which is how a
+ * split deployment happens silently — see api/gas.mjs for the full note. */
+const GAS_URL =
+  process.env.GAS_WEBHOOK_URL ||
+  'https://script.google.com/macros/s/AKfycbx4TnUdFYUb6SNJGsuTQW-rd3eQ2RRFeJCpe0ZsK7s67Y2L4bBx3Ez3l5WSM53yINNa/exec';
 const VAPID_PUBLIC    = process.env.VAPID_PUBLIC_KEY  || '';
 const VAPID_PRIVATE   = process.env.VAPID_PRIVATE_KEY || '';
 const VAPID_MAILTO    = 'mailto:support@icaoaerocomms.com';

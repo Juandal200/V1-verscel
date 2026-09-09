@@ -119,13 +119,38 @@ invariant(
 
 console.log('--- the proxy points where its environment says  (Phase 4) ---');
 
-invariant(
-  'hardcoded Apps Script urls in api/',
-  API, /script\.google\.com\/macros/g, 0,
-  'GAS_URL must come from the environment and throw when absent. tea-pipeline.mjs ' +
-  'already reads the env var but falls back to the production literal, which fails ' +
-  'open — straight into production'
-);
+/* ACCEPTED, WITH A PRECONDITION, RATHER THAN ENFORCED AT ZERO.
+ *
+ * The original invariant wanted no literal at all: GAS_URL from the environment,
+ * throwing when absent. That is the right end state and it cannot be the current
+ * one, because GAS_WEBHOOK_URL is UNSET in Vercel (confirmed 2026-09-08). Throwing
+ * on absence today takes the whole app down — every google.script.run call routes
+ * through /api/gas. It is a two-step change that starts in the dashboard: set the
+ * variable, confirm all four still answer, then drop the fallbacks.
+ *
+ * What WAS a live defect, and is fixed: two of the four had no override at all.
+ * Setting the variable would have sent grading to one deployment and login, home
+ * and levels to another — silently, with both halves working. That is the
+ * split-deployment failure this project has hit four times.
+ *
+ * So the property asserted is the one that is true and worth keeping: all four
+ * read the same variable, and all four fall back to the same literal. */
+const API_FILES = ['gas.mjs', 'cron-streak-push.mjs', 'tea.mjs', 'tea-pipeline.mjs']
+  .map(f => [f, fs.readFileSync(path.join(ROOT, 'api', f), 'utf8')]);
+
+ok(' 4 / 4  api proxies read GAS_WEBHOOK_URL',
+   API_FILES.every(([, t]) => /process\.env\.GAS_WEBHOOK_URL/.test(t)),
+   API_FILES.filter(([, t]) => !/process\.env\.GAS_WEBHOOK_URL/.test(t)).map(([f]) => f).join(' '));
+
+const literals = new Set();
+API_FILES.forEach(([, t]) => (t.match(/AKfycb[A-Za-z0-9_-]+/g) || []).forEach(l => literals.add(l)));
+ok(` ${literals.size} / 1  distinct deployment id across all four fallbacks`,
+   literals.size === 1, [...literals].join(' '));
+
+// The end state, recorded so it is not forgotten: this becomes max 0 once the
+// variable is set in Vercel for Production and Preview.
+ok(' the literal is a fallback, never the only source',
+   API_FILES.every(([, t]) => /GAS_WEBHOOK_URL \|\|/.test(t.replace(/\s+/g, ' '))));
 
 console.log('--- discovery scaffolding is cleaned up ---');
 
