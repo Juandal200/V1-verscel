@@ -93,9 +93,18 @@ ok('it still runs before the app is entered',
 console.log('--- and what made the restore worth caching is unchanged ---');
 ok('the cache still refuses another account\'s data',
    /if \(c\.token !== AppState\.sessionToken\) return null;/.test(Sc));
-ok('and still expires with the session',
-   /_HOME_CACHE_TTL = 30 \* 24 \* 60 \* 60 \* 1000/.test(Sc));
-ok('the server session is the same thirty days',
+/* The cache no longer expires WITH the session, and that is the point.
+ *
+ * Matching the two at thirty days sounded tidy and meant "never expires" in
+ * practice: a student who opens the app daily is never near it, and one who does
+ * not was shown month-old XP, streak and plan status as if it were current. The
+ * session is still thirty days — staying signed in is a different question from
+ * how long stale numbers may be presented as live. */
+ok('the home cache expires in a week',
+   /_HOME_CACHE_TTL = 7 \* 24 \* 60 \* 60 \* 1000/.test(Sc));
+ok('which is shorter than the session, deliberately',
+   !/_HOME_CACHE_TTL = 30 \* 24 \* 60 \* 60 \* 1000/.test(Sc));
+ok('and the server session is still thirty days',
    /SESSION_TTL_SECONDS: 2592000/.test(fs.readFileSync(__dirname + '/../ConfigService.js', 'utf8')));
 
 console.log(fails?('\n'+fails+' FAILING'):'\nall green');

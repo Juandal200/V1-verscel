@@ -10706,6 +10706,32 @@ p, li, td, th, h1, h2, h3, h4,
   margin-bottom: 22px;
 }
 .ff-country-flag { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--muted); }
+
+/* "Showing data from 2h ago" — a caveat, not an error.
+ *
+ * The home screen renders from cache whenever there is anything cached. When
+ * the refresh behind it has failed, this says so. No colour: the numbers are
+ * still useful, they are simply not current, and painting it red would make a
+ * slow network look like a fault in the student's own progress. Muted text,
+ * hairline rule, tokens only. */
+.home-stale-note {
+  display: flex; align-items: center; gap: 6px;
+  margin: 0 0 12px;
+  padding: 7px 12px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  background: rgba(var(--lift-rgb), 0.04);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.home-stale-retry {
+  background: none; border: none; padding: 0;
+  font: inherit; color: var(--text);
+  text-decoration: underline; cursor: pointer;
+}
+
+.home-stale-retry:hover { color: var(--accent); }
 .ff-sim-area { display: flex; flex-direction: column; gap: 14px; margin-bottom: 18px; }
 .ff-play-area { text-align: center; }
 .ff-play-btn {

@@ -712,7 +712,15 @@
         // Instant: restore from cache, enter app immediately
         _aeroRestoreFromCache(_startCache);
         window._bootstrapLoaded = true; // data from cache — skip redundant getMyCompletedLevels
-        _homeDataFreshAt = Date.now(); // treat as fresh so renderHome skips skeleton
+        /* The age of the data, not the age of the restore.
+         *
+         * This was Date.now(), commented "treat as fresh so renderHome skips
+         * skeleton" — so data read out of localStorage was stamped as having
+         * just arrived from the server. That is what let a failed refresh show
+         * month-old numbers with nothing to say so. The skeleton is still
+         * skipped, because renderHome skips it whenever there is data at all;
+         * it never needed the lie. */
+        _homeDataFreshAt = Number(_startCache.cachedAt) || 0;
         setLoginMessage('');
         enterApplication();
         // Silent background bootstrap — updates all state and re-saves cache
@@ -1885,6 +1893,74 @@
    * timeouts in four minutes must not be four rows per student per outage; one
    * row every ten minutes is enough to establish that it happened and for how
    * long. */
+  /* Never present stale data as current.
+   *
+   * The home screen renders from cache whenever there is anything cached, which
+   * is right — a student should not stare at a spinner because the server is
+   * slow. What was wrong is that it said nothing when the refresh behind it
+   * failed, so weeks-old XP and streak read exactly like this morning's.
+   *
+   * One muted line under the header, and only when BOTH are true: the data is
+   * old, and a refresh has failed. Working normally it renders nothing at all.
+   * No colour — this is not an error, it is a caveat on numbers that are still
+   * useful. */
+  var _homeRefreshFailedAt = 0;   // 0 = the last refresh was fine
+
+  function _ageText(ms) {
+    var m = Math.floor(ms / 60000);
+    if (m < 1)   return 'just now';
+    if (m < 60)  return m + ' min ago';
+    var h = Math.floor(m / 60);
+    if (h < 24)  return h + 'h ago';
+    var d = Math.floor(h / 24);
+    return d === 1 ? 'yesterday' : d + ' days ago';
+  }
+
+  function _staleNoticeHtml() {
+    // Nothing to say if the last refresh worked, or if we have no idea how old
+    // the data is (a fresh sign-in has no cachedAt to carry).
+    if (!_homeRefreshFailedAt || !_homeDataFreshAt) return '';
+    var age = Date.now() - _homeDataFreshAt;
+    if (age < 30000) return '';          // it failed, but what is on screen is current
+    var retrying = !!window._homeRetryPending;
+    var icon = '';
+    try { icon = uiIconInline(retrying ? 'retry' : 'alert', 13); } catch (e) {}
+    return '<div class="home-stale-note">' + icon +
+             (retrying
+               ? 'Reconnecting\u2026 showing data from ' + _ageText(age)
+               : 'Showing data from ' + _ageText(age) +
+                 ' \u00b7 <button type="button" class="home-stale-retry" ' +
+                 'onclick="window._homeRetryNow && window._homeRetryNow()">Retry</button>') +
+           '</div>';
+  }
+
+  /* The manual retry behind the notice.
+   *
+   * Separate from A3's automatic backoff on purpose: that one is bounded and
+   * gives up, and a student looking at a stale number should still be able to
+   * ask again after it has. Re-renders on the way out so the line updates
+   * itself whichever way the attempt goes. */
+  window._homeRetryPending = false;
+  window._homeRetryNow = function () {
+    if (window._homeRetryPending) return;
+    window._homeRetryPending = true;
+    try {
+      var note = document.querySelector('.home-stale-note');
+      if (note) note.innerHTML = 'Reconnecting\u2026';
+    } catch (e) {}
+    refreshMeAndHome(function () {
+      window._homeRetryPending = false;
+      if (typeof renderHome === 'function') renderHome();
+    }, true);
+    // refreshMeAndHome's callback only runs on success, so release the flag on a
+    // failure too — otherwise one bad attempt disables the button for the session.
+    setTimeout(function () {
+      if (!window._homeRetryPending) return;
+      window._homeRetryPending = false;
+      if (typeof renderHome === 'function') renderHome();
+    }, 50000);
+  };
+
   var _bgFailReportedAt = 0;
   window._reportBackgroundFailure = _reportBackgroundFailure;
   function _reportBackgroundFailure(source, detail) {
@@ -1919,6 +1995,7 @@
             if (window.console) console.warn('[home] background refresh failed, will retry later:',
               (res && res.message) || 'unknown');
             _reportBackgroundFailure('homeBackgroundRefresh', (res && (res.message || res.error)) || 'unknown');
+            _homeRefreshFailedAt = Date.now();
           } else {
             showContentError(res && res.message ? res.message : 'Could not load dashboard. Refresh to try again.');
           }
@@ -1927,7 +2004,8 @@
 
         AppState.user         = res.user;
         AppState.home         = res.home;
-        _homeDataFreshAt = Date.now();
+        _homeDataFreshAt     = Date.now();
+        _homeRefreshFailedAt = 0;   // the data on screen is current again
         AppState.accessStatus = res.accessStatus || AppState.accessStatus || null;
         // Update XP/streak vars so re-renders show fresh data
         window._lmsStreakDays    = res.streakDays    || window._lmsStreakDays    || 0;
@@ -1945,6 +2023,7 @@
         // Deliberately silent ON SCREEN — the user is looking at something else
         // and did not ask for this. Not silent in the record.
         _reportBackgroundFailure('homeBackgroundRefresh', (err && err.message) || err);
+        _homeRefreshFailedAt = Date.now();
       })
       .apiGetAppBootstrap(AppState.sessionToken);
   }
@@ -2251,7 +2330,8 @@
           '<div id="homeModulesArea"><div style="text-align:center;padding:32px;color:var(--muted);">Loading modules…</div></div>' +
         '</div>';
 
-      byId('contentArea').innerHTML = heroBar + dcBannerHtml + cardsRow + modulesSection;
+      byId('contentArea').innerHTML =
+        _staleNoticeHtml() + heroBar + dcBannerHtml + cardsRow + modulesSection;
 
       var _HOME_SECTION_TTL = 10 * 60 * 1000; // 10 minutes
 
@@ -30314,7 +30394,15 @@ var _HOME_CACHE_KEY = '_aero_home_v2';
  * far better failure than being asked to sign in again. And the token check below
  * still applies, so a cache from a different session is never used.
  */
-var _HOME_CACHE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days — same as the session
+/* Seven days, not thirty.
+ *
+ * Thirty matched the session length, which sounds tidy and meant "never
+ * expires" in practice: a student who opens the app daily is never near it, and
+ * one who does not is shown month-old XP, streak and plan status as if it were
+ * current. Seven is past any normal gap — a week's holiday still opens warm —
+ * and it bounds the worst case at a week instead of a month. Past it the app
+ * shows a skeleton and fetches, which is the honest answer. */
+var _HOME_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
 var _homeDataFreshAt = 0; // ms timestamp — set when fresh data arrives from server
 // Initialise so renderHome never reads undefined before GAS first responds
 window._lmsStreakDays    = 0;
