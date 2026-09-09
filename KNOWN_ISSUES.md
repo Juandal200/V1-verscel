@@ -188,3 +188,102 @@ sheet keep their emoji. Both halves have to land together:
 
 Per rule 6 the sheet cannot be read from the repo, so step 3 cannot be planned
 or verified from here.
+
+---
+
+## (no ID) — a failed home refresh is invisible, and the cache is 30 days old
+
+**Status** Open. Read-only investigation, nothing changed. Needs an ID.
+
+Observed 2026-09-08 on a signed-in home screen: `getMyCompletedLevels` failed
+twice and `apiGetAppBootstrap` once, all with *"The training server took too long
+to answer"*, within a few seconds, followed by
+`[home] background refresh failed, will retry later`.
+
+### It is a different path from the HTML consent pages
+
+Both are Apps Script failing to answer, but they are separate branches of
+`api/gas.mjs` with separate outcomes:
+
+| condition | what `api/gas.mjs` does | what the client sees |
+|---|---|---|
+| HTML consent page | detects it, waits 700 ms, **retries once**; if it persists, `JSON.parse` fails | *"Connection to the training server was lost. Close this tab…"*, `cause: GAS_DEPLOYMENT_NEEDS_REAUTH` |
+| no answer in 45 s | `AbortController` fires, caught | *"The training server took too long to answer."* |
+
+The observed message is the second. Apps Script accepted the request and never
+answered — it did not hand back a consent page.
+
+**A compound case exists and is worse than either.** The HTML retry is not
+budgeted. A first call returning HTML at ~40 s, plus 700 ms, plus a retry that
+itself runs to the 45 s abort, is ~86 s against `vercel.json`'s
+`maxDuration: 60` for `api/gas.mjs`. The function is killed with no response, so
+the browser gets a network error instead of any of the messages above. And the
+retry's `callGas()` is not individually wrapped, so an `AbortError` there escapes
+to the outer handler and returns **HTTP 500** `{ok:false, error:'This operation
+was aborted'}` — not the friendly text. One condition, three different outcomes.
+
+### The home screen degrades silently, and this is the first screen a prospect sees
+
+The proxy reports a timeout as **HTTP 200** carrying `ok:false`. `shim.js` parses
+any JSON and calls `onSuccess`, so the failure never reaches a failure handler —
+`Scripts.html:1855` documents exactly this trap for a different bug.
+
+`renderHome` then does:
+
+    var _hasData = AppState.home && (…metrics || …modules || …dc);
+    if (_freshData || _hasData) {
+      _doRenderHome();                       // "fresh or stale", per its own comment
+      refreshMeAndHome(…, true);             // silent: true
+    } else {
+      showGasLoadingSkeleton(…);
+      refreshMeAndHome(…);                   // silent falsy -> showContentError
+    }
+
+With `silent: true` the failure is a `console.warn` and nothing else. So:
+
+- a student or prospect with **any** cached data sees a normally-rendered home
+  screen with no indication anything failed;
+- only someone with **no data at all** gets a visible error.
+
+Worse, the cache is *labelled* fresh. `Scripts.html:715` sets
+`_homeDataFreshAt = Date.now()` on restore, commented *"treat as fresh so
+renderHome skips skeleton"* — but the data came from `localStorage`, not the
+server. `_HOME_CACHE_TTL` is **30 days**. XP, streak, plan status and dashboard
+metrics can therefore be up to a month stale, presented as current, while every
+refresh silently fails.
+
+### There is no retry on any of the three calls
+
+"will retry later" describes the next navigation back to Home. There is no timer
+for it — the only intervals in the file are the gamification poll, the exam poll
+and the plan poll.
+
+- `apiGetAppBootstrap` (cache branch, `Scripts.html:743`) — failure handler is
+  `console.warn` only; the success handler's `if (!res || !res.ok) return;`
+  silently discards the timeout.
+- `apiGetAppBootstrap` via `refreshMeAndHome` — as above, silent when
+  `silent: true`.
+- `getMyCompletedLevels` — `console.error` at `Scripts.html:1716`, and an
+  **empty** failure handler at `Scripts.html:23877`.
+
+The four-attempt retry with 20 s and 30 s budgets exists only on the boot path
+that has **no** cache (`_bootAttempt < 4`). It does not cover any of these.
+
+**The 45 s does apply**, but it is not a client timer: it is the
+`AbortController` inside `api/gas.mjs`, server-side, on every call routed through
+`/api/gas`. `shim.js` has no timeout and no retry of its own, so before those
+45 s elapse the browser waits indefinitely.
+
+### One thing this rules out
+
+`_aeroStartKeepWarm` pings every 120 s while the tab is visible, so on a screen
+that was already open the runtime should not have been cold. Three timeouts
+within seconds of each other on a warm runtime points at Apps Script itself, not
+at a cold start.
+
+### Not verifiable from here
+
+Whether Apps Script was rate-limiting, out of quota, or simply slow. That needs
+the Cloud Logging for the deployment — `[GAS PROXY] <action> <ms>ms status=…` is
+logged for every call that returns, and the timeouts log
+`[GAS PROXY] <action> timed out after 45s`. Both are in Vercel's function logs.
