@@ -308,9 +308,16 @@ logged for every call that returns, and the timeouts log
 - Both refresh paths report to ClientEvents through `_reportClientError`,
   throttled to one row per ten minutes.
 
-**Still open, and tracked separately:** the endpoint that caused it.
-`getMyCompletedLevels` still performs two raw `getDataRange()` full-sheet scans
-and still shares a 60-second timer with the badge poll. That is A3.
+**The endpoint that caused it is now addressed too** (A3): the answer is cached
+per user and invalidated in `ProgressService.updateUserProgress`, the
+Scenarios→country map is hoisted into a script-wide cache, Progress rows are
+filtered by `userId` before an object is built, the rank moved off the badge
+timer to five minutes, and the background refresh retries at 30s / 2min / 8min
+and then stops.
+
+**Not verifiable from here** (rule 6): whether that brings the call under the
+proxy's 45-second abort. The remaining cost is a full read of Progress on a cache
+miss, and the size of that sheet cannot be seen from the repo.
 
 ---
 

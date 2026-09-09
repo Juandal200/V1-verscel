@@ -1430,6 +1430,14 @@
     localStorage.removeItem('icao_session_token');
     sessionStorage.removeItem('icao_session_token');
     try { localStorage.removeItem(_HOME_CACHE_KEY); } catch(e) {}
+    /* Stop the pollers before the token goes.
+     *
+     * _gamStartPoll ran two timers for the life of the tab with no way to stop
+     * them, so signing out left them polling with a cleared session. Through
+     * window because _gamStopPoll is declared in a later IIFE — a bare call
+     * across that boundary is the ReferenceError that locked every new student
+     * out in September. */
+    try { if (window._gamStopPoll) window._gamStopPoll(); } catch (e) {}
     AppState.sessionToken = '';
     AppState.user = null;
     AppState.home = null;
@@ -1909,6 +1917,38 @@
    * useful. */
   var _homeRefreshFailedAt = 0;   // 0 = the last refresh was fine
 
+  /* A bounded retry, because the endpoint is slow rather than refusing.
+   *
+   * Apps Script Executions showed the calls that timed out were RUNNING — 43.2s
+   * and 54.0s — while the proxy aborts at 45s. So the work was completing and
+   * being thrown away, and hammering it would only queue more of the same. Three
+   * attempts, widely spaced, then stop and let A1's notice carry it: a student
+   * who wants it sooner has the Retry button.
+   *
+   * Deliberately not infinite and deliberately not aggressive. A tab left open
+   * overnight must not spend the morning polling a backend that is unwell. */
+  var _HOME_RETRY_DELAYS = [30000, 120000, 480000];   // 30s, 2min, 8min
+  var _homeRetryAttempt  = 0;
+  var _homeRetryTimer    = null;
+
+  function _homeRetryReset() {
+    _homeRetryAttempt = 0;
+    if (_homeRetryTimer) { clearTimeout(_homeRetryTimer); _homeRetryTimer = null; }
+  }
+
+  function _homeRetrySchedule() {
+    if (_homeRetryTimer) return;                       // one in flight is enough
+    if (_homeRetryAttempt >= _HOME_RETRY_DELAYS.length) return;   // bounded
+    var wait = _HOME_RETRY_DELAYS[_homeRetryAttempt++];
+    _homeRetryTimer = setTimeout(function () {
+      _homeRetryTimer = null;
+      if (!AppState.sessionToken) return;              // signed out while waiting
+      refreshMeAndHome(function () {
+        if (typeof renderHome === 'function' && window._navToken !== undefined) return;
+      }, true);
+    }, wait);
+  }
+
   function _ageText(ms) {
     var m = Math.floor(ms / 60000);
     if (m < 1)   return 'just now';
@@ -2004,13 +2044,14 @@
         return;
       }
       if (silent) {
-        // Nothing is lost: this only tops up XP, streak and plan state, and the
-        // next refresh will carry it. The student may well be mid-exercise on
-        // another screen by now — a 45-second timeout outlives the screen that
-        // started it. A1's notice is what tells them the numbers are old.
-        if (window.console) console.warn('[home] background refresh failed, will retry later:', msg);
+        // Nothing is lost: this only tops up XP, streak and plan state. The
+        // student may well be mid-exercise on another screen by now — a
+        // 45-second timeout outlives the screen that started it. A1's notice is
+        // what tells them the numbers are old.
+        if (window.console) console.warn('[home] background refresh failed:', msg);
         _reportBackgroundFailure('homeBackgroundRefresh', msg);
         _homeRefreshFailedAt = Date.now();
+        _homeRetrySchedule();
         return;
       }
       showContentError(msg && msg !== 'unknown' ? msg : 'Could not load dashboard. Refresh to try again.');
@@ -2026,6 +2067,7 @@
         AppState.home         = res.home;
         _homeDataFreshAt     = Date.now();
         _homeRefreshFailedAt = 0;   // the data on screen is current again
+        _homeRetryReset();          // and the backoff starts fresh next time
         AppState.accessStatus = res.accessStatus || AppState.accessStatus || null;
         // Update XP/streak vars so re-renders show fresh data
         window._lmsStreakDays    = res.streakDays    || window._lmsStreakDays    || 0;
@@ -24185,8 +24227,20 @@ var LEVEL_THEMES = {
       })
       .withFailureHandler(function () {})
       .getNotificationCounts(AppState.sessionToken);
+  }
 
-    // Keep topbar rank in sync with latest weekly completed levels
+  /* The rank moved off the badge timer.
+   *
+   * One 60-second timer used to fire both of these, and one of them —
+   * getMyCompletedLevels, through _refreshTopbarRank — is the endpoint that
+   * timed out four times in four minutes on the 8th. Badges are cheap and stay
+   * at sixty seconds; the rank is expensive and does not need that cadence,
+   * because the moment that actually changes it is already covered:
+   * _refreshTopbarRank is called directly on level completion. This poll only
+   * catches a change made on another device or by an instructor. */
+  var _GAM_RANK_EVERY = 5 * 60 * 1000;
+  function _gamRankPoll() {
+    if (!window.AppState || !AppState.sessionToken) return;
     _refreshTopbarRank();
   }
 
@@ -24194,9 +24248,25 @@ var LEVEL_THEMES = {
     _gam.myEmail = (window.AppState && AppState.user && AppState.user.email) || null;
     if (!_gam.myEmail) return;
     _gamPoll();
+    _gamRankPoll();
     clearInterval(_gam.pollTimer);
-    _gam.pollTimer = setInterval(_gamPoll, 60000);
+    clearInterval(_gam.rankTimer);
+    _gam.pollTimer = setInterval(_gamPoll,     60000);
+    _gam.rankTimer = setInterval(_gamRankPoll, _GAM_RANK_EVERY);
   }
+
+  /* Something to stop it with.
+   *
+   * _gamStartPoll is called from enterApplication and there was no way to stop
+   * it: two timers ran for the life of the tab, on every screen, whatever the
+   * student was doing, and signing out did not end them. */
+  function _gamStopPoll() {
+    clearInterval(_gam.pollTimer);
+    clearInterval(_gam.rankTimer);
+    _gam.pollTimer = null;
+    _gam.rankTimer = null;
+  }
+  window._gamStopPoll = _gamStopPoll;
 
   // ── Tab switching ────────────────────────────────────────────────────────────
   function _gamSwitchTab(tab) {

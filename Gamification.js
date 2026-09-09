@@ -616,16 +616,99 @@ function getLeaderboard(limit) {
 //    Returns the calling user's completed level count from the Progress sheet.
 //    Used to render the topbar rank pill and stripe badges on login.
 // -----------------------------------------------------------------------------
+/* The rank badge, and why it used to take fifty seconds.
+ *
+ * On 2026-09-08 this was the only endpoint timing out: four times in four
+ * minutes, at 43.2s and 54.0s, while apiPing (no I/O at all) answered in
+ * 1.7-5.9s and getNotificationCounts in 3.5-4.4s. It reads seven sheets, two of
+ * them in full — Progress, which grows with every student's every attempt, and
+ * Scenarios — and it rebuilt an object for EVERY row of Progress, including
+ * every other student's, before filtering to one userId.
+ *
+ * Three changes, in order of what they save:
+ *
+ *  1. The answer is cached per user. It changes when progress changes, and
+ *     ProgressService.updateUserProgress invalidates it there — one place,
+ *     which every completion path already goes through.
+ *  2. The level -> required-country-count map is identical for every student
+ *     and every call, and is now cached script-wide instead of rebuilt from a
+ *     full scan of Scenarios each time.
+ *  3. Progress rows are filtered by userId BEFORE an object is built, so the
+ *     work is proportional to one student's rows rather than the whole table.
+ *
+ * NOT routed through dbReadAll_/_DB_SCOPE, deliberately. This endpoint opens no
+ * read scope, so _DB_SCOPE would cache nothing; and dbReadAll_ maps columns by
+ * DB_SCHEMA order while this reads the live header row. If the sheet's order has
+ * ever drifted from the schema, that swap would mis-read every field on the one
+ * table holding all student progress — and per rule 6 the sheet cannot be
+ * checked from the repo. */
+var GAM_COMPLETED_CACHE_SECS_  = 600;   // 10 min; invalidated on progress change
+var GAM_LEVELMAP_CACHE_SECS_   = 1800;  // 30 min; identical for every student
+
+function _gamCompletedCacheKey_(userId) { return 'gamCompleted_' + String(userId || ''); }
+
+/* Called by ProgressService.updateUserProgress — the durable write every
+ * completion path goes through, so one call covers attempt submit, finalise and
+ * complete. Failing to invalidate must never break the write, hence the catch. */
+function gamInvalidateCompletedLevels_(userId) {
+  try { CacheService.getScriptCache().remove(_gamCompletedCacheKey_(userId)); }
+  catch (e) {}
+}
+
+function _gamLevelCountryMap_(ss) {
+  var cache = null, raw = null;
+  try { cache = CacheService.getScriptCache(); raw = cache.get('gamLevelCountryMap'); } catch (e) {}
+  if (raw) { try { return JSON.parse(raw); } catch (e) {} }
+
+  var levelCountryMap = {};
+  try {
+    var scenSheet = ss.getSheetByName('Scenarios');
+    if (scenSheet) {
+      var scenData = scenSheet.getDataRange().getValues();
+      if (scenData.length >= 2) {
+        var sHdrs    = scenData[0].map(function(h) { return String(h); });
+        var sLvlIdx  = sHdrs.indexOf('level');
+        var sCtryIdx = sHdrs.indexOf('country');
+        var sActIdx  = sHdrs.indexOf('isActive');
+        var tmpMap   = {};
+        scenData.slice(1).forEach(function(row) {
+          var active = String(row[sActIdx] || '').trim().toUpperCase();
+          if (active !== 'TRUE' && active !== 'ACTIVE' && active !== 'YES' && active !== '1') return;
+          var lvl     = parseInt(row[sLvlIdx] || '0', 10);
+          var country = String(row[sCtryIdx] || '').trim().toUpperCase();
+          if (lvl < 1 || !country) return;
+          if (!tmpMap[lvl]) tmpMap[lvl] = {};
+          tmpMap[lvl][country] = true;
+        });
+        Object.keys(tmpMap).forEach(function(lvl) {
+          levelCountryMap[lvl] = Object.keys(tmpMap[lvl]).length;
+        });
+      }
+    }
+  } catch (e) {}
+  try { if (cache) cache.put('gamLevelCountryMap', JSON.stringify(levelCountryMap), GAM_LEVELMAP_CACHE_SECS_); }
+  catch (e) {}
+  return levelCountryMap;
+}
+
 function getMyCompletedLevels(sessionToken) {
   try {
     var user = AuthService.requireRole(sessionToken, ['STUDENT', 'INSTRUCTOR', 'ADMIN']);
+    var uid = String(user.userId || '').trim();
+
+    var _cache = null;
+    try {
+      _cache = CacheService.getScriptCache();
+      var _hit = _cache.get(_gamCompletedCacheKey_(uid));
+      if (_hit) return JSON.parse(_hit);
+    } catch (e) {}
+
     var ss = _gamSS_();
     var progSheet = ss.getSheetByName('Progress');
     if (!progSheet) return { ok: true, completedLevels: 0 };
     var data = progSheet.getDataRange().getValues();
     if (data.length < 2) return { ok: true, completedLevels: 0 };
     var headers = data[0].map(function(h) { return String(h); });
-    var uid = String(user.userId || '').trim();
 
     // Use the active tour's start date so rank resets weekly
     var tourStart = null;
@@ -634,40 +717,31 @@ function getMyCompletedLevels(sessionToken) {
       if (tour && tour.startDate) tourStart = new Date(tour.startDate);
     } catch(e) {}
 
-    // Build level→required-country-count map (matches simulator definition)
-    var levelCountryMap = {};
-    try {
-      var scenSheet = ss.getSheetByName('Scenarios');
-      if (scenSheet) {
-        var scenData = scenSheet.getDataRange().getValues();
-        if (scenData.length >= 2) {
-          var sHdrs     = scenData[0].map(function(h) { return String(h); });
-          var sLvlIdx   = sHdrs.indexOf('level');
-          var sCtryIdx  = sHdrs.indexOf('country');
-          var sActIdx   = sHdrs.indexOf('isActive');
-          var tmpMap    = {};
-          scenData.slice(1).forEach(function(row) {
-            var active = String(row[sActIdx] || '').trim().toUpperCase();
-            if (active !== 'TRUE' && active !== 'ACTIVE' && active !== 'YES' && active !== '1') return;
-            var lvl     = parseInt(row[sLvlIdx]  || '0', 10);
-            var country = String(row[sCtryIdx] || '').trim().toUpperCase();
-            if (lvl < 1 || !country) return;
-            if (!tmpMap[lvl]) tmpMap[lvl] = {};
-            tmpMap[lvl][country] = true;
-          });
-          Object.keys(tmpMap).forEach(function(lvl) {
-            levelCountryMap[lvl] = Object.keys(tmpMap[lvl]).length;
-          });
-        }
-      }
-    } catch(e) {}
+    // Identical for every student and every call — built once, cached script-wide.
+    var levelCountryMap = _gamLevelCountryMap_(ss);
 
     // Track per-(level, country) completions
+    /* Column indexes once, then the userId test BEFORE any object is built.
+     * This used to construct a full object for every row in Progress — every
+     * other student's included — and throw it away on the next line. The work is
+     * now proportional to one student's rows. */
+    var iUser    = headers.indexOf('userId');
+    var iLevel   = headers.indexOf('level');
+    var iCountry = headers.indexOf('country');
+    var iDone    = headers.indexOf('completed');
+    var iUpd     = headers.indexOf('updatedAt');
+    var iComp    = headers.indexOf('completedAt');
+    if (iUser === -1) return { ok: true, completedLevels: 0 };
+
     var levelCountries = {};
     data.slice(1).forEach(function(row) {
+      if (String(row[iUser] || '').trim() !== uid) return;
       var obj = {};
-      headers.forEach(function(h, i) { obj[h] = row[i]; });
-      if (String(obj['userId'] || '').trim() !== uid) return;
+      obj['level']       = iLevel   === -1 ? '' : row[iLevel];
+      obj['country']     = iCountry === -1 ? '' : row[iCountry];
+      obj['completed']   = iDone    === -1 ? '' : row[iDone];
+      obj['updatedAt']   = iUpd     === -1 ? '' : row[iUpd];
+      obj['completedAt'] = iComp    === -1 ? '' : row[iComp];
       var lvl     = parseInt(obj['level'] || '0', 10);
       var country = String(obj['country'] || '').trim().toUpperCase();
       var c       = String(obj['completed'] || '').toLowerCase();
@@ -713,7 +787,7 @@ function getMyCompletedLevels(sessionToken) {
     } catch(e) {}
     var streakFreezes = 0;
     try { streakFreezes = _dcGetFreezes_(user.userId); } catch(e) {}
-    return {
+    var out = {
       ok: true,
       completedLevels: completedCount,
       lmsXp: lmsXp,
@@ -724,6 +798,11 @@ function getMyCompletedLevels(sessionToken) {
       lastActiveAt: lastActiveAt,
       streakFreezes: streakFreezes
     };
+    // Ten minutes, and invalidated the moment progress changes — so a student
+    // who finishes a level sees the new rank on the next poll, not in ten.
+    try { if (_cache) _cache.put(_gamCompletedCacheKey_(uid), JSON.stringify(out), GAM_COMPLETED_CACHE_SECS_); }
+    catch (e) {}
+    return out;
   } catch(e) {
     return { ok: false, completedLevels: 0, lmsXp: 0, mergedXp: 0, weeklyXp: 0, streakDays: 0, streakProtected: false, streakFreezes: 0 };
   }

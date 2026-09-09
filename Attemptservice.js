@@ -438,6 +438,12 @@ var AttemptService = {
 };
 
 var ProgressService = {
+  /* Invalidate the cached rank here, not at each caller.
+   *
+   * This is the durable write every completion path goes through — attempt
+   * submit, finalise and complete all land on it — so one invalidation covers
+   * all three. getMyCompletedLevels caches its answer for ten minutes; without
+   * this a student who finished a level would keep seeing the old rank. */
   updateUserProgress: function(user, scenario, opts) {
     opts = opts || {};
     var level = Number(scenario.level || user.currentLevel || 1);
@@ -704,8 +710,10 @@ var ProgressService = {
     dbWithScriptLock_(function() {
       if (existing) {
         dbUpdateByRow_('Progress', existing.__rowNumber, progressData);
+    try { gamInvalidateCompletedLevels_(user.userId); } catch (e) {}
       } else {
         dbAppend_('Progress', progressData);
+    try { gamInvalidateCompletedLevels_(user.userId); } catch (e) {}
       }
     });
 
