@@ -489,7 +489,7 @@ var UserService = {
         '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">' +
           row('✈️', 'Level 1 of the ATC radio simulator',
               'Real clearances read by real controller voices. You fly the aircraft and work the radio at the same time.') +
-          row('📝', 'One full ICAO mock test',
+          row('📝', 'One full ICAO practice test',
               'The complete examination, marked against all six ICAO descriptors.') +
         '</table>' +
 
@@ -512,7 +512,7 @@ var UserService = {
 
         '<p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:' + EC_.muted + ';">' +
           'When you are ready for more, the paid plans open the rest of the levels, ' +
-          'add emergency scenarios and give you more attempts at the mock test. ' +
+          'add emergency scenarios and give you more attempts at the practice test. ' +
           'You will find them inside the app — no rush.</p>' +
 
         '<p style="margin:22px 0 0;font-size:13px;line-height:1.6;color:' + EC_.muted + ';">' +
@@ -528,11 +528,11 @@ var UserService = {
         'Your account is ready. Nothing to approve, nothing to pay.\n\n' +
         'On the free plan you get:\n' +
         '  - Level 1 of the ATC radio simulator\n' +
-        '  - One full ICAO mock test, marked on all six descriptors\n' +
+        '  - One full ICAO practice test, marked on all six descriptors\n' +
         'It does not expire.\n\n' +
         'Put it on your phone: ' + installUrl + '\n\n' +
         'When you are ready, the paid plans open the rest of the levels, add ' +
-        'emergency scenarios and give you more mock test attempts.\n\n' +
+        'emergency scenarios and give you more practice test attempts.\n\n' +
         'Open aerocomms: ' + appUrl + '\n\n' +
         'Reply to this email if anything is unclear.';
 

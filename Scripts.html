@@ -1977,7 +1977,7 @@
     bar.id = 'trialBanner';
     bar.className = 'trial-banner';
     bar.innerHTML =
-      '<span>You are on the <strong>free plan</strong> \u00b7 Level 1 and one mock test</span>' +
+      '<span>You are on the <strong>free plan</strong> \u00b7 Level 1 and one practice test</span>' +
       '<button class="trial-banner-btn" onclick="openSubscriptionModal();">See plans</button>';
     var content = byId('contentArea');
     if (content && content.parentNode) content.parentNode.insertBefore(bar, content);
@@ -12772,7 +12772,7 @@ var LEVEL_THEMES = {
             // maxLevel and examAllowance from the server, and this line used to say
             // "three attempts" while Basic grants two — copy quietly disagreeing with
             // the gate it describes.
-            desc:     'The foundation levels of the ATC simulator, with mock test attempts to check where you stand.',
+            desc:     'The foundation levels of the ATC simulator, with practice test attempts to check where you stand.',
             savings:  null,
             popular:  false,
             months:   1
@@ -12784,7 +12784,7 @@ var LEVEL_THEMES = {
             // It also now means something it did not before: Basic reaches the
             // foundation levels, Full reaches Operational as well, so the two are
             // genuinely different products rather than the same one at two prices.
-            desc:     'Every level, including Operational as it is published, plus emergency scenarios and more mock test attempts.',
+            desc:     'Every level, including Operational as it is published, plus emergency scenarios and more practice test attempts.',
             savings:  'BEST VALUE',
             popular:  true,
             months:   1
@@ -12872,7 +12872,7 @@ var LEVEL_THEMES = {
           var featureList =
             '<ul style="list-style:none;margin:0 0 18px;padding:0;">' +
               _feat(uiIcon('tower'), '<strong>' + plan.maxLevel + ' levels</strong> of the ATC simulator', true) +
-              _feat(uiIcon('paper'), '<strong>' + plan.examAllowance + ' attempts</strong> at the ICAO mock test', true) +
+              _feat(uiIcon('paper'), '<strong>' + plan.examAllowance + ' attempts</strong> at the ICAO practice test', true) +
               (plan.emergencies
                 ? _feat(uiIcon('alert'), '<strong>Emergency simulation</strong>', true, 'danger') +
                   _feat(uiIcon('fire'), 'Engine failure, smoke and fire on board', false, 'danger') +
@@ -19849,7 +19849,7 @@ var LEVEL_THEMES = {
         _progPillarDivider('Interactive Rooms', 'rooms') +
         '<div id="progLmsCol"><div class="prog-section">' + _lmsLoadingSkeleton() + '</div></div>' +
 
-        _progPillarDivider('Mock Test Center', 'mock') +
+        _progPillarDivider('Practice Test Center', 'mock') +
         '<div id="progMockCol"><div class="prog-section">' + _lmsLoadingSkeleton() + '</div></div>' +
 
         _progPillarDivider('Radio Communications Simulator', 'simulator') +
@@ -20409,7 +20409,7 @@ var LEVEL_THEMES = {
     if (!full.length) {
       return '<div class="prog-section">' +
         '<p class="prog-empty-hint">' +
-          'No mock test taken yet. The ICAO Language Proficiency Test gives you a band ' +
+          'No practice test taken yet. The ICAO Language Proficiency Test gives you a band ' +
           'across all six descriptors and shows exactly where you stand.' +
           (practice ? ' (' + practice + ' section practice run' + (practice === 1 ? '' : 's') + ' so far.)' : '') +
         '</p>' +
@@ -28190,7 +28190,7 @@ var LEVEL_THEMES = {
       _startLoader.stop();
       window._teaStarting = false;
       _scStage('<div class="panel" style="margin:16px;text-align:center;">' +
-        '<p class="eyebrow" style="margin:0 0 6px;">Mock test</p>' +
+        '<p class="eyebrow" style="margin:0 0 6px;">Practice test</p>' +
         '<h3 style="margin:0 0 8px;">The server did not respond</h3>' +
         '<p style="font-size: 0.9rem;line-height:1.6;color:var(--muted,#808080);margin:0 0 16px;">' +
           'Nothing was started and no attempt was used. Please try again.</p>' +
@@ -28229,7 +28229,7 @@ var LEVEL_THEMES = {
 
   function _scInProgressHtml() {
     return '<div class="panel" style="margin:16px;text-align:center;">' +
-      '<p class="eyebrow" style="margin:0 0 6px;">Mock test</p>' +
+      '<p class="eyebrow" style="margin:0 0 6px;">Practice test</p>' +
       '<h3 style="margin:0 0 8px;">An examination is already running</h3>' +
       '<p style="font-size: 0.9rem;line-height:1.6;color:var(--muted,#808080);margin:0 0 16px;">' +
         'You have a sitting open on another device or tab. Finish it, or release it ' +
@@ -28253,11 +28253,11 @@ var LEVEL_THEMES = {
   function _scNoAttemptsHtml(al) {
     var used = Number((al && al.used) || 0);
     return '<div class="panel" style="margin:16px;text-align:center;">' +
-      '<p class="eyebrow" style="margin:0 0 6px;">Mock test</p>' +
+      '<p class="eyebrow" style="margin:0 0 6px;">Practice test</p>' +
       '<h3 style="margin:0 0 8px;">No attempts left</h3>' +
       '<p style="font-size: 0.9rem;line-height:1.6;color:var(--muted,#808080);margin:0 0 16px;">' +
         (al && al.isFree
-          ? 'The free plan includes one mock test, and you have used it. ' +
+          ? 'The free plan includes one practice test, and you have used it. ' +
             'Subscribe to sit the full exam and see your results.'
           : 'You have used all ' + used + ' attempts in this period. ' +
             'Your allowance refreshes when your plan renews.') +
@@ -28320,7 +28320,7 @@ var LEVEL_THEMES = {
       } catch (e) {}
       _sc.reserved = false;
       _scStage('<div class="panel" style="margin:16px;text-align:center;">' +
-        '<p class="eyebrow" style="margin:0 0 6px;">Mock test</p>' +
+        '<p class="eyebrow" style="margin:0 0 6px;">Practice test</p>' +
         '<h3 style="margin:0 0 8px;">Could not load the examination</h3>' +
         '<p style="font-size: 0.9rem;line-height:1.6;color:var(--muted,#808080);margin:0 0 16px;">' +
           'The server did not respond in time. No attempt was used.</p>' +
@@ -28424,7 +28424,7 @@ var LEVEL_THEMES = {
           console.warn('[ICAO test] scripted start failed:', _msg);
         }
         _scStage('<div class="panel" style="margin:16px;text-align:center;">' +
-          '<p class="eyebrow" style="margin:0 0 6px;">Mock test</p>' +
+          '<p class="eyebrow" style="margin:0 0 6px;">Practice test</p>' +
           '<h3 style="margin:0 0 8px;">The server took too long</h3>' +
           '<p style="font-size: 0.9rem;line-height:1.6;color:var(--muted,#808080);margin:0 0 16px;">' +
             'Nothing was started and no attempt was used. Please try again.</p>' +
