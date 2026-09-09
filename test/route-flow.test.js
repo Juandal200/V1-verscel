@@ -30,9 +30,38 @@ ok('a missing scenario does not stop it',/missing\.push\(id\)/.test(fin));
 ok('the client calls it before the debrief',
    S.indexOf('apiFinalizeRoute') > 0 &&
    S.indexOf('apiFinalizeRoute') < S.indexOf('apiGetTrainingDebrief'));
-ok('and the debrief opens even if it fails',
-   /apiFinalizeRoute[\s\S]{0,400}withFailureHandler\(function \(\) \{\}\)/.test(S) ||
-   /withFailureHandler\(function \(\) \{\}\)[\s\S]{0,400}apiFinalizeRoute/.test(S));
+/* This used to assert the failure handler was literally `function () {}`, as a
+ * proxy for "the debrief still opens". It is no longer empty — a route that never
+ * synced used to look identical to one that did, on both paths — so the proxy
+ * broke while the property it stood for held. Assert the property instead.
+ *
+ * Non-blocking means: the handler reports and adds a note, and does NOT stop the
+ * loading ticker, replace the screen, or short-circuit the debrief. */
+const SRCf = S.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/[^\n]*/g, '$1');
+function grabF(sig) {
+  const i = SRCf.indexOf(sig); if (i < 0) return null;
+  let d = 0;
+  for (let k = SRCf.indexOf('{', i); k < SRCf.length; k++) {
+    if (SRCf[k] === '{') d++; else if (SRCf[k] === '}') { d--; if (!d) return SRCf.slice(i, k + 1); }
+  }
+  return null;
+}
+const unsynced = grabF('function _finalizeUnsynced(');
+ok('a finalise failure is handled rather than swallowed',
+   /withFailureHandler\(function \(err\) \{ _finalizeUnsynced\(/.test(SRCf));
+ok('and reported, so a route that never synced is not invisible',
+   !!unsynced && /_reportClientError\('finalizeRoute'/.test(unsynced));
+ok('the debrief still opens — it does not stop the loading ticker',
+   !!unsynced && unsynced.indexOf('clearInterval') === -1);
+ok('nor replace the screen',
+   !!unsynced && !/contentArea'\)\.innerHTML\s*=/.test(unsynced));
+ok('nor short-circuit into the finished screen',
+   !!unsynced && unsynced.indexOf('_finishAndShow') === -1);
+ok('it only adds a note',
+   !!unsynced && /insertBefore\(note/.test(unsynced));
+// And it must not promise reconciliation the code only believes in.
+ok('and promises nothing about syncing by itself',
+   !!unsynced && !/will sync|automatically|come back/i.test(unsynced));
 
 console.log('--- the microphone is asked for once per route ---');
 ok('a held stream is reused',          /function _gMicReuse/.test(S));

@@ -10732,6 +10732,24 @@ p, li, td, th, h1, h2, h3, h4,
 }
 
 .home-stale-retry:hover { color: var(--accent); }
+
+/* The route could not be confirmed. Same restraint as the stale notice: the
+   student's answers are safe, only the roll-up is missing, so this is a state
+   to explain rather than an alarm to raise. */
+.completion-unconfirmed {
+  max-width: 520px; margin: 48px auto; padding: 28px 24px;
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.completion-unconfirmed h2 { margin: 0 0 10px; font-size: 1.15rem; color: var(--text); }
+.completion-unconfirmed p  { margin: 0 0 20px; font-size: 0.9rem; color: var(--muted); line-height: 1.55; }
+
+.completion-unconfirmed-actions {
+  display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+}
 .ff-sim-area { display: flex; flex-direction: column; gap: 14px; margin-bottom: 18px; }
 .ff-play-area { text-align: center; }
 .ff-play-btn {

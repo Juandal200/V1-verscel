@@ -11302,7 +11302,7 @@ var LEVEL_THEMES = {
       var _correct = Object.keys(AppState.training.serverConfirmedIds || {}).length;
       google.script.run
         .withSuccessHandler(function (res) {
-          if (!res || !res.ok) return;
+          if (!res || !res.ok) { _finalizeUnsynced((res && (res.message || res.error)) || 'unknown'); return; }
           if (res.progress) AppState.training.lastProgress = res.progress;
           if (res.lmsXpTotal !== undefined) window._lmsLmsXp = res.lmsXpTotal;
           if (res.lmsStreakDays) window._lmsStreakDays = res.lmsStreakDays;
@@ -11310,7 +11310,7 @@ var LEVEL_THEMES = {
           // here; the panel is shown after the debrief rather than over it.
           if (res.streakEvent) noteStreakEvent(res.streakEvent);
         })
-        .withFailureHandler(function () {})
+        .withFailureHandler(function (err) { _finalizeUnsynced((err && err.message) || err); })
         .apiFinalizeRoute(AppState.sessionToken, {
           scenarioIds:  _ids,
           correctCount: _correct,
@@ -11422,14 +11422,88 @@ var LEVEL_THEMES = {
         .apiGetTrainingDebrief(AppState.sessionToken, { level: level, country: country });
     }
 
-    // apiCompleteRoute saves progress atomically then returns all progress rows.
-    // This eliminates the race between apiSubmitAttempt and a plain apiGetMyProgress.
+    /* The server did not confirm the route, so the app does not act as though it
+     * had.
+     *
+     * _finish(null) used to run on both failure paths, and _finish is the whole
+     * ceremony: markCurrentRouteCompletedOnClient, buildCompletionCatalog, the
+     * certificate auto-save and the debrief. For a route the server has no record
+     * of. The student saw "ROUTE COMPLETE", closed the app, and came back to a
+     * level still locked — the same untruth A1 fixed on the home screen, arriving
+     * from the other direction.
+     *
+     * WHAT IS AND IS NOT LOST. apiSubmitAttempt appends to Attempts and calls
+     * updateUserProgress as each phase is answered, so the answers and the
+     * per-scenario progress are already banked. apiCompleteRoute is a
+     * reconciliation call — it re-derives the roll-up and returns it. So the copy
+     * says the route is unconfirmed, not that work was lost, because work was not
+     * lost.
+     *
+     * RETRYING IS SAFE. updateUserProgress recomputes completedScenarios from the
+     * Attempts sheet (Object.keys(map).length, not an increment) and writes with
+     * dbUpdateByRow_ when the row exists, so running it twice produces the same
+     * row. renderTrainingFinished is on window and is already re-entered from two
+     * onclick sites. */
+    /* Finalise is a re-sync, and its failure stays non-blocking.
+     *
+     * The comment above its call says the debrief still opens because the
+     * attempts are safe on the sheet — that is right, and unchanged. What was
+     * wrong is that it said nothing at all, on either path, so a route that never
+     * synced looked identical to one that did.
+     *
+     * A muted line, the same shape as the home screen's stale notice, and an
+     * explicit Retry. No claim that it will sync by itself: the code believes it
+     * rebuilds on the next route or refresh, and a belief is not something to put
+     * in front of a student as a promise. */
+    function _finalizeUnsynced(detail) {
+      try {
+        if (window._reportClientError) {
+          window._reportClientError('finalizeRoute', new Error(String(detail || 'unknown')));
+        }
+      } catch (e) {}
+      try {
+        if (_navToken !== _finishTok) return;
+        var host = byId('contentArea');
+        if (!host || document.getElementById('routeSyncNote')) return;
+        var note = document.createElement('div');
+        note.id = 'routeSyncNote';
+        note.className = 'home-stale-note';
+        note.innerHTML = 'Could not sync this route with the server. ' +
+          '<button type="button" class="home-stale-retry" ' +
+          'onclick="window.renderTrainingFinished && window.renderTrainingFinished()">Retry</button>';
+        host.insertBefore(note, host.firstChild);
+      } catch (e) {}
+    }
+
+    function _completionUnconfirmed(detail) {
+      clearInterval(_loadTick);
+      if (_navToken !== _finishTok) return;
+      try {
+        if (window._reportClientError) {
+          window._reportClientError('completeRoute', new Error(String(detail || 'unknown')));
+        }
+      } catch (e) {}
+      byId('contentArea').innerHTML =
+        '<div class="completion-unconfirmed">' +
+          '<h2>Route not confirmed</h2>' +
+          '<p>We couldn\u2019t confirm this route with the server. ' +
+             'Your answers are saved \u2014 tap Retry to finish.</p>' +
+          '<div class="completion-unconfirmed-actions">' +
+            '<button class="btn primary" onclick="window.renderTrainingFinished && window.renderTrainingFinished()">Retry</button>' +
+            '<button class="btn secondary" onclick="window.renderHome && window.renderHome()">Back to home</button>' +
+          '</div>' +
+        '</div>';
+    }
+
+    // apiCompleteRoute reconciles progress and returns all progress rows. The
+    // durable write already happened, per attempt, in apiSubmitAttempt.
     google.script.run
       .withSuccessHandler(function(res) {
-        _finish(res && res.ok ? res : null);
+        if (res && res.ok) { _finish(res); return; }
+        _completionUnconfirmed((res && (res.message || res.error)) || 'unknown');
       })
-      .withFailureHandler(function() {
-        _finish(null);
+      .withFailureHandler(function(err) {
+        _completionUnconfirmed((err && err.message) || err);
       })
       .apiCompleteRoute(AppState.sessionToken, { level: level, country: country });
   }
