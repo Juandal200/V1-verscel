@@ -10491,8 +10491,19 @@ var LEVEL_THEMES = {
       return !!(AppState.training.completedScenarioIds || {})['i' + i];
     }).length;
 
-    var ratingWidget = ok
-      ? '<div class="scenario-rating" id="scenarioRatingWidget">' +
+    /* Asked after every phase, not only the ones that went well.
+     *
+     * This was `ok ? widget : ''`, so feedback was collected exclusively from
+     * students who had just succeeded. A failed phase is where the useful signal
+     * is — what was confusing, what the audio did, whether the expected answer
+     * was reasonable — and none of it was ever asked for. Not a missing
+     * confirmation: a biased channel.
+     *
+     * Nothing in the handler needed changing. _fbScenarioSubmit never reads the
+     * outcome; it sends on stars or a comment, and the payload already carries
+     * scenarioId, level, country and phaseCode either way. */
+    var ratingWidget =
+        '<div class="scenario-rating" id="scenarioRatingWidget">' +
           '<p class="feedback-card-label">Rate this scenario</p>' +
           '<div class="star-row">' +
             '<button class="star-btn" onclick="window._fbStarSelect(1)">★</button>' +
@@ -10506,8 +10517,7 @@ var LEVEL_THEMES = {
             '<button class="feedback-btn easy" onclick="window._fbScenarioSubmit()">Submit rating</button>' +
             '<button class="feedback-btn skip" onclick="window._fbScenarioSkip()">Skip</button>' +
           '</div>' +
-        '</div>'
-      : '';
+        '</div>';
 
     var expectedHtml = res.expectedAnswer
       ? (function(s){ var l = String(s||'').toLowerCase(); return l.charAt(0).toUpperCase()+l.slice(1); })(res.expectedAnswer)
