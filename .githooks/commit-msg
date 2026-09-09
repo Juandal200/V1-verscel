@@ -1,0 +1,118 @@
+#!/usr/bin/env node
+/* Re-run what the commit body claims.
+ *
+ * CLAUDE.md rule 2 says a verification command and its REAL output go in every
+ * commit body. Three times in one week I typed the number I expected instead of
+ * the number the command printed — the last of them inside the commit that added
+ * a rule about exactly that. Discipline is demonstrably not the mechanism.
+ *
+ * FORMAT
+ *
+ *     $ grep -c '^## ' KNOWN_ISSUES.md
+ *     10
+ *
+ * Every line beginning `$ ` is re-run from the repo root and its stdout compared
+ * with the lines beneath it, up to the next `$`/`$!` or the next unindented
+ * line. A mismatch rejects the commit and prints both sides.
+ *
+ *     $! clasp deployments
+ *     - AKfycb... @667
+ *
+ * `$! ` means "ran, not replayable" — network calls, deploys, live probes,
+ * anything with a side effect or a moving answer. Skipped, and listed at the end
+ * so the human can see what was NOT checked. That half is still discipline; the
+ * point is to make the deterministic half impossible to get wrong.
+ *
+ * WHAT IT CANNOT CATCH: a claim that was never a command. The A2 audit list was
+ * wrong because a sentence overstated a pattern match, and no hook would have
+ * noticed. This closes one hole, not the class.
+ *
+ * It executes commands out of your own commit message, which is the same trust
+ * level as a Makefile in a repo you can already push to. Install:
+ *     git config core.hooksPath .githooks
+ */
+'use strict';
+const fs = require('fs');
+const { execSync } = require('child_process');
+
+const msgPath = process.argv[2];
+if (!msgPath) process.exit(0);
+const raw = fs.readFileSync(msgPath, 'utf8');
+const lines = raw.split('\n');
+
+let root = '.';
+try { root = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim(); } catch (e) {}
+
+const norm = (s) => s.replace(/\r/g, '').split('\n').map(l => l.replace(/\s+$/, ''))
+                     .join('\n').replace(/^\n+/, '').replace(/\n+$/, '');
+
+// Indented `$ cmd` / `$! cmd`, anywhere in the body.
+const CMD = /^(\s*)\$(!?)\s+(.+?)\s*$/;
+
+const checks = [];
+for (let i = 0; i < lines.length; i++) {
+  const m = lines[i].match(CMD);
+  if (!m) continue;
+  const [, indent, bang, cmd] = m;
+  /* The claimed output is the CONTIGUOUS block of lines directly beneath the
+   * command, at the command's indent or deeper. It ends at a blank line, at the
+   * next command, or at anything less indented — prose has resumed.
+   *
+   * The first version of this required the output to be indented DEEPER than the
+   * `$`, which is not how anyone writes it. It parsed nothing, found nothing to
+   * compare, and passed every message including the ones it was built to reject.
+   * A checker that silently approves is worse than no checker, and it took a
+   * deliberately-wrong message to notice. */
+  const claimed = [];
+  for (let j = i + 1; j < lines.length; j++) {
+    const l = lines[j];
+    if (CMD.test(l)) break;
+    if (l.trim() === '') break;
+    if (!l.startsWith(indent)) break;
+    claimed.push(l.slice(indent.length));
+  }
+  checks.push({ cmd, claimed: norm(claimed.join('\n')), replayable: bang !== '!', line: i + 1 });
+}
+
+if (!checks.length) process.exit(0);
+
+const bad = [], skipped = [];
+for (const c of checks) {
+  if (!c.replayable) { skipped.push(c); continue; }
+  if (c.claimed === '') continue;           // a command with no claimed output
+  let out = '';
+  try {
+    out = execSync(c.cmd, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 120000 });
+  } catch (e) {
+    out = (e.stdout || '') + (e.stderr || '');
+  }
+  const actual = norm(out);
+  // The body may quote a prefix of long output; require the claim to match the
+  // start of it, line for line, so an elided tail is allowed but a wrong number
+  // is not.
+  const a = actual.split('\n'), b = c.claimed.split('\n');
+  const ok = b.every((l, k) => a[k] !== undefined && a[k] === l);
+  if (!ok) bad.push({ c, actual });
+}
+
+if (skipped.length) {
+  console.error('\ncommit-msg: ' + skipped.length + ' command(s) marked $! and NOT re-run:');
+  skipped.forEach(s => console.error('  ' + s.cmd));
+}
+
+if (bad.length) {
+  console.error('\ncommit-msg: REJECTED — ' + bad.length + ' claimed output(s) do not match.\n');
+  bad.forEach(({ c, actual }) => {
+    console.error('  line ' + c.line + ':  $ ' + c.cmd);
+    console.error('    body claims:');
+    c.claimed.split('\n').forEach(l => console.error('      ' + l));
+    console.error('    actually prints:');
+    (actual || '(nothing)').split('\n').slice(0, 12).forEach(l => console.error('      ' + l));
+    console.error('');
+  });
+  console.error('Fix the body to match, or mark the command $! if it cannot be replayed.\n');
+  process.exit(1);
+}
+
+console.error('commit-msg: ' + (checks.length - skipped.length) + ' claimed output(s) re-run and matched.');
+process.exit(0);

@@ -100,3 +100,16 @@ looked again until an audit. If a change is partial, the subject says so. If it
 names a constant rather than removing a duplicate, the subject says that. The
 body can carry the reasoning; the subject is what someone scanning the log
 believes without reading further.
+
+## Verification output is re-run, not remembered
+Commit bodies carry commands and their output in this shape:
+
+    $ grep -c '^## ' KNOWN_ISSUES.md
+    12
+
+`.githooks/commit-msg` re-runs every `$ ` line from the repo root and rejects the
+commit if the output beneath it does not match. Install it once per clone:
+`git config core.hooksPath .githooks`. Use `$! ` for anything that cannot be
+replayed — network calls, deploys, live probes, timings — which is skipped and
+listed so nobody mistakes it for checked. It closes one hole, not the class: a
+claim that was never a command is still yours to get right.
