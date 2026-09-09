@@ -73,3 +73,77 @@ would have matched was already correct; the defect was in a key that was absent.
 
 **No ID** because it was found inside T-8's write-up rather than reported. If it
 needs tracking beyond this entry, the ID has to come from the bot.
+
+---
+
+## (no ID) — a green test asserting nothing: `tests/grader.test.js`
+
+**Status** Open. Needs an ID from the bot.
+
+`tests/` does not import the product. Each suite pastes a copy of the function
+under test into the test file, renamed to drop the underscore the original
+carries — `normalizeForGrading_` in `Attemptservice.js` becomes
+`normalizeForGrading` in `tests/grader.test.js`. Nothing checks that the copy
+still matches, so the copy is free to fall behind and the suite stays green.
+
+One already has:
+
+    product (Attemptservice.js:135)
+      .replace(/[^A-Z0-9\s]/g,' ').replace(/\s+/g,' ')
+      .replace(/\b(\d{1,2}) (\d{3})\b/g,'$1$2')      <-- joins split digits
+      .trim()
+
+    test copy (tests/grader.test.js)
+      .replace(/[^A-Z0-9\s]/g,' ').replace(/\s+/g,' ')
+      .trim()
+
+The digit-joining step is what makes "ONE TWO FIVE ZERO ZERO" and "12 500"
+normalise alike, which is most of what read-back grading turns on. The test
+grades against a normaliser the product stopped using, passes, and reports
+that grading works.
+
+**Why it is worse than no test** `extractSemanticTokens` in the same file is
+byte-identical to its original. So the file looks maintained — one function
+current, one stale, no way to tell which from the outside, and a green tick
+over both.
+
+**This is the F-0017a pattern, in the test suite.** F-0017a was a transcript
+kept in a second place that drifted from the first; the fix was to stop having
+a second copy. Same shape here: the fix is not to re-sync the copy, it is to
+stop copying. `test/report-access.test.js` and
+`test/admin-report-endpoint.test.js` now lift the real function out of the
+source file and run it, and cannot drift by construction.
+
+**Scope** All seven suites in `tests/` copy rather than lift, so all seven have
+the same exposure; `grader.test.js` is the one where the drift is confirmed.
+`telephonyDesignators.test.js` says so in its own header — "stubs (mirrors
+TTSService.js logic)".
+
+---
+
+## (no ID) — the level icons are sheet data, and the renderer prints them raw
+
+**Status** Open by decision. Recorded so a future sweep does not start it
+halfway.
+
+`LevelService.js` holds eleven emoji — nine in `_LEVEL_SEED_` and two in the
+Operational/Test rows — and they are written into the **Levels sheet** through
+`dbAppend_`. They are data, not markup. F-0010 left them alone for that reason.
+
+**What makes a half-migration break the level map.** The client renders the
+value raw:
+
+    Scripts.html:5481   '<div class="lms-module-icon">' + (locked ? … : (m.icon || …)) + '</div>'
+    Scripts.html:5418   icon: m.icon || base.icon || uiIcon('plane', 26)
+
+So a seed that emits `'plane'` instead of `'🛫'` prints the word **plane** on
+the level map for every row written after the change, while rows already in the
+sheet keep their emoji. Both halves have to land together:
+
+1. a renderer that maps a name to `uiIcon(name)` and still tolerates an emoji,
+   shipped **first**, so old rows keep working;
+2. the seed changed to names;
+3. a migration over the existing Levels rows.
+
+Per rule 6 the sheet cannot be read from the repo, so step 3 cannot be planned
+or verified from here.
