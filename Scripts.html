@@ -8267,6 +8267,12 @@ var LEVEL_THEMES = {
     } catch (e) { SimMedia.bgAudio = null; }
   }
 
+  /* Set for exactly one re-render, by Retry, and cleared the moment it is read.
+   * A flag rather than a parameter because renderScenarioStageImmersive takes
+   * none and is called from three places; giving it one would change two callers
+   * that have no opinion about autoplay. */
+  var _simSkipNextAutoplay = false;
+
   function simMediaInit(scenario) {
     SimMedia.isPaused = false;
     simMediaStartBg();
@@ -8281,6 +8287,21 @@ var LEVEL_THEMES = {
       AppState.training.replayThreshold,
       (AppState.training.sessionId || '') + '|' + ((scenario && scenario.scenarioId) || ''));
     var expectedIndex = Number(AppState.training.currentIndex || 0);
+
+    if (_simSkipNextAutoplay) {
+      _simSkipNextAutoplay = false;
+      /* Autoplay owns two things besides the sound: it disables the Replay button
+       * while the clearance is speaking, and it hides the hint that says so. Skip
+       * it and nobody does either — the freshly rendered markup would sit there
+       * claiming a clearance was playing, above a button that works.
+       *
+       * The button is already enabled: this markup was just built. Only the hint
+       * needs putting right. */
+      var _h = byId('atcAutoplayHint');
+      if (_h) _h.style.display = 'none';
+      return;
+    }
+
     setTimeout(function() {
       if (!byId('simFeedbackBox')) return;
       simMediaAutoPlayAtc(scenario, expectedIndex);
@@ -10611,10 +10632,26 @@ var LEVEL_THEMES = {
     box.innerHTML = allowHtml ? (message || '') : safeText(message || '');
   }
 
+  /* Retry gives the answer back, not the recording.
+   *
+   * It rebuilds the stage, which runs simMediaInit, which autoplays the
+   * clearance — and autoplay is free, by design, because hearing the message
+   * arrive is the exercise starting rather than a replay the student asked for.
+   *
+   * Together those two facts made Retry a way to hear the clearance again at no
+   * cost, while the Replay button beside it spent one of a limited number of
+   * listens. A student who wanted to hear it again pressed the free one. That is
+   * almost certainly what "the text does not unlock because they are all retry
+   * and not replay" was describing: the unlock counts replays, and they were not
+   * pressing replay.
+   *
+   * So Retry stops replaying. It clears what they typed and hands the turn back.
+   * Replay remains the only way to hear it again, and the only thing that costs. */
   function retryCurrentScenario() {
     simMediaStopAll();
     stopFlightDrift();
     AppState.training.scenarioStartMs = Date.now();
+    _simSkipNextAutoplay = true;
     renderScenarioStageImmersive();
   }
 
