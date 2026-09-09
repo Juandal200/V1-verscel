@@ -28,6 +28,90 @@ let fails = 0; const ok=(n,c)=>{if(!c)fails++;console.log((c?'  PASS  ':'  FAIL 
 const strip = t => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/[^\n]*/g, '$1');
 const Sc = strip(S), Tc = strip(T), TEAc = strip(TEA), PIPEc = strip(PIPE);
 
+/* Run the code, do not describe it.
+ *
+ * Most of this file matches patterns in source, which is the right tool for
+ * "the button is gone" and the wrong one for "the answer is correct". Six
+ * assertions below used to be regexes over sessionValid, written when it
+ * returned a boolean; F-0021 and D-1 changed the contract to
+ * null | { role, status } and the regexes went on matching nothing. They failed
+ * for a stale reason for weeks, which is worse than not existing, because a
+ * suite with permanent red in it trains everyone to stop reading it.
+ *
+ * And a regex could not have caught what was actually wrong. The catch branch
+ * returned { role: '' } with no status key, so paidPlan read undefined as a paid
+ * plan and shipped all six ICAO descriptors. Every line a pattern would have
+ * matched was correct. The defect was a key that was not there.
+ *
+ * So these lift the function out of the file and run it. */
+function grab(src, sig) {
+  const i = src.indexOf(sig);
+  if (i === -1) return null;
+  let d = 0;
+  for (let k = src.indexOf('{', i); k < src.length; k++) {
+    if (src[k] === '{') d++;
+    else if (src[k] === '}') { d--; if (!d) return src.slice(i, k + 1); }
+  }
+  return null;
+}
+
+const quietConsole = { warn() {}, error() {}, log() {} };
+
+/* Every answer Apps Script has actually been seen to give, plus the two ways it
+ * gives none at all. 'html' is the consent page api/gas.mjs documents. */
+function stubTransport(state) {
+  return async function () {
+    state.calls++;
+    if (state.mode === 'throw')   throw new Error('fetch failed');
+    if (state.mode === 'abort')   { const e = new Error('aborted'); e.name = 'AbortError'; throw e; }
+    if (state.mode === 'html')    return { text: async () => '<!doctype html><html>consent</html>' };
+    if (state.mode === 'garbage') return { text: async () => 'not json at all' };
+    if (state.mode === 'no')      return { text: async () => JSON.stringify({ ok: false }) };
+    if (state.mode === 'free')    return { text: async () => JSON.stringify({ ok: true, user: { role: 'STUDENT' }, accessStatus: { status: 'free'   } }) };
+    return                               { text: async () => JSON.stringify({ ok: true, user: { role: 'STUDENT' }, accessStatus: { status: 'active' } }) };
+  };
+}
+
+function liftSessionValid(src) {
+  const state = { calls: 0, mode: 'ok' };
+  const body  = grab(src, 'async function sessionValid(');
+  if (!body) return null;
+  /* Both names. api/tea.mjs reads GAS_AUTH_URL and api/tea-pipeline.mjs reads
+   * GAS_WEBHOOK_URL, and supplying only one left the other undefined — a
+   * ReferenceError, swallowed by the function's own catch, which made every
+   * mode return the fail-open answer and two assertions fail for a reason that
+   * had nothing to do with the code. Caught here rather than shipped, but it is
+   * the same trap this file exists to stop, so the reach check below is what
+   * actually guards it. */
+  const { sessionValid } = new Function('fetch', 'GAS_AUTH_URL', 'GAS_WEBHOOK_URL', 'console',
+    body + '\nreturn { sessionValid };')(stubTransport(state), 'stub://gas', 'stub://gas', quietConsole);
+  return async function (mode, token) {
+    state.mode = mode; state.calls = 0;
+    const caller = await sessionValid(token);
+    return { caller, calls: state.calls };
+  };
+}
+
+/* The handler's own line, lifted verbatim, so the check and the code cannot
+ * drift apart the way the last six did. */
+function liftPaidPlan(src) {
+  const line = (src.match(/const paidPlan = [^\n]+/) || [])[0];
+  return line ? new Function('caller', line + '\nreturn paidPlan;') : null;
+}
+
+function liftWithhold(src) {
+  const parts = [
+    (src.match(/const TEA_DESCRIPTORS = [^\n]+/) || [])[0],
+    grab(src, 'function withholdDescriptors('),
+    grab(src, 'function logServerError('),
+    grab(src, 'function withholdInMessage('),
+  ];
+  if (parts.some(x => !x)) return null;
+  return new Function('fetch', 'GAS_AUTH_URL', 'console',
+    parts.join('\n') + '\nreturn withholdInMessage;'
+  )(async () => ({ text: async () => '{}' }), 'stub://gas', quietConsole);
+}
+
 console.log('--- the admin panel has a reader ---');
 ok('there is a check',            /function _teaMayReadAdminReport\(\)/.test(Sc));
 ok('and the panel uses it',       /if \(av && _teaMayReadAdminReport\(\)\) \{/.test(Sc));
@@ -43,9 +127,40 @@ ok('and refuses when it cannot answer',    /catch \(e\) \{ return false; \}/.tes
 ok('the helper is actually exported',      /window\._lmsVisible\s*=\s*_lmsVisible/.test(Sc));
 
 console.log('--- and a redacted report has nothing to open ---');
-// {} is truthy, so the free tier drew the button onto an empty panel.
-ok('the redacted view carries null, not an empty object',
-   /admin_view: null/.test(Sc) && !/admin_view: \{\}/.test(Sc));
+/* {} is truthy, so the free tier drew the button onto an empty panel.
+ *
+ * This used to read Scripts.html, and it cannot any more — which is the point.
+ * D-1 deleted _teaRedactScores, because a client that redacts has already been
+ * sent the thing it is hiding (rule 5). The check moved to where the behaviour
+ * moved, and now runs it rather than describing it. */
+const withhold = liftWithhold(TEAc);
+ok('the withholding is where the browser cannot reach it', typeof withhold === 'function');
+if (withhold) {
+  const report = JSON.stringify({
+    student_view: { overall_band: 4, pronunciation: 5, structure: 5, vocabulary: 5,
+                    fluency: 5, comprehension: 5, interactions: 5, summary: 'Strong throughout.' },
+    admin_view:   { transcript: 'ATC: CLIMB FL350', technical_justification: 'band 5 evidence' }
+  });
+  const held = withhold(report, '');
+  const out  = JSON.parse(held.message);
+  ok('a report for a caller with no plan is withheld', held.withheld === true);
+  ok('all six descriptors are zeroed',
+     ['pronunciation','structure','vocabulary','fluency','comprehension','interactions']
+       .every(k => out.student_view[k] === 0));
+  ok('the band survives, so the paywall has something to sell',
+     out.student_view.overall_band === 4);
+  ok('the summary is emptied', out.student_view.summary === '');
+  ok('the redacted view carries null, not an empty object',
+     out.admin_view === null);
+  ok('and the examiner working is not in the message at all',
+     !/CLIMB FL350/.test(held.message) && !/band 5 evidence/.test(held.message));
+
+  // A spoken turn is not a payload, and must come back byte for byte.
+  const spoken = 'Thank you. Now describe the weather at your home airfield.';
+  const turn   = withhold(spoken, '');
+  ok('a spoken turn is returned untouched',
+     turn.withheld === false && turn.message === spoken);
+}
 
 console.log('--- the pipeline stops handing it to the browser ---');
 ok('only the student view is returned',
@@ -56,12 +171,20 @@ ok('admin_view is no longer in the response',
 ok('but it is still filed server-side',
    PIPEc.indexOf("action: 'apiSaveTEAResult'") < PIPEc.indexOf('res.status(200).json({ ok: true, student_view })'));
 
+async function main() {
+
 console.log('--- the two proxies ask who is calling ---');
-[['api/tea.mjs', TEAc], ['api/tea-pipeline.mjs', PIPEc]].forEach(([name, src]) => {
+for (const [name, src] of [['api/tea.mjs', TEAc], ['api/tea-pipeline.mjs', PIPEc]]) {
   ok(name + ' checks the origin',   /function originAllowed\(req\)/.test(src));
   ok(name + ' checks the session',  /async function sessionValid\(token\)/.test(src));
-  ok(name + ' refuses with a 403',
-     (src.match(/res\.status\(403\)\.json\(\{ ok: false, code: 'FORBIDDEN'/g) || []).length === 2);
+  /* This was an exact count of two, and F-0021 added a third refusal — the
+   * ADMIN_REPORT role gate — so it failed for having MORE security than when it
+   * was written. The property that matters is not how many refusals there are;
+   * it is that no refusal is a bare 403 the client cannot classify. */
+  const status403 = (src.match(/res\.status\(403\)/g) || []).length;
+  const coded403  = (src.match(/res\.status\(403\)\.json\(\{ ok: false, code: 'FORBIDDEN'/g) || []).length;
+  ok(name + ' refuses with a 403', status403 >= 2);
+  ok(name + ' and every refusal carries the code', coded403 === status403);
   ok(name + ' never answers a wildcard origin',
      !/setHeader\('Access-Control-Allow-Origin', '\*'\)/.test(src) &&
      !/APP_ORIGIN \|\| '\*'/.test(src));
@@ -76,33 +199,70 @@ console.log('--- the two proxies ask who is calling ---');
      !/if \(!APP_ORIGIN\) return true;/.test(src));
   ok(name + ' a missing Origin header is still not evidence',
      /if \(!origin\) return true;/.test(src));
-  /* The presence check is what carries the weight, and it is free: an anonymous
-   * caller has no token and is refused without Apps Script being asked anything.
-   *
-   * The round trip is deliberately the weakest link. Apps Script answers a
-   * non-browser client with an HTML consent page — every time, when probed from a
-   * terminal — and api/gas.mjs already documents that it does this under load and
-   * on cold starts. A validator that refused whenever it could not get an answer
-   * would 403 real candidates mid-examination. Only a parsed, explicit rejection
-   * refuses here. */
-  const sv = src.slice(src.indexOf('async function sessionValid'),
-                       src.indexOf('export default async function handler'));
-  ok(name + ' refuses a missing token without any round trip',
-     /if \(!token \|\| typeof token !== 'string'\) return false;/.test(sv) &&
-     sv.indexOf("return false") < sv.indexOf('fetch('));
-  ok(name + ' treats an HTML consent page as not-an-answer',
-     /\^\\s\*\(<!doctype\|<html\)/i.test(sv) && /allowing on token presence/.test(sv));
-  ok(name + ' refuses only on an explicit rejection',
-     /return j\.ok !== false;/.test(sv));
-  ok(name + ' and never on its own failure',
-     !/catch \(e\) \{[\s\S]{0,120}return false;\s*\n\s*\}/.test(sv));
-  ok(name + ' bounds the round trip', /setTimeout\(\(\) => ac\.abort\(\), 8000\)/.test(sv));
+
+  /* From here the function is EXECUTED. See the note at the top of the file:
+   * these were regexes written against a boolean sessionValid, they failed for
+   * a stale reason after F-0021 and D-1 changed the contract, and a regex could
+   * not have seen the missing status key that was shipping every descriptor. */
+  const run  = liftSessionValid(src);
+  const paid = liftPaidPlan(src);
+  ok(name + ' sessionValid can be lifted and run', typeof run === 'function');
+  ok(name + ' the handler computes a plan from what it returns', typeof paid === 'function');
+  if (run && paid) {
+    /* The presence check is what carries the weight, and it is free: an
+     * anonymous caller is refused without Apps Script being asked anything. */
+    let a = await run('ok', '');
+    ok(name + ' refuses a missing token', a.caller === null);
+    ok(name + ' without any round trip',  a.calls === 0);
+
+    a = await run('no', 'tok');
+    ok(name + ' refuses on an explicit rejection', a.caller === null);
+
+    /* And only on that. Apps Script answers a non-browser client with an HTML
+     * consent page, and api/gas.mjs documents it doing so under load and on cold
+     * starts. A validator that refused whenever it could not get an answer would
+     * 403 real candidates mid-examination. That is T-8: a deliberate trade, and
+     * the reason the next assertion is the one that matters. */
+    for (const mode of ['html', 'garbage', 'throw', 'abort']) {
+      a = await run(mode, 'tok');
+      ok(name + ' does not refuse on ' + mode + ', so a sitting survives it',
+         a.caller !== null);
+      /* D-1, and the fix in this batch. An unknown plan is a free plan. The
+       * catch branch used to omit status entirely, so paidPlan read undefined —
+       * neither 'free' nor '' — as PAID, and all six descriptors shipped on the
+       * one branch where the plan is least knowable. */
+      ok(name + ' but ' + mode + ' leaves the plan unknown, which withholds',
+         paid(a.caller) === false);
+    }
+
+    a = await run('free', 'tok');
+    ok(name + ' a real free plan withholds', paid(a.caller) === false);
+    a = await run('ok', 'tok');
+    ok(name + ' a real paid plan does not',  paid(a.caller) === true);
+    /* And the answer came from the transport, not from the function throwing on
+     * the way there. Without this, a harness that fails to supply a binding
+     * looks exactly like a proxy that refuses everything. */
+    ok(name + ' and that answer came from a real round trip', a.calls === 1);
+  }
+
+  ok(name + ' bounds the round trip', /setTimeout\(\(\) => ac\.abort\(\), 8000\)/.test(src));
   ok(name + ' validates before spending anything',
      src.indexOf('sessionValid(') < src.indexOf('GEMINI_API_KEY'));
-});
-ok('every client caller sends a session',
-   (Sc.match(/sessionToken:\s*AppState\.sessionToken/g) || []).length >= 4 &&
-   (Sc.match(/fetch\('\/api\/tea/g) || []).length === 4);
+}
+
+/* This asserted `fetch('/api/tea` appears exactly four times. It was stale at
+ * three and went green when F-0024 added a fourth — a count is not the property.
+ * The property is that no call site reaches these endpoints anonymously, so
+ * every one of them is found and read. */
+{
+  const sites = [];
+  for (let i = Sc.indexOf("fetch('/api/tea"); i !== -1; i = Sc.indexOf("fetch('/api/tea", i + 1)) sites.push(i);
+  // The body is sometimes built into a variable well above the call, so look back.
+  const carried = sites.filter(i => /sessionToken/.test(Sc.slice(Math.max(0, i - 1200), i + 500)));
+  ok('there are client callers to check', sites.length >= 3);
+  ok('every client caller sends a session (' + carried.length + '/' + sites.length + ')',
+     carried.length === sites.length);
+}
 
 console.log('--- filing a result needs a credential ---');
 ok('there is one',                /function _teaCallerAuthorised_\(data\)/.test(Tc));
@@ -131,5 +291,8 @@ console.log('--- and the admin door checks the role ---');
 ok('renderAdminNav refuses first',
    /function renderAdminNav\(\) \{[\s\S]{0,700}if \(!_lmsVisible\(\)\) \{ renderHome\(\); return; \}/.test(Sc));
 
-console.log(fails?('\n'+fails+' FAILING'):'\nall green');
-process.exit(fails?1:0);
+console.log(fails ? ('\n' + fails + ' FAILING') : '\nall green');
+process.exit(fails ? 1 : 0);
+}
+
+main().catch(e => { console.log('  FAIL  the suite itself threw: ' + e.message); process.exit(1); });
