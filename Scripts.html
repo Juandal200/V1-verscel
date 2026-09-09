@@ -26885,8 +26885,39 @@ var LEVEL_THEMES = {
   }
   window._teaSetPart = _teaSetPart;
 
+  /* How many times a recording may be heard, on each of three surfaces.
+   *
+   * T-7. Three counters exist and none of them knew the others did:
+   *
+   *   _DEFAULT_REPLAY_THRESHOLD  the SIMULATOR, declared near AtcReplayGate in
+   *                              the IIFE that opens at line 299. Unlocks the
+   *                              transmission text after that many plays.
+   *   TEA_MAX_LISTENS            the PRACTICE TEST, below. The count travels to
+   *                              the examiner in AUDIO_COMPLETE and caps the
+   *                              comprehension band.
+   *   SC_REC_REPLAYS             the SCRIPTED EXAM, below. Replays allowed on a
+   *                              Part 2 recording.
+   *
+   * THEY ARE NOT THE SAME NUMBER AND MUST NOT BE MADE ONE. They measure
+   * different things on different surfaces with different consequences, and the
+   * scripted exam is deliberately stricter — see SC_REC_REPLAYS. A test asserts
+   * all three are named and none is a bare literal; it does NOT assert they are
+   * equal, because they should not be. */
+
   // Two hearings maximum per listening item, per ICAO practice.
   var TEA_MAX_LISTENS = 2;
+
+  /* One replay in a scripted sitting, where practice allows two.
+   *
+   * Needing the repeat IS the comprehension evidence, and an examination grades
+   * it — so an ICAO sitting gives one and counts it, while practice can afford
+   * to be generous. This was a bare `1` written inline at the point of use, with
+   * nothing saying it was a decision rather than an oversight.
+   *
+   * IF YOU CHANGE THIS, LOOK AT THE LINE BELOW IT AT THE POINT OF USE. Setting a
+   * recording also seeds _t.listens for the same item, so the two counters touch
+   * there — that is deliberate, and it is the only place they do. */
+  var SC_REC_REPLAYS = 1;
 
   var EXAMINER_VOICE = 'en-GB-Chirp3-HD-Schedar';
   var EXAMINER_LANG  = 'en-GB';
@@ -28538,11 +28569,23 @@ var LEVEL_THEMES = {
       if (_sc.p3Images.indexOf(step.imageUrl) === -1) _sc.p3Images.push(step.imageUrl);
     }
 
-    // A recording is the material, not a prompt: it plays, it may be replayed once,
+    // A recording is the material, not a prompt: it plays, it may be replayed,
     // and the question about it arrives as its own step.
     if (step.kind === 'AUDIO') {
       _sc.lastRecording = step;
-      _sc.recReplaysLeft = 1;
+      _sc.recReplaysLeft = SC_REC_REPLAYS;
+      /* TWO COUNTERS MEET ON THESE TWO LINES, AND THAT IS DELIBERATE.
+       *
+       * _sc.recReplaysLeft is what the Replay button spends in a scripted
+       * sitting. _t.listens[id] is what travels to the examiner in
+       * AUDIO_COMPLETE and caps the comprehension band. The first play has
+       * already happened by the time this runs, so the listen count starts at
+       * one — not zero — or the examiner would be told the candidate never heard
+       * the recording it is about to question them on.
+       *
+       * They are seeded together and spent separately. Changing either without
+       * the other makes the exam grade against a number the student never saw:
+       * see the block above TEA_MAX_LISTENS for what each one means. */
       _t.listens[step.id] = 1;
       _setStatus('Listening · do not respond yet', 'speaking');
       _scStage('<div style="padding:28px 16px;text-align:center;">' +

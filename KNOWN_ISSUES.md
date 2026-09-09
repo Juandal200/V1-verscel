@@ -600,3 +600,71 @@ confirmation step is for, and it did its job.
 **What is genuinely established** is only the eight actions on
 `SERVER_ERROR_ACTIONS` in `shim.js`, each of which was read, migrated and
 asserted individually in `test/shim-server-errors.test.js`.
+
+---
+
+## T-7 — three replay counters, now named and deliberately unequal
+
+**Status** **Closed.** Not by unification — by naming, documenting and testing
+that they differ on purpose.
+
+Three counters, three surfaces, all measuring "times a recording was played",
+all feeding something a student is judged on, each written as if it were the
+only one:
+
+| surface | constant | value | what it does |
+|---|---|---|---|
+| simulator | `_DEFAULT_REPLAY_THRESHOLD` | 2 | unlocks the transmission text |
+| practice test | `TEA_MAX_LISTENS` | 2 | caps the comprehension band |
+| scripted exam | `SC_REC_REPLAYS` | 1 | replays allowed on a Part 2 recording |
+
+**Merging them would have been the wrong fix wearing the right rule's clothes.**
+They have different consequences, and the scripted exam is deliberately stricter
+— needing the repeat *is* the comprehension evidence, and an examination grades
+it. The test asserts each is named and none is a literal; it explicitly does
+**not** assert they are equal, and says so, so nobody "fixes" that later.
+
+**The real find was the coupling, not the literal.** Setting a Part 2 recording
+did two things on adjacent lines:
+
+    _sc.recReplaysLeft  = SC_REC_REPLAYS;   // what the Replay button spends
+    _t.listens[step.id] = 1;                // what the examiner is told
+
+Two counters that both feed grading, seeded together, spent separately, with
+nothing recording that this was intentional. The count starts at one rather than
+zero because the first play has already happened — otherwise the examiner is
+told the candidate never heard the recording it is about to question them on.
+Both sites now carry the reasoning, and each points at the other.
+
+Covered by `test/replay-counters.test.js`, red in both directions: restoring the
+literal fails 7 assertions, removing the coupling comment fails 4.
+
+---
+
+## (no ID) — three things that looked correct and did nothing
+
+**Status** Pattern, recorded. Two fixed, one fixed; the lesson is the entry.
+
+Within one week, three separate pieces of this codebase were doing nothing while
+appearing to work:
+
+1. **`feedbackCard.test.js`** asserted a "Show answer" button that
+   `renderAttemptFeedback` deliberately does not build. Green, and describing a
+   screen that does not exist — worse, describing the opposite of a decision.
+2. **`sendBeacon`** sent a bare string, so Vercel parsed it as `text/plain`, the
+   action resolved to `'unknown'`, and the proxy refused it before Apps Script
+   ever saw it. Every tab close since the feature shipped lost its final seconds.
+3. **`.githooks/commit-msg`** required output indented deeper than the `$`,
+   parsed nothing, compared nothing, and approved every message — including the
+   two written to be rejected.
+
+**The shape is identical in all three: success is the silent path.** A test that
+finds nothing to assert passes. A beacon that is refused returns no error to the
+page. A checker that parses no claims reports no mismatches. In each case the
+absence of work was indistinguishable from work that succeeded, so nothing ever
+said otherwise.
+
+**What caught each one** was not review. It was running the thing against a case
+that must fail: a deliberately wrong commit message, a replay of the proxy's own
+parsing, and a per-site confirmation of what the test claimed. See CLAUDE.md,
+"A silent success must be made to fail before it is trusted".

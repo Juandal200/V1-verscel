@@ -113,3 +113,12 @@ commit if the output beneath it does not match. Install it once per clone:
 replayed — network calls, deploys, live probes, timings — which is skipped and
 listed so nobody mistakes it for checked. It closes one hole, not the class: a
 claim that was never a command is still yours to get right.
+
+## A silent success must be made to fail before it is trusted
+Three times in one week something looked correct and did nothing: a test asserting
+a button that does not exist, a sendBeacon the proxy refused before Apps Script
+saw it, and a commit-msg hook that parsed no claims and approved everything. The
+shape is always the same — doing nothing and succeeding are the same observable.
+So for anything whose success is silent, construct the case that must fail and
+watch it fail. A green test, an accepted beacon and a passing hook are worth
+nothing until you have seen each of them reject something.
