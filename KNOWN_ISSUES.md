@@ -101,7 +101,8 @@ needs tracking beyond this entry, the ID has to come from the bot.
 
 ## (no ID) — a green test asserting nothing: `tests/grader.test.js`
 
-**Status** Open. Needs an ID from the bot.
+**Status** Fixed, `7a6fc26`–`a1ff9a2`. Kept for the record; still worth an ID if
+you want the history tracked.
 
 `tests/` does not import the product. Each suite pastes a copy of the function
 under test into the test file, renamed to drop the underscore the original
@@ -137,10 +138,27 @@ stop copying. `test/report-access.test.js` and
 `test/admin-report-endpoint.test.js` now lift the real function out of the
 source file and run it, and cannot drift by construction.
 
-**Scope** All seven suites in `tests/` copy rather than lift, so all seven have
-the same exposure; `grader.test.js` is the one where the drift is confirmed.
-`telephonyDesignators.test.js` says so in its own header — "stubs (mirrors
-TTSService.js logic)".
+**Scope** All seven suites in `tests/` copied rather than lifted, so all seven
+had the same exposure. Converting them found that four were green about a
+product that no longer exists, not one:
+
+- `grader` — the missing digit-join, plus a `clientEvaluate` carrying only the
+  fallback branch, so the curated-keywords rule that actually decides an attempt
+  was never tested.
+- `ttsDigits`, `telephonyDesignators`, `aircraftTypePrefix` — all asserted
+  spaced numerals (`"230" → "2 3 0"`, `"Boeing 7 4 7"`). The product speaks ICAO
+  words, and has for long enough that nobody can date the change.
+- `audioQueue` — `_atcPlaybackRate` pasted in as `return 1.0`, the whole
+  function gone.
+- `feedbackCard` — asserted a "Show answer" button and a hidden element holding
+  the expected read-back. Neither exists; `renderAttemptFeedback` withholds the
+  answer deliberately. The suite asserted the opposite of a decision, and
+  anyone who believed it would have put the answer back on screen.
+
+**Fixed by** lifting every function out of its source file and running it, and
+by merging the two directories so a second one cannot adopt a second method
+again. `test/run-all.js` fails the run if a `tests/` directory reappears with
+suites in it.
 
 ---
 
