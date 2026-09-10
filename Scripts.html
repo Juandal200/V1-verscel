@@ -284,6 +284,13 @@
     return take.metered && take.peak < _MIC_LOUD_RMS && take.dynamics < _MIC_DYNAMICS;
   }
 
+  /* The screen that owns this textarea may want to say what the microphone is
+   * doing. Optional, guarded, and identified by textarea: five screens share
+   * this recorder and only the simulator registers a hook. */
+  function _emitPhase(textareaId, phase) {
+    try { if (window._micPhase) window._micPhase(textareaId, phase); } catch (e) {}
+  }
+
   function _resetBtn(btn) {
     if (!btn) return;
     btn.classList.remove('listening', 'processing');
@@ -398,7 +405,15 @@
 
           // Silence never leaves the browser. No request, no transcript, no
           // answer in the box, and nothing for the grader to record.
-          if (!_micSpoke(_take, _durMs)) { _micNotHeard(btn); return; }
+          if (!_micSpoke(_take, _durMs)) {
+            _emitPhase(textareaId, '');
+            _micNotHeard(btn);
+            return;
+          }
+
+          // Not "live transcription": nothing was transcribed while they spoke.
+          // Whisper is batch — this is the round trip starting.
+          _emitPhase(textareaId, 'transcribing');
 
           // The clearance no longer travels with the audio.
           //
@@ -423,6 +438,7 @@
           .then(function(r) { return r.json(); })
           .then(function(data) {
             _resetBtn(btn);
+            _emitPhase(textareaId, '');
             if (data.ok && data.transcript) {
               if (_micIsEcho(data.transcript, expected, _take, _durMs)) {
                 _micNotHeard(btn);
@@ -444,6 +460,7 @@
           })
           .catch(function() {
             _resetBtn(btn);
+            _emitPhase(textareaId, '');
             _fallbackSpeechRec(textareaId, btnId, expected);
           });
         };
@@ -452,6 +469,7 @@
         _micMeterStart(stream);
         _gMicStartedAt = Date.now();
         _gMicRecorder.start();
+        _emitPhase(textareaId, 'recording');
       })
       .catch(function(err) {
         _gMicActive = false;
@@ -8816,27 +8834,46 @@ var LEVEL_THEMES = {
             '<article class="sim-readback-priority-card">' +
               '<div class="sim-section-title"><span>PILOT READ-BACK</span><span class="sim-helper-text">Repeat the clearance exactly as a pilot would.</span></div>' +
               '<textarea id="pilotReadback" class="sim-readback-priority-input" placeholder="Type your pilot read-back here..."></textarea>' +
-              // Microphone and Send on one row inside the pinned bar. Stacked full-width they
-                // were most of its height, and the bar is the part that must not grow.
-                '<div class="sim-answer-row">' +
-                  '<button id="simMicBtn" class="demo-mic-btn" onclick="startMicInput(\'pilotReadback\',\'simMicBtn\',\'\',window._simOnTranscript)">' +
-                    // A line symbol rather than an emoji: emoji render as a different
-                    // typeface at a different weight on every platform, and next to
-                    // instrument text they read as decoration rather than a control.
-                    '<span class="glyph">\u25CF</span> Speak</button>' +
-                  '<button id="simSendReadbackBtn" class="btn primary big-action" onclick="immersiveSendReadback()">Send</button>' +
+              /* One action, not two.
+                 *
+                 * Speak and Send used to share a row, at two different widths, above
+                 * a third button at a third width. Speaking is the input and typing
+                 * is the alternative to it, so there is one primary control and it
+                 * is the microphone. A typed answer is submitted with Enter, which
+                 * _commsKeyHandler has bound in every phase for as long as this
+                 * screen has existed.
+                 *
+                 * Stopping the recorder still does NOT submit. The transcript stays
+                 * on screen to be read and corrected first — _BASE_FIXES is a forty
+                 * entry table repairing terms Whisper mishears, it is known to be
+                 * incomplete, and grading is on keywords. Sending on stop would score
+                 * a correct read-back on a word the student never said. */
+                '<button id="simMicBtn" class="demo-mic-btn sim-speak-action" onclick="startMicInput(\'pilotReadback\',\'simMicBtn\',\'\',window._simOnTranscript)">' +
+                  // A line symbol rather than an emoji: emoji render as a different
+                  // typeface at a different weight on every platform, and next to
+                  // instrument text they read as decoration rather than a control.
+                  '<span class="glyph">\u25CF</span> Speak</button>' +
+                /* Practice again on the left, one slot on the right.
+                 *
+                 * That slot carries a status while something is happening and the
+                 * advance button once there is somewhere to advance to. They are
+                 * sequential — "Saving…" becomes "Next exercise" the moment the
+                 * server confirms — so they never need to co-exist, and the row
+                 * keeps one shape in every state.
+                 *
+                 * Present from the first render rather than revealed on the first
+                 * attempt: a row that appears later is a row that moves everything
+                 * under it. Practice again stays ABOVE the feedback panel, which is
+                 * the F-0011 fix — it used to be written into #simFeedbackBox and
+                 * landed below however many lines of feedback the attempt produced,
+                 * off the bottom of a 768px laptop. */
+                '<div id="simActionRow" class="sim-action-row">' +
+                  '<button class="btn secondary" onclick="retryCurrentScenario()">Practice again</button>' +
+                  '<span id="simStatusText" class="sim-status-text"></span>' +
                 '</div>' +
-                /* Retry and Next sit here, directly under Send.
-                 *
-                 * They used to be written into #simFeedbackBox, which is the last
-                 * block in this card — so Retry landed below the textarea, below
-                 * Speak, below Send AND below however many lines of feedback the
-                 * attempt produced. On a 768px-tall laptop it was off the bottom of
-                 * the screen, and the student had to scroll to try again.
-                 *
-                 * Empty and hidden until there is an attempt to act on. */
-                '<div id="simActionRow" class="sim-action-row" style="display:none;"></div>' +
-                '<div id="simFeedbackBox" class="sim-feedback-box"></div>' +
+                // Always rendered, showing its placeholder until there is a verdict,
+                // so nothing below it shifts when one arrives. Reserved space.
+                '<div id="simFeedbackBox" class="sim-feedback-box is-empty">Feedback appears after evaluation</div>' +
                 '<textarea id="studentAnswer" class="legacy-bridge-field"></textarea>' +
               '<textarea id="studentReadback" class="legacy-bridge-field"></textarea>' +
               '<textarea id="readbackInput" class="legacy-bridge-field"></textarea>' +
@@ -10079,29 +10116,38 @@ var LEVEL_THEMES = {
     return null;
   }
 
-  /* One button, found the same way by whoever is touching it.
+  /* The status slot, right of Practice again.
    *
-   * The send button is #simSendReadbackBtn and its label is "Send". Both halves
-   * of this looked it up as `.big-action` instead — the FIRST element with that
-   * class in the document — and the verdict renderer fills #simActionRow with
-   * more .big-action buttons a few lines before the reset would run. Two lookups
-   * that can disagree about which element they mean is not a state machine.
+   * This replaces a mechanism that no longer has anything to hold: state used to
+   * live on the Send button's own label, which meant two lookups that could
+   * disagree about which element they meant, and a restore literal that had
+   * drifted from the markup. There is no Send button now and the state is text
+   * in a slot, so there is nothing to disagree about.
    *
-   * The label is read off the button rather than written from a literal, because
-   * the literal was wrong: it restored "Send read-back" onto a button that had
-   * said "Send" since it was drawn, so the thirty-second safety net renamed it
-   * every time it fired. */
-  function _sendReadbackBtn() {
-    return document.getElementById('simSendReadbackBtn') ||
-           document.querySelector('.big-action[onclick*="immersiveSendReadback"]');
+   * The complete set is "Recording…", "Transcribing…", "Evaluating…", "Saving…".
+   * Nothing else is written here. */
+  function _simSetStatus(text) {
+    var el = byId('simStatusText');
+    if (el) el.textContent = text || '';
   }
 
-  function _resetSendReadbackBtn() {
-    var btn = _sendReadbackBtn();
-    if (!btn) return;
-    btn.disabled = false;
-    btn.textContent = btn.getAttribute('data-idle-label') || 'Send';
-  }
+  /* What the microphone is doing.
+   *
+   * Registered rather than called. The recorder is in its own IIFE and is shared
+   * by five screens; only this one has a slot to write to, so it ignores every
+   * textarea but its own. Guarded, because a bare cross-IIFE reference is the
+   * ReferenceError that locked every new student out in September.
+   *
+   * "Transcribing…" is what happens after the student stops, not while they
+   * speak. Whisper is batch here — record, stop, post, receive — so a label
+   * claiming live transcription during the recording would be the product
+   * describing something it does not do. */
+  window._micPhase = function (textareaId, phase) {
+    if (textareaId !== 'pilotReadback') return;
+    _simSetStatus(phase === 'recording'    ? 'Recording\u2026'
+                : phase === 'transcribing' ? 'Transcribing\u2026'
+                : '');
+  };
 
   function immersiveSendReadback() {
     var txt = byId('pilotReadback');
@@ -10112,19 +10158,15 @@ var LEVEL_THEMES = {
       return;
     }
 
-    var sendBtn = _sendReadbackBtn();
-    if (sendBtn) {
-      // Remembered here so the reset restores what was on it, not a guess.
-      if (!sendBtn.getAttribute('data-idle-label')) {
-        sendBtn.setAttribute('data-idle-label', sendBtn.textContent);
-      }
-      sendBtn.disabled = true;
-      sendBtn.textContent = 'Evaluating…';
-    }
+    _simSetStatus('Evaluating\u2026');
 
-    // Safety net: always re-enable after 30 s regardless of server response
+    // Safety net: the slot must not still say "Evaluating…" if nothing comes
+    // back. Only clears if that is still what it says — the verdict replaces the
+    // whole row, and wiping a "Saving…" or a Next exercise button thirty seconds
+    // later would be worse than the state it is guarding against.
     setTimeout(function() {
-      _resetSendReadbackBtn();
+      var el = byId('simStatusText');
+      if (el && el.textContent === 'Evaluating\u2026') el.textContent = '';
     }, 30000);
 
     syncImmersiveLegacyFields();
@@ -10924,22 +10966,25 @@ var LEVEL_THEMES = {
         : '') +
       ratingWidget;
 
+    /* The same two slots the card was drawn with, rebuilt.
+     *
+     * The right-hand one is a status until the server confirms and the advance
+     * button afterwards. "Saving…" is text rather than a disabled button now,
+     * but it is doing the same job it always did: correct on screen and not yet
+     * acknowledged, so there is nothing to click through with. An armed button
+     * here is the gap that produced phantom completions.
+     *
+     * Both labels read "Practice again". It said "Retry" on a failed attempt and
+     * "Practice again" on a passed one — the same control, named two things, and
+     * the student had to notice which. */
     var actions =
-      '<button class="btn secondary" onclick="retryCurrentScenario()">' + (ok ? 'Practice again' : 'Retry') + '</button>' +
-      (ok
-        ? (isCurrentScenarioCompleted()
-            ? '<button class="btn primary big-action" onclick="' + (isLast ? 'renderTrainingFinished()' : 'goToNextScenario()') + '">' +
-                (isLast ? 'Finish route and view debrief' : 'Next exercise') + '</button>'
-            // Correct on screen, not yet acknowledged by the server. Showing an
-            // armed button here would let the student click through before the
-            // phase is recorded — the gap that produced phantom completions.
-            : '<button class="btn primary big-action" disabled>Saving\u2026</button>')
-        : '');
+      '<button class="btn secondary" onclick="retryCurrentScenario()">Practice again</button>' +
+      (ok && isCurrentScenarioCompleted()
+        ? '<button class="btn primary big-action" onclick="' + (isLast ? 'renderTrainingFinished()' : 'goToNextScenario()') + '">' +
+            (isLast ? 'Finish route and view debrief' : 'Next exercise') + '</button>'
+        : '<span id="simStatusText" class="sim-status-text">' + (ok ? 'Saving\u2026' : '') + '</span>');
     var actionRow = byId('simActionRow');
-    if (actionRow) {
-      actionRow.innerHTML = actions;
-      actionRow.style.display = 'flex';
-    }
+    if (actionRow) actionRow.innerHTML = actions;
 
     // The reconcile pass repaints the same verdict — don't play it twice.
     if (!res._fromServer) {
@@ -10947,14 +10992,6 @@ var LEVEL_THEMES = {
       else     { SimAudio.wrong();   if (navigator.vibrate) navigator.vibrate([10, 60, 15]); }
     }
     setImmersiveFeedback(html, ok ? 'success' : 'danger', true);
-
-    // The verdict is on screen, so Send read-back is done evaluating.
-    //
-    // Its only reset was the 30-second safety net armed in immersiveSendReadback,
-    // and the verdict arrives in about two — so for the twenty-eight seconds
-    // after a student saw their score the button still said "Evaluating…" and
-    // was disabled. Nothing was broken; the screen just said it was.
-    _resetSendReadbackBtn();
 
     var input = byId('pilotReadback');
     if (input) input.disabled = true;
@@ -15397,7 +15434,7 @@ var LEVEL_THEMES = {
     try {
       var chip = document.createElement('div');
       chip.textContent = '+' + xp + ' XP';
-      var _anchor = document.getElementById('pilotReadback') || document.getElementById('simSendReadbackBtn');
+      var _anchor = document.getElementById('pilotReadback');
       var _sendRect = _anchor ? _anchor.getBoundingClientRect() : null;
       var sx = _sendRect ? (_sendRect.left + _sendRect.width / 2) : window.innerWidth / 2;
       var sy = _sendRect ? (_sendRect.top + _sendRect.height / 2) : window.innerHeight / 2;

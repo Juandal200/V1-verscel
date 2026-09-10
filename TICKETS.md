@@ -402,3 +402,90 @@ Whether it was withdrawn, merged into another ticket, never filed, or lost in th
 export is not answerable from what was sent. It is recorded here so the gap in
 the sequence is a known absence rather than something an auditor has to
 rediscover.
+
+---
+
+## Simulator read-back card — layout restructure
+
+**No bot ID.** QA-originated, delivered as three mockups plus a screenshot of the
+current build on 2026-09-09. Rule 8 forbids inferring one. When QA supplies the
+ID, rename this heading to `## <ID> — Simulator read-back card — layout
+restructure` and `test/tickets-ledger.test.js` will begin enforcing its shape;
+until then it is counted as prose and its fields are not checked.
+
+**Source** QA mockups · reported 2026-09-09
+**Severity** Medium — usability, no data or grading effect
+**Area** `renderScenarioStageImmersive`, Scripts.html:8728 · the
+`sim-readback-priority-card` article
+
+**Observed** Four controls at three different widths stacked down the card: Speak
+and Send share a row, Send is half-width, Retry is small and left-aligned below
+them, and the feedback panel appears only after an evaluation, so everything
+under it moves when results arrive.
+
+**Expected** The vertical order in the mockups: ATC header, replay dots + hint
+inline, transmission panel, read-back label + hint, textarea, one full-width
+primary action whose label follows state, an action row of "Practice again" left
+and status text right, and a feedback panel that is always present.
+
+**Done when** `STATED` The read-back card follows the mockup's vertical order on
+every level and every flight phase, Send is gone, and every Retry reads "Practice
+again".
+
+**Status** Fixed — built 2026-09-09 after the three blocking questions were
+answered by the reporter. Items 1-5 of the target order already matched; only the
+action, the row and the feedback panel changed.
+
+**Notes**
+
+*Single renderer confirmed.* `renderScenarioStageImmersive` (Scripts.html:8728)
+is the only builder of this card, called from three places. The practice test
+builds its own card around `#icaoReadback` (Scripts.html:11227). **But both
+textareas carry the class `sim-readback-priority-input`**, styled at eight places
+in Styles.html — so markup changes are safely scoped to the simulator and
+class-level CSS changes are not.
+
+*Enter is already bound and already submits.* `_commsKeyHandler`
+(Scripts.html:9163), capture phase on `document`: `if (e.key === 'Enter' &&
+!e.shiftKey)` → `_simSubmitReadback()`. Its comment records that this is
+deliberate in every phase. The typed path in the ticket needs no work.
+
+*Send has three callers, not one.* The button (8827), `_simSubmitReadback`
+(9133), and `_simOnTranscript` (9141), plus a `window.` export at 15135 with no
+external caller found. Deleting the button is safe; deleting
+`immersiveSendReadback` is not — it is the submission entry point for the
+keyboard path too, and must survive as a function.
+
+**The three answers, as given.** (1) Keep review-then-Enter: stopping the
+recorder does not submit. (2) Build a logical advance control from the layout —
+resolved as one right-hand slot holding a status while work is happening and the
+advance button once there is somewhere to go, since the two are sequential and
+cannot co-occur. (3) "Recording…" during and "Transcribing…" after, replacing
+"Live transcription…", which would have described something the product does not
+do.
+
+*Blocking question 1 — auto-submit on stop contradicts a deliberate decision.*
+`_simOnTranscript` submits only when Enter asked for it, and its comment states
+why: "tapping the mic to stop should still leave the transcript on screen to be
+read and edited." Whisper systematically mishears aviation terms — `_BASE_FIXES`
+is a forty-entry repair table that exists for exactly that reason and is
+known-incomplete. Auto-submitting on stop removes the student's only chance to
+correct a misheard transcript before it is graded on keywords.
+
+*Blocking question 2 — the target action row has nowhere for "Next exercise".*
+The verdict renderer (Scripts.html:10928) puts Practice again beside either
+"Next exercise" / "Finish route and view debrief", or a disabled "Saving…" while
+the server has not yet confirmed. The ticket's status set is "Live
+transcription…", "Evaluating…", "Saving…" and no others. If "Saving…" becomes
+status text and nothing replaces the primary button, route progression has no
+control.
+
+*Blocking question 3 — "Live transcription…" would not be true.* The string does
+not exist in the codebase and neither does any level meter. Transcription here is
+batch: record, stop, POST to `/api/whisper`, receive a transcript. Nothing is
+transcribed while the student is speaking, which is the state the mockup shows
+that label in.
+
+*Not in scope, and confirmed distinct.* Only one "Retry" in this card
+(Scripts.html:10928). The other 30+ in Scripts.html belong to the home reconnect,
+the exams, the TEA examiner and the test-result screens.

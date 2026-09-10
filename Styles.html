@@ -3679,6 +3679,36 @@ body.sim-paused #simMediaPauseBtn {
   flex-wrap: wrap;
 }
 
+/* The read-back card's one primary action. */
+.sim-speak-action { width: 100%; }
+
+/* The dot is a control marker, not decoration, so it takes the text colour and
+   sits on the baseline rather than floating like an emoji. It used to be styled
+   through .sim-answer-row, the wrapper the two-button row needed. */
+.demo-mic-btn .glyph { font-size: 0.72rem; opacity: .75; vertical-align: middle; }
+
+/* The slot right of Practice again: a status while something is happening, the
+   advance button once there is somewhere to go. */
+.sim-status-text {
+  align-self: center;
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* Reserved space, so nothing moves when a verdict arrives.
+   Written on the ID rather than .sim-feedback-box, which is declared TWICE at
+   top level in this file — line 2770 and line 3958, differing on exactly this
+   property — so the first is already dead and editing it would do nothing. An
+   ID outranks both and cannot land on the wrong copy. */
+#simFeedbackBox { min-height: 150px; }
+#simFeedbackBox.is-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-style: italic;
+}
+
 .big-action {
   min-width: 180px;
   font-size: 0.9rem;
@@ -13178,23 +13208,6 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
       max-height: 88px !important;
       margin-bottom: 8px !important;
     }
-    /* One row, from a wrapper the markup now provides. The two buttons were siblings
-       before, so no amount of inline-flex on them could put them side by side. */
-    .sim-answer-row {
-      display: flex !important;
-      gap: 8px !important;
-      align-items: stretch !important;
-    }
-    .sim-answer-row .demo-mic-btn {
-      flex: 0 0 auto !important;
-      width: auto !important;
-      min-width: 104px !important;
-      margin: 0 !important;
-    }
-    .sim-answer-row .btn { flex: 1 1 auto !important; width: auto !important; margin: 0 !important; }
-    /* The dot is a control marker, not decoration, so it takes the text colour and
-       sits on the baseline rather than floating like an emoji. */
-    .sim-answer-row .glyph { font-size: 0.72rem; opacity: .75; vertical-align: middle; }
 
     /* When the keyboard opens, iOS shrinks the visual viewport rather than the layout
        one, so a bar fixed to the bottom of the page ends up behind the keyboard. The

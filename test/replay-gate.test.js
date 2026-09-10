@@ -64,13 +64,26 @@ const card = Sc.slice(Sc.indexOf('sim-readback-priority-card'),
 ok('the row has its own element',   /id="simActionRow"/.test(card));
 ok('it sits above the feedback box',
    card.indexOf('simActionRow') < card.indexOf('id="simFeedbackBox"'));
-ok('and directly below Send',
-   card.indexOf('simSendReadbackBtn') < card.indexOf('simActionRow'));
-ok('empty until there is something to act on', /id="simActionRow"[^>]*display:none/.test(card));
+/* Was: "and directly below Send". Send is gone — one full-width action replaced
+ * the Speak/Send pair — and that assertion did not fail when it went, because
+ * indexOf returned -1 for the missing id and -1 is less than everything. A test
+ * that passes because its subject vanished is worse than one that fails. It is
+ * anchored on an id that must exist now. */
+ok('the one action is really there', /id="simMicBtn"/.test(card));
+ok('and the row sits directly below it',
+   card.indexOf('simMicBtn') < card.indexOf('simActionRow'));
+/* Was: "empty until there is something to act on", asserting display:none. The
+ * row is present from the first render now — a row that appears on the first
+ * attempt is a row that moves everything under it when it does. The reachability
+ * this section exists to protect is unchanged and asserted above. */
+ok('the row is present from the first render',
+   /id="simActionRow"/.test(card) && !/id="simActionRow"[^>]*display:none/.test(card));
+ok('and is drawn with both of its slots',
+   /Practice again<\/button>/.test(card) && /id="simStatusText"/.test(card));
 ok('the feedback html no longer carries the buttons',
    !/'<div class="sim-action-row">'/.test(Sc));
 ok('they are written to the row instead',
-   /actionRow\.innerHTML = actions;/.test(Sc) && /actionRow\.style\.display = 'flex';/.test(Sc));
+   /actionRow\.innerHTML = actions;/.test(Sc));
 
 console.log('--- F-0011 · the rating says what happened ---');
 /* Anchor on the ASSIGNMENT, not the name. The name appears first inside an
