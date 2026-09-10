@@ -205,6 +205,9 @@
 
   </div>
   <img id="appLogoHidden" src="<?!= getLogoUrl() ?>" alt="" style="display:none">
+  <!-- Generated geodata: paths and the projection. Must precede Scripts, which
+       reads window.LM_MAP and window.LM_PROJECT. -->
+  <?!= include('MapData'); ?>
   <?!= include('Scripts'); ?>
   <script>
     // On Vercel: wait for shim to load APP_CONFIG before booting the app.

@@ -6694,50 +6694,26 @@ var LEVEL_THEMES = {
    * break offline outright. The coastlines are one coarse path per landmass and
    * the projection is three lines of equirectangular arithmetic. */
 
-  var _LM_W = 1180, _LM_H = 500, _LM_LAT_T = 80, _LM_LAT_B = -58;
-  function _lmX(lon) { return (Number(lon) + 180) / 360 * _LM_W; }
-  function _lmY(lat) { return (_LM_LAT_T - Number(lat)) / (_LM_LAT_T - _LM_LAT_B) * _LM_H; }
+  /* The stage is whatever MapData.html was generated at. Nothing here picks a
+   * dimension: the paths and the projection were fitted together, and a width
+   * chosen independently would put every pin off its country. */
+  var _LM_W = (window.LM_MAP && window.LM_MAP.W) || 1600;
+  var _LM_H = (window.LM_MAP && window.LM_MAP.H) || 885;
+
+  /* lon/lat to stage pixels, through the generated Natural Earth projection.
+   *
+   * Guarded and via window: this code is inside an IIFE and LM_MAP is defined by
+   * a separate <script>. Without it there is no map to draw, so this answers the
+   * origin rather than throwing — one missing include must not take navigation
+   * down with it. */
+  function _lmPt(lon, lat) {
+    if (!window.LM_PROJECT) return { x: 0, y: 0 };
+    return window.LM_PROJECT(lon, lat);
+  }
 
   /* Coarse coastlines, lon/lat pairs. Deliberately low fidelity: this is a
    * backdrop that has to read at 1100px on a dark ground, not an atlas. */
-  /* Coastlines as lon/lat pairs, one closed path per landmass.
-   *
-   * Still hand-authored and still stylised — no library, no remote tiles, because
-   * sw.js caches only '/' and a tile source would break offline outright. But
-   * coarser than this stopped reading as a world map: it was four blobs with no
-   * Scandinavia, no Hudson Bay, no Red Sea, no Caribbean and no Korea, and the
-   * pins sat on shapes a student could not name.
-   *
-   * test/level-map-parity.js checks every country pin lands INSIDE its own
-   * landmass, which is what catches an outline drawn wrong rather than merely
-   * drawn simply. */
-  var _LM_LAND = {
-    north_america:[-168,65.5,-166,68,-160,70,-156,71,-148,70,-141,69.5,-133,69,-125,70,-115,68,-105,68.5,-95,70,-85,70,-80,73,-78,68,-82,65,-87,64,-92,62,-95,59,-92,57,-87,56,-82,55,-79,52,-78,56,-76,60,-73,62,-70,60,-64,60,-60,56,-56,51,-60,47,-66,45,-70,42,-74,40,-75,35,-81,32,-80,26,-82,25,-84,30,-89,29,-94,29,-97,26,-97,22,-95,19,-91,19,-88,21,-87,16,-83,15,-79,9,-83,9,-87,13,-92,15,-97,16,-105,20,-110,23,-114,28,-114,32,-117,32,-121,35,-124,40,-124,48,-128,51,-132,54,-136,58,-140,60,-145,60,-150,59,-152,58,-158,56,-162,58,-166,60],
-    baffin:[-80,67,-72,68,-62,66,-64,70,-68,72,-78,73,-82,70],
-    greenland:[-45,60,-42,62,-38,65,-32,68,-25,70,-21,70,-19,73,-22,76,-28,79,-35,82,-45,83,-55,82,-62,80,-66,78,-70,76,-66,72,-60,68,-55,65,-50,62],
-    iceland:[-24,65,-19,66,-14,65,-18,64,-22,64],
-    south_america:[-77,8,-76,5,-72,12,-71,12,-66,11,-62,10,-60,8,-57,6,-52,5,-50,0,-48,-1,-44,-2,-41,-3,-38,-5,-35,-6,-35,-8,-38,-13,-39,-14,-41,-22,-44,-23,-48,-25,-49,-28,-53,-33,-57,-35,-57,-38,-62,-39,-62,-42,-65,-43,-65,-47,-68,-50,-69,-52,-71,-54,-75,-53,-74,-49,-75,-46,-73,-42,-73,-37,-71,-33,-70,-25,-70,-18,-71,-17,-76,-14,-79,-8,-81,-6,-80,-3,-80,-2,-78,1,-78,5],
-    cuba:[-85,22,-80,23,-75,20,-78,20,-82,21],
-    hispaniola:[-74,20,-69,19,-68,18,-72,18],
-    eurasia:[-9,37,-9,39,-9,43,-8,44,-2,43,-1,46,-2,47,-4,48,-1,49,2,51,4,52,7,53,8,55,11,55,13,54,15,54,19,55,21,56,24,57,24,59,28,60,30,60,25,65,22,66,21,64,18,63,17,61,12,59,11,58,8,58,5,60,6,62,10,64,13,67,16,69,21,70,26,71,31,70,35,68,40,66,44,66,49,69,55,68,60,69,66,68,70,73,74,73,78,72,82,72,87,75,100,77,106,77,111,76,113,73,120,73,128,73,136,72,140,73,146,72,152,70,158,70,162,69,170,69,179,69,180,65,175,63,170,60,163,58,162,56,158,53,156,51,156,57,160,60,163,62,160,55,155,50,143,59,142,54,140,53,135,55,132,53,130,50,128,45,130,43,128,40,126,38,126,35,122,37,122,31,118,24,110,21,108,18,106,10,105,10,104,1,103,2,100,6,98,8,95,16,92,21,90,22,87,21,81,16,80,13,77,8,73,15,72,20,68,23,67,25,61,25,57,25,57,20,52,17,45,12,43,13,40,20,36,28,35,31,32,31,27,32,18,30,12,33,10,37,15,38,18,40,23,38,27,41,30,41,36,41,39,44,38,47,32,46,30,45,28,43,26,42,23,42,19,42,16,41,13,45,12,44,9,44,3,43,-1,44],
-    britain:[-5,50,-4,50,-1,51,1,51,-1,54,-3,55,-2,57,-4,58,-6,58,-5,56,-3,54,-5,53,-4,52],
-    ireland:[-10,52,-6,52,-6,55,-8,55,-10,54],
-    svalbard:[11,77,22,78,25,80,15,80],
-    japan:[130,32,131,31,132,33,135,34,137,35,139,35,140,38,141,41,141,45,145,44,143,42,140,40,138,37,136,35,133,34,131,33],
-    sakhalin:[142,46,143,51,143,54,141,52,141,47],
-    srilanka:[80,9,82,7,81,6,80,6,79,8],
-    africa:[-17,15,-17,21,-16,24,-14,27,-11,28,-6,36,0,37,5,37,10,37,11,34,16,32,20,32,25,32,32,31,34,29,35,24,37,22,39,18,43,13,45,11,48,12,51,12,51,10,49,5,45,3,42,-1,40,-3,40,-6,40,-11,35,-17,33,-20,32,-26,31,-29,28,-33,25,-34,20,-35,18,-34,15,-27,13,-23,12,-17,13,-13,12,-9,12,-6,9,-1,6,4,3,6,0,5,-3,5,-7,4,-10,6,-13,9,-16,12],
-    madagascar:[44,-16,49,-13,50,-16,48,-25,45,-25,43,-22],
-    sumatra:[95,6,98,4,102,0,105,-6,103,-6,100,-2,97,2],
-    borneo:[109,2,113,3,117,4,119,2,118,-2,116,-4,111,-3,109,0],
-    sulawesi:[119,-1,121,0,125,1,125,-2,122,-3,121,-5,120,-3],
-    philippines:[121,18,122,14,124,11,126,7,125,6,122,10,120,13,120,16],
-    newguinea:[131,-1,135,-2,141,-3,147,-6,150,-9,147,-9,141,-8,136,-5,131,-3],
-    australia:[113,-22,114,-26,115,-32,118,-34,122,-34,126,-32,129,-32,133,-32,136,-35,138,-35,140,-38,144,-38,146,-39,148,-38,150,-37.5,152,-35,152.5,-33,153,-31,153.5,-28,153.5,-25,151,-23,149,-21,146,-19,142,-11,141,-13,138,-12,136,-12,132,-11,130,-12,127,-14,124,-16,122,-18,118,-20,114,-22],
-    tasmania:[145,-41,148,-41,148,-43,146,-43],
-    newzealand_n:[173,-35,175,-37,177,-38,178,-38,176,-41,174,-41,173,-39,172,-36],
-    newzealand_s:[173,-41,174,-42,172,-45,169,-47,167,-46,166,-45,170,-43,171,-41]
-  };;
+;
 
   /* Where each level sits, and where its card sits.
    *
@@ -6762,16 +6738,22 @@ var LEVEL_THEMES = {
    * A popover anchored to its own pin cannot collide, because only one is open.
    * So the layout has one number per country now instead of four, and there is
    * nothing left to place by hand. */
+  /* Country centroids, not cities.
+   *
+   * These used to be an airport apiece — New York for the US, Sydney for
+   * Australia — which put each pin on a coast rather than on a country. On a
+   * projection fitted to the whole land mass the centroid is what reads as
+   * "this country", which is what the pin's chip claims to mark. */
   var _LM_PLACE = {
-    US: { lon: -73.8,  lat: 40.6  },
-    GB: { lon: -0.45,  lat: 51.5  },
-    CO: { lon: -74.1,  lat: 4.7   },
-    CA: { lon: -123.2, lat: 49.2  },
-    BR: { lon: -46.5,  lat: -23.4 },
-    IN: { lon: 72.9,   lat: 19.1  },
-    MX: { lon: -99.1,  lat: 19.4  },
-    AU: { lon: 151.2,  lat: -34   },
-    ZA: { lon: 28.2,   lat: -26.1 }
+    US: { lon: -98.5,  lat: 39.8  },
+    GB: { lon: -2.0,   lat: 54.0  },
+    CO: { lon: -73.5,  lat: 4.0   },
+    CA: { lon: -106.0, lat: 56.0  },
+    BR: { lon: -51.0,  lat: -10.5 },
+    IN: { lon: 78.9,   lat: 21.0  },
+    MX: { lon: -102.5, lat: 23.5  },
+    AU: { lon: 134.0,  lat: -25.3 },
+    ZA: { lon: 24.5,   lat: -29.0 }
   };
 
   // The checkpoints sit between the tiers they join, out over water.
@@ -6987,14 +6969,13 @@ var LEVEL_THEMES = {
     var uid = 'lm' + Date.now().toString(36);
     var unplaced = [];
 
-    var geo = '';
-    Object.keys(_LM_LAND).forEach(function (k) {
-      var a = _LM_LAND[k], d = '';
-      for (var i = 0; i < a.length; i += 2) {
-        d += (i ? 'L' : 'M') + _lmX(a[i]).toFixed(1) + ' ' + _lmY(a[i + 1]).toFixed(1) + ' ';
-      }
-      geo += '<path d="' + d + 'Z"/>';
-    });
+    /* Two paths, generated. Land is a FILLED shape and the stroke is only its
+     * edge — the silhouette reads by the fill, which is why the outline can be
+     * hairline and solid instead of the dotted trace it replaces. Borders are the
+     * internal country lines, unfilled. */
+    var m   = window.LM_MAP || { land: '', borders: '' };
+    var geo = '<path class="lm-land" d="' + m.land + '"/>' +
+              '<path class="lm-borders" d="' + m.borders + '"/>';
 
     // The route, level to checkpoint to level, in the order a student walks it.
     var seq = [];
@@ -7048,7 +7029,8 @@ var LEVEL_THEMES = {
     var anchors = '';
     countryOrder.forEach(function (code) {
       var g = byCountry[code];
-      var x = _lmX(g.place.lon), y = _lmY(g.place.lat);
+      var _p = _lmPt(g.place.lon, g.place.lat);
+      var x = _p.x, y = _p.y;
       g.levels.sort(function (a, b) { return a.level - b.level; });
 
       var allDone = g.levels.every(function (m) { return m.isCompleted; });
@@ -7122,6 +7104,7 @@ var LEVEL_THEMES = {
     tiers.forEach(function (t) {
       var at = _LM_CP[t.examNum];
       if (!at) return;
+      var _lmCpPt = _lmPt(at.lon, at.lat);
       var all = (window.AppState && AppState.examStatus) || [];
       var info = null;
       for (var i = 0; i < all.length; i++) if (Number(all[i].examNum) === t.examNum) info = all[i];
@@ -7151,8 +7134,8 @@ var LEVEL_THEMES = {
        * keyboard as well as by mouse rather than merely looking unavailable. */
       cpMarks +=
         '<button type="button" class="lm-cp lm-cp--' + safeText(status) + '"' +
-          ' style="left:' + _lmX(at.lon).toFixed(1) +
-          'px;top:' + _lmY(at.lat).toFixed(1) + 'px;"' +
+          ' style="left:' + _lmCpPt.x.toFixed(1) +
+          'px;top:' + _lmCpPt.y.toFixed(1) + 'px;"' +
           ' aria-label="Checkpoint ' + t.examNum + ' — ' + safeText(label) + '. ' + safeText(sub) + '"' +
           ' ' + _examActionFor(t.examNum, status) + '>' +
           '<span class="lm-cp-ring">' + uiIconInline(mark) + '</span>' +

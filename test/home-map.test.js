@@ -52,12 +52,23 @@ const homeMap = (function () {
     uiIconInline: () => '<svg></svg>',
     safeText: v => String(v == null ? '' : v).replace(/[<>&]/g, ''),
     AppState: { training: {}, examStatus: [] },
-    window: {},
+    /* The generated map, stubbed. The real MapData.html is 72KB of path data and
+       none of these assertions are about its shape — what they check is that the
+       renderer places markers THROUGH the projection rather than by hand. */
+    window: {
+      LM_MAP: { W: 1600, H: 885, scale: 285, tx: 800, ty: 450, land: 'M0 0Z', borders: 'M0 0Z' },
+      LM_PROJECT: function (lon, lat) {
+        var l = Number(lon) * Math.PI / 180, p = Number(lat) * Math.PI / 180;
+        var p2 = p * p, p4 = p2 * p2;
+        var x = l * (0.8707 - 0.131979 * p2 + p4 * (-0.013791 + p4 * (0.003971 * p2 - 0.001529 * p4)));
+        var y = p * (1.007226 + p2 * (0.015085 + p4 * (-0.044475 + 0.028874 * p2 - 0.005916 * p4)));
+        return { x: 800 + 285 * x, y: 450 - 285 * y };
+      }
+    },
     Object, Number, String, Math, JSON, Date, console
   };
   const src = [
-    grab('var _LM_W = 1180'), grab('function _lmX(lon)'), grab('function _lmY(lat)'),
-    'var _LM_LAND = ' + JSON.stringify({ uk: [-5, 50, -3, 54, -3, 58] }) + ';',
+    grab('var _LM_W = (window.LM_MAP'), grab('function _lmPt(lon, lat)'),
     grab('var _LM_PLACE = {'), grab('var _LM_CP = {'),
     grab('function _lmCountryOf(model)'), grab('function _lmPlace(model)'),
     grab('function _lmFlag(country, uid)'), grab('function _lmShortTag(meta)'),

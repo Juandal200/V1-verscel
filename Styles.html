@@ -13340,15 +13340,29 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 .lm-stage-wrap {
   position: relative; overflow: hidden;
   border: 1px solid var(--line); border-top: 0; border-radius: 0 0 12px 12px;
-  background: radial-gradient(120% 90% at 50% 20%,
-              rgba(var(--lift-rgb), .03) 0%, rgba(var(--scrim-rgb), .12) 70%);
+  background: radial-gradient(115% 85% at 50% 22%, #0e1316 0%, #080a0c 62%, #060809 100%);
 }
-.lm-stage { position: absolute; top: 0; left: 0; width: 1180px; height: 500px; transform-origin: 0 0; }
-.lm-geo, .lm-edges { position: absolute; inset: 0; width: 1180px; height: 500px; overflow: visible; }
-.lm-geo path {
-  fill: rgba(var(--lift-rgb), .022);
-  stroke: rgba(var(--lift-rgb), .13); stroke-width: 1;
-  stroke-dasharray: 2 3.5; stroke-linejoin: round;
+/* 1600x885, the extent MapData.html was generated at. The two must agree: the
+   paths and the projection were fitted together, so a stage of another size puts
+   every pin off its country. */
+.lm-stage { position: absolute; top: 0; left: 0; width: 1600px; height: 885px; transform-origin: 0 0; }
+.lm-geo, .lm-edges { position: absolute; inset: 0; width: 1600px; height: 885px; overflow: visible; }
+
+/* Land is a FILLED shape. The silhouette reads by the fill, so the stroke is only
+   its edge and can be a hairline — which is what let the dotted trace go. There is
+   no stroke-dasharray anywhere on this screen and there should not be one.
+
+   non-scaling-stroke on both: .lm-stage is scaled by transform to fit the window,
+   and without it a 0.8px line would thicken and thin with the viewport. */
+.lm-geo .lm-land {
+  fill: #171d21;
+  stroke: rgba(255, 255, 255, 0.095); stroke-width: 0.8;
+  stroke-linejoin: round; vector-effect: non-scaling-stroke;
+}
+.lm-geo .lm-borders {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.042); stroke-width: 0.7;
+  stroke-linejoin: round; vector-effect: non-scaling-stroke;
 }
 
 /* An anchor is a pin and the panel that hangs off it. Nothing here is positioned
@@ -13403,13 +13417,17 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
    nothing to click. The reset below keeps every mark looking exactly as it did;
    a locked one is genuinely disabled rather than styled to look inert. */
 .lm-cp {
-  position: absolute; transform: translate(-50%, -50%); text-align: center;
+  /* The node sits ON the projected point and the label hangs below it, rather
+     than the whole block being centred on the point — which put the caption over
+     the country and the ring above it. */
+  position: absolute; transform: translateX(-50%); margin-top: -34px;
+  text-align: center;
   z-index: 2; width: 150px;
   background: none; border: 0; padding: 0; font: inherit; color: inherit;
   cursor: pointer; transition: transform 0.15s var(--ease);
 }
 .lm-cp:disabled { cursor: default; }
-.lm-cp:not(:disabled):hover { transform: translate(-50%, -50%) scale(1.04); }
+.lm-cp:not(:disabled):hover { transform: translateX(-50%) scale(1.04); }
 .lm-cp:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 10px; }
 .lm-cp-ring {
   width: 52px; height: 52px; border-radius: 50%; margin: 0 auto;

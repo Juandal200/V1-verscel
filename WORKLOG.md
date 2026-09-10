@@ -17,6 +17,53 @@ Newest day first.
 
 ## 2026-09-10
 
+### The map is real geodata
+
+**Plan.** `tools/gen-map.mjs` projects world-atlas through `geoNaturalEarth1` and
+emits `MapData.html` — two SVG paths and the projection constants. The hand-drawn
+silhouette, the equirectangular helpers and the pixel offsets all go. Markers are
+positioned by projecting their real coordinate.
+
+**Criterion.** Stated: replace the hand-drawn map with real geodata; no
+`stroke-dasharray` on this screen; every marker on its real country.
+
+`DERIVED`, and a departure from the spec as written: there is no React here, so
+`useMemo` has nothing to attach to. Generating at commit time is stronger than
+memoising at render time — it runs zero times in the browser rather than once.
+
+`DERIVED`: the output is **committed**, not built. Apps Script renders Index.html
+through HtmlService and never runs build.js, so a build artefact would leave
+`/exec` with no map at all.
+
+`DERIVED`: the browser gets the Natural Earth formula inline — fifteen lines, not
+a library — so a country the Levels sheet names tomorrow is placed without
+regenerating. The generator refuses to write the file unless that inline version
+reproduces d3 to within 0.001px; it currently agrees to 4.6e-13.
+
+`DERIVED`: pins move from airport coordinates to country centroids. On a
+projection fitted to the whole land mass, the centroid is what reads as "this
+country", which is what the pin's chip claims to mark.
+
+**Checklist.**
+
+- [ ] The map is filled land with visible country borders, nothing dotted
+- [ ] Every pin sits on its own country at 1440px and at 1024px
+- [ ] Checkpoints sit on their point with the label hanging below
+- [ ] Open sea below Australia — the map is taller than the land on purpose
+- [ ] The mock-test square still sits bottom right without covering a country
+- [ ] Panels still flip at the edges and stay on the map
+- [ ] Below 1100px, unchanged
+- [ ] It still works offline
+
+**Not verifiable from the repo.** How it looks. And 390px was in the spec but
+cannot be checked — the map does not render below 1100px, so there is no map
+there to place a marker on.
+
+**Cost, stated.** 72KB of path data enters what Apps Script compiles on a cold
+start. This project shed 339KB earlier for that reason and never measured whether
+it helped; a fifth comes back. The Backend Capacity button can now answer it.
+
+
 ### Light mode is not offered, for now
 
 **Plan.** Remove every way to select the light theme — the boot script, the
