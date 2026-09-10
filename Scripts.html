@@ -5904,14 +5904,20 @@ var LEVEL_THEMES = {
       '</div>';
   };
 
-  function renderLevelMap(data) {
-    simMediaStopAll();
-
-    // Identities first, then draw. One call, cached for the session, and it falls
-    // through to the built-in nine if the sheet is not there yet.
-    if (_levelMeta === null) { _loadLevelMeta(function () { renderLevelMap(data); }); return; }
-    var levels   = data && data.levels ? data.levels : [];
+  /* Everything both drawings of this screen are made of, read from the catalogue
+   * once.
+   *
+   * The levels screen and the home page draw the same map. The way two screens
+   * come to disagree is by each working the state out for itself, so neither of
+   * them does: the catalogue is read here — the hero bar, the models, the
+   * Operational card, tonight's VR slot — and both draw what this returns.
+   *
+   * _levelMeta must be loaded before this is called. renderLevelMap holds that
+   * guard and so does the home page, because the identities decide what the
+   * Operational card is allowed to say. */
+  function _lmSurface(data) {
     var heroCard = '';
+    var levels   = data && data.levels ? data.levels : [];
     var vrEvents = _vrPickEvents(levels);
     var vrSlot   = _vrSlotTime();
 
@@ -6044,7 +6050,149 @@ var LEVEL_THEMES = {
      * state of a level could only be had by drawing the grid. The home page needs
      * it without drawing the grid at all, so the computation is its own function
      * and this loop reads what it returns. */
-    var _lmModels  = _lmBuildModels(levelByNum, TIERS, vrEvents, _firstPlanLockedLevel);
+    var _lmModels = _lmBuildModels(levelByNum, TIERS, vrEvents, _firstPlanLockedLevel);
+
+    // ── Level 10 ops hero ─────────────────────────────────────
+    // Operational Level is a placeholder: the map renders exactly one card from
+    // levelByNum[10] and TIERS only covers 1-9, so there is no room for the several
+    // harder levels this is meant to become. Flip to false once a fourth tier
+    // actually exists; everything below already reads this flag.
+    // Open as soon as an Operational level actually exists.
+    //
+    // This was a constant reading true, with a note beside it to flip it "once a
+    // fourth tier actually exists". It does now: the Levels sheet says which levels
+    // are OPERATIONAL, so the card asks rather than being told. Publish level 11 and
+    // the card covers it the same day, with no edit here.
+    var _opsLevels = [];
+    Object.keys(_levelMeta || {}).forEach(function (k) {
+      var m = _levelMeta[k];
+      if (m && m.groupKey === 'OPERATIONAL' && levelByNum[Number(k)]) _opsLevels.push(Number(k));
+    });
+    _opsLevels.sort(function (a, b) { return a - b; });
+    var OPS_COMING_SOON = _opsLevels.length === 0;
+
+    var opsLevel = levelByNum[10];
+    if (opsLevel) {
+      var olLocked = OPS_COMING_SOON || opsLevel.locked === true || opsLevel.unlocked === false;
+      var olCC = (opsLevel.countries || []).filter(function(c) {
+        return c.completed === true || c.completed === 1 || String(c.completed).toUpperCase() === 'TRUE';
+      }).length;
+      var olTC = (opsLevel.countries || []).length || Number(opsLevel.totalCountries || 0);
+      var olPct  = olTC ? Math.round((olCC / olTC) * 100) : 0;
+      var olDone = olTC > 0 && olCC >= olTC;
+      var olST   = OPS_COMING_SOON ? 'Coming soon'
+                 : olDone ? 'Complete' : (olLocked ? 'Locked' : 'Unlocked');
+      var olSC   = OPS_COMING_SOON ? 'BLOCKED'
+                 : olDone ? 'ACTIVE'   : (olLocked ? 'BLOCKED' : 'PENDING');
+      var olVr   = vrEvents[10] || null;
+      var olVrCls = olVr ? ' vr-event vr-' + olVr.type : '';
+      var olVrBanner = olVr
+        ? '<div class="vr-event-banner vr-event-banner--' + olVr.type + '">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
+              '<span class="vr-event-badge">' + olVr.icon + ' ' + olVr.label + '</span>' +
+              '<span style="display:flex;gap:5px;flex-shrink:0;">' +
+                '<span style="font-size: 0.72rem;font-weight:800;background:rgba(var(--lift-rgb), 0.1);border-radius:4px;padding:2px 6px;letter-spacing: 0.04em;">' + olVr.xpLabel + '</span>' +
+                '<span style="font-size: 0.72rem;font-weight:800;background:rgba(255,215,0,0.18);color:var(--yellow);border-radius:4px;padding:2px 6px;letter-spacing: 0.04em;">+' + olVr.cp + ' CP</span>' +
+              '</span>' +
+            '</div>' +
+            '<span class="vr-event-desc">' +
+              (olLocked ? 'Unlock to claim this clearance' : (olDone ? 'Replay for bonus XP' : olVr.desc)) +
+            '</span>' +
+            '<span class="vr-event-slot">CLOSES ' + vrSlot + '</span>' +
+          '</div>'
+        : '';
+      // Drawn marks, not emoji. A padlock, a tick and a target rendered in three
+      // different typefaces at three different weights next to instrument text —
+      // and on Windows some of them not at all.
+      var olIcon   = OPS_COMING_SOON ? uiIcon('locked', 30)
+                   : olLocked ? uiIcon('locked', 30)
+                   : (olDone ? uiIcon('passed', 30) : (olVr ? olVr.icon : uiIcon('target', 30)));
+      // Opens the GROUP, not a level. It went straight into level 10's country picker,
+      // which was right while Operational was level 10 and wrong the moment there
+      // were several. A student picks the level first, as they do above.
+      var olAction = olLocked ? 'disabled'
+                   : (_opsLevels.length === 1
+                        ? 'onclick="openLevelCountries(' + _opsLevels[0] + ')"'
+                        : 'onclick="openOperationalLevels()"');
+      var olLabel  = OPS_COMING_SOON
+        ? 'Coming soon'
+        : olLocked
+          ? (olVr ? olVr.icon + ' Unlock to Claim' : 'Access Restricted')
+          : (_opsLevels.length > 1 ? 'Choose an operational level'
+           : olDone ? (olVr ? olVr.icon + ' Replay for Bonus' : 'Enter Operations')
+           : (olVr ? olVr.btn : 'Enter Operations'));
+
+      heroCard =
+        '<article class="level-card-pro level-card-ops ' + (olLocked ? 'is-locked' : 'is-open') + olVrCls + '">' +
+          '<div class="ops-card-inner">' +
+            '<div class="ops-left-col">' +
+              '<div class="level-icon-pro ops-icon-lg">' + olIcon + '</div>' +
+              '<div>' +
+                '<p class="eyebrow ops-eyebrow">Operational Level</p>' +
+                '<h2 class="ops-lvl-title">Operational Level</h2>' +
+                '<p class="subtitle">' + (OPS_COMING_SOON
+                  ? 'Advanced operational scenarios across every ATC environment'
+                  : (_opsLevels.length > 1
+                      ? safeText(_opsLevels.length) + ' operational levels &middot; heavier vocabulary and non-routine situations'
+                      : 'Regions: ' + safeText(opsLevel.countries ? opsLevel.countries.length : 0) +
+                        ' &middot; Completed: ' + safeText(olCC))) + '</p>' +
+                olVrBanner +
+              '</div>' +
+            '</div>' +
+            '<div class="ops-right-col">' +
+              '<div class="level-flags-row">' + (function() {
+                var allAccents = ['USA','UK','AUSTRALIA','CANADA','INDIA'];
+                var fc = opsLevel.countries || [];
+                // Normalise before de-duping: the sheet stores 'AU' while this list
+                // says 'AUSTRALIA', so a raw indexOf appended Australia a second time.
+                var _norm = { US:'USA', GB:'UK', AU:'AUSTRALIA', CA:'CANADA', IN:'INDIA', CO:'COLOMBIA' };
+                var configuredKeys = fc.map(function(i){
+                  var k = String(i.country || '').toUpperCase();
+                  return _norm[k] || k;
+                });
+                var combined = allAccents.concat(configuredKeys.filter(function(k){ return allAccents.indexOf(k) === -1; }));
+                return combined.map(function(c) {
+                  return '<span class="country-flag-pill">' + getFlagHtml(c, 'flag-preview') + '<span>' + safeText(getCountryUi(c).label) + '</span></span>';
+                }).join('');
+              }()) + '</div>' +
+              '<div class="progress-track compact level-progress-pro">' +
+                '<div class="progress-bar ops-progress-bar" style="width:' + safeText(olPct) + '%;"></div>' +
+              '</div>' +
+              '<div class="level-card-footer">' +
+                '<span class="status ' + olSC + '" style="margin-right:auto;">' + safeText(olST) + '</span>' +
+                '<button class="btn ' + (olLocked ? 'secondary' : 'primary btn-cta-pulse') + '" ' + olAction + '>' + olLabel + '</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</article>';
+    }
+
+    return {
+      levels:          levels,
+      levelByNum:      levelByNum,
+      tiers:           TIERS,
+      vrEvents:        vrEvents,
+      vrSlot:          vrSlot,
+      heroBar:         heroBar,
+      heroCard:        heroCard,
+      models:          _lmModels,
+      currentLevelNum: currentLevelNum
+    };
+  }
+
+  function renderLevelMap(data) {
+    simMediaStopAll();
+
+    // Identities first, then draw. One call, cached for the session, and it falls
+    // through to the built-in nine if the sheet is not there yet.
+    if (_levelMeta === null) { _loadLevelMeta(function () { renderLevelMap(data); }); return; }
+    var surface         = _lmSurface(data);
+    var TIERS           = surface.tiers;
+    var vrSlot          = surface.vrSlot;
+    var heroBar         = surface.heroBar;
+    var heroCard        = surface.heroCard;
+    var currentLevelNum = surface.currentLevelNum;
+    var _lmModels       = surface.models;
     var _lmModelOf = {};
     _lmModels.forEach(function (m) { _lmModelOf[m.level] = m; });
 
@@ -6202,120 +6350,6 @@ var LEVEL_THEMES = {
         '</div>';
     });
 
-    // ── Level 10 ops hero ─────────────────────────────────────
-    // Operational Level is a placeholder: the map renders exactly one card from
-    // levelByNum[10] and TIERS only covers 1-9, so there is no room for the several
-    // harder levels this is meant to become. Flip to false once a fourth tier
-    // actually exists; everything below already reads this flag.
-    // Open as soon as an Operational level actually exists.
-    //
-    // This was a constant reading true, with a note beside it to flip it "once a
-    // fourth tier actually exists". It does now: the Levels sheet says which levels
-    // are OPERATIONAL, so the card asks rather than being told. Publish level 11 and
-    // the card covers it the same day, with no edit here.
-    var _opsLevels = [];
-    Object.keys(_levelMeta || {}).forEach(function (k) {
-      var m = _levelMeta[k];
-      if (m && m.groupKey === 'OPERATIONAL' && levelByNum[Number(k)]) _opsLevels.push(Number(k));
-    });
-    _opsLevels.sort(function (a, b) { return a - b; });
-    var OPS_COMING_SOON = _opsLevels.length === 0;
-
-    var opsLevel = levelByNum[10];
-    if (opsLevel) {
-      var olLocked = OPS_COMING_SOON || opsLevel.locked === true || opsLevel.unlocked === false;
-      var olCC = (opsLevel.countries || []).filter(function(c) {
-        return c.completed === true || c.completed === 1 || String(c.completed).toUpperCase() === 'TRUE';
-      }).length;
-      var olTC = (opsLevel.countries || []).length || Number(opsLevel.totalCountries || 0);
-      var olPct  = olTC ? Math.round((olCC / olTC) * 100) : 0;
-      var olDone = olTC > 0 && olCC >= olTC;
-      var olST   = OPS_COMING_SOON ? 'Coming soon'
-                 : olDone ? 'Complete' : (olLocked ? 'Locked' : 'Unlocked');
-      var olSC   = OPS_COMING_SOON ? 'BLOCKED'
-                 : olDone ? 'ACTIVE'   : (olLocked ? 'BLOCKED' : 'PENDING');
-      var olVr   = vrEvents[10] || null;
-      var olVrCls = olVr ? ' vr-event vr-' + olVr.type : '';
-      var olVrBanner = olVr
-        ? '<div class="vr-event-banner vr-event-banner--' + olVr.type + '">' +
-            '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
-              '<span class="vr-event-badge">' + olVr.icon + ' ' + olVr.label + '</span>' +
-              '<span style="display:flex;gap:5px;flex-shrink:0;">' +
-                '<span style="font-size: 0.72rem;font-weight:800;background:rgba(var(--lift-rgb), 0.1);border-radius:4px;padding:2px 6px;letter-spacing: 0.04em;">' + olVr.xpLabel + '</span>' +
-                '<span style="font-size: 0.72rem;font-weight:800;background:rgba(255,215,0,0.18);color:var(--yellow);border-radius:4px;padding:2px 6px;letter-spacing: 0.04em;">+' + olVr.cp + ' CP</span>' +
-              '</span>' +
-            '</div>' +
-            '<span class="vr-event-desc">' +
-              (olLocked ? 'Unlock to claim this clearance' : (olDone ? 'Replay for bonus XP' : olVr.desc)) +
-            '</span>' +
-            '<span class="vr-event-slot">CLOSES ' + vrSlot + '</span>' +
-          '</div>'
-        : '';
-      // Drawn marks, not emoji. A padlock, a tick and a target rendered in three
-      // different typefaces at three different weights next to instrument text —
-      // and on Windows some of them not at all.
-      var olIcon   = OPS_COMING_SOON ? uiIcon('locked', 30)
-                   : olLocked ? uiIcon('locked', 30)
-                   : (olDone ? uiIcon('passed', 30) : (olVr ? olVr.icon : uiIcon('target', 30)));
-      // Opens the GROUP, not a level. It went straight into level 10's country picker,
-      // which was right while Operational was level 10 and wrong the moment there
-      // were several. A student picks the level first, as they do above.
-      var olAction = olLocked ? 'disabled'
-                   : (_opsLevels.length === 1
-                        ? 'onclick="openLevelCountries(' + _opsLevels[0] + ')"'
-                        : 'onclick="openOperationalLevels()"');
-      var olLabel  = OPS_COMING_SOON
-        ? 'Coming soon'
-        : olLocked
-          ? (olVr ? olVr.icon + ' Unlock to Claim' : 'Access Restricted')
-          : (_opsLevels.length > 1 ? 'Choose an operational level'
-           : olDone ? (olVr ? olVr.icon + ' Replay for Bonus' : 'Enter Operations')
-           : (olVr ? olVr.btn : 'Enter Operations'));
-
-      heroCard =
-        '<article class="level-card-pro level-card-ops ' + (olLocked ? 'is-locked' : 'is-open') + olVrCls + '">' +
-          '<div class="ops-card-inner">' +
-            '<div class="ops-left-col">' +
-              '<div class="level-icon-pro ops-icon-lg">' + olIcon + '</div>' +
-              '<div>' +
-                '<p class="eyebrow ops-eyebrow">Operational Level</p>' +
-                '<h2 class="ops-lvl-title">Operational Level</h2>' +
-                '<p class="subtitle">' + (OPS_COMING_SOON
-                  ? 'Advanced operational scenarios across every ATC environment'
-                  : (_opsLevels.length > 1
-                      ? safeText(_opsLevels.length) + ' operational levels &middot; heavier vocabulary and non-routine situations'
-                      : 'Regions: ' + safeText(opsLevel.countries ? opsLevel.countries.length : 0) +
-                        ' &middot; Completed: ' + safeText(olCC))) + '</p>' +
-                olVrBanner +
-              '</div>' +
-            '</div>' +
-            '<div class="ops-right-col">' +
-              '<div class="level-flags-row">' + (function() {
-                var allAccents = ['USA','UK','AUSTRALIA','CANADA','INDIA'];
-                var fc = opsLevel.countries || [];
-                // Normalise before de-duping: the sheet stores 'AU' while this list
-                // says 'AUSTRALIA', so a raw indexOf appended Australia a second time.
-                var _norm = { US:'USA', GB:'UK', AU:'AUSTRALIA', CA:'CANADA', IN:'INDIA', CO:'COLOMBIA' };
-                var configuredKeys = fc.map(function(i){
-                  var k = String(i.country || '').toUpperCase();
-                  return _norm[k] || k;
-                });
-                var combined = allAccents.concat(configuredKeys.filter(function(k){ return allAccents.indexOf(k) === -1; }));
-                return combined.map(function(c) {
-                  return '<span class="country-flag-pill">' + getFlagHtml(c, 'flag-preview') + '<span>' + safeText(getCountryUi(c).label) + '</span></span>';
-                }).join('');
-              }()) + '</div>' +
-              '<div class="progress-track compact level-progress-pro">' +
-                '<div class="progress-bar ops-progress-bar" style="width:' + safeText(olPct) + '%;"></div>' +
-              '</div>' +
-              '<div class="level-card-footer">' +
-                '<span class="status ' + olSC + '" style="margin-right:auto;">' + safeText(olST) + '</span>' +
-                '<button class="btn ' + (olLocked ? 'secondary' : 'primary btn-cta-pulse') + '" ' + olAction + '>' + olLabel + '</button>' +
-              '</div>' +
-            '</div>' +
-          '</div>' +
-        '</article>';
-    }
 
     if (!tierSections && !heroCard) {
       tierSections = '<div class="panel"><h3>No operational levels available</h3>' +

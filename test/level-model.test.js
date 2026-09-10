@@ -172,5 +172,86 @@ ok('a level with an event carries it', vr[2].vr && vr[2].vr.label === 'DOUBLE XP
 ok('a level without one carries null', vr[1].vr === null);
 ok('and no events at all is safe',     by(build(catalog({}), TIERS, null, 0))[1].vr === null);
 
+/* ── the surface both screens read ──────────────────────────────────────────
+ *
+ * _lmSurface turns the catalogue into everything a drawing of this screen is
+ * made of: the hero bar, the models, the Operational card, tonight's VR slot.
+ * Two screens draw from it now, and the failure this guards against is the one
+ * that has already happened five times in this codebase — a second screen
+ * working the same thing out slightly differently.
+ *
+ * The extraction's success was silent: all 78 suites were green before it and
+ * green after, because nothing had ever called this. So it is called here.
+ */
+const surface = new Function('Object', 'Number', 'String', 'Math',
+  '_levelTiers', '_tierOf', '_vrPickEvents', '_vrSlotTime',
+  '_levelMeta', 'getCountryUi', 'getFlagHtml', 'uiIcon', 'safeText',
+  grab('function _lmBuildModels(levelByNum, tiers, vrEvents, firstPlanLockedLevel)') +
+  grab('function _lmSurface(data)') +
+  '\nreturn _lmSurface;'
+)(
+  Object, Number, String, Math,
+  () => TIERS.slice(),
+  n => TIERS.filter(t => t.levels.indexOf(n) >= 0)[0] || null,
+  () => ({}), () => '19:00',
+  { 10: { groupKey: 'OPERATIONAL', name: 'Operational One' } },
+  c => ({ code: String(c).toLowerCase(), label: String(c) }),
+  () => '<svg/>', () => '<svg/>',
+  v => String(v == null ? '' : v).replace(/[<>&]/g, '')
+);
+
+function catalogue(rows) {
+  return { levels: rows.map(r => ({
+    level: r.level, locked: !!r.locked, lockedByPlan: !!r.lockedByPlan,
+    countries: [{ country: 'US', completed: !!r.done }]
+  })) };
+}
+const LADDER = [1,2,3,4,5,6,7,8,9,10];
+
+console.log('--- the catalogue is read once, into one surface ---');
+const sf = surface(catalogue(LADDER.map(n => ({ level: n, locked: n !== 1, done: n === 1 }))));
+ok('it carries the models',        Array.isArray(sf.models) && sf.models.length === 9);
+ok('the tiers',                    sf.tiers.length === 3);
+ok('the VR slot',                  sf.vrSlot === '19:00');
+ok('a hero bar',                   typeof sf.heroBar === 'string' && sf.heroBar.length > 0);
+ok('and the Operational card',     /level-card-ops/.test(sf.heroCard));
+
+console.log('--- level 10 is the Operational card, not a tenth model ---');
+/* TIERS covers 1 to 9. A level 10 model would be a level drawn twice — once as a
+ * pin on the map and once as the card underneath it. */
+ok('nine models, not ten',         sf.models.every(m => m.level !== 10));
+ok('and level 10 is still in the catalogue', !!sf.levelByNum[10]);
+
+console.log('--- the current level is the first one open and unfinished ---');
+const cur = surface(catalogue([
+  { level: 1, done: true }, { level: 2, done: true },
+  { level: 3 }, { level: 4, locked: true }
+]));
+ok('two done, so three is current', cur.currentLevelNum === 3);
+
+console.log('--- the Operational card says Coming soon until the sheet publishes one ---');
+/* _levelMeta decides. It used to be a constant reading true with a note beside
+ * it, which is how the card kept promising a level that already existed. */
+const none = new Function('Object','Number','String','Math','_levelTiers','_tierOf',
+  '_vrPickEvents','_vrSlotTime','_levelMeta','getCountryUi','getFlagHtml','uiIcon','safeText',
+  grab('function _lmBuildModels(levelByNum, tiers, vrEvents, firstPlanLockedLevel)') +
+  grab('function _lmSurface(data)') + '\nreturn _lmSurface;'
+)(Object, Number, String, Math, () => TIERS.slice(),
+  n => TIERS.filter(t => t.levels.indexOf(n) >= 0)[0] || null, () => ({}), () => '19:00',
+  {}, c => ({ code: 'x', label: String(c) }), () => '<svg/>', () => '<svg/>',
+  v => String(v == null ? '' : v).replace(/[<>&]/g, ''));
+const soon = none(catalogue(LADDER.map(n => ({ level: n, locked: n !== 1 }))));
+ok('no OPERATIONAL row, so Coming soon', /Coming soon/.test(soon.heroCard));
+ok('and the published one does not say it', !/Coming soon/.test(sf.heroCard));
+
+console.log('--- and the levels screen does not work any of it out itself ---');
+/* The point of the extraction. If renderLevelMap starts calling these again,
+ * there are two answers to one question and the second screen is free to drift. */
+const rlmBody = grab('function renderLevelMap(data)');
+['_vrPickEvents(', '_vrSlotTime(', '_lmBuildModels(', '_levelTiers('].forEach(function (call) {
+  ok('renderLevelMap does not call ' + call + ')', rlmBody.indexOf(call) === -1);
+});
+ok('it reads the surface instead', /_lmSurface\(data\)/.test(rlmBody));
+
 console.log(fails ? '\n' + fails + ' FAILING' : '\nAll level-model assertions passed.');
 process.exit(fails ? 1 : 0);
