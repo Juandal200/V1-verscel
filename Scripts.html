@@ -28072,7 +28072,19 @@ var LEVEL_THEMES = {
       if (!m || m.role !== 'user') return;
       var c = String(m.content || '').trim();
       if (!c) return;
-      if (/^\[replay report\]/i.test(c) || /replays? (were )?used/i.test(c)) return;
+      /* Bookkeeping is not an answer.
+       *
+       * _scFinish pushes _teaReplayReport() into the history as role 'user', and
+       * it returns "[EXAM_COMPLETE | replays: … | COMPREHENSION_CAP: …]". Neither
+       * pattern below matched it — the first wants "[replay report]", the second
+       * wants the word "used" — so the exam's own end-of-exam marker was counted
+       * as a candidate answer.
+       *
+       * It lands twice, so a sitting in which every real answer was
+       * "(no answer given)" reported answered=2 instead of 0, and the refusal
+       * that exists for exactly that case never fired. A pilot was marked band 1
+       * on a sitting the exam should have declined to grade. */
+      if (/^\[(replay report|EXAM_COMPLETE)\b/i.test(c) || /replays? (were )?used/i.test(c)) return;
       asked++;
       if (c !== '(no answer given)') answered++;
     });

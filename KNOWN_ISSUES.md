@@ -1310,3 +1310,50 @@ exists precisely so results graded by different paths can be told apart.
 being used for anything beyond practice — a certificate, a report to an employer,
 an intake decision. At that point the rows have to be dealt with rather than
 explained.
+
+---
+
+## The refusal that should have caught it counted the exam's own marker as an answer
+
+**Status** **Fixed** — `[EXAM_COMPLETE | …]` is no longer counted as a candidate
+answer. Recorded because this is the second time a guard in this file was
+defeated by the shape of the data rather than by its logic.
+
+**No bot ID.** Found 2026-09-09 while diagnosing the entry two above this one.
+
+**What it was for.** `96760e1` (2026-09-03) added a refusal to
+`_finishExam`, commented *"An examination that heard nothing does not get to
+award a band."* It declines to grade when `answered === 0`.
+
+**Why it did not fire.** `_scFinish` pushes `_teaReplayReport()` into the history
+as `role: 'user'`, and that returns
+`[EXAM_COMPLETE | replays: … | COMPREHENSION_CAP: …]`. `_teaAnsweredCount` skipped
+two patterns — `^\[replay report\]` and the word `used` — and the real marker
+matches neither. It lands twice, once from `_scFinish` and once from the
+conversational finish.
+
+So a sitting in which **every** answer was `(no answer given)` reported
+`answered = 2`, the `answered === 0` clause was false, and the exam graded a
+candidate it had not heard. Confirmed by running the real function against the
+saved sitting: `answered=2 asked=26`.
+
+**The test that should have caught it was green about a string that does not
+exist.** `test/unheard-sitting.test.js` fed the counter
+`'[replay report] 2 replays used'` — a marker this product has never emitted. It
+asserted the guard worked, against input the guard would never see. That is why a
+hole in the one safety net for this failure survived five days and a real sitting.
+Both forms are asserted now, and the real one is taken verbatim from the saved
+JSON.
+
+**What is deliberately not fixed here (rule 4).** The **conversational** exam
+sends other bracketed protocol messages through `_chat`, which pushes them as
+`role: 'user'` the same way — `[AUDIO_UNAVAILABLE: …]`, `[COMPARE_PICTURES …]`,
+`[BEGIN_PART_1 …]`, the picture descriptors. Each would inflate `answered` on that
+path exactly as the end-of-exam marker did on the scripted one. The scripted exam
+is the path that produced the reported failure and it pushes only answers and this
+marker, so this closes that path completely and leaves the other open. It needs
+its own ticket and its own decision about whether to enumerate the markers or
+treat any wholly-bracketed turn as bookkeeping.
+
+**What would reopen it.** A new protocol message pushed as `role: 'user'` on the
+scripted path.

@@ -21,18 +21,38 @@ ok('a silent sitting counts no answers', r.answered === 0 && r.asked === 2);
 r = mk([exam('Q1'), user('I fly the A320 out of Bogota'), exam('Q2'), user('(no answer given)')]);
 ok('a spoken answer is counted',         r.answered === 1 && r.asked === 2);
 
+/* This fed the counter '[replay report] 2 replays used' — a string this product
+ * has never emitted. _scFinish pushes _teaReplayReport(), which returns
+ * "[EXAM_COMPLETE | replays: N of 12 items heard twice (…) | COMPREHENSION_CAP: N]".
+ * The test was green about a marker that does not exist, which is why the hole it
+ * was written to guard survived and a pilot was marked band 1. Both forms are
+ * asserted now, and the real one is taken verbatim from a saved sitting. */
+const MARKER = '[EXAM_COMPLETE | replays: 2 of 12 items heard twice (part_2a_1, part_2a_3) ' +
+               '| COMPREHENSION_CAP: 6 (no cap)]';
+r = mk([exam('Q1'), user('(no answer given)'), user(MARKER)]);
+ok('the end-of-exam marker is not an answer', r.asked === 1 && r.answered === 0);
+
 r = mk([exam('Q1'), user('(no answer given)'), user('[replay report] 2 replays used')]);
-ok('the replay report is not an answer', r.asked === 1 && r.answered === 0);
+ok('and neither is the older replay report', r.asked === 1 && r.answered === 0);
 
 r = mk([exam('Q1'), user('   ')]);
 ok('whitespace is not an answer',        r.asked === 0 && r.answered === 0);
 
-console.log('--- the real sitting: 26 turns, 24 unheard ---');
+console.log('--- the sitting that was marked band 1 ---');
+/* Reconstructed from the saved JSON of the sitting a C1 pilot was awarded band 1
+ * on: twenty-four questions, every answer "(no answer given)", and the marker
+ * landing twice — once from _scFinish and once from the conversational finish.
+ *
+ * Before the fix this reported answered=2, so `answered === 0` was false and the
+ * refusal never ran. Nothing was wrong with the count except what it counted. */
 const real = [];
-for (let i = 0; i < 26; i++) { real.push(exam('Q' + i)); real.push(user(i < 2 ? 'yes' : '(no answer given)')); }
+for (let i = 0; i < 24; i++) { real.push(exam('Q' + i)); real.push(user('(no answer given)')); }
+real.push(user(MARKER));
+real.push(user(MARKER));
 r = mk(real);
-ok('two answers out of twenty-six',      r.answered === 2 && r.asked === 26);
-ok('that is under half, so it refuses',  r.answered < r.asked / 2);
+ok('not one answer is counted',          r.answered === 0);
+ok('and the marker is not part of asked', r.asked === 24);
+ok('so the sitting is refused outright',  r.answered === 0);
 
 console.log('--- the refusal is wired in before grading ---');
 /* The whole function, matched by braces rather than a fixed 3000-character
