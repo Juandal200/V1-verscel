@@ -42,7 +42,10 @@ const OPENAI_SAID = {
   segments: [{ id: 0, start: 0, end: 2.4, text: SAID, avg_logprob: -0.2, no_speech_prob: 0.01 }],
   duration: 2.4,
 };
-async function whisper(url, sent) {
+/* `authed` false makes sessionValid answer null, which is how the proxy is asked
+ * to refuse. The import is stubbed rather than loaded because this file runs the
+ * handler in a sandbox, and lib/session.mjs would try to reach Apps Script. */
+async function whisper(url, sent, authed) {
   const src = grab(W, 'export default async function handler(req, res)').replace(/^export default /, '');
   const out = {};
   const res = {
@@ -51,10 +54,12 @@ async function whisper(url, sent) {
     json(b) { out.body = b; return this; },
   };
   const req = {
-    method: 'POST', url, headers: { 'content-type': 'audio/webm' },
+    method: 'POST', url,
+    headers: { 'content-type': 'audio/webm', 'x-session-token': 'T' },
     async *[Symbol.asyncIterator]() { yield Buffer.alloc(4096, 7); },
   };
   const handler = new Function('Buffer','FormData','Blob','fetch','process','console',
+    'sessionValid','tokenFrom','SESSION_UNAVAILABLE',
     src + '\nreturn handler;')(
     Buffer,
     class { append(k, v) { sent.push(k); } },
@@ -62,12 +67,27 @@ async function whisper(url, sent) {
     async () => ({ ok: true, json: async () => OPENAI_SAID }),
     { env: { OPENAI_API_KEY: 'sk-test' } },
     { error(){}, warn(){}, log(){} },
+    async () => (authed === false ? null : { role: 'STUDENT', status: 'active' }),
+    (r) => String((r.headers || {})['x-session-token'] || ''),
+    { unavailable: true },
   );
   await handler(req, res);
   return out;
 }
 
 (async () => {
+console.log('--- nothing is transcribed without a session ---');
+/* This endpoint took raw audio from anyone on the internet and paid OpenAI for
+ * the transcription. It refuses now — and refuses with noKey, the shape the
+ * client already reads as "Whisper is unavailable", so the student drops to the
+ * browser's own speech recognition instead of losing the answer. */
+let refused = [];
+let rr = await whisper('/api/whisper', refused, false);
+ok('an unauthenticated call is refused', rr.body.ok === false);
+ok('and OpenAI is never reached',        refused.length === 0);
+ok('it answers noKey, so the fallback trips', rr.body.noKey === true);
+ok('and names the reason',               rr.body.code === 'FORBIDDEN');
+
 console.log('--- verbose is opt-in, and additive ---');
 let sent = [];
 let r = await whisper('/api/whisper', sent);

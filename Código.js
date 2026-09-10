@@ -70,7 +70,15 @@ function doPost(e) {
     envLogContext_(action);
 
     var allowed = action === 'getClientConfigJson' ||
-                  /^api[A-Z]/.test(action) ||
+                  /* Shaped like an API AND not marked private.
+                   *
+                   * The trailing underscore means "internal" everywhere in this
+                   * codebase, and the regex only ever read the front of the name —
+                   * so apiError_, apiSubmitAttempt_resolveScenario_ (which returns
+                   * a scenario) and apiGenerateIcaoTestVoiceInternal_ (which bills
+                   * Google TTS for arbitrary text, with no session and no cache)
+                   * were all reachable by anyone who could POST. */
+                  (/^api[A-Z]/.test(action) && !/_$/.test(action)) ||
                   action === 'getMyCompletedLevels' ||
                   action === 'getTtsConfigStatus' ||
                   action === 'fetchLMSData' ||
