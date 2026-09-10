@@ -111,6 +111,16 @@ ok('the map takes the partition rather than declaring one',
  * function explaining that lockedByPlan opens the plans modal, and reported the
  * map as recomputing a state it only reads. Fifth time this week that a comment
  * broke the check written beside it. */
+function bodyOfRaw(sig) {
+  const i = S.indexOf(sig);
+  if (i < 0) return '';
+  let d = 0;
+  for (let k = S.indexOf('{', i); k < S.length; k++) {
+    if (S[k] === '{') d++;
+    else if (S[k] === '}') { d--; if (!d) return S.slice(i, k + 1); }
+  }
+  return '';
+}
 function bodyOf(sig) {
   const src = S.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/[^\n]*/g, '$1');
   const i = src.indexOf(sig);
@@ -130,6 +140,40 @@ const mapBody = bodyOf('function _lmStageHtml(models, tiers, vrSlot)') +
                 bodyOf('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)');
 ok('the map is handed the level states', mapBody.length > 500);
 ok('and does not work them out again',   !/lockedByPlan|unlocked === false/.test(mapBody));
+
+/* ── one action table for the five checkpoint states ───────────────────────
+ *
+ * The grid's card and the map's mark both show checkpoints, and they already
+ * agreed about the five STATES because the labels were copied across. The
+ * actions were not: the marks were divs, so a student read READY TO SIT at the
+ * top of the home page and could do nothing with it. Writing onclicks onto the
+ * map would have made this the sixth copy of a decision this file exists to
+ * count. */
+console.log('--- what a checkpoint offers is decided once ---');
+const examAction = new Function('Number',
+  bodyOfRaw('function _examActionFor(examNum, status)') + '\nreturn _examActionFor;'
+)(Number);
+
+ok('locked offers nothing',      examAction(1, 'locked') === 'disabled');
+/* Not an empty string. Both callers put this straight into a <button>, and an
+ * empty attribute leaves a locked checkpoint pressable. */
+ok('and says so as an attribute', /^disabled$/.test(examAction(1, 'locked')));
+ok('passed opens its result',    /_examViewResult\(2\)/.test(examAction(2, 'passed')));
+ok('review required goes to the levels',
+   /renderSimulatorPlaceholder\(\)/.test(examAction(2, 'replay_required')));
+ok('one attempt left opens the exam', /_examOpen\(3\)/.test(examAction(3, 'failed_once')));
+ok('ready to sit opens the exam',     /_examOpen\(3\)/.test(examAction(3, '')));
+/* An unknown state is a state the server invented, and the safe reading is the
+ * one the grid already took: offer the exam rather than a dead card. */
+ok('an unknown state falls through to the exam', /_examOpen\(1\)/.test(examAction(1, 'whatever')));
+ok('the exam number is carried through', /_examOpen\(2\)/.test(examAction(2, '')));
+
+console.log('--- and the card no longer decides for itself ---');
+const cardBody = bodyOf('function _buildExamCard(examNum)');
+ok('it asks the table',            /_examActionFor\(examNum, status\)/.test(cardBody));
+ok('and names no handler itself',
+   !/_examOpen\(/.test(cardBody) && !/_examViewResult\(/.test(cardBody));
+ok('there is one table',           (S.match(/function _examActionFor\(/g) || []).length === 1);
 
 /* Client and server is a genuine boundary, so the seventh copy stays — and is
  * compared instead. Código.js gates levels 4, 7 and 10 on the preceding exam;

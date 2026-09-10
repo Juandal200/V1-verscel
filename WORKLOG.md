@@ -17,6 +17,63 @@ Newest day first.
 
 ## 2026-09-10
 
+### The checkpoint is sat from the map, and the simulator card leaves the desktop home page
+
+**Plan.** Three commits. `_examActionFor` comes out of `_buildExamCard`, so the
+five checkpoint states have one action table and both drawings read it. The map's
+`lm-cp` marks become buttons carrying that action. Then `simCard` is emitted only
+below 1100px, the card row is not emitted at all when it would be empty, and a
+small Grid view link appears on the home page.
+
+**Criterion.** Stated: the user can just navigate through the map — the ATC Radio
+Simulator card is not on the desktop home page, and the checkpoints on the map are
+what you click to sit them.
+
+`DERIVED`, and a change from what was described before approval: the Grid view
+link goes **above** the tier bar rather than under it, because the levels screen
+puts its own Map/Grid switch in that position and two screens disagreeing about
+where the view switch lives is a small thing noticed daily.
+
+`DERIVED`: all five checkpoint states get the action the grid gives them, not a
+subset — a passed checkpoint opens its result, a review-required one goes to the
+levels screen, locked is dead. Deciding that only "ready to sit" is worth clicking
+would be inventing a rule.
+
+`DERIVED`: below 1100px nothing changes. There is no map, so the ATC card stays
+and carries the checkpoint as it does today.
+
+**Why, in one line.** The map said READY TO SIT at the top of the home page and
+could not be clicked; the only door to that exam was a card below the fold that
+had quietly renamed itself.
+
+**Checklist — the checkpoints on the map.**
+
+- [ ] **Tab** reaches all three marks, and **Enter** activates the one that is live
+- [ ] A locked checkpoint cannot be clicked, and does not look as though it could
+- [ ] READY TO SIT opens the exam
+- [ ] PASSED opens its result
+- [ ] ONE ATTEMPT LEFT opens the exam
+- [ ] REVIEW REQUIRED goes to the levels screen
+- [ ] Each does the same thing its card on the levels screen does
+
+**Checklist — the home page.**
+
+- [ ] No ATC Radio Simulator card above 1100px
+- [ ] No empty gap where it was
+- [ ] A small "Grid view" link above the tier bar opens the levels screen
+- [ ] From there the Map/Grid toggle still works and still remembers the choice
+- [ ] Below 1100px, reload: the ATC card is back exactly as it is today
+
+**Checklist — nothing lost.**
+
+- [ ] At level 4 with Checkpoint 1 pending, the map says READY TO SIT and clicking
+      it starts the exam — the thing only the card could do before
+- [ ] The daily challenge, the streak card and the mock-test square are unmoved
+
+**Not verifiable from the repo.** Whether a checkpoint mark is a comfortable click
+target at 1100px, and whether losing the card leaves the page looking sparse.
+
+
 ### The home page opens on the map
 
 **Plan.** Five commits, in order. `_lmBuildModels` comes out of the tier loop so a

@@ -5741,6 +5741,29 @@ window.tierByExam = function (examNum) {
   // constant here so the card's two labels cannot drift apart from each other.
   var EXAM_PASS_PCT = 75;
 
+  /* What a checkpoint offers, by state.
+   *
+   * Two drawings of this screen show checkpoints — the card in the grid and the
+   * mark on the map — and they already agreed about the five states, because the
+   * labels were copied across when the map was written. The ACTIONS were not
+   * copied: the marks were divs, so a student read READY TO SIT at the top of the
+   * home page and could do nothing with it.
+   *
+   * Writing onclicks onto the map would have made this the sixth copy of a
+   * decision this codebase has been bitten by five times. There is one table and
+   * both read it.
+   *
+   * Locked returns `disabled` rather than an empty string, because that is an
+   * attribute both a card button and a map button need. */
+  function _examActionFor(examNum, status) {
+    var n = Number(examNum || 0);
+    if (status === 'locked')          return 'disabled';
+    if (status === 'passed')          return 'onclick="window._examViewResult && window._examViewResult(' + n + ')"';
+    if (status === 'replay_required') return 'onclick="renderSimulatorPlaceholder()"';
+    // failed_once and ready differ in what they are called, not in where they go.
+    return 'onclick="window._examOpen && window._examOpen(' + n + ')"';
+  }
+
   function _buildExamCard(examNum) {
     var examStatus = AppState.examStatus || [];
     var info = null;
@@ -5753,30 +5776,33 @@ window.tierByExam = function (examNum) {
     var prereqs = _lv.length ? (_lv[0] + '–' + _lv[_lv.length - 1]) : '—';
     var nextLvl = _tier ? _tier.nextLevel : 0;
 
-    var icon, heading, sub, btnLabel, btnCls, btnAction, badgeCls, badgeText;
+    // Where the button goes is not decided here — the map asks the same question
+    // and must get the same answer.
+    var btnAction = _examActionFor(examNum, status);
+    var icon, heading, sub, btnLabel, btnCls, badgeCls, badgeText;
     if (status === 'locked') {
       icon = uiIcon('locked', 26); heading = 'Checkpoint ' + examNum; sub = 'Complete Levels ' + prereqs + ' to unlock';
-      btnLabel = 'Locked'; btnCls = 'secondary'; btnAction = 'disabled';
+      btnLabel = 'Locked'; btnCls = 'secondary';
       badgeCls = 'exam-badge-locked'; badgeText = 'LOCKED';
     } else if (status === 'passed') {
       icon = uiIcon('passed', 26); heading = 'Checkpoint ' + examNum + ' — Passed';
       sub = 'Score: ' + (info && info.score !== null ? info.score + '/100' : '—');
-      btnLabel = 'View Result'; btnCls = 'secondary'; btnAction = 'onclick="window._examViewResult && window._examViewResult(' + examNum + ')"';
+      btnLabel = 'View Result'; btnCls = 'secondary';
       badgeCls = 'exam-badge-passed'; badgeText = 'PASSED';
     } else if (status === 'replay_required') {
       icon = uiIcon('retry', 26); heading = 'Checkpoint ' + examNum + ' — Review Required';
       sub = 'Replay Levels ' + prereqs + ' to retry';
-      btnLabel = 'Review Levels'; btnCls = 'secondary'; btnAction = 'onclick="renderSimulatorPlaceholder()"';
+      btnLabel = 'Review Levels'; btnCls = 'secondary';
       badgeCls = 'exam-badge-replay'; badgeText = 'REVIEW';
     } else if (status === 'failed_once') {
       icon = uiIcon('alert', 26); heading = 'Checkpoint ' + examNum;
       sub = 'Score: ' + (info && info.score !== null ? info.score + '/100' : '—') + ' · 1 attempt left';
-      btnLabel = 'Retry Exam'; btnCls = 'primary'; btnAction = 'onclick="window._examOpen && window._examOpen(' + examNum + ')"';
+      btnLabel = 'Retry Exam'; btnCls = 'primary';
       badgeCls = 'exam-badge-warn'; badgeText = '1 LEFT';
     } else {
       icon = uiIcon('paper', 28); heading = 'Checkpoint ' + examNum;
       sub = '8 phases · Pass ' + EXAM_PASS_PCT + '% · Unlocks Level ' + nextLvl;
-      btnLabel = 'Start Exam'; btnCls = 'primary'; btnAction = 'onclick="window._examOpen && window._examOpen(' + examNum + ')"';
+      btnLabel = 'Start Exam'; btnCls = 'primary';
       badgeCls = 'exam-badge-avail'; badgeText = 'EXAM';
     }
 
