@@ -2600,10 +2600,75 @@ window.tierByExam = function (examNum) {
           '<div id="homeModulesArea"><div style="text-align:center;padding:32px;color:var(--muted);">Loading modules…</div></div>' +
         '</div>';
 
+      // ── The world map ─────────────────────────────────────────
+      // First on the page, because "you can see the map after logging in" is the
+      // whole point of it being here, and a map below three cards and a banner is
+      // a map nobody scrolls to.
+      //
+      // Above 1100px only — the same breakpoint the map itself uses. Below it the
+      // stage is nine pins in one corner, and this app is a phone app first.
+      var mapSection = _lmWideEnough()
+        ? '<div id="homeMapArea" style="margin-bottom:16px;">' +
+            '<div style="text-align:center;padding:32px;color:var(--muted);">Loading your levels…</div>' +
+          '</div>'
+        : '';
+
       byId('contentArea').innerHTML =
-        _staleNoticeHtml() + heroBar + dcBannerHtml + cardsRow + modulesSection;
+        _staleNoticeHtml() + heroBar + mapSection + dcBannerHtml + cardsRow + modulesSection;
 
       var _HOME_SECTION_TTL = 10 * 60 * 1000; // 10 minutes
+
+      // Load the world map — serve from the session's catalogue if it is fresh
+      if (_lmWideEnough()) (function() {
+        function _paint(catalog) {
+          if (_navToken !== _tok) return;
+          var el = byId('homeMapArea');
+          if (!el) return;
+          AppState.training.catalog = catalog;
+          /* Identities before drawing, exactly as renderLevelMap does. The
+           * Operational card takes its name from the Levels sheet, and drawing
+           * before that arrives publishes a card with no name on it. */
+          if (_levelMeta === null) { _loadLevelMeta(function() { _paint(catalog); }); return; }
+          el.innerHTML = _lmHomeMapHtml(catalog);
+          _lmFitStage();
+        }
+
+        /* A failure here is visible and reported.
+         *
+         * The two sections below this one hide themselves when their fetch fails,
+         * which makes a broken home page and an empty one the same observable —
+         * nothing reaches the developer and nothing reaches the student either.
+         * That is a defect in those two; it is not one this copies. */
+        function _failed(detail) {
+          if (_navToken !== _tok) return;
+          var el = byId('homeMapArea');
+          if (el) {
+            el.innerHTML =
+              '<div style="text-align:center;padding:28px;color:var(--muted);">' +
+                '<p style="margin:0 0 10px;">Could not load your levels.</p>' +
+                '<button class="btn secondary" onclick="_navTo(renderHome)">Try again</button>' +
+              '</div>';
+          }
+          try {
+            if (window._reportClientError) {
+              window._reportClientError('homeMap', new Error(String(detail || 'unknown')));
+            }
+          } catch (e) {}
+        }
+
+        var _cachedCatalog = _homeMapCacheRead(_HOME_SECTION_TTL);
+        if (_cachedCatalog) { _paint(_cachedCatalog); return; }
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (!res || !res.ok) { _failed(res && res.message ? res.message : 'catalog not ok'); return; }
+            var catalog = res.catalog || res.data || res;
+            _homeMapCacheWrite(catalog);
+            _paint(catalog);
+          })
+          .withFailureHandler(function(err) { _failed(err && err.message ? err.message : err); })
+          .apiGetTrainingCatalogV5_HARD(AppState.sessionToken);
+      })();
 
       // Load daily challenge banner — serve from sessionStorage if fresh
       (function() {
@@ -5531,6 +5596,7 @@ window.tierByExam = function (examNum) {
         } else {
           var catalog = res.catalog || res.data || res;
           AppState.training.catalog = catalog;
+          _homeMapCacheWrite(catalog);
           _catalogRes = catalog;
         }
         _tryRenderLevelMapWithExams();
@@ -5903,6 +5969,59 @@ var LEVEL_THEMES = {
               'No operational levels are published yet.</p></div>') +
       '</div>';
   };
+
+  /* The Operational divider and the section under it.
+   *
+   * Three drawings need this — the grid, the map on the levels screen, and the
+   * map on the home page — and it was written out twice before the third arrived,
+   * which is one copy short of the failure this repository keeps repeating. */
+  function _lmOpsBlock(heroCard) {
+    if (!heroCard) return '';
+    return '<div class="ops-divider-wrap">' +
+        '<div class="ops-divider-line"></div>' +
+        '<span class="ops-divider-label">&#10022; OPERATIONAL CLEARANCE &#10022;</span>' +
+        '<div class="ops-divider-line"></div>' +
+      '</div>' +
+      '<section class="level-ops-section">' + heroCard + '</section>';
+  }
+
+  /* The map as the HOME page draws it: the stage, and Operational underneath.
+   *
+   * None of the levels screen's chrome. There is no tab strip to sit under here,
+   * and no "Grid view" button — _lmSetView repaints the levels screen, so on the
+   * home page that button would not switch a view, it would leave the page. */
+  function _lmHomeMapHtml(data) {
+    var surface = _lmSurface(data);
+    return _lmStageHtml(surface.models, surface.tiers, surface.vrSlot) +
+           _lmOpsBlock(surface.heroCard);
+  }
+
+  /* The catalogue, kept for the length of a session.
+   *
+   * The home page draws the map from this rather than asking the server on every
+   * visit, because the landing screen is the one place where an extra Apps Script
+   * call is paid by every student at once.
+   *
+   * It carries completion state, so it is REPLACED wherever a fresher catalogue
+   * appears — the moment a route is completed, and whenever the levels screen
+   * fetches one — rather than being left to age out. A map that still shows a
+   * country a student finished two minutes ago is the app misreporting their own
+   * progress, which is worse than the app being slow. */
+  var _HOME_MAP_CACHE_KEY = '_aero_catalog_home';
+  function _homeMapCacheWrite(catalog) {
+    if (!catalog) return;
+    try {
+      sessionStorage.setItem(_HOME_MAP_CACHE_KEY,
+        JSON.stringify({ t: Date.now(), catalog: catalog }));
+    } catch (e) {}
+  }
+  function _homeMapCacheRead(ttlMs) {
+    try {
+      var c = JSON.parse(sessionStorage.getItem(_HOME_MAP_CACHE_KEY) || 'null');
+      if (c && c.catalog && (Date.now() - Number(c.t || 0)) < ttlMs) return c.catalog;
+    } catch (e) {}
+    return null;
+  }
 
   /* Everything both drawings of this screen are made of, read from the catalogue
    * once.
@@ -6376,14 +6495,7 @@ var LEVEL_THEMES = {
             'onclick="window._lmSetView(\'map\')">' + uiIconInline('globe') + 'Map view</button></div>'
         : '') +
       tierSections +
-      (heroCard
-        ? '<div class="ops-divider-wrap">' +
-            '<div class="ops-divider-line"></div>' +
-            '<span class="ops-divider-label">&#10022; OPERATIONAL CLEARANCE &#10022;</span>' +
-            '<div class="ops-divider-line"></div>' +
-          '</div>' +
-          '<section class="level-ops-section">' + heroCard + '</section>'
-        : '');
+      _lmOpsBlock(heroCard);
 
   }
 
@@ -6869,14 +6981,7 @@ var LEVEL_THEMES = {
        * below the tiers. It was missing entirely: a student whose sheet publishes
        * an Operational level would have seen it on the grid and not on the map,
        * which is the map showing less than the view it replaces. */
-      (heroCard
-        ? '<div class="ops-divider-wrap">' +
-            '<div class="ops-divider-line"></div>' +
-            '<span class="ops-divider-label">&#10022; OPERATIONAL CLEARANCE &#10022;</span>' +
-            '<div class="ops-divider-line"></div>' +
-          '</div>' +
-          '<section class="level-ops-section">' + heroCard + '</section>'
-        : '');
+      _lmOpsBlock(heroCard);
   }
 
   function renderCountryPreviewFlags(countries) {
@@ -12318,6 +12423,10 @@ var LEVEL_THEMES = {
       markCurrentRouteCompletedOnClient();
       var catalog = buildCompletionCatalog(AppState.training.catalog);
       AppState.training.catalog = catalog;
+      // The home page draws its map from this. Replaced, not dropped: the newly
+      // completed country is in it, and dropping the key would make the next
+      // visit home pay for a fetch to learn what is already known here.
+      _homeMapCacheWrite(catalog);
       var newStreakDays = res && res.streakDays ? res.streakDays : null;
 
       // Auto-save certificate

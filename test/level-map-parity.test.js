@@ -67,6 +67,7 @@ function models(planLockedAt) {
  * moved out of it, which is exactly what happened when it did. */
 const MAP_SRC = strip(
   grab('function _lmStageHtml(models, tiers, vrSlot)') +
+  grab('function _lmOpsBlock(heroCard)') +
   grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)')
 );
 
@@ -95,6 +96,7 @@ function lift(extra) {
     grab('var _LM_CP = {'),
     grab('function _lmCountryOf(model)'), grab('function _lmPlace(model)'),
     grab('function _lmFlag(country, uid)'), grab('function _lmShortTag(meta)'),
+    grab('function _lmOpsBlock(heroCard)'),
     grab('function _lmStageHtml(models, tiers, vrSlot)'),
     grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)'),
     'return { map: _lmRenderMap, stage: _lmStageHtml };'
