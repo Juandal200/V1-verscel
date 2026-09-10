@@ -17,6 +17,35 @@ Newest day first.
 
 ## 2026-09-10
 
+### The coastlines read as a world map
+
+**Plan.** Rewrite `_LM_LAND` at roughly three times the resolution and add the
+landmasses that were missing entirely, then prove it with a check that can catch a
+continent drawn wrong.
+
+**Criterion.** Stated: make the lines or the silhouette of the map more realistic.
+
+`DERIVED`: still hand-authored coordinates. No library and no remote tiles,
+because `sw.js` caches only `/` and a tile source would break the app offline —
+the constraint the original author wrote down, and it still holds.
+
+**Why, in one line.** Nothing on this machine can look at the map, so "more
+realistic" had to become something testable: every country pin lands inside its
+own landmass, and every continent stays inside its own hemisphere.
+
+**Checklist.**
+
+- [ ] The map reads as a world map — recognisable continents at a glance
+- [ ] Scandinavia, Hudson Bay, the Red Sea, the Caribbean and Korea are all there
+- [ ] Every flag sits on land, none in the sea
+- [ ] Greenland is cropped at the top edge rather than squashed
+- [ ] Nothing overlaps the mock-test square in the bottom right
+- [ ] The map still renders instantly and works offline
+
+**Not verifiable from the repo.** Whether it actually looks better. The tests
+prove the outlines are not wrong; they cannot prove they are good.
+
+
 ### The mock test is named honestly and sits on the map
 
 **Plan.** Two halves of one request. The square's three lines become

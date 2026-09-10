@@ -414,5 +414,118 @@ ok('the choice is remembered',   /localStorage\.setItem\(_lmViewKey\(\)/.test(co
 ok('and it is instrumented, so the question can be answered with a number',
    /levelmap_view/.test(code));
 
+/* ── the coastlines are a map, not four blobs ──────────────────────────────
+ *
+ * _LM_LAND is hand-authored — no library, no remote tiles, because sw.js caches
+ * only '/' and a tile source would break the app offline. Hand-authored means it
+ * can be drawn WRONG rather than merely drawn simply, and nothing on this machine
+ * can look at it.
+ *
+ * What can be checked is the thing that matters: every country pin has to land on
+ * its own continent. A coastline in the wrong place puts a flag in the sea, and
+ * that is exactly what this catches.
+ */
+console.log('--- every pin lands on its own landmass ---');
+const LAND  = new Function(grab('var _LM_LAND = {')  + '\nreturn _LM_LAND;')();
+const PLACE = new Function(grab('var _LM_PLACE = {') + '\nreturn _LM_PLACE;')();
+
+function pointInPolygon(pt, flat) {
+  const n = flat.length / 2;
+  let hit = false;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const xi = flat[i * 2], yi = flat[i * 2 + 1];
+    const xj = flat[j * 2], yj = flat[j * 2 + 1];
+    if (((yi > pt[1]) !== (yj > pt[1])) &&
+        (pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi)) hit = !hit;
+  }
+  return hit;
+}
+
+/* Sydney sits at 151.2 and the first draft of the east coast passed straight
+ * through it, putting Australia's flag in the Tasman Sea. The coastline was
+ * redrawn; the assertion was not loosened. */
+const ON = { US: 'north_america', CA: 'north_america', MX: 'north_america',
+             GB: 'britain', IN: 'eurasia', AU: 'australia',
+             CO: 'south_america', BR: 'south_america', ZA: 'africa' };
+Object.keys(ON).forEach(function (code) {
+  const p = PLACE[code];
+  const land = LAND[ON[code]];
+  /* Guarded: deleting a landmass made pointInPolygon throw, which fails the suite
+   * but prints no FAIL line — a crash reads as a broken test rather than a broken
+   * product, and the two need telling apart. */
+  if (!p || !Array.isArray(land)) {
+    ok(code + ' is on ' + ON[code], false, !p ? 'no coordinates' : 'no such landmass');
+    return;
+  }
+  ok(code + ' is on ' + ON[code], pointInPolygon([p.lon, p.lat], land));
+});
+
+console.log('--- and it reads as a world map ---');
+const shapes = Object.keys(LAND);
+const points = shapes.reduce((n, k) => n + LAND[k].length / 2, 0);
+/* Ceilings, not targets. Raising them is allowed; raising them without noticing
+ * is what counting stops. Fourteen shapes and 236 points was four blobs with no
+ * Scandinavia, no Hudson Bay, no Red Sea, no Caribbean and no Korea. */
+ok('at least 24 landmasses (was 14)', shapes.length >= 24, String(shapes.length));
+ok('at least 450 points (was 236)',   points >= 450,       String(points));
+['greenland', 'britain', 'ireland', 'japan', 'madagascar', 'srilanka', 'cuba',
+ 'newguinea', 'tasmania', 'sumatra'].forEach(function (k) {
+  ok('it draws ' + k, Array.isArray(LAND[k]) && LAND[k].length >= 8);
+});
+
+console.log('--- and no shape is in the wrong ocean ---');
+/* Two different claims, and the first draft of this ran them together and failed
+ * correct data. The window the projection draws is 80N to 58S; Greenland reaches
+ * 83.6N in reality, so it is CROPPED by the wrap's overflow — which is what a
+ * real map cut off at 80 does, not a mistake.
+ *
+ * So: every coordinate must be a real one, and nothing may sit so far outside
+ * the window that it is misplaced rather than merely cropped. */
+let invalid = [], adrift = [];
+shapes.forEach(function (k) {
+  const f = LAND[k];
+  if (f.length % 2 !== 0) invalid.push(k + ': odd number of values');
+  for (let i = 0; i < f.length; i += 2) {
+    const lon = f[i], lat = f[i + 1];
+    if (lon < -180 || lon > 180 || lat < -90 || lat > 90) invalid.push(k + ' ' + lon + ',' + lat);
+    if (lat > 85 || lat < -63) adrift.push(k + ' lat ' + lat);
+  }
+});
+ok('every coordinate is a real one', invalid.length === 0, invalid.slice(0, 3).join(' | '));
+ok('and nothing is adrift far outside the drawn window',
+   adrift.length === 0, adrift.slice(0, 3).join(' | '));
+
+/* Each continent inside its own box.
+ *
+ * The check above only notices a coordinate that is impossible or off the window.
+ * A point at lon -140 dropped into Africa is neither — it is perfectly valid and
+ * in the Pacific, and it went undetected until these boxes existed. They are
+ * generous: the claim is "Africa is not in the Pacific", not "this is a survey". */
+const BOX = {
+  north_america: [-170, -50,   5,  80],
+  south_america: [ -85, -25, -60,  15],
+  eurasia:       [ -12, 180,   0,  80],
+  africa:        [ -20,  55, -36,  40],
+  australia:     [ 110, 155, -45, -10],
+  greenland:     [ -75, -15,  58,  85],
+  britain:       [ -12,   3,  49,  61],
+  japan:         [ 127, 148,  30,  46],
+  madagascar:    [  42,  52, -27, -11],
+};
+let misplaced = [];
+Object.keys(BOX).forEach(function (k) {
+  const f = LAND[k], b = BOX[k];
+  if (!Array.isArray(f)) { misplaced.push(k + ': missing'); return; }
+  for (let i = 0; i < f.length; i += 2) {
+    if (f[i] < b[0] || f[i] > b[1] || f[i + 1] < b[2] || f[i + 1] > b[3]) {
+      misplaced.push(k + ' ' + f[i] + ',' + f[i + 1]);
+    }
+  }
+});
+ok('every continent stays inside its own hemisphere',
+   misplaced.length === 0, misplaced.slice(0, 3).join(' | '));
+/* A landmass of two points is a line, not a shape. */
+ok('no shape is degenerate', shapes.every(k => LAND[k].length >= 8));
+
 console.log(fails?('\n'+fails+' FAILING'):'\nall green');
 process.exit(fails?1:0);
