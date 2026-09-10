@@ -438,20 +438,26 @@
           .then(function(r) { return r.json(); })
           .then(function(data) {
             _resetBtn(btn);
-            _emitPhase(textareaId, '');
             if (data.ok && data.transcript) {
               if (_micIsEcho(data.transcript, expected, _take, _durMs)) {
+                _emitPhase(textareaId, '');
                 _micNotHeard(btn);
                 return;
               }
               var corrected = _applyFixes(data.transcript, _scenarioFixes(expected));
               var ta = document.getElementById(textareaId);
               if (ta) { ta.value = corrected; ta.focus(); ta.dispatchEvent(new Event('input')); }
+              // 'done', not '': a transcript was delivered, so a caller waiting
+              // on one is still entitled to act.
+              _emitPhase(textareaId, 'done');
               if (onTranscript) onTranscript(corrected);
             } else if (data.noKey) {
-              // API key not set — fall back to browser SR silently
+              // API key not set — fall back to browser SR silently. The fallback
+              // is given no onTranscript, so nothing will be delivered.
+              _emitPhase(textareaId, '');
               _fallbackSpeechRec(textareaId, btnId, expected);
             } else {
+              _emitPhase(textareaId, '');
               if (btn) {
                 btn.innerHTML = '&#9888; Try again';
                 setTimeout(function() { _resetBtn(btn); }, 2500);
@@ -8456,22 +8462,39 @@ var LEVEL_THEMES = {
   // lightning bolt meaning "served from cache". Both are notes to a developer, on the
   // screen of somebody trying to fly an aeroplane. The accent is the only part of it
   // that is theirs to know.
+  /* The accent badge, drawn from the scenario rather than from the audio.
+   *
+   * The flag says the accent faster than the word does, and it says it in one
+   * line — "INDIAN ATC" wrapped to two and pushed the Replay button off centre.
+   *
+   * One function, two callers: the card writes it at render time and this
+   * refreshes it when a voice resolves. It used to exist only in the second of
+   * those, so the badge sat at its placeholder "loading…" for the whole phase
+   * whenever the first never arrived — a slow voice fetch, a failed one, or the
+   * text-only fallback, which passes no country at all and replaced the flag
+   * with the words "Text only". The country is known when the card is drawn and
+   * nothing about it depends on audio. */
+  function _atcAccentBadgeHtml(country) {
+    var meta = getCountryUi(country);          // always returns an accent
+    return '<span class="atc-accent-flag">' +
+             getFlagHtml(country, 'flag-badge') +
+           '</span><span class="atc-accent-name">' +
+             safeText(String(meta.accent || '').replace(/\s*ATC$/, '')) + '</span>';
+  }
+
   function _showVoiceBadge(voiceName, cached, country) {
     var el = byId('atcVoiceBadge');
     if (!el) return;
+    // Callers that pass none still have one — the scenario on screen. Falling
+    // back to it is what keeps the flag up when the voice path does not carry it.
+    if (!country) {
+      try { var _sc = getCurrentScenarioSim(); country = _sc && _sc.country; } catch (e) {}
+    }
     var meta = null;
     try { if (country) meta = getCountryUi(country); } catch (e) {}
 
-    // The flag says the accent faster than the word does, and it says it in one
-    // line — "INDIAN ATC" wrapped to two and pushed the Replay button off centre.
-    // getFlagHtml serves a real flag and falls back to the character if the image
-    // does not load, so this degrades to what it used to be rather than to nothing.
-    if (meta && meta.accent) {
-      var nationality = meta.accent.replace(/\s*ATC$/, '');
-      el.innerHTML = '<span class="atc-accent-flag">' +
-                       getFlagHtml(country, 'flag-badge') +
-                     '</span><span class="atc-accent-name">' +
-                       safeText(nationality) + '</span>';
+    if (country) {
+      el.innerHTML = _atcAccentBadgeHtml(country);
     } else {
       el.textContent = voiceName === 'text only' ? 'Text only'
                      : (voiceName ? 'ATC' : 'Loading\u2026');
@@ -8820,7 +8843,9 @@ var LEVEL_THEMES = {
               '<div class="sim-section-title"><span>ATC RADIO</span>' +
                 '<div style="display:flex;gap:6px;align-items:center;">' +
                   '<span class="sim-live-dot" id="simAtcLiveDot" style="display:none;">PLAYING</span>' +
-                  '<span id="atcVoiceBadge" class="atc-accent-badge">loading…</span>' +
+                  // Drawn now, from the scenario's own country. Never "loading…".
+                  '<span id="atcVoiceBadge" class="atc-accent-badge">' +
+                    _atcAccentBadgeHtml(scenario.country) + '</span>' +
                   '<button class="btn primary" id="atcReplayBtn" onclick="immersivePlayAtcAudio(event)">&#8635; Replay ATC</button>' +
                 '</div>' +
               '</div>' +
@@ -10144,6 +10169,26 @@ var LEVEL_THEMES = {
    * describing something it does not do. */
   window._micPhase = function (textareaId, phase) {
     if (textareaId !== 'pilotReadback') return;
+
+    /* A take that ended without a transcript cancels Enter's pending send.
+     *
+     * Enter while recording sets _sendAfterTranscript and waits, because the
+     * transcript has to arrive before there is anything to send. It was cleared
+     * in exactly one place — _simOnTranscript, on the success path — and the
+     * recorder has five ways to finish without ever getting there: silence, an
+     * echo, no API key, a Whisper error, a network failure.
+     *
+     * So the flag stayed armed. The next transcript to arrive, possibly in a
+     * later phase after Practice again had rebuilt the card, submitted itself
+     * the instant it landed — a verdict the student never asked for, on an
+     * answer they were still writing. The silence gate did not create this but
+     * it made it the common case, because silence is common.
+     *
+     * 'done' means a transcript was delivered and _simOnTranscript is about to
+     * decide; '' means the take ended with nothing, and nothing is not an
+     * answer. */
+    if (phase === '') _sendAfterTranscript = false;
+
     _simSetStatus(phase === 'recording'    ? 'Recording\u2026'
                 : phase === 'transcribing' ? 'Transcribing\u2026'
                 : '');

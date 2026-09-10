@@ -1103,3 +1103,80 @@ nothing and reports a match. Doing nothing and succeeding are the same observabl
 report it distinctly — `1 matched, 1 had nothing to check` — so the summary line
 can never overstate. And the fix is not trusted until a body with an empty claim
 block has been seen rejected.
+
+---
+
+## An answer submitted itself, one phase after the student pressed Enter
+
+**Status** **Fixed** — a take that delivers no transcript now cancels the pending
+send. Recorded because the mechanism was correct when it was written and became
+wrong when the recorder grew new ways to finish, which is a failure mode no
+amount of care at the original site would have caught.
+
+**No bot ID.** Reported from a live route on 2026-09-09 with screenshots.
+
+**What was reported.** "When hitting replay it automatically jumps like incorrect
+without typing or sending anything." A verdict of 0/100 on an answer the student
+was still writing.
+
+**The mechanism.** Pressing Enter while the microphone is recording is meant to
+stop it and wait — the transcript has to arrive before there is anything to send.
+That request lives in `_sendAfterTranscript`, set in `_simSubmitReadback` and
+cleared in exactly one place: `_simOnTranscript`, on the success path.
+
+The recorder has **five** ways to finish without ever reaching it — silence, an
+echo, no API key, a Whisper error, a network failure — and on every one of them
+the flag stayed armed. It is module-scope, so it survived Practice again
+rebuilding the card. The next transcript to arrive, possibly a phase later,
+submitted itself the instant it landed.
+
+**Whose fault it is.** The two-of-five that make it common are mine: the silence
+gate and the collision guard, added 2026-09-09, both return without calling
+`onTranscript`. Silence is the ordinary case — a student presses Enter, the
+recorder had nothing, and from then on the next thing they say sends itself. The
+other three exits predate that and had the same hole; nobody had hit them often
+enough to notice.
+
+**The general shape.** A flag set in one place and cleared in one place is only
+correct while there is exactly one way to finish. The recorder gained two more
+and nothing pointed at the flag. `_micPhase` now reports *which kind* of ending
+it was — `'done'` for a delivered transcript, `''` for a take that produced
+nothing — so a new exit has to say which it is rather than silently defaulting to
+the wrong one.
+
+**What would reopen it.** A sixth exit added without emitting a phase. The suite
+counts them: `test/pending-send.test.js` asserts at least four `''` emissions and
+that `'done'` is inside the success branch rather than above it.
+
+---
+
+## The accent badge said "loading…" for the whole phase
+
+**Status** **Fixed** — the badge is drawn from the scenario's own country when
+the card renders, and one helper serves both callers.
+
+**No bot ID.** Reported alongside the entry above, on 2026-09-09.
+
+**What was reported.** "Sometimes I don't get the flag, only that loading screen,
+next to the replay button. I should always get the flag of the country accent."
+
+**The mechanism.** `#atcVoiceBadge` shipped with the literal text `loading…` and
+was only ever rewritten by `_showVoiceBadge`, which runs when a voice resolves.
+Three paths never got there or got there without a country: a slow voice fetch, a
+failed one, and the text-only fallback, which passes no country at all and
+replaced the flag with the words "Text only".
+
+**Why the fix is where it is.** The accent is a property of the scenario, not of
+the audio. The country is known when the card is drawn and nothing about it
+depends on a round trip, so the badge is written then. `_showVoiceBadge` refreshes
+it and falls back to the scenario when its caller passes no country.
+
+**Two-copies rule, applied before editing rather than after.** The flag markup now
+exists once, in `_atcAccentBadgeHtml`, with two callers. Writing it inline at the
+render site as well would have been a second copy of the same four lines, in the
+file whose stylesheet already carries 73 duplicated top-level selectors.
+
+**What is not verifiable from the repo (rule 6).** Whether the flag renders. That
+is geometry, and `getFlagHtml` degrades to a two-letter box for a country with no
+SVG — of which there are none in `COUNTRY_UI` today, asserted by
+`test/sitting-report.test.js`.
