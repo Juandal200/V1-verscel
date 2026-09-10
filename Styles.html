@@ -13350,8 +13350,11 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   stroke: rgba(var(--lift-rgb), .13); stroke-width: 1;
   stroke-dasharray: 2 3.5; stroke-linejoin: round;
 }
-.lm-edges line { stroke: rgba(var(--lift-rgb), .15); stroke-width: 1; stroke-dasharray: 3 5; }
-.lm-edges line.lm-edge-done { stroke: rgba(var(--green-rgb), .5); stroke-dasharray: none; }
+/* Leaders only. The country-to-country route was removed: consecutive levels sit
+   on different continents, so those lines crossed the map in every direction and
+   read as noise. A leader does the opposite job — it ties one card to one pin. */
+.lm-leader { stroke: rgba(var(--lift-rgb), .18); stroke-width: 1; stroke-dasharray: 2 4; }
+.lm-leader--done { stroke: rgba(var(--green-rgb), .3); }
 
 .lm-pin {
   position: absolute; transform: translate(-50%, -50%); z-index: 2;

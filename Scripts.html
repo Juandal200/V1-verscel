@@ -6511,6 +6511,14 @@ var LEVEL_THEMES = {
     if (document.querySelector('.lm-stage')) _lmFitStage();
   });
 
+  // A tag worth showing beside the level number: short, and not the name again.
+  function _lmShortTag(meta) {
+    var t = String((meta && meta.tag) || '').trim();
+    if (!t || t.length > 8) return '';
+    if (t.toLowerCase() === String((meta && meta.name) || '').trim().toLowerCase()) return '';
+    return t;
+  }
+
   function _lmViewKey() { return 'aero_levelmap_view'; }
   function _lmViewIsMap() {
     try { return localStorage.getItem(_lmViewKey()) === 'map'; } catch (e) { return false; }
@@ -6550,19 +6558,34 @@ var LEVEL_THEMES = {
       if (_LM_CP[t.examNum]) seq.push({ kind: 'cp', examNum: t.examNum, at: _LM_CP[t.examNum] });
     });
 
+    /* No lines between countries.
+     *
+     * The route drew a line from each stop to the next, in the order a student
+     * walks them. On a world map that is not a route: consecutive levels are on
+     * different continents, so the lines crossed the map in every direction and
+     * read as noise rather than sequence. The tier bar above already says where
+     * a student is; the map does not need to draw it twice.
+     *
+     * The lines that remain are leaders — one per level, joining a card to its
+     * own pin — which is a different job. Nine cards scattered around a map with
+     * nothing tying them to a country is unreadable, and it is the failure the
+     * original ticket warned about. */
     var edges = '';
-    for (var i = 0; i < seq.length - 1; i++) {
-      var A = seq[i].at, B = seq[i + 1].at;
-      var walked = seq[i].kind === 'level' && seq[i].model.isCompleted;
-      edges += '<line x1="' + _lmX(A.lon).toFixed(1) + '" y1="' + _lmY(A.lat).toFixed(1) +
-               '" x2="' + _lmX(B.lon).toFixed(1) + '" y2="' + _lmY(B.lat).toFixed(1) +
-               '"' + (walked ? ' class="lm-edge-done"' : '') + '/>';
-    }
 
-    var pins = '', cards = '';
+    var pins = '', cards = '', leaders = '';
     models.forEach(function (m) {
       var place = _lmPlace(m);
       if (!place) { unplaced.push(m); return; }
+
+      /* The leader joins the card to the country it belongs to.
+       *
+       * Drawn to the card's header rather than its centre, because the card grows
+       * downwards when it opens and a line to the middle would slide. The pin
+       * never moves; the card is wherever it fits; the line is what makes them
+       * one thing. */
+      leaders += '<line class="lm-leader' + (m.isCompleted ? ' lm-leader--done' : '') +
+        '" x1="' + _lmX(place.lon).toFixed(1) + '" y1="' + _lmY(place.lat).toFixed(1) +
+        '" x2="' + (place.card[0] + 108) + '" y2="' + (place.card[1] + 22) + '"/>';
       var country = _lmCountryOf(m);
       var meta    = (_levelMeta && _levelMeta[m.level]) || {};
       var state   = m.isCompleted ? 'complete' : m.planLock ? 'upgrade' : m.locked ? 'locked' : 'current';
@@ -6589,8 +6612,18 @@ var LEVEL_THEMES = {
         '<button type="button" class="lm-card lm-card--' + state + '"' +
           ' style="left:' + place.card[0] + 'px;top:' + place.card[1] + 'px;"' +
           ' onclick="openLevelCountries(' + m.level + ')">' +
+          /* "LEVEL n" on its own, unless the tag is genuinely short.
+           *
+           * The mockup put a four-character ICAO identifier on the right of this
+           * row. This product's tag is a category word — LevelService's own
+           * defaults use 'Operational' — and the sheet is putting the level's full
+           * name in it, so "LEVEL 6" and "Weather Operations" fought over 216px
+           * and wrapped into two jammed columns. A short code still gets its
+           * place; a long one is dropped, because the name is on the very next
+           * line and repeating it costs the header its legibility. */
           '<span class="lm-card-head"><span>LEVEL ' + m.level + '</span>' +
-            '<span>' + safeText(meta.tag || '') + '</span></span>' +
+            (_lmShortTag(meta) ? '<span>' + safeText(_lmShortTag(meta)) + '</span>' : '') +
+          '</span>' +
           '<span class="lm-card-name">' + safeText(meta.name || ('Level ' + m.level)) + '</span>' +
           '<span class="lm-card-sub">' + safeText(meta.accent || '') + '</span>' +
           '<span class="lm-card-detail">' +
@@ -6686,7 +6719,7 @@ var LEVEL_THEMES = {
       '<div class="lm-tiers">' + tierBar + '</div>' +
       '<div class="lm-stage-wrap"><div class="lm-stage">' +
         '<svg class="lm-geo" viewBox="0 0 ' + _LM_W + ' ' + _LM_H + '" aria-hidden="true">' + geo + '</svg>' +
-        '<svg class="lm-edges" viewBox="0 0 ' + _LM_W + ' ' + _LM_H + '" aria-hidden="true">' + edges + '</svg>' +
+        '<svg class="lm-edges" viewBox="0 0 ' + _LM_W + ' ' + _LM_H + '" aria-hidden="true">' + edges + leaders + '</svg>' +
         pins + cpMarks + cards +
       '</div></div>' + strip +
       /* The Operational group, drawn below the map exactly as the grid draws it

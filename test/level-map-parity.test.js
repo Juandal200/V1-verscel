@@ -76,7 +76,8 @@ function renderMapWith(ms, extra, heroCard) {
     grab('var _LM_PLACE = {').replace(/^var /, 'var '),
     grab('var _LM_CP = {'),
     grab('function _lmCountryOf(model)'), grab('function _lmPlace(model)'),
-    grab('function _lmFlag(country, uid)'), grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)'),
+    grab('function _lmFlag(country, uid)'), grab('function _lmShortTag(meta)'),
+    grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)'),
     'return _lmRenderMap;'
   ].join('\n');
   Object.assign(stubs, extra || {});
@@ -184,6 +185,39 @@ const oh2 = renderMapWith(models(2), {}, '<article>OPS CARD</article>');
 ok('the Operational block is drawn when there is one', /OPS CARD/.test(oh2));
 ok('under the same divider the grid uses',   /OPERATIONAL CLEARANCE/.test(oh2));
 ok('and nothing is drawn when there is not', !/OPERATIONAL CLEARANCE/.test(renderMap(models(2))));
+
+console.log('--- nothing draws a route between countries ---');
+/* The route drew a line from each stop to the next. Consecutive levels sit on
+ * different continents, so those lines crossed the map in every direction and
+ * read as noise rather than sequence. */
+const mapBody = strip(grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)'));
+ok('no line is drawn between one country and the next',
+   !/lm-edge-done/.test(html) && !/seq\[i \+ 1\]/.test(mapBody));
+
+console.log('--- but every card is tied to its own pin ---');
+/* Nine cards scattered over a map with nothing joining them to a country is
+ * unreadable, and it is the failure the original ticket warned about. */
+const leaders = (html.match(/class="lm-leader/g) || []).length;
+ok('one leader per placed level', leaders === 9);
+ok('a finished level\'s leader is marked as such', /lm-leader--done/.test(html));
+ok('and a level with no place gets no leader',
+   (renderMap(orphan).match(/class="lm-leader/g) || []).length === 8);
+
+console.log('--- the header does not fight itself ---');
+/* tag is a category word here — LevelService's own defaults use 'Operational' —
+ * and the sheet puts the level's full name in it, so "LEVEL 6" and "Weather
+ * Operations" wrapped into two jammed columns inside 216px. */
+const shortTag = new Function(grab('function _lmShortTag(meta)') + '\nreturn _lmShortTag;')();
+/* A LONG tag that is not the name. The first version of this used a tag equal to
+ * the name, so the second guard caught it and removing the length guard changed
+ * nothing — the red proof passed and proved the assertion was decoration. */
+ok('a long tag is dropped',        shortTag({ tag: 'Weather Operations', name: 'Level Six' }) === '');
+ok('so is one that repeats the name', shortTag({ tag: 'En-Route', name: 'En-Route' }) === '');
+ok('a short code is kept',         shortTag({ tag: 'KJFK', name: 'ATC Basics' }) === 'KJFK');
+ok('and nothing is invented when there is no tag', shortTag({ name: 'x' }) === '');
+// The rendered header carries the level number whatever the tag does.
+ok('every card still says which level it is',
+   (html.match(/lm-card-head[\s\S]{0,40}?LEVEL \d/g) || []).length === 9);
 
 console.log('--- the map country comes from the sheet ---');
 const LS = fs.readFileSync(__dirname + '/../LevelService.js', 'utf8');
