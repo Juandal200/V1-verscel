@@ -13515,4 +13515,36 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 @media (max-width: 1100px) {
   .lm-stage-wrap, .lm-tiers, .lm-switch { display: none; }
 }
+
+/* The mock test, at the foot of the map on the home page.
+ *
+ * A square rather than a fourth card in the row below, because it is one action
+ * and it wants to be found: it sits where the eye leaves the map, bottom right,
+ * with the Operational divider directly under it. The card in the row goes when
+ * this appears — two doors to one exam on one page is not a clearer page.
+ *
+ * Below 1100px there is no map for it to sit at the foot of, so the card in the
+ * row stays and this is not drawn at all. */
+.home-exam-row { display: flex; justify-content: flex-end; margin-top: 10px; }
+.home-exam-square {
+  width: 150px; padding: 14px 12px; border-radius: 12px; text-align: center;
+  background: linear-gradient(145deg, var(--panel), var(--panel-soft));
+  border: 1px solid var(--accent); box-shadow: var(--shadow-2);
+  color: var(--text); font-family: inherit; cursor: pointer;
+}
+.home-exam-square:hover { box-shadow: var(--shadow-3); }
+.home-exam-square:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.home-exam-ring {
+  width: 52px; height: 52px; border-radius: 50%; margin: 0 auto 8px;
+  display: grid; place-items: center;
+  border: 1px solid var(--accent); background: var(--panel);
+}
+.home-exam-ring svg { width: 20px; height: 20px; fill: var(--accent); }
+.home-exam-kicker {
+  display: block; font-family: var(--font-instrument); font-size: var(--t-label);
+  letter-spacing: 0.12em; color: var(--accent);
+}
+.home-exam-name { display: block; margin-top: 4px; font-size: var(--t-body); font-weight: 700; }
+.home-exam-go   { display: block; margin-top: 6px; font-size: var(--t-label); color: var(--muted); }
+@media (max-width: 1100px) { .home-exam-row { display: none; } }
 </style>

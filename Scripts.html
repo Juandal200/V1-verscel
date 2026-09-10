@@ -2583,9 +2583,15 @@ window.tierByExam = function (examNum) {
           '<button style="flex-shrink:0;width:auto;white-space:nowrap;background:var(--accent);color:var(--accent-ink);border:none;border-radius: 8px;padding:7px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;" onclick="_navTo(renderSimulatorPlaceholder)">Continue →</button>' +
         '</div>';
 
+      /* One door to the exam, not two.
+       *
+       * Where the map is drawn the mock test is the square at the foot of it, so
+       * the card comes out of this row. Below 1100px there is no map and no
+       * square, and the card is the only way in from here — taking it out there
+       * would remove the exam from the home page on every phone. */
       var cardsRow =
         '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:16px;">' +
-          simCard + teaCard + streakCard +
+          simCard + (_lmWideEnough() ? '' : teaCard) + streakCard +
         '</div>';
 
       // ── Daily challenge banner placeholder ──
@@ -2629,7 +2635,7 @@ window.tierByExam = function (examNum) {
            * Operational card takes its name from the Levels sheet, and drawing
            * before that arrives publishes a card with no name on it. */
           if (_levelMeta === null) { _loadLevelMeta(function() { _paint(catalog); }); return; }
-          el.innerHTML = _lmHomeMapHtml(catalog);
+          el.innerHTML = _lmHomeMapHtml(catalog, _homeExamSquare());
           _lmFitStage();
         }
 
@@ -5985,14 +5991,33 @@ var LEVEL_THEMES = {
       '<section class="level-ops-section">' + heroCard + '</section>';
   }
 
+  /* The mock test, as a square at the foot of the map.
+   *
+   * One action, so one square rather than a fourth card in the row below — and it
+   * sits between the stage and the Operational divider because that is where the
+   * eye leaves the map. It carries what the card carried: the badge that says
+   * which exam this is, and the way in. */
+  function _homeExamSquare() {
+    return '<div class="home-exam-row">' +
+      '<button type="button" class="home-exam-square" onclick="_navTo(renderTeaExam)"' +
+        ' aria-label="ICAO practice test — begin">' +
+        '<span class="home-exam-ring">' + uiIconInline('paper') + '</span>' +
+        '<span class="home-exam-kicker">ICAO TEST</span>' +
+        '<span class="home-exam-name">Mock test</span>' +
+        '<span class="home-exam-go">Begin &rarr;</span>' +
+      '</button>' +
+    '</div>';
+  }
+
   /* The map as the HOME page draws it: the stage, and Operational underneath.
    *
    * None of the levels screen's chrome. There is no tab strip to sit under here,
    * and no "Grid view" button — _lmSetView repaints the levels screen, so on the
    * home page that button would not switch a view, it would leave the page. */
-  function _lmHomeMapHtml(data) {
+  function _lmHomeMapHtml(data, betweenHtml) {
     var surface = _lmSurface(data);
     return _lmStageHtml(surface.models, surface.tiers, surface.vrSlot) +
+           (betweenHtml || '') +
            _lmOpsBlock(surface.heroCard);
   }
 

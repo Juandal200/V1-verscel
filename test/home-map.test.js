@@ -65,11 +65,15 @@ const homeMap = (function () {
     grab('function _lmSurface(data)'),
     grab('function _lmOpsBlock(heroCard)'),
     grab('function _lmStageHtml(models, tiers, vrSlot)'),
-    grab('function _lmHomeMapHtml(data)'),
-    'return _lmHomeMapHtml;'
+    grab('function _lmHomeMapHtml(data, betweenHtml)'),
+    grab('function _homeExamSquare()'),
+    'return { map: _lmHomeMapHtml, square: _homeExamSquare };'
   ].join('\n');
   return new Function(...Object.keys(stubs), src)(...Object.values(stubs));
 })();
+const homeSquare = homeMap.square;
+const drawHome = (cat) => homeMap.map(cat, homeSquare());
+const home = strip(grab('function renderHome()'));
 
 function catalogue(shape) {
   return { levels: [1,2,3,4,5,6,7,8,9,10].map(n => {
@@ -84,7 +88,7 @@ function catalogue(shape) {
 }
 
 console.log('--- the home page draws the map ---');
-const html = homeMap(catalogue({ 1: { locked: false, done: true } }));
+const html = drawHome(catalogue({ 1: { locked: false, done: true } }));
 ok('there is a stage',            /class="lm-stage"/.test(html));
 ok('and a tier bar above it',     /class="lm-tiers"/.test(html));
 ok('five pins, one per country',  (html.match(/class="lm-pin /g) || []).length === 5);
@@ -106,8 +110,40 @@ ok('no way back to a grid that is not here', !/lm-switch/.test(html));
 ok('no _lmSetView anywhere in it',           !/_lmSetView/.test(html));
 ok('and no tab strip',                       !/sim-subtab/.test(html));
 
+console.log('--- the mock test is a square at the foot of the map ---');
+/* "A little square on the right side above operational level, but on the bottom
+ * of the map." Between the stage and the Operational divider, right-aligned. */
+const iStage = html.indexOf('class="lm-stage"');
+const iSq    = html.indexOf('home-exam-square');
+const iOps   = html.indexOf('OPERATIONAL CLEARANCE');
+ok('the square is drawn',        iSq > -1);
+ok('below the map',              iSq > iStage);
+ok('and above Operational Level', iSq < iOps);
+ok('it says which exam it is',   /ICAO TEST/.test(html));
+ok('and opens that exam',        /_navTo\(renderTeaExam\)/.test(html));
+/* A button, not a div. The pins on this same page were divs once and no keyboard
+ * could reach any of them. */
+ok('it is a button',             /<button type="button" class="home-exam-square"/.test(html));
+ok('with a label for a screen reader', /aria-label="ICAO practice test/.test(html));
+ok('drawn exactly once',         (html.match(/home-exam-square/g) || []).length === 1);
+
+/* It is NOT part of the map. The levels screen draws the same stage and must not
+ * grow an exam square in the middle of it. */
+ok('the levels screen does not get one',
+   grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)').indexOf('_homeExamSquare') === -1);
+ok('and the stage builder knows nothing about it',
+   grab('function _lmStageHtml(models, tiers, vrSlot)').indexOf('home-exam') === -1);
+
+console.log('--- one door to the exam, not two ---');
+/* The full card leaves the row where the square is drawn. Below 1100px there is
+ * no map and no square, so the card stays — taking it out there would remove the
+ * exam from the home page on every phone. */
+ok('the card row asks the width',
+   /simCard \+ \(_lmWideEnough\(\) \? '' : teaCard\) \+ streakCard/.test(home));
+ok('the square is drawn only where the map is',
+   home.indexOf('_homeExamSquare()') > home.indexOf('if (_lmWideEnough()) (function()'));
+
 console.log('--- the map is the first thing on the page ---');
-const home = strip(grab('function renderHome()'));
 const composition = home.match(/byId\('contentArea'\)\.innerHTML\s*=\s*([^;]+);/);
 ok('the composition is one expression', !!composition);
 const order = composition ? composition[1] : '';
