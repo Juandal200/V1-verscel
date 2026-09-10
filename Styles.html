@@ -13405,12 +13405,44 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   font-family: var(--font-instrument); font-size: var(--t-label);
   letter-spacing: 0.12em; color: var(--muted);
 }
-.lm-card-name { display: block; margin: 5px 0 1px; font-size: var(--t-body); font-weight: 600; color: var(--text); }
-.lm-card-sub { display: block; font-size: var(--t-caption); color: var(--muted); }
-.lm-card-detail { display: none; margin-top: 9px; }
-.lm-card:hover .lm-card-detail, .lm-card:focus-visible .lm-card-detail { display: block; }
-.lm-card-desc { display: block; font-size: var(--t-caption); line-height: 1.45; color: var(--muted); margin-bottom: 9px; }
-.lm-phases { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
+.lm-card-country { color: var(--text); font-weight: 600; letter-spacing: 0.04em; }
+
+/* The one level a plan withholds. Grouping by country buried it as the second row
+   of a card that was otherwise finished, so the card says so too. */
+.lm-card-sale {
+  display: block; margin-top: 6px; font-size: var(--t-label);
+  color: var(--yellow); line-height: 1.35;
+}
+
+.lm-rows { display: block; margin-top: 8px; }
+.lm-row {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  font-family: var(--font-ui);
+  background: var(--panel-soft); border: 1px solid var(--line);
+  border-radius: 8px; padding: 7px 9px; margin-top: 6px;
+  transition: border-color 0.25s var(--ease);
+}
+.lm-row:first-child { margin-top: 0; }
+.lm-row:hover { border-color: var(--line-strong); }
+.lm-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lm-row--current { border-color: var(--accent); }
+.lm-row--upgrade { border-color: rgba(var(--yellow-rgb), .45); background: rgba(var(--yellow-rgb), .06); }
+.lm-row--locked .lm-row-name { color: var(--muted); }
+.lm-row-top {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-family: var(--font-instrument); font-size: var(--t-label);
+  letter-spacing: 0.12em; color: var(--muted);
+}
+/* Grouping by country mixes tiers — Australia holds one Foundation level and two
+   Expert ones — so every row says which it is. */
+.lm-row-tier { letter-spacing: 0.08em; }
+.lm-row-name { display: block; margin: 3px 0 5px; font-size: var(--t-caption); font-weight: 600; color: var(--text); }
+.lm-row-foot { display: flex; align-items: center; gap: 7px; }
+
+/* A card low on the stage grows upward. .lm-stage-wrap clips, and Australia's
+   three rows at y=290 on a 500px stage would have run off the bottom. */
+.lm-card--up { transform: translateY(-100%); }
+.lm-card--up .lm-leader-anchor { top: auto; bottom: 0; }
 .lm-phase {
   font-family: var(--font-instrument); font-size: var(--t-label);
   letter-spacing: 0.08em; color: var(--muted);

@@ -35,7 +35,14 @@ const TIERS = [
   { num: 2, name: 'Advanced',   levels: [4, 5, 6], examNum: 2, nextLevel: 7 },
   { num: 3, name: 'Expert',     levels: [7, 8, 9], examNum: 3, nextLevel: 10 }
 ];
-const COUNTRY = { 1:'US', 2:'GB', 3:'CO', 4:'CA', 5:'BR', 6:'IN', 7:'MX', 8:'AU', 9:'ZA' };
+/* The REAL assignment, read out of the running catalogue. Ten levels across five
+ * countries — and this is the fixture that matters, because the first version of
+ * this file gave every level its own country and so never exercised the case that
+ * actually broke: cards keyed by country landing on identical coordinates, the
+ * last drawn hiding the rest. Five of nine levels were visible in production and
+ * every assertion here was green. */
+const COUNTRY = { 1:'IN', 2:'GB', 3:'AU', 4:'US', 5:'IN', 6:'CA', 7:'GB', 8:'AU', 9:'AU' };
+const COUNTRIES = ['IN', 'GB', 'AU', 'US', 'CA'];
 
 /* The free plan: level 1 done, everything else behind the plan. Exactly one
  * level — the next one — may say Upgrade. */
@@ -60,11 +67,13 @@ function renderMapWith(ms, extra, heroCard) {
     _levelMeta: Object.fromEntries([1,2,3,4,5,6,7,8,9].map(n =>
       [n, { name: 'Level ' + n, accent: COUNTRY[n] + ' ATC', tag: 'TAG' + n,
             description: 'desc ' + n, phases: ['A','B','C'] }])),
-    getCountryUi: c => ({ code: String(c).toLowerCase() }),
+    getCountryUi: c => ({ code: String(c).toLowerCase(),
+      label: { IN:'India', GB:'United Kingdom', AU:'Australia', US:'USA', CA:'Canada' }[c] || c }),
     getFlagHtml: (c) => '<svg class="lm-flag"><path id="a"/><use href="#a"/></svg>',
     uiIconInline: () => '<svg></svg>',
     safeText: v => String(v == null ? '' : v).replace(/[<>&]/g, ''),
     _simTabStrip: () => '<nav></nav>',
+    _tierOf: n => TIERS.filter(t => t.levels.indexOf(n) >= 0)[0] || null,
     AppState: { training: {} },
     localStorage: { getItem: () => null, setItem() {} },
     window: {}, document: { querySelector: () => null },
@@ -92,17 +101,37 @@ ok('nine levels drawn',        drawn.length === 9);
 ok('each exactly once',        new Set(drawn).size === 9);
 ok('and they are 1 through 9', drawn.slice().sort((a,b)=>a-b).join() === '1,2,3,4,5,6,7,8,9');
 
+console.log('--- grouped by country, so nothing hides under anything ---');
+ok('five cards, one per country',   (html.match(/class="lm-card /g) || []).length === 5);
+ok('five pins, one per country',    (html.match(/class="lm-pin /g) || []).length === 5);
+ok('and five leaders',              (html.match(/class="lm-leader/g) || []).length === 5);
+// Australia holds four in the catalogue; level 10 is the Operational block and
+// is not among the models the map is given.
+const auCard = html.slice(html.indexOf('Australia'));
+const auLevels = [...auCard.slice(0, auCard.indexOf('</div>') + 6)
+  .matchAll(/openLevelCountries\((\d+)\)/g)].map(m => Number(m[1]));
+ok('Australia lists 3, 8 and 9',    auLevels.join() === '3,8,9');
+ok('and its rows are in level order', auLevels.slice().sort((a,b)=>a-b).join() === auLevels.join());
+
 console.log('--- the lock state matches, level by level ---');
 let mismatched = [];
 ms.forEach(function (m) {
   const want = m.isCompleted ? 'complete' : m.planLock ? 'upgrade' : m.locked ? 'locked' : 'current';
-  if (!new RegExp('lm-card lm-card--' + want + '[^>]*openLevelCountries\\(' + m.level + '\\)').test(html)
-   && !new RegExp('lm-card--' + want + '[\\s\\S]{0,400}?openLevelCountries\\(' + m.level + '\\)').test(html)) {
+  if (!new RegExp('lm-row lm-row--' + want + '"[^>]*openLevelCountries\\(' + m.level + '\\)').test(html)) {
     mismatched.push(m.level + ' wanted ' + want);
   }
 });
-ok('every card carries the state the model gave it', mismatched.length === 0);
+ok('every row carries the state the model gave it', mismatched.length === 0);
 if (mismatched.length) console.log('        ' + mismatched.join(' · '));
+
+console.log('--- the tier is on every row ---');
+/* Grouping by country mixes them: Australia holds a Foundation level and two
+ * Expert ones. Without this the map would stop saying something the grid makes
+ * obvious just by having sections. */
+ok('every row names its tier',
+   (html.match(/class="lm-row-tier"/g) || []).length === 9);
+ok('Foundation, Advanced and Expert all appear',
+   /Foundation/.test(html) && /Advanced/.test(html) && /Expert/.test(html));
 
 console.log('--- exactly one level is for sale ---');
 /* _planLock is "next up AND behind the plan". Seven identical Upgrade buttons
@@ -110,12 +139,16 @@ console.log('--- exactly one level is for sale ---');
 const upgrades = (html.match(/lm-chip--upgrade/g) || []).length;
 ok('one Upgrade chip, not seven', upgrades === 1);
 ok('and it is the level the model marked',
-   new RegExp('lm-card--upgrade[\\s\\S]{0,600}?openLevelCountries\\(2\\)').test(html));
+   /lm-row lm-row--upgrade"[^>]*openLevelCountries\(2\)/.test(html));
+/* Marked on the country card too. Grouping buried the one level for sale as the
+ * second row of a card that was otherwise finished. */
+ok('the country holding it says so',       /lm-card-sale/.test(html));
+ok('and only that country does',           (html.match(/lm-card-sale/g) || []).length === 1);
 // Move the plan lock and it must move with it.
 const html7 = renderMap(models(7));
 ok('move the plan lock and the Upgrade moves too',
    (html7.match(/lm-chip--upgrade/g) || []).length === 1 &&
-   new RegExp('lm-card--upgrade[\\s\\S]{0,600}?openLevelCountries\\(7\\)').test(html7));
+   /lm-row lm-row--upgrade"[^>]*openLevelCountries\(7\)/.test(html7));
 
 console.log('--- the map goes to openLevelCountries and nowhere else ---');
 /* That function writes selectedLevelData, which five "back" buttons in the
@@ -134,7 +167,8 @@ const oh = renderMap(orphan);
 ok('it is not silently dropped',   /lm-unplaced/.test(oh));
 ok('it is still reachable',        /lm-unplaced-card[^>]*openLevelCountries\(6\)/.test(oh));
 ok('and it is NOT placed on the map', !/lm-card[^>]*openLevelCountries\(6\)/.test(oh));
-ok('the other eight still are',    (oh.match(/lm-card lm-card--/g) || []).length === 8);
+// Level 6 is Canada's only level, so removing it removes the whole card.
+ok('the other four countries still are', (oh.match(/lm-card lm-card--/g) || []).length === 4);
 
 console.log('--- nine flags on one screen keep their own references ---');
 /* FLAG_SVG entries define short ids and reference them: us defines a..e, gb
@@ -197,11 +231,16 @@ ok('no line is drawn between one country and the next',
 console.log('--- but every card is tied to its own pin ---');
 /* Nine cards scattered over a map with nothing joining them to a country is
  * unreadable, and it is the failure the original ticket warned about. */
-const leaders = (html.match(/class="lm-leader/g) || []).length;
-ok('one leader per placed level', leaders === 9);
-ok('a finished level\'s leader is marked as such', /lm-leader--done/.test(html));
-ok('and a level with no place gets no leader',
-   (renderMap(orphan).match(/class="lm-leader/g) || []).length === 8);
+ok('one leader per country', (html.match(/class="lm-leader/g) || []).length === 5);
+/* A leader is marked done only when EVERY level in that country is finished.
+ * Canada holds level 6 alone, so it is the one that can be, and the fixture's
+ * default completes only level 1 — which is India, where level 5 is not. */
+const caDone = models(2);
+caDone[5].isCompleted = true; caDone[5].locked = false;
+ok('a country whose levels are all finished is marked as such',
+   /lm-leader--done/.test(renderMap(caDone)));
+ok('and one with a level outstanding is not',
+   (renderMap(caDone).match(/lm-leader--done/g) || []).length === 1);
 
 console.log('--- the header does not fight itself ---');
 /* tag is a category word here — LevelService's own defaults use 'Operational' —
@@ -216,8 +255,8 @@ ok('so is one that repeats the name', shortTag({ tag: 'En-Route', name: 'En-Rout
 ok('a short code is kept',         shortTag({ tag: 'KJFK', name: 'ATC Basics' }) === 'KJFK');
 ok('and nothing is invented when there is no tag', shortTag({ name: 'x' }) === '');
 // The rendered header carries the level number whatever the tag does.
-ok('every card still says which level it is',
-   (html.match(/lm-card-head[\s\S]{0,40}?LEVEL \d/g) || []).length === 9);
+ok('every row still says which level it is',
+   (html.match(/lm-row-lvl">LEVEL \d/g) || []).length === 9);
 
 console.log('--- the map country comes from the sheet ---');
 const LS = fs.readFileSync(__dirname + '/../LevelService.js', 'utf8');

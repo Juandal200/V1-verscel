@@ -6572,68 +6572,86 @@ var LEVEL_THEMES = {
      * original ticket warned about. */
     var edges = '';
 
-    var pins = '', cards = '', leaders = '';
+    /* One pin and one card per COUNTRY, not per level.
+     *
+     * This drew one of each per level, positioned from a table keyed by country.
+     * The curriculum puts several levels in the same country — Australia has 3, 8
+     * and 9, India has 1 and 5, the United Kingdom has 2 and 7 — so those cards
+     * landed on identical coordinates and the last one drawn hid the rest. Five
+     * cards were visible out of nine and the missing four were not in the unplaced
+     * strip either, because they WERE placed, just underneath. The pins collided
+     * the same way.
+     *
+     * Ten levels across five countries is what this curriculum is, so that is what
+     * the map draws: a country, its flag, and the levels flown there. */
+    var byCountry = {}, countryOrder = [];
     models.forEach(function (m) {
       var place = _lmPlace(m);
       if (!place) { unplaced.push(m); return; }
+      var code = _lmCountryOf(m);
+      if (!byCountry[code]) {
+        byCountry[code] = { code: code, place: place, levels: [] };
+        countryOrder.push(code);
+      }
+      byCountry[code].levels.push(m);
+    });
 
-      /* The leader joins the card to the country it belongs to.
+    var pins = '', cards = '', leaders = '';
+    countryOrder.forEach(function (code) {
+      var g = byCountry[code];
+      var place = g.place;
+      g.levels.sort(function (a, b) { return a.level - b.level; });
+
+      var allDone  = g.levels.every(function (m) { return m.isCompleted; });
+      var forSale  = g.levels.some(function (m) { return m.planLock; });
+      var anyOpen  = g.levels.some(function (m) { return !m.locked && !m.isCompleted; });
+      var cState   = allDone ? 'complete' : forSale ? 'upgrade' : anyOpen ? 'current' : 'locked';
+
+      /* Tall cards open upward in the lower half of the stage.
        *
-       * Drawn to the card's header rather than its centre, because the card grows
-       * downwards when it opens and a line to the middle would slide. The pin
-       * never moves; the card is wherever it fits; the line is what makes them
-       * one thing. */
-      leaders += '<line class="lm-leader' + (m.isCompleted ? ' lm-leader--done' : '') +
+       * A country with three levels is about 170px collapsed and more once a row
+       * expands, and .lm-stage-wrap clips. Australia sits at y=290 on a 500px
+       * stage, so downward growth would have run off the bottom. */
+      var lower = place.card[1] > (_LM_H / 2);
+
+      /* The leader joins the card to its country. Drawn to the card's header
+       * rather than its centre, because the card grows and a line to the middle
+       * would slide. The pin never moves. */
+      leaders += '<line class="lm-leader' + (allDone ? ' lm-leader--done' : '') +
         '" x1="' + _lmX(place.lon).toFixed(1) + '" y1="' + _lmY(place.lat).toFixed(1) +
         '" x2="' + (place.card[0] + 108) + '" y2="' + (place.card[1] + 22) + '"/>';
-      var country = _lmCountryOf(m);
-      var meta    = (_levelMeta && _levelMeta[m.level]) || {};
-      var state   = m.isCompleted ? 'complete' : m.planLock ? 'upgrade' : m.locked ? 'locked' : 'current';
 
       pins +=
-        '<div class="lm-pin lm-pin--' + state + '" style="left:' + _lmX(place.lon).toFixed(1) +
+        '<div class="lm-pin lm-pin--' + cState + '" style="left:' + _lmX(place.lon).toFixed(1) +
           'px;top:' + _lmY(place.lat).toFixed(1) + 'px;">' +
-          (m.locked && !m.planLock ? uiIconInline('locked') : _lmFlag(country, uid + '-' + m.level)) +
+          _lmFlag(code, uid + '-' + code) +
         '</div>';
 
-      /* Every card is a button and goes to openLevelCountries and nowhere else.
+      /* Every row is a button and goes to openLevelCountries and nowhere else.
        *
        * That function writes selectedLevelData, which five "back" buttons in the
-       * simulator read; a map that called startCountryTraining directly would
-       * skip that write and leave all five pointing at null. It also carries the
-       * two-lock branch — lockedByPlan opens the plans modal, everything else
-       * explains itself — and telling somebody their level is shut without
-       * offering the way in is how a student is lost. */
-      var phases = (meta.phases || []).slice(0, 3).map(function (p) {
-        return '<span class="lm-phase">' + safeText(p) + '</span>';
-      }).join('');
-
-      cards +=
-        '<button type="button" class="lm-card lm-card--' + state + '"' +
-          ' style="left:' + place.card[0] + 'px;top:' + place.card[1] + 'px;"' +
-          ' onclick="openLevelCountries(' + m.level + ')">' +
-          /* "LEVEL n" on its own, unless the tag is genuinely short.
-           *
-           * The mockup put a four-character ICAO identifier on the right of this
-           * row. This product's tag is a category word — LevelService's own
-           * defaults use 'Operational' — and the sheet is putting the level's full
-           * name in it, so "LEVEL 6" and "Weather Operations" fought over 216px
-           * and wrapped into two jammed columns. A short code still gets its
-           * place; a long one is dropped, because the name is on the very next
-           * line and repeating it costs the header its legibility. */
-          '<span class="lm-card-head"><span>LEVEL ' + m.level + '</span>' +
-            (_lmShortTag(meta) ? '<span>' + safeText(_lmShortTag(meta)) + '</span>' : '') +
-          '</span>' +
-          '<span class="lm-card-name">' + safeText(meta.name || ('Level ' + m.level)) + '</span>' +
-          '<span class="lm-card-sub">' + safeText(meta.accent || '') + '</span>' +
-          '<span class="lm-card-detail">' +
-            (meta.description ? '<span class="lm-card-desc">' + safeText(meta.description) + '</span>' : '') +
-            (phases ? '<span class="lm-phases">' + phases + '</span>' : '') +
-            '<span class="lm-card-meta">' + m.total + ' scenarios · ' + m.done + ' completed</span>' +
-            /* The reward event, which the grid draws and this did not.
-             * It was carried in the model all along and simply never rendered —
-             * a level worth double XP for the next few hours looked identical to
-             * one that was not, which is the whole point of the event. */
+       * simulator read; a map calling startCountryTraining directly would skip
+       * that write and leave all five pointing at null. It also carries the
+       * two-lock branch — lockedByPlan opens the plans modal rather than saying
+       * "closed" with no way in. */
+      var rows = g.levels.map(function (m) {
+        var meta  = (_levelMeta && _levelMeta[m.level]) || {};
+        var state = m.isCompleted ? 'complete' : m.planLock ? 'upgrade' : m.locked ? 'locked' : 'current';
+        /* The tier, on every row. Grouping by country mixes them — Australia holds
+         * a Foundation level and two Expert ones — and without this the map would
+         * stop saying something the grid makes obvious. */
+        var tier  = _tierOf(m.level);
+        return '<button type="button" class="lm-row lm-row--' + state + '"' +
+            ' onclick="event.stopPropagation();openLevelCountries(' + m.level + ')">' +
+            '<span class="lm-row-top">' +
+              '<span class="lm-row-lvl">LEVEL ' + m.level + '</span>' +
+              '<span class="lm-row-tier">' + safeText(tier ? tier.name : 'Unassigned') + '</span>' +
+            '</span>' +
+            '<span class="lm-row-name">' + safeText(meta.name || ('Level ' + m.level)) + '</span>' +
+            '<span class="lm-row-foot">' +
+              '<span class="lm-chip lm-chip--' + state + '">' + safeText(m.statusText.toUpperCase()) + '</span>' +
+              '<span class="lm-frac">' + m.done + '/' + m.total + ' scenarios</span>' +
+            '</span>' +
             (m.vr
               ? '<span class="lm-vr lm-vr--' + safeText(m.vr.type) + '">' +
                   '<span class="lm-vr-badge">' + m.vr.icon + ' ' + safeText(m.vr.label) + '</span>' +
@@ -6643,22 +6661,28 @@ var LEVEL_THEMES = {
                   (vrSlot ? '<span class="lm-vr-slot">CLOSES ' + safeText(vrSlot) + '</span>' : '') +
                 '</span>'
               : '') +
+          '</button>';
+      }).join('');
+
+      var doneCount = g.levels.filter(function (m) { return m.isCompleted; }).length;
+      var ui = null;
+      try { ui = getCountryUi(code); } catch (e) {}
+
+      cards +=
+        '<div class="lm-card lm-card--' + cState + (lower ? ' lm-card--up' : '') + '"' +
+          ' style="left:' + place.card[0] + 'px;top:' + place.card[1] + 'px;">' +
+          '<span class="lm-card-head">' +
+            '<span class="lm-card-country">' + safeText((ui && ui.label) || code) + '</span>' +
+            '<span>' + doneCount + '/' + g.levels.length + '</span>' +
           '</span>' +
-          '<span class="lm-card-foot">' +
-            '<span class="lm-chip lm-chip--' + state + '">' + safeText(m.statusText.toUpperCase()) + '</span>' +
-            '<span class="lm-frac">' + m.done + '/' + m.total + ' scenarios</span>' +
-          '</span>' +
-        '</button>';
+          /* Marked on the card as well as the row. The one level a plan withholds
+           * is the single thing offered for sale, and grouping had buried it as
+           * the second line of a card that was otherwise finished. */
+          (forSale ? '<span class="lm-card-sale">Next level behind your plan</span>' : '') +
+          '<span class="lm-rows">' + rows + '</span>' +
+        '</div>';
     });
 
-    /* The checkpoint reads the same status the grid's card reads.
-     *
-     * This drew two states of its own invention — passed or locked — from
-     * counting completed levels. _buildExamCard reads AppState.examStatus and has
-     * FIVE branches: locked, passed, replay_required, failed_once, and ready to
-     * sit. A candidate who failed once has one attempt left and the map was
-     * telling them the checkpoint was simply open; one required to review levels
-     * was told the same. Same source, same words. */
     var cpMarks = '';
     tiers.forEach(function (t) {
       var at = _LM_CP[t.examNum];

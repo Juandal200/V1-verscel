@@ -17,6 +17,45 @@ Newest day first.
 
 ## 2026-09-10
 
+### The map is grouped by country, because that is what the curriculum is
+
+**Plan.** One change to the drawing loop: group the models by country and emit one
+pin and one card per country instead of one per level. Three things folded in from
+the review — tall cards in the lower half grow upward, the country holding the
+plan-locked level says so, and every row names its tier.
+
+**Criterion.** `DERIVED` — I proposed grouping and you agreed after seeing the
+data. Assumed: that a card reading "Australia · 3, 8, 9" is better than three
+cards on one coordinate, and that the map should show the curriculum rather than
+pretend nine countries exist.
+
+**The data this was built against**, read from the running catalogue:
+
+| country | levels |
+|---|---|
+| Australia | 3, 8, 9, 10 |
+| India | 1, 5 |
+| United Kingdom | 2, 7 |
+| USA | 4 |
+| Canada | 6 |
+
+**Checklist — map open, above 1100px.**
+
+- [ ] Five pins, one per country, each sitting in its own country
+- [ ] Five cards, each naming a country with a count like "1/3"
+- [ ] Australia's card lists levels 3, 8 and 9 in that order — **not** level 10
+- [ ] India lists 1 and 5; the United Kingdom lists 2 and 7
+- [ ] No card overlaps another, and no pin is hidden behind a card
+- [ ] Every level 1 to 9 appears exactly once, somewhere
+- [ ] Each row shows its tier — Foundation, Advanced or Expert — and Australia's rows disagree with each other, which is correct
+- [ ] Exactly one row is gold, and its country card says "Next level behind your plan"
+- [ ] Clicking any row opens that level's country screen; **Back** from the simulator returns to the map
+- [ ] One leader line per card, joining it to its own pin
+- [ ] The Australia card does not run off the bottom of the map
+- [ ] Level 10 still appears only in the OPERATIONAL CLEARANCE block below
+
+**Not verifiable from the repo.** Every line above.
+
 ### The map loses its route lines and gains leader lines
 
 **Plan.** Three changes, one commit: delete the country-to-country route; draw a
