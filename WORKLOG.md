@@ -17,6 +17,68 @@ Newest day first.
 
 ## 2026-09-10
 
+### The home page opens on the map
+
+**Plan.** Five commits, in order. `_lmBuildModels` comes out of the tier loop so a
+level's model is computed once and read twice, with a test that lifts it from
+source. `_lmStageHtml` comes out of `_lmRenderMap`, which keeps its signature and
+its five call sites. `renderHome` then paints the stage into `#homeMapArea` above
+everything it already draws, cached in sessionStorage and dropped when
+`apiCompleteRoute` banks a completion. The mock test becomes a square in a row
+between the stage and the Operational divider, replacing the ICAO card on desktop.
+The modules section stops being emitted when the list comes back empty.
+
+**Criterion.** Stated: after logging in you can see the map on the home page; the
+weather module is not there for admin, students or instructors; the mock test is a
+small square on the right side, above Operational Level, at the bottom of the map.
+
+`DERIVED` — nothing else on Home is removed, because the map arrives above what is
+already there rather than instead of it. The square replaces the ICAO card rather
+than joining it, because two entries to one exam on one page is not what "becomes a
+square" means. Both the map and the square exist only above 1100px, so below it the
+ICAO card stays where it is — otherwise the exam loses its home-page entry on
+phones.
+
+**Why, in one line.** The map had no address: there is no Simulator nav button, so
+it sat two clicks inside a screen reached from a card.
+
+**Two things reading turned up.** `_lmModels` is a local variable, so nothing
+outside `renderLevelMap` can reach it, and `level-map-parity` hand-builds its
+fixture rather than lifting that computation — so moving it needs a test of its
+own or the suite stays green over a break. And deactivating the Weather module
+server-side leaves Home showing "No modules available yet. Check back soon", which
+is why the sheet edit alone does not finish the job.
+
+**Checklist — the map.**
+
+- [ ] Above 1100px, the map is the first thing on the home page, without scrolling
+- [ ] Pins, flags, counts and checkpoint marks match the levels screen exactly
+- [ ] Clicking a pin opens its panel; **Escape** and a click on the map close it
+- [ ] Operational Level sits below the map on the home page
+- [ ] There is no "Grid view" button on the home page
+- [ ] The levels screen still opens on the grid, and its Map/Grid toggle still works
+- [ ] Below 1100px, reload: no map on Home, and the page looks as it does today
+- [ ] Finish a country, return Home: that pin shows the new count, not the old one
+- [ ] With the network failing, an error is visible — the map does not vanish silently
+
+**Checklist — the weather module.**
+
+- [ ] Home shows no Weather module card, and no "No modules available yet" notice
+- [ ] The same under VIEW AS student, VIEW AS instructor and VIEW AS admin
+- [ ] Set the sheet cell back to ACTIVE and reload: the module returns, no redeploy
+
+**Checklist — the mock test square.**
+
+- [ ] A small square sits at the right, below the map and above the Operational divider
+- [ ] It reads as the ICAO test, and clicking it opens the exam
+- [ ] The full ICAO card is gone from the card row on desktop — one entry, not two
+- [ ] Below 1100px the ICAO card is still in the card row, unchanged
+- [ ] Opening Australia's panel does not land behind or on top of the square
+
+**Not verifiable from the repo.** Whether the map and the square land above the
+fold, whether login feels slower, and the Modules sheet itself.
+
+
 ### The map's cards become panels that hang off their own pin
 
 **Plan.** Rewrite the pin/card block: each country becomes an anchor holding a pin

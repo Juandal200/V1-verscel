@@ -6037,12 +6037,16 @@ var LEVEL_THEMES = {
      *
      * The world map is a second way to draw this screen, and the way a second
      * view loses things is by recomputing them slightly differently. So the state
-     * is worked out ONCE, here, as the grid builds — locked, complete, the plan
-     * lock, the status words, the region counts — and both views read it.
+     * is worked out ONCE — locked, complete, the plan lock, the status words, the
+     * region counts — and both views read it.
      *
-     * Recorded as a by-product rather than by restructuring the loop: the grid is
-     * the view that works today and its markup is untouched. */
-    var _lmModels = [];
+     * It used to be recorded as a by-product of the loop below, which meant the
+     * state of a level could only be had by drawing the grid. The home page needs
+     * it without drawing the grid at all, so the computation is its own function
+     * and this loop reads what it returns. */
+    var _lmModels  = _lmBuildModels(levelByNum, TIERS, vrEvents, _firstPlanLockedLevel);
+    var _lmModelOf = {};
+    _lmModels.forEach(function (m) { _lmModelOf[m.level] = m; });
 
     var tierSections = '';
 
@@ -6053,48 +6057,19 @@ var LEVEL_THEMES = {
       var tierAllLocked = true;
 
       tier.levels.forEach(function(lvlNum) {
-        var levelItem = levelByNum[lvlNum];
-        if (!levelItem) return;
+        var model = _lmModelOf[lvlNum];
+        if (!model) return;
         tierTotal++;
 
-        var locked = levelItem.locked === true || levelItem.unlocked === false;
-        var completedCountries = (levelItem.countries || []).filter(function(c) {
-          return c.completed === true || c.completed === 1 || String(c.completed).toUpperCase() === 'TRUE';
-        }).length;
-        var totalCountries = (levelItem.countries || []).length || Number(levelItem.totalCountries || 0);
-        var progressPct = totalCountries ? Math.round((completedCountries / totalCountries) * 100) : 0;
-        var isCompleted = totalCountries > 0 && completedCountries >= totalCountries;
-        // Locked by plan AND next in the ladder. Every level past the plan carries
-        // lockedByPlan, so offering "Unlock" on all of them put seven identical
-        // buttons on the map and implied level 5 was one payment away. It is not:
-        // paying lifts the plan lock, and the progress lock still requires every
-        // level before it. Only the next one you could actually play is for sale.
-        var _planLock   = levelItem.lockedByPlan === true &&
-                          Number(levelItem.level) === _firstPlanLockedLevel;
-        var statusText  = isCompleted ? 'Complete'
-                        : (_planLock ? 'Upgrade' : (locked ? 'Locked' : 'Unlocked'));
-        // Note _planLock is now "next up and behind the plan", so a level further
-        // down the ladder reads Locked — which is accurate, because upgrading
-        // alone would not open it.
-        var statusClass = isCompleted ? 'ACTIVE'   : (locked ? 'BLOCKED' : 'PENDING');
-        var regions     = totalCountries;
-        var vr          = vrEvents[levelItem.level] || null;
-
-        _lmModels.push({
-          level:       Number(levelItem.level),
-          tier:        tier.num,
-          locked:      locked,
-          isCompleted: isCompleted,
-          planLock:    _planLock,
-          statusText:  statusText,
-          statusClass: statusClass,
-          done:        completedCountries,
-          total:       totalCountries,
-          regions:     regions,
-          pct:         progressPct,
-          vr:          vr,
-          item:        levelItem
-        });
+        // Read, not recomputed. Every name below is the same value the map draws.
+        var levelItem   = model.item;
+        var locked      = model.locked;
+        var isCompleted = model.isCompleted;
+        var _planLock   = model.planLock;
+        var statusText  = model.statusText;
+        var statusClass = model.statusClass;
+        var progressPct = model.pct;
+        var vr          = model.vr;
         var vrClass     = vr ? ' vr-event vr-' + vr.type : '';
         var vrBanner    = vr
           ? '<div class="vr-event-banner vr-event-banner--' + vr.type + '">' +
@@ -6583,6 +6558,65 @@ var LEVEL_THEMES = {
     } catch (e) {}
     renderLevelMap(AppState.training.catalog);
   };
+
+  /* The state of every level, computed once.
+   *
+   * Both drawings of this screen need the same answers — is this level locked, is
+   * it complete, is it behind the plan, how far through it is the student — and
+   * two views working that out separately is exactly how the second one comes to
+   * show something the first does not.
+   *
+   * The plan lock is the part that must not drift. Every level past the plan
+   * carries lockedByPlan, so offering "Unlock" on all of them puts seven identical
+   * buttons on the screen and implies level 5 is one payment away. It is not:
+   * paying lifts the plan lock and the progress lock still requires every level
+   * before it. Only the next level a student could actually play is for sale,
+   * which is why firstPlanLockedLevel arrives as an argument — it is a fact about
+   * the ladder, not about any one level, and cannot be worked out from here. */
+  function _lmBuildModels(levelByNum, tiers, vrEvents, firstPlanLockedLevel) {
+    var out  = [];
+    var byNum = levelByNum || {};
+    var vrs   = vrEvents   || {};
+    (tiers || []).forEach(function (tier) {
+      (tier.levels || []).forEach(function (lvlNum) {
+        var levelItem = byNum[lvlNum];
+        if (!levelItem) return;
+
+        var locked = levelItem.locked === true || levelItem.unlocked === false;
+        var completedCountries = (levelItem.countries || []).filter(function (c) {
+          return c.completed === true || c.completed === 1 || String(c.completed).toUpperCase() === 'TRUE';
+        }).length;
+        var totalCountries = (levelItem.countries || []).length || Number(levelItem.totalCountries || 0);
+        var progressPct = totalCountries ? Math.round((completedCountries / totalCountries) * 100) : 0;
+        var isCompleted = totalCountries > 0 && completedCountries >= totalCountries;
+        var planLock    = levelItem.lockedByPlan === true &&
+                          Number(levelItem.level) === firstPlanLockedLevel;
+        // planLock reads "next up and behind the plan", so a level further down the
+        // ladder says Locked — which is accurate, because upgrading alone would not
+        // open it.
+        var statusText  = isCompleted ? 'Complete'
+                        : (planLock ? 'Upgrade' : (locked ? 'Locked' : 'Unlocked'));
+        var statusClass = isCompleted ? 'ACTIVE'   : (locked ? 'BLOCKED' : 'PENDING');
+
+        out.push({
+          level:       Number(levelItem.level),
+          tier:        tier.num,
+          locked:      locked,
+          isCompleted: isCompleted,
+          planLock:    planLock,
+          statusText:  statusText,
+          statusClass: statusClass,
+          done:        completedCountries,
+          total:       totalCountries,
+          regions:     totalCountries,
+          pct:         progressPct,
+          vr:          vrs[levelItem.level] || null,
+          item:        levelItem
+        });
+      });
+    });
+    return out;
+  }
 
   function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot) {
     var uid = 'lm' + Date.now().toString(36);
