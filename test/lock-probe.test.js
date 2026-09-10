@@ -80,5 +80,104 @@ ok('and the button says not to run it mid-class',
 ok('a failure is visible rather than silent',
    /Could not run the measurement/.test(client));
 
+/* ── the purge that stops LoginCodes growing into the lock ─────────────────
+ *
+ * A code is valid for ten minutes. Every one ever issued was still in the sheet,
+ * and apiVerifyLoginCode reads and filters all of them while HOLDING the mutex —
+ * so login degraded with the age of the account, on the one resource that
+ * serialises.
+ *
+ * Run, not grepped. Deleting rows shifts every row beneath, and getting the
+ * direction wrong destroys live rows in silence: the sheet still has rows, the
+ * function still returns a count, and nothing looks wrong until someone cannot
+ * log in. That is exactly the shape this file exists to catch.
+ */
+const purge = new Function('dbGetSheet_', 'dbGetHeaders_', 'dbWithScriptLock_', 'Logger', 'Date',
+  grab(A, 'function purgeLoginCodes()') + '\nreturn purgeLoginCodes;');
+
+const DAY = 24 * 60 * 60 * 1000;
+function fakeSheet(dates) {
+  const rows = dates.slice();
+  const deletes = [];
+  return {
+    rows, deletes,
+    getLastRow: () => rows.length + 1,          // +1 for the header
+    getRange: (top, col, n) => ({
+      getValues: () => rows.slice(top - 2, top - 2 + n).map(d => [d])
+    }),
+    deleteRows: (start, count) => {
+      deletes.push([start, count]);
+      rows.splice(start - 2, count);
+    }
+  };
+}
+function run(dates, nowMs) {
+  const sheet = fakeSheet(dates);
+  const FakeDate = function (v) { return new (Date.bind.apply(Date, [null, v]))(); };
+  FakeDate.now = () => nowMs;
+  FakeDate.prototype = Date.prototype;
+  const removed = purge(
+    () => sheet,
+    () => ['codeId', 'email', 'name', 'codeHash', 'status', 'expiresAt', 'attempts', 'createdAt', 'usedAt'],
+    fn => fn(),
+    { log() {} },
+    FakeDate
+  )();
+  return { removed, sheet };
+}
+
+const NOW = 1000 * DAY;   // an arbitrary "today", far from the epoch
+const iso = ms => new Date(ms).toISOString();
+
+console.log('--- only what is older than a day goes ---');
+let r = run([iso(NOW - 3 * DAY), iso(NOW - 2 * DAY), iso(NOW - 1 * DAY - 1), iso(NOW - 3600e3), iso(NOW - 60e3)], NOW);
+ok('three old rows removed', r.removed === 3);
+ok('two recent rows remain', r.sheet.rows.length === 2);
+ok('and the survivors are the recent ones',
+   r.sheet.rows.every(d => new Date(d).getTime() > NOW - DAY));
+
+console.log('--- deleting goes bottom-up, or it destroys live rows ---');
+/* Two separate blocks of old rows with a fresh row between them. Deleted top-down,
+ * the second block's numbers have already shifted and the delete lands on the
+ * wrong rows — quietly, because the count still comes out right. */
+r = run([iso(NOW - 5 * DAY), iso(NOW - 4 * DAY), iso(NOW - 60e3), iso(NOW - 3 * DAY), iso(NOW - 2 * DAY)], NOW);
+ok('four old rows removed',        r.removed === 4);
+ok('exactly the fresh row remains', r.sheet.rows.length === 1);
+ok('and it is the fresh one',       new Date(r.sheet.rows[0]).getTime() > NOW - DAY);
+ok('deleted as two blocks',         r.sheet.deletes.length === 2);
+ok('the lower block went first',    r.sheet.deletes[0][0] > r.sheet.deletes[1][0]);
+
+console.log('--- a date that will not parse is left alone ---');
+/* Treating "cannot read this" as "safe to destroy" is how a purge becomes an
+ * incident. */
+r = run([iso(NOW - 5 * DAY), '', 'not a date', iso(NOW - 60e3)], NOW);
+ok('only the one real old row goes', r.removed === 1);
+ok('the unreadable rows survive',    r.sheet.rows.length === 3);
+
+console.log('--- and it does nothing when there is nothing to do ---');
+r = run([iso(NOW - 60e3), iso(NOW - 3600e3)], NOW);
+ok('nothing removed',      r.removed === 0);
+ok('and nothing deleted',  r.sheet.deletes.length === 0);
+r = run([], NOW);
+ok('an empty sheet is safe', r.removed === 0);
+
+console.log('--- the trigger pair follows the pattern already in the project ---');
+const setup = strip(grab(A, 'function setupLoginCodesPurgeTrigger()'));
+ok('it clears its own duplicates first',
+   setup.indexOf('deleteTrigger') < setup.indexOf('newTrigger'));
+ok('it schedules the purge daily', /everyDays\(1\)/.test(setup));
+ok('off-peak',                     /atHour\(4\)/.test(setup));
+ok('and there is a way to remove it',
+   /function deleteLoginCodesPurgeTrigger\(\)/.test(A));
+
+console.log('--- the scan stays off the mutex ---');
+/* The read is the slow part. Holding the lock across it would make the purge the
+ * very thing it was written to prevent. */
+const body = strip(grab(A, 'function purgeLoginCodes()'));
+ok('the read is outside the lock',
+   body.indexOf('getValues()') < body.indexOf('dbWithScriptLock_'));
+ok('and only the deletes are inside it',
+   /dbWithScriptLock_\(function \(\) \{[\s\S]{0,220}deleteRows/.test(body));
+
 console.log(fails ? '\n' + fails + ' FAILING' : '\nAll lock-probe assertions passed.');
 process.exit(fails ? 1 : 0);

@@ -381,6 +381,90 @@ var AuthService = {
 };
 
 /**
+ * Delete LoginCodes rows older than 24 hours.
+ *
+ * A code is valid for ten minutes (line 118 above), so nothing older than a day
+ * can be used by anyone. They were never removed, and apiVerifyLoginCode reads and
+ * filters the WHOLE sheet inside dbWithScriptLock_ — the one lock all 41 writers
+ * share. So login got slower with the AGE of the account rather than with load,
+ * and it got slower on the only resource in the project that serialises.
+ *
+ * Run purgeLoginCodes() by hand once and read the count it logs: how many rows
+ * were being scanned under the mutex on every login is itself part of the capacity
+ * answer, and it is worth writing down before it is gone. Then run
+ * setupLoginCodesPurgeTrigger() once to schedule it.
+ */
+function purgeLoginCodes() {
+  var cutoff  = Date.now() - 24 * 60 * 60 * 1000;
+  var sheet   = dbGetSheet_('LoginCodes');
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) { Logger.log('[PURGE] LoginCodes is empty.'); return 0; }
+
+  var headers    = dbGetHeaders_('LoginCodes');
+  var createdCol = headers.indexOf('createdAt');
+  if (createdCol === -1) throw new Error('LoginCodes has no createdAt column.');
+
+  // One column, read OUTSIDE the lock. The scan is the slow part and keeping it
+  // off the mutex is the entire point of this function.
+  var values = sheet.getRange(2, createdCol + 1, lastRow - 1, 1).getValues();
+
+  var doomed = [];
+  for (var i = 0; i < values.length; i++) {
+    var raw = values[i][0];
+    var ms  = (raw instanceof Date) ? raw.getTime() : new Date(String(raw || '')).getTime();
+    // A row whose date will not parse is LEFT ALONE. Treating "cannot read this"
+    // as "safe to destroy" is how a purge becomes an incident.
+    if (!isNaN(ms) && ms < cutoff) doomed.push(i + 2);
+  }
+  if (!doomed.length) { Logger.log('[PURGE] nothing older than 24h.'); return 0; }
+
+  // Contiguous blocks, deleted from the BOTTOM up. deleteRows shifts every row
+  // beneath it, so descending order is what keeps the remaining numbers valid —
+  // ascending would delete live rows and say nothing. Rows are append-ordered, so
+  // the old ones are usually one block.
+  var blocks = [], start = doomed[0], len = 1;
+  for (var j = 1; j < doomed.length; j++) {
+    if (doomed[j] === start + len) len++;
+    else { blocks.push([start, len]); start = doomed[j]; len = 1; }
+  }
+  blocks.push([start, len]);
+
+  var removed = 0;
+  dbWithScriptLock_(function () {
+    for (var b = blocks.length - 1; b >= 0; b--) {
+      sheet.deleteRows(blocks[b][0], blocks[b][1]);
+      removed += blocks[b][1];
+    }
+  });
+
+  Logger.log('[PURGE] LoginCodes: removed ' + removed + ' of ' + (lastRow - 1) +
+             ' rows older than 24h; ' + (lastRow - 1 - removed) + ' remain.');
+  return removed;
+}
+
+// Run ONCE from the Apps Script editor. Safe to re-run — unlike
+// setupWeeklyEmailTrigger it clears its own duplicates first.
+function setupLoginCodesPurgeTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'purgeLoginCodes') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('purgeLoginCodes')
+    .timeBased()
+    .everyDays(1)
+    .atHour(4)               // off-peak, so the delete never queues behind a login
+    .create();
+  Logger.log('LoginCodes purge trigger set: daily at 04:00.');
+}
+
+function deleteLoginCodesPurgeTrigger() {
+  var removed = 0;
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'purgeLoginCodes') { ScriptApp.deleteTrigger(t); removed++; }
+  });
+  Logger.log('Removed ' + removed + ' trigger(s) for purgeLoginCodes.');
+}
+
+/**
  * How big the login tables have grown, and how slow the login path now is.
  * Reads only — changes nothing. Run from Authservice.gs.
  */
