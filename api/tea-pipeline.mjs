@@ -805,7 +805,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { segments = [], history = [], candidateId = 'unknown', examDate, mockTranscript, bank = '', scope = 'FULL' } = req.body;
+    const { segments = [], richResults = [], history = [], candidateId = 'unknown', examDate, mockTranscript, bank = '', scope = 'FULL' } = req.body;
 
     // ── Mock mode: skip Whisper entirely, grade a pre-built transcript ──
     // Triggered by passing mockTranscript in the request body (test/debug only).
@@ -815,6 +815,37 @@ export default async function handler(req, res) {
     if (mockTranscript) {
       console.log('[PIPELINE] mock mode — skipping Whisper');
       enrichedTranscript = mockTranscript;
+    } else if (richResults.length) {
+      /* The transcription already happened, one answer at a time, on the way
+       * through the exam.
+       *
+       * This function used to receive two dozen base64 recordings and transcribe
+       * them all again. That body ran to about six megabytes and Vercel rejected
+       * it with a 413 before this code was reached — no [PIPELINE] line was ever
+       * logged because nothing ever ran. Every sitting long enough to exceed the
+       * limit was graded by the text-only fallback instead, which is the opposite
+       * of what a candidate who spoke at length deserves.
+       *
+       * api/whisper.mjs now returns the acoustic detail on the call the exam was
+       * already making, so what arrives here is the verbose_json for each answer:
+       * a few hundred kilobytes rather than six megabytes, and one OpenAI charge
+       * per answer rather than two. buildRichTranscript is unchanged and still
+       * takes exactly the shape it always took. */
+      console.log('[PIPELINE] ' + richResults.length + ' pre-transcribed answers — skipping Whisper');
+      const parts = [];
+      for (const r of richResults) {
+        const { id, partLabel = 'Unknown Part', verbose } = r || {};
+        if (!verbose || !(verbose.text || '').trim()) {
+          console.warn('[PIPELINE] Answer', id, 'carried no transcript — skipping');
+          continue;
+        }
+        parts.push(`--- ${partLabel} (${id}) ---\n` + buildRichTranscript(verbose, partLabel));
+      }
+      if (!parts.length) {
+        res.status(200).json({ ok: false, error: 'No usable transcripts provided' });
+        return;
+      }
+      enrichedTranscript = parts.join('\n\n');
     } else {
       if (!openaiKey) {
         res.status(200).json({ ok: false, error: 'OPENAI_API_KEY not configured' });

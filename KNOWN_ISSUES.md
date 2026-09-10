@@ -1473,3 +1473,68 @@ localStorage.
 **What would reopen it.** A navigation route that does not go through `_navTo`.
 The suite pins the inventory: exactly two buttons bypass it today, both admin, and
 a third would fail the test.
+
+---
+
+## The good grader was refused at the door, and nobody was told
+
+**Status** **Fixed** — the recordings no longer travel in the request body. The
+payload for a full sitting went from roughly six megabytes to 250 KB, measured in
+`test/pipeline-payload.test.js`.
+
+**No bot ID.** Found 2026-09-10 in the Vercel logs, from an instructor's sitting.
+
+**What it was.** One line:
+
+```
+SEP 10 01:03:39.44   413   /api/tea-pipeline
+```
+
+**413 Payload Too Large.** Vercel rejected the request at the edge, before the
+function was invoked. That is why no `[PIPELINE]` line was ever logged and why
+four theories about timeouts, keys and quotas were all wrong: the code never ran.
+
+**Why the body was that big.** `/api/tea-pipeline` obtained its acoustic evidence —
+speech rate, pause length, per-word confidence — by transcribing every recording a
+**second** time. That meant the client posting two dozen base64 recordings in one
+JSON body. Base64 adds about a third; a full sitting came to roughly 6 MB against
+a limit of about 4.5.
+
+**The part that makes it worse than a size bug.** The failure scaled with the
+candidate. A student who answered briefly stayed under the limit and was graded by
+the full ICAO pipeline with acoustic evidence. A student who spoke at length
+exceeded it and was graded on text alone, by the fallback that carried a paraphrase
+of the scale and no acoustic data at all. **The more English a candidate produced,
+the worse the examiner they got.** Every sitting in the record where the grader was
+`conversation` is that.
+
+**The fix, and why it is not a bigger limit.** The exam already transcribes each
+answer through `/api/whisper`, one at a time, and those calls succeed — they are in
+the same log, answering 200. `/api/whisper` now returns Whisper's verbose detail
+when asked for it, the exam keeps that per answer, and the pipeline receives
+transcripts instead of audio. Raising a limit or chunking the upload would have
+moved the ceiling; this removes the reason to approach it. `buildRichTranscript` is
+untouched and still takes exactly the shape it always took.
+
+**Two copies, resolved rather than added to.** `api/whisper.mjs` and
+`transcribeSegment` in `api/tea-pipeline.mjs` were both calling OpenAI's
+transcription endpoint. The second is now bypassed on the live path rather than a
+third being written. It remains for the mock mode and for any caller still sending
+audio.
+
+**A side effect worth having.** Each answer is transcribed once instead of twice,
+so a full sitting costs roughly half what it did at OpenAI.
+
+**What is deliberately unchanged.** The recordings stay on the device in
+`_t.segments`. They are still the durable evidence of what was said, and the
+unheard-sitting guard still counts them to decide whether an examination may be
+graded at all. `/api/whisper`'s existing response shape is untouched — the
+simulator's read-back posts to the same endpoint and wants a string.
+
+**What is not verified from the repo (rule 6).** Whether the real payload now
+lands under the limit, and how long the Gemini grading call takes on its own. The
+250 KB figure is a realistic 24-answer reconstruction, not a measurement of a live
+sitting. One real examination settles both.
+
+**What this does not fix.** The fallback still takes over in silence. That is why
+this ran unnoticed, and it has its own ticket.

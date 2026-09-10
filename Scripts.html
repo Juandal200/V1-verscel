@@ -26392,6 +26392,7 @@ var LEVEL_THEMES = {
 
   // ── State ─────────────────────────────────────────────────────────────────
   var _t = { history:[], audioIdx:0, imageIdx:0, audioCache:{}, audioEl:null, busy:false,
+             richResults:[],
              timerIv:null, _pendingId:null, _pendingB64:null, _qaMode:false, _imageInjected:false, _finishShown:false, _examDone:false,
              examinerTurns:0, segments:[], _lastSepKey:null, _started:false, _timeWarned:false, _scopeNote:null, _awaitingFinalReport:0,
              _adminAsked:false, _studentView:null, _clipPlaying:false, _afterClip:null,
@@ -26545,7 +26546,7 @@ var LEVEL_THEMES = {
     _t.listens={};
     setTimeout(function(){ _teaSetPart('1'); }, 0);
     _t._pendingId=null; _t._pendingB64=null; _t._qaMode=false; _t._imageInjected=false; _t._finishShown=false; _t._examDone=false;
-    _t.examinerTurns=0; _t.segments=[]; _t._lastSepKey=null; _t._started=false;
+    _t.examinerTurns=0; _t.segments=[]; _t.richResults=[]; _t._lastSepKey=null; _t._started=false;
     _t._timeWarned=false; _t._scopeNote=null;
     _t._awaitingFinalReport=0; _t._adminAsked=false; _t._studentView=null;
     _t._clipPlaying=false; _t._afterClip=null; _t._comparing=false; _t._introsSaid={};
@@ -28234,9 +28235,13 @@ var LEVEL_THEMES = {
       fetch('/api/tea-pipeline', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // richResults, not segments. The recordings stay on the device; what
+        // travels is what Whisper already made of them. Six megabytes became a
+        // few hundred kilobytes, which is the difference between this request
+        // being answered and being refused with a 413 before it arrives.
         body: JSON.stringify({
           sessionToken: AppState.sessionToken,
-          segments:    _t.segments,
+          richResults: _t.richResults,
           history:     _t.history,
           candidateId: candidateId,
           examDate:    new Date().toISOString(),
@@ -28595,9 +28600,30 @@ var LEVEL_THEMES = {
           };
           reader.readAsDataURL(blob);
 
-          fetch('/api/whisper', { method: 'POST', headers: { 'Content-Type': type }, body: blob })
+          /* verbose=1: the same call, with the acoustic detail kept.
+           *
+           * The grader reads speech rate, pauses and per-word confidence to judge
+           * fluency and pronunciation. The pipeline used to obtain those by
+           * transcribing every recording a second time, which meant posting two
+           * dozen base64 recordings in one request — about six megabytes, which
+           * Vercel rejected with a 413 before the function ran. Asking for the
+           * detail here, on a call the exam was already making, removes the bulk
+           * upload and the second transcription with it.
+           *
+           * Kept beside the recording rather than instead of it: _t.segments is
+           * still the durable evidence of what was said. */
+          fetch('/api/whisper?verbose=1', { method: 'POST', headers: { 'Content-Type': type }, body: blob })
             .then(function (r) { return r.json(); })
-            .then(function (d) { done(d && d.ok ? String(d.transcript || '') : ''); })
+            .then(function (d) {
+              if (d && d.ok && d.verbose) {
+                _t.richResults.push({
+                  id:        'seg_' + _t.richResults.length,
+                  partLabel: step.section || step.kind || '',
+                  verbose:   d.verbose
+                });
+              }
+              done(d && d.ok ? String(d.transcript || '') : '');
+            })
             .catch(function () { done(''); });
         };
 

@@ -569,3 +569,33 @@ straight-1 result on record.
 
 **Notes** The guard is the seatbelt. This is the airbag, and it is the one that
 matters when the failure is not the student's doing.
+
+---
+
+## The fallback grader takes over without telling anyone
+
+**No bot ID.** Found 2026-09-10 while diagnosing the pipeline 413.
+
+**Source** Found during other work · reported 2026-09-10
+**Severity** High — it is the reason two separate grading defects ran undetected
+**Area** `_finishExam` in Scripts.html, the `else` branch after `/api/tea-pipeline`
+
+**Observed** When the pipeline does not return a usable result the client calls
+`_unlockExamUI()` and `_teaRequestFinalReport()` and says nothing. No client error
+is reported, no message reaches the student, and nothing distinguishes the two
+graders on screen. The only trace is the `Source` column in the results sheet,
+which nobody reads until something looks wrong.
+
+**Expected** A grader substitution is reported through `_reportClientError` /
+`apiLogClientEvent`, the way every other client failure is.
+
+**Done when** `DERIVED` A pipeline failure is recorded server-side with its reason,
+so the substitution is visible without reading the results sheet.
+
+**Status** Open. This is CLAUDE.md's "errors must be observable" rule, on the path
+where it cost the most: a 413 that ran for weeks and a dropped-argument bug that
+ran longer, both invisible because the app quietly did something else instead.
+
+**Notes** Worth doing regardless of whether the pipeline itself is healthy — it is
+the difference between finding the next one in a log and finding it in a
+spreadsheet.

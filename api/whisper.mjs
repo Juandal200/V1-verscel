@@ -43,6 +43,30 @@ export default async function handler(req, res) {
     formData.append('model', 'whisper-1');
     formData.append('language', 'en');
 
+    /* Verbose mode: the same transcription, with the acoustic detail kept.
+     *
+     * The ICAO grader reads speech rate, pause length and per-word confidence to
+     * judge fluency and pronunciation. Those live in Whisper's verbose_json, and
+     * api/tea-pipeline.mjs used to obtain them by transcribing every recording a
+     * SECOND time — which meant shipping two dozen base64 recordings in one
+     * request body. Vercel rejected that body with a 413 before the function ran,
+     * so the pipeline never executed and every long sitting fell to the text-only
+     * grader. The more a candidate said, the worse the grader they got.
+     *
+     * The exam already transcribes each answer here, one at a time, and those
+     * calls succeed. Asking for the detail on that call removes the second
+     * transcription entirely: no bulk upload, no 413, and one OpenAI charge per
+     * answer instead of two.
+     *
+     * Off by default. The simulator's read-back wants a string and nothing else,
+     * and its response shape does not change. */
+    const wantsVerbose = /(^|[?&])verbose=1(&|$)/.test(String(req.url || ''));
+    if (wantsVerbose) {
+      formData.append('response_format', 'verbose_json');
+      formData.append('timestamp_granularities[]', 'segment');
+      formData.append('timestamp_granularities[]', 'word');
+    }
+
     /* Tell it what it is listening to.
      *
      * Whisper was transcribing general English, so a student who said "turn right
@@ -105,7 +129,17 @@ export default async function handler(req, res) {
       return;
     }
 
-    res.status(200).json({ ok: true, transcript: data.text || '' });
+    // transcript is unchanged for every existing caller. verbose is additive.
+    const out = { ok: true, transcript: data.text || '' };
+    if (wantsVerbose) {
+      out.verbose = {
+        text:     data.text || '',
+        words:    Array.isArray(data.words)    ? data.words    : [],
+        segments: Array.isArray(data.segments) ? data.segments : [],
+        duration: Number(data.duration || 0)
+      };
+    }
+    res.status(200).json(out);
 
   } catch (err) {
     console.error('[WHISPER]', err.message);
