@@ -1610,3 +1610,68 @@ If it does not move, the hypothesis is dead and should be written down as dead;
 **What is not verified (rule 6).** The cold start above. Whether the `/exec` front
 door is still in real use — if it is, its logo now loads cross-origin from Vercel
 rather than inline. And that the emails still render, which needs a real inbox.
+
+---
+
+## The tier partition was written six times, and one of them guessed
+
+**Status** **Fixed** — one declaration, `window.LEVEL_TIERS`, read by all six.
+`test/single-source.test.js` counts the literals and compares the client against
+the server's gate.
+
+**No bot ID.** Raised by the instructor on 2026-09-10.
+
+**What it was.** The 1-3 / 4-6 / 7-9 partition appeared **six** times across three
+IIFEs — the ticket named four; the exam module carried two more that nobody had
+noticed:
+
+| where | what |
+|---|---|
+| level map, exam card | `prereqs = '1–3' : '4–6' : '7–9'`, `nextLvl = 4/7/10` |
+| route header | `<= 3 ? 'Foundation' : <= 6 ? 'Advanced' : 'Expert'` |
+| level map, tier builder | `TIERS = [{levels:[1,2,3]}, …]` |
+| Progress | `_PROG_TIERS` |
+| exam module | `prereqs = '1, 2 & 3' : …` |
+| exam module | `nextLvl = 4 : 7 : 10` |
+
+**The one that was a defect, not just duplication.** The route header's ladder
+ended in an `else`, so a level outside every tier was filed under Expert without
+anyone deciding it. Publishing level 10 would have put it there silently. A level
+in no tier is now reported as `Unassigned`, and `tierOfLevel` returns null rather
+than guessing.
+
+**Why it is not derived from the sheet, which is what the ticket asked for.** The
+ticket's premise was that `groupKey` is the real source. It is not. `groupKey`
+takes exactly two values, `FOUNDATION` and `OPERATIONAL`, and answers a different
+question: which levels are the released curriculum versus a separate coming-soon
+block. `levelCapsFromContent_` uses it to compute the BASIC plan's ceiling and the
+client uses it to decide whether to draw the coming-soon hero. **Levels 1 to 9 are
+all `FOUNDATION`**, so deriving the tiers from it would have collapsed the nine
+into one. If the sheet should own this, it needs a `tierKey` column of its own,
+and that is server work plus a migration.
+
+**The seventh copy, kept on purpose.** `Código.js` gates levels 4, 7 and 10 on the
+preceding exam — `lvl === 4 ? 1 : lvl === 7 ? 2 : lvl === 10 ? 3`. Client and
+server is a genuine boundary, so that stays and is **compared** instead: the suite
+asserts the server's gates and the client's `nextLevel` values agree. If they ever
+diverge, the map offers a checkpoint the server does not enforce, or hides one it
+does.
+
+**Two vocabularies on the same cuts, kept apart.** `Foundation / Advanced / Expert`
+is the content tier. `Junior Captain / Senior Captain / Instructor Captain` is the
+XP rank, which varies by profession. Only the boundaries are shared; the labels
+live in `_PROG_RANKS`, and the suite fails if a rank name appears in the partition.
+`Chief Pilot` stays listed rather than derived — level 10 is in no content tier,
+which is a fact about the rank ladder and not about the syllabus.
+
+**What was confirmed while doing it.** The checkpoint exams *are* required. The
+server's catalog sets `levelItem.unlocked = examPassed` for levels 4, 7 and 10, so
+finishing 1-3 without passing Checkpoint 1 does not open Level 4.
+
+**What was found and not fixed.** `canUserAccessLevel`, which guards attempt
+submission, checks only that previous levels are complete — it does not check the
+exam. So the catalog and the attempt validator disagree about whether a checkpoint
+matters. Filed.
+
+**What is not verified (rule 6).** That the six screens still render identically.
+That is geometry and needs a browser.

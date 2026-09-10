@@ -68,6 +68,54 @@ console.log('--- recording blocks ---');
 const recorders = count(/new MediaRecorder\(/g);
 ok(`${recorders} MediaRecorder constructions (max 6)`, recorders <= 6);
 
+/* Where a tier ends.
+ *
+ * The 1-3 / 4-6 / 7-9 partition was written SIX times across three IIFEs: the
+ * level map's exam card and its tier builder, the tier name on the route header,
+ * the Progress rank bands, and twice more in the exam module. None knew about the
+ * others, and one of them was an `else` that filed level 10 under Expert without
+ * anyone deciding it.
+ *
+ * Not from the sheet, and the reason is worth keeping here so nobody tries: the
+ * server's groupKey takes two values, FOUNDATION and OPERATIONAL, and answers a
+ * different question. Levels 1 to 9 are all FOUNDATION, so deriving the tiers
+ * from it would collapse the nine into one. */
+console.log('--- the level tier partition ---');
+ok('one declaration of the partition',
+   (S.match(/window\.LEVEL_TIERS = \[/g) || []).length === 1);
+const literalCuts = count(/levels: \[\s*1\s*,\s*2\s*,\s*3\s*\]|levels: \[\s*4\s*,\s*5\s*,\s*6\s*\]|levels: \[\s*7\s*,\s*8\s*,\s*9\s*\]/g);
+ok(`${literalCuts} literal tier bands outside it (max 3, all inside the declaration)`,
+   literalCuts <= 3);
+/* The else that assumed. A level in no tier has to be reported, not filed.
+ *
+ * Against STRIPPED source. The comment on the replacement quotes the expression
+ * it replaced — as comments explaining a fix tend to — and this read it as the
+ * code still being there. Fourth time in a week that a comment I wrote broke a
+ * check I wrote. */
+const Sc = S.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/[^\n]*/g, '$1');
+ok('no ladder assumes the last tier',
+   !/<=\s*3\s*\?\s*'Foundation'/.test(Sc));
+ok('and tierOfLevel returns null rather than guessing',
+   /window\.tierOfLevel = function[\s\S]{0,400}return null;/.test(S));
+// Two vocabularies on the same cuts. They must not merge.
+ok('the rank labels stay separate from the content tier names',
+   /_PROG_RANKS = \[/.test(S) && /Junior Captain/.test(S) && !/name: 'Junior Captain'/.test(S));
+
+/* Client and server is a genuine boundary, so the seventh copy stays — and is
+ * compared instead. Código.js gates levels 4, 7 and 10 on the preceding exam;
+ * if the client's partition ever disagrees, the map offers a checkpoint the
+ * server does not enforce, or hides one it does. */
+console.log('--- and the server agrees with it ---');
+const COD = fs.readFileSync(__dirname + '/../Código.js', 'utf8');
+const serverGate = COD.match(/lvl === (\d+) \? 1 : lvl === (\d+) \? 2 : lvl === (\d+) \? 3/);
+ok('the server still gates three levels on exams', !!serverGate);
+if (serverGate) {
+  const clientNext = [...S.matchAll(/nextLevel: (\d+)/g)].map(m => Number(m[1]));
+  const serverNext = serverGate.slice(1, 4).map(Number);
+  ok(`server gates ${serverNext.join('/')} and the client's tiers lead to ${clientNext.join('/')}`,
+     clientNext.length === 3 && clientNext.every((n, i) => n === serverNext[i]));
+}
+
 console.log(fails ? ('\n' + fails + ' FAILING — a second copy appeared, or a limit needs raising deliberately')
                   : '\nall green');
 process.exit(fails ? 1 : 0);

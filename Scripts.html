@@ -490,8 +490,68 @@
 </script>
 
 <script>
+/* Where a tier ends and the next begins — written once.
+ *
+ * The 1-3 / 4-6 / 7-9 partition was written SIX times across three IIFEs: the
+ * level map's exam card and its tier builder, the tier name on the route header,
+ * the Progress rank bands, and twice more in the exam module. Six copies of one
+ * fact, none of them aware of the others.
+ *
+ * NOT from the sheet, and it is worth saying why so nobody tries again. The
+ * server has a groupKey column and it looks like the answer, but it takes exactly
+ * two values — FOUNDATION and OPERATIONAL — and answers a different question:
+ * which levels are the released curriculum versus a separate coming-soon block.
+ * levelCapsFromContent_ uses it to compute the BASIC plan's ceiling. Levels 1 to 9
+ * are ALL foundation, so deriving the tiers from it would collapse the nine into
+ * one. If the sheet should own this, it needs a tierKey column of its own.
+ *
+ * On window because the three IIFEs cannot see each other's scope, and read
+ * through _levelTiers() so a missing definition degrades rather than throwing —
+ * a bare cross-IIFE reference is the ReferenceError that locked new students out.
+ *
+ * Two vocabularies live on these cuts and they must not be merged. Foundation /
+ * Advanced / Expert is the CONTENT tier. Junior Captain / Senior Captain /
+ * Instructor Captain is the XP RANK, which comes from GAM_TIERS and changes with
+ * the student's profession. Same boundaries, different systems, kept apart. */
+window.LEVEL_TIERS = [
+  { num: 1, name: 'Foundation', levels: [1, 2, 3], examNum: 1, nextLevel: 4 },
+  { num: 2, name: 'Advanced',   levels: [4, 5, 6], examNum: 2, nextLevel: 7 },
+  { num: 3, name: 'Expert',     levels: [7, 8, 9], examNum: 3, nextLevel: 10 }
+];
+
+/* The tier a level belongs to, or null.
+ *
+ * Null, not the last tier. `<= 3 ? 'Foundation' : <= 6 ? 'Advanced' : 'Expert'`
+ * was an else that assumed the answer: publishing level 10 filed it under Expert
+ * without anyone deciding that. A level outside every tier is a fact about the
+ * sheet, and the screens that ask are expected to say so rather than guess. */
+window.tierOfLevel = function (level) {
+  var n = Number(level || 0);
+  var tiers = window.LEVEL_TIERS || [];
+  for (var i = 0; i < tiers.length; i++) {
+    if (tiers[i].levels.indexOf(n) !== -1) return tiers[i];
+  }
+  return null;
+};
+
+window.tierByExam = function (examNum) {
+  var n = Number(examNum || 0);
+  var tiers = window.LEVEL_TIERS || [];
+  for (var i = 0; i < tiers.length; i++) {
+    if (tiers[i].examNum === n) return tiers[i];
+  }
+  return null;
+};
+</script>
+
+<script>
 (function() {
   'use strict';
+
+  // Guarded reads of the shared partition. See the block above.
+  function _levelTiers() { return (window.LEVEL_TIERS || []).slice(); }
+  function _tierOf(level) { return window.tierOfLevel ? window.tierOfLevel(level) : null; }
+  function _tierByExam(n) { return window.tierByExam ? window.tierByExam(n) : null; }
 
   /* ── Global error boundary ────────────────────────────────────────── */
   (function() {
@@ -5591,8 +5651,10 @@
       if (examStatus[i].examNum === examNum) { info = examStatus[i]; break; }
     }
     var status = info ? info.status : 'locked';
-    var prereqs = examNum === 1 ? '1–3' : examNum === 2 ? '4–6' : '7–9';
-    var nextLvl = examNum === 1 ? 4    : examNum === 2 ? 7    : 10;
+    var _tier   = _tierByExam(examNum);
+    var _lv     = _tier ? _tier.levels : [];
+    var prereqs = _lv.length ? (_lv[0] + '–' + _lv[_lv.length - 1]) : '—';
+    var nextLvl = _tier ? _tier.nextLevel : 0;
 
     var icon, heading, sub, btnLabel, btnCls, btnAction, badgeCls, badgeText;
     if (status === 'locked') {
@@ -5909,7 +5971,9 @@ var LEVEL_THEMES = {
     }
     var totalTraining   = trainingLevels.length || 0;
     var overallPct      = totalTraining > 0 ? Math.round((completedCount / totalTraining) * 100) : 0;
-    var currentTierName = currentLevelNum <= 3 ? 'Foundation' : currentLevelNum <= 6 ? 'Advanced' : 'Expert';
+    // A level in no tier says so. It used to be filed under Expert by an else.
+    var _curTier = _tierOf(currentLevelNum);
+    var currentTierName = _curTier ? _curTier.name : 'Unassigned';
 
     // ── Hero bar ──────────────────────────────────────────────
     var currentVr = vrEvents[currentLevelNum] || null;
@@ -5967,11 +6031,7 @@ var LEVEL_THEMES = {
     var levelByNum = {};
     levels.forEach(function(l) { levelByNum[Number(l.level || 0)] = l; });
 
-    var TIERS = [
-      { num: 1, name: 'Foundation', levels: [1,2,3], examNum: 1 },
-      { num: 2, name: 'Advanced',   levels: [4,5,6], examNum: 2 },
-      { num: 3, name: 'Expert',     levels: [7,8,9], examNum: 3 }
-    ];
+    var TIERS = _levelTiers();
 
     var tierSections = '';
 
@@ -20337,10 +20397,24 @@ var LEVEL_THEMES = {
   }
 
   // ── Tier config for level map ──────────────────────────────────
-  var _PROG_TIERS = [
-    { label: 'Junior Captain',  levels: [1,2,3],    color: 'var(--accent)', glow: 'rgba(14,101,244,0.35)'  },
-    { label: 'Senior Captain',  levels: [4,5,6],    color: 'var(--muted)', glow: 'rgba(192,199,209,0.30)' },
-    { label: 'Instructor Captain', levels: [7,8,9],  color: 'var(--yellow)', glow: 'rgba(218,165,32,0.35)'  },
+  /* The rank VOCABULARY. Its boundaries are the content tiers'; its words are not.
+   *
+   * Foundation / Advanced / Expert is what the curriculum calls those bands.
+   * Junior Captain / Senior Captain / Instructor Captain is what the XP rank calls
+   * them. They sit on the same cuts and mean different things, so the cuts are
+   * shared below and the labels stay here. Merging the two would join two systems
+   * that have to stay apart. */
+  var _PROG_RANKS = [
+    { label: 'Junior Captain',     color: 'var(--accent)', glow: 'rgba(14,101,244,0.35)'  },
+    { label: 'Senior Captain',     color: 'var(--muted)',  glow: 'rgba(192,199,209,0.30)' },
+    { label: 'Instructor Captain', color: 'var(--yellow)', glow: 'rgba(218,165,32,0.35)'  }
+  ];
+
+  // The bands come from the one partition; only the naming is local.
+  var _PROG_TIERS = (window.LEVEL_TIERS || []).map(function (t, i) {
+    var r = _PROG_RANKS[i] || { label: t.name, color: 'var(--muted)', glow: 'rgba(192,199,209,0.30)' };
+    return { label: r.label, levels: t.levels, color: r.color, glow: r.glow };
+  }).concat([
     /* Chief Pilot was #990011 — 2.1:1 on the dark ground.
      *
      * That is below the 3:1 floor for a graphic and less than half the 4.5:1 a
@@ -20357,8 +20431,11 @@ var LEVEL_THEMES = {
      * than to look right on one.
      *
      * Still a crimson, and still the only red-toned rank in the set. */
+    /* Level 10 sits in no content tier, deliberately — the curriculum stops at
+     * nine and this is the rank beyond it. It is listed here rather than derived,
+     * because it is a fact about the rank ladder and not about the syllabus. */
     { label: 'Chief Pilot',     levels: [10],       color: '#e0384a', glow: 'rgba(224,56,74,0.40)'   }
-  ];
+  ]);
 
   function _progTierForLevel(lvl) {
     for (var i = 0; i < _PROG_TIERS.length; i++) {
@@ -25364,7 +25441,12 @@ var LEVEL_THEMES = {
   // ── Phase 0: Intro card ───────────────────────────────────────────────────
   function _examOpen(examNum) {
     examNum = Number(examNum || 1);
-    var prereqs = examNum === 1 ? '1, 2 & 3' : examNum === 2 ? '4, 5 & 6' : '7, 8 & 9';
+    // Same partition as the level map, worded the way this screen words it.
+    var _exTier = window.tierByExam ? window.tierByExam(examNum) : null;
+    var _exLv   = _exTier ? _exTier.levels : [];
+    var prereqs = _exLv.length
+      ? _exLv.slice(0, -1).join(', ') + ' & ' + _exLv[_exLv.length - 1]
+      : '—';
     var o = _mount();
     o.innerHTML =
       '<div class="exam-card-overlay exam-intro">' +
@@ -25615,7 +25697,8 @@ var LEVEL_THEMES = {
     var passed  = res.passed === true;
     var score   = Number(res.score || 0);
     var status  = String(res.examStatus || '');
-    var nextLvl = _EX.examNum === 1 ? 4 : _EX.examNum === 2 ? 7 : 10;
+    var _nxTier = window.tierByExam ? window.tierByExam(_EX.examNum) : null;
+    var nextLvl = _nxTier ? _nxTier.nextLevel : 0;
 
     var actionBtn = passed
       ? '<button class="btn primary exam-cta-btn" onclick="window._examClose()">Continue to Level ' + nextLvl + ' &rarr;</button>'

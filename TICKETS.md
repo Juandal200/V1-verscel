@@ -705,3 +705,36 @@ it, and a test counts the callers so a sixth cannot appear quietly.
 **Status** Open. Not consolidated alongside the brand-image work because it
 changes which URL students receive in emails, which is a behaviour change on
 screens that work today.
+
+---
+
+## The catalog requires the checkpoint exam; the attempt validator does not
+
+**No bot ID.** Found 2026-09-10 while consolidating the tier partition.
+
+**Source** Found during other work · reported 2026-09-10
+**Severity** Medium — two server gates disagree about the same rule
+**Area** `buildTrainingCatalogV5Hard_` in Código.js · `ProgressService.canUserAccessLevel`
+in Attemptservice.js
+
+**Observed** The catalog gates levels 4, 7 and 10 on the preceding exam:
+`levelItem.unlocked = examPassed`, from `getExamPassedMap_`. So the client is not
+offered a level whose checkpoint has not been passed.
+
+`canUserAccessLevel`, which guards `validateScenarioAccess_` on attempt
+submission, checks only that every previous level is complete. It never looks at
+an exam.
+
+**Expected** One answer to "may this user enter this level", used by both.
+
+**Done when** `DERIVED` A request to submit an attempt for a level whose checkpoint
+has not been passed is refused server-side, and a test proves it by executing the
+validator rather than reading the catalog.
+
+**Status** Open. Not fixed alongside the partition work, which was a consolidation
+and touched no gating. Related to the entitlement gap already filed against
+`canUserAccessLevel`: the same function is missing both checks.
+
+**Notes** This is the two-gates shape rather than the fix-by-hiding one — the
+catalog is a real server-side decision, not a UI trick. But a rule enforced in one
+of two places is a rule that depends on which door someone knocks at.
