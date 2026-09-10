@@ -94,6 +94,14 @@ article, wrong preposition — that does not alter the operational message) or G
 analysis aid for the written justification, not an ICAO criterion: the band still
 comes from the descriptor wording above.
 
+AVIATION GUARDRAIL — READ THIS BEFORE ASSIGNING ANY BAND.
+This is an operational language test, not an academic English examination. Plain,
+concise language that resolves a non-routine situation safely is a complete Level 4
+performance and must be graded as one. Elaborate or idiomatic English that obscures
+the operational message, or that departs from standard radiotelephony where
+phraseology exists, is a hazard and must not be rewarded as range or fluency. Grade
+what the communication achieved operationally, not how sophisticated it was.
+
 CRITICAL RULE: overall_band = the LOWEST score among all six dimensions. It is NOT an average.
 
 ANNOTATED TRANSCRIPT FORMAT

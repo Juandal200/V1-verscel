@@ -1357,3 +1357,63 @@ treat any wholly-bracketed turn as bookkeeping.
 
 **What would reopen it.** A new protocol message pushed as `role: 'user'` on the
 scripted path.
+
+---
+
+## Two graders held candidates to two different standards
+
+**Status** **Fixed** — both carry the ICAO Doc 9835 scale verbatim, and
+`test/rubric-parity.test.js` compares them character for character.
+
+**No bot ID.** Found 2026-09-09 while answering an instructor's question about
+the rubric.
+
+**What was wrong.** `api/tea-pipeline.mjs` carried the full Doc 9835 scale
+verbatim, under an instruction reading *"This is the full scale, verbatim. Do not
+grade against a paraphrase of it."* `api/tea.mjs` — the grader that runs when the
+pipeline does not produce a result — **was that paraphrase**, and it defined
+**only levels 3, 4 and 5**.
+
+So a candidate's standard depended on which grader happened to run, and when the
+fallback awarded band 1 it was assigning a band its own rubric never described.
+Four of the six graded sittings on record went to the fallback.
+
+**Why the copies were not merged.** A shared module is the correct fix and was
+rejected for now: nothing in `api/` imports a local file today, and an import that
+fails to bundle takes **both** graders down and every exam with them. That is not a
+change to make an hour before a live sitting. The copies stay and a parity test
+compares them — the trade this file already allows for two copies across a real
+boundary, provided the test is executable rather than a comment.
+
+**What each grader keeps to itself, deliberately.** The fallback carries the replay
+ceiling, because the `[EXAM_COMPLETE]` marker that computes it only reaches that
+path; the pipeline has the same ceiling applied in client code after it returns.
+The fallback also now carries an instruction that it has **no acoustic data** — no
+speech rate, no pause length, no pronunciation confidence — and must not describe
+measurements it does not have. The pipeline does not get that instruction, because
+it does have them. Both exclusions are asserted.
+
+**What was declined from the proposed replacement.** An instructor-supplied rubric
+draft was assessed and three of its Level 4 wordings would have moved the pass line
+**above** ICAO's — pronunciation "rarely" (Doc 9835 says *sometimes*, and *rarely*
+is Level 5's word, so the two bands became indistinguishable), structure "never
+obscure" (ICAO: *rarely interfere*), comprehension "consistently accurate" (ICAO:
+*mostly*, and *consistently* is Level 6's word). For a test certifying against a
+legal minimum, strictness at the pass line fails pilots ICAO says should pass. Also
+declined: CEFR anchors, which ICAO does not publish and which invite the model to
+grade the English rather than the operational communication; a hard cap forcing
+three descriptors to Level 3 on one non-routine failure, which is house policy
+presented as a standard; an output schema with no `student_view`/`admin_view`
+split, which would have undone the descriptor withholding; and moving the replay
+ceiling out of code into the prompt, reversing a deliberate decision not to trust
+the model with that arithmetic. All four are asserted against.
+
+**What was adopted from it.** The aviation guardrail, which is the best idea in it
+and had no equivalent anywhere: plain concise language that safely resolves a
+non-routine situation is a complete Level 4, and elaborate English that obscures
+the operational message is a hazard rather than evidence of range. Both graders now
+carry it identically.
+
+**What this does not fix.** Nothing here improves the evidence either grader is
+given. A rubric is only as good as the transcript under it, and the defect above
+this entry is why that mattered.
