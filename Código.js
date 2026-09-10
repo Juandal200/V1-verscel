@@ -6629,6 +6629,89 @@ function apiAdminDiagnoseTts(sessionToken) {
   } catch(err) { return apiError_('apiAdminDiagnoseTts', err); }
 }
 
+/* How long the one lock everybody shares is actually held.
+ *
+ * executeAs is USER_DEPLOYING, so getUserLock resolves to one identity and all 41
+ * dbWithScriptLock_ sites queue on a single mutex. Concurrency there is 1, not the
+ * 30 simultaneous executions Google allows — which means the lock decides the
+ * concurrent-user ceiling and the quota never gets a say. Nobody has ever measured
+ * it, so every ceiling above about forty has been arithmetic.
+ *
+ * Read-only. It takes the lock about thirteen times, each briefly, and writes
+ * nothing at all — safe against production, though not while a class is training.
+ *
+ * The number the arithmetic needs is `holdForOneLoginVerify`: at H milliseconds a
+ * lock-taking operation, the platform-wide ceiling is 1000/H of them per second,
+ * whatever the execution quota says.
+ */
+function apiAdminMeasureLock(sessionToken) {
+  try {
+    AuthService.requireRole(sessionToken, ['ADMIN']);
+
+    function stats(list) {
+      var a = list.slice().sort(function (x, y) { return x - y; });
+      return {
+        min:    a[0],
+        median: a[Math.floor(a.length / 2)],
+        max:    a[a.length - 1],
+        n:      a.length
+      };
+    }
+
+    // 1. The floor: acquire and release with no work between them. Anything above
+    //    this is our code; anything at it is the platform.
+    var floor = [];
+    for (var i = 0; i < 10; i++) {
+      var t0 = Date.now();
+      dbWithScriptLock_(function () { return null; });
+      floor.push(Date.now() - t0);
+    }
+
+    // 2. The login bottleneck, exactly as apiVerifyLoginCode performs it: the whole
+    //    LoginCodes sheet read and filtered while holding the lock. This is the one
+    //    that grows with the age of the account rather than with load.
+    var loginRows = 0;
+    var loginHold = [];
+    for (var j = 0; j < 3; j++) {
+      var t1 = Date.now();
+      dbWithScriptLock_(function () {
+        loginRows = dbReadAll_('LoginCodes').length;
+        return null;
+      });
+      loginHold.push(Date.now() - t1);
+    }
+
+    // 3. The scans that grow with use, timed OUTSIDE the lock — they are latency,
+    //    not contention, and mixing the two is how a bottleneck gets misattributed.
+    function timedRead(sheet) {
+      var out = { rows: 0, ms: [] };
+      for (var k = 0; k < 2; k++) {
+        var t = Date.now();
+        out.rows = dbReadAll_(sheet).length;
+        out.ms.push(Date.now() - t);
+      }
+      return { rows: out.rows, ms: stats(out.ms) };
+    }
+
+    var floorStats = stats(floor);
+    var loginStats = stats(loginHold);
+
+    return {
+      ok: true,
+      measuredAt: now_(),
+      lockFloorMs:   floorStats,
+      loginCodes:    { rows: loginRows, holdUnderLockMs: loginStats },
+      attempts:      timedRead('Attempts'),
+      progress:      timedRead('Progress'),
+      /* apiVerifyLoginCode takes the lock four times and one of those reads the
+       * whole sheet, so this is the closest single figure to a real login's total
+       * occupancy of the mutex. */
+      holdForOneLoginVerify: (floorStats.median * 3) + loginStats.median,
+      note: 'Read-only. Nothing was written.'
+    };
+  } catch (err) { return apiError_('apiAdminMeasureLock', err); }
+}
+
 function apiAdminListTtsVoices(sessionToken, languageCode) {
   try {
     AuthService.requireRole(sessionToken, ['ADMIN']);

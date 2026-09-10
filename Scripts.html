@@ -3822,11 +3822,64 @@ window.tierByExam = function (examNum) {
         '<button class="btn secondary" onclick="adminDiagnoseMyProgress()">Diagnose My Progress</button>' +
         '<div id="rtDiag" style="margin-top:12px;font-size: 0.82rem;overflow-x:auto;"></div>' +
         '<hr style="border-color:var(--line);margin:24px 0 16px;">' +
+        '<h3 style="margin-bottom:8px;">Backend Capacity</h3>' +
+        '<p style="color:var(--muted);font-size:0.82rem;margin-bottom:4px;">Measures how long the one lock every write shares is actually held. That number, not Google\'s 30-execution quota, decides how many students the backend holds.</p>' +
+        '<p style="color:var(--yellow);font-size:0.72rem;margin-bottom:12px;">Read-only — writes nothing. Takes the shared lock ~13 times, so do not run it while a class is training.</p>' +
+        '<button class="btn secondary" onclick="adminMeasureLock()">Measure lock hold</button>' +
+        '<div id="rtLock" style="margin-top:12px;font-size: 0.82rem;overflow-x:auto;"></div>' +
+        '<hr style="border-color:var(--line);margin:24px 0 16px;">' +
         '<h3 style="margin-bottom:8px;">Schema Migration</h3>' +
         '<p style="color:var(--muted);font-size:0.82rem;margin-bottom:12px;">Adds any missing column headers to the database sheets. Safe to run multiple times — only adds columns that are missing.</p>' +
         '<button class="btn secondary" onclick="adminRunMigration()">Run Schema Migration</button>' +
         '<div id="rtMigration" style="margin-top:10px;font-size:0.82rem;"></div>' +
       '</div>';
+  }
+
+  /* The lock, measured rather than argued about.
+   *
+   * Every concurrent-user ceiling this project has quoted above about forty has
+   * been arithmetic: 30 simultaneous executions divided by a median call time.
+   * That arithmetic measures the wrong resource. All 41 dbWithScriptLock_ sites
+   * queue on ONE mutex, so the real ceiling is 1000/hold operations per second no
+   * matter what the quota allows — and hold has never been measured. */
+  function adminMeasureLock() {
+    var box = byId('rtLock');
+    if (!box) return;
+    box.textContent = 'Measuring — this takes the lock about 13 times…';
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (!res || !res.ok) {
+          box.innerHTML = '<span style="color:var(--red);">Error: ' +
+            safeText((res && res.error) || 'unknown') + '</span>';
+          return;
+        }
+        function row(label, v, unit) {
+          return '<tr style="border-bottom:1px solid var(--line);">' +
+            '<td style="padding:4px 12px 4px 0;color:var(--muted);">' + label + '</td>' +
+            '<td style="padding:4px 12px 4px 0;font-weight:700;">' + safeText(v) +
+              (unit ? ' <span style="font-weight:400;color:var(--muted);">' + unit + '</span>' : '') +
+            '</td></tr>';
+        }
+        function span(st) { return st.min + ' / ' + st.median + ' / ' + st.max; }
+        var L = res.lockFloorMs, C = res.loginCodes;
+        box.innerHTML =
+          '<table style="border-collapse:collapse;">' +
+            row('Lock floor (min/median/max)', span(L), 'ms, empty callback') +
+            row('LoginCodes rows', C.rows, 'read and filtered inside the lock on every verify') +
+            row('LoginCodes under lock', span(C.holdUnderLockMs), 'ms') +
+            row('Attempts rows', res.attempts.rows, '· read ' + span(res.attempts.ms) + ' ms') +
+            row('Progress rows', res.progress.rows, '· read ' + span(res.progress.ms) + ' ms') +
+            row('Hold for one login verify', res.holdForOneLoginVerify, 'ms &larr; the number that decides capacity') +
+          '</table>' +
+          '<p style="margin-top:10px;color:var(--muted);font-size: 0.72rem;">' +
+            'Ceiling on lock-taking operations = 1000 / hold, per second, platform-wide. ' +
+            'Multiply by the seconds between a student\'s answers for the concurrent-user figure. ' +
+            safeText(res.note) + '</p>';
+      })
+      .withFailureHandler(function() {
+        box.innerHTML = '<span style="color:var(--red);">Could not run the measurement.</span>';
+      })
+      .apiAdminMeasureLock(AppState.sessionToken);
   }
 
   function adminDiagnoseMyProgress() {
@@ -16017,6 +16070,7 @@ var LEVEL_THEMES = {
   window._vrWeightSum               = _vrWeightSum;
   window.runReadbackTestSuite       = runReadbackTestSuite;
   window.adminDiagnoseMyProgress    = adminDiagnoseMyProgress;
+  window.adminMeasureLock           = adminMeasureLock;
   window.adminConfirmResetTour      = adminConfirmResetTour;
   window.adminConfirmSendEmails     = adminConfirmSendEmails;
   window.adminSendTestEmail         = adminSendTestEmail;

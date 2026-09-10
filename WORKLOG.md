@@ -17,6 +17,49 @@ Newest day first.
 
 ## 2026-09-10
 
+### The lock gets measured, and LoginCodes stops growing into it
+
+**Plan.** Two commits. `apiAdminMeasureLock` joins the three diagnostics already on
+the Eval Tests tab and reports the lock floor, the cost of reading LoginCodes
+under the lock, and the row counts behind both. `purgeLoginCodes` plus a daily
+trigger removes codes older than 24 hours — they are valid for ten minutes, and
+every one ever issued is still read and filtered inside the global lock on every
+verify.
+
+**Criterion.** Stated: get the hard number for lock hold time, and stop LoginCodes
+degrading the global lock.
+
+`DERIVED`: the measurement is read-only and takes the global lock about thirteen
+times briefly, so the panel says not to run it mid-class rather than leaving that
+to be discovered.
+
+`DERIVED`: the purge keeps any row whose `createdAt` will not parse. Treating
+"cannot read this" as "safe to delete" is how a purge becomes an incident.
+
+**Why, in one line.** Every concurrent-user ceiling above about forty is
+arithmetic until someone measures how long the one shared lock is held, and
+nothing in this repository can run Apps Script.
+
+**Checklist — the measurement.**
+
+- [ ] Admin → Eval Tests → a **Backend Capacity** section below Schema Migration
+- [ ] One click returns numbers in under about 30 seconds
+- [ ] Lock floor shown as min / median / max in milliseconds
+- [ ] LoginCodes row count, and how long reading it under the lock takes
+- [ ] Attempts and Progress row counts and read times
+- [ ] Nothing was written — the LoginCodes row count is identical before and after
+
+**Checklist — the purge.**
+
+- [ ] `purgeLoginCodes()` run by hand reports how many rows went and how many remain
+- [ ] Re-run the measurement: the LoginCodes read-under-lock time is lower
+- [ ] Apps Script → Triggers shows a daily `purgeLoginCodes` at about 04:00
+- [ ] **A student can still request a code and log in afterwards**
+
+**Not verifiable from the repo.** Every number the panel produces. That is what it
+is for.
+
+
 ### The checkpoint is sat from the map, and the simulator card leaves the desktop home page
 
 **Plan.** Three commits. `_examActionFor` comes out of `_buildExamCard`, so the
