@@ -2602,7 +2602,7 @@ window.tierByExam = function (examNum) {
 
       // ── Modules section ──
       var modulesSection =
-        '<div style="margin-bottom:8px;">' +
+        '<div id="homeModulesSection" style="margin-bottom:8px;">' +
           '<div id="homeModulesArea"><div style="text-align:center;padding:32px;color:var(--muted);">Loading modules…</div></div>' +
         '</div>';
 
@@ -2710,13 +2710,38 @@ window.tierByExam = function (examNum) {
           .apiGetDailyChallenge(AppState.sessionToken);
       })();
 
+      /* Nothing to show is not a message.
+       *
+       * apiModuleGetAll returns only the rows the Modules sheet marks ACTIVE, so
+       * an empty list means the content was withdrawn on the server and the
+       * browser never received it. Drawing "No modules available yet — check back
+       * soon" in its place swaps a module for a notice about a module, which is
+       * not what withdrawing it was for. The section leaves the page instead.
+       *
+       * Nothing is hidden here: there is no module in the payload to hide. Flip
+       * the sheet row back to ACTIVE and the section returns on its own, with no
+       * deploy — which is what "hide it for now" has to mean if it is going to
+       * come back.
+       *
+       * A FAILED fetch is a different thing from an empty one and still says so;
+       * that path is untouched. */
+      function _homePaintModules(modules) {
+        var el = byId('homeModulesArea');
+        if (!el) return;
+        if (!modules || !modules.length) {
+          var sec = byId('homeModulesSection');
+          if (sec && sec.parentNode) sec.parentNode.removeChild(sec);
+          return;
+        }
+        el.innerHTML = _renderModuleRoadmap(modules, true);
+      }
+
       // Load modules into home — serve from sessionStorage if fresh
       (function() {
         try {
           var _modCached = JSON.parse(sessionStorage.getItem('_aero_modules_home') || 'null');
           if (_modCached && (Date.now() - _modCached.t) < _HOME_SECTION_TTL) {
-            var el = byId('homeModulesArea');
-            if (el) el.innerHTML = _renderModuleRoadmap(_modCached.modules || [], true);
+            _homePaintModules(_modCached.modules || []);
             return;
           }
         } catch(e) {}
@@ -2727,7 +2752,7 @@ window.tierByExam = function (examNum) {
             if (!el) return;
             if (!res || !res.ok) { el.innerHTML = '<p style="color:var(--muted);">Could not load modules.</p>'; return; }
             try { sessionStorage.setItem('_aero_modules_home', JSON.stringify({ t: Date.now(), modules: res.modules || [] })); } catch(e) {}
-            el.innerHTML = _renderModuleRoadmap(res.modules || [], true);
+            _homePaintModules(res.modules || []);
           })
           .withFailureHandler(function() {
             var el = byId('homeModulesArea');

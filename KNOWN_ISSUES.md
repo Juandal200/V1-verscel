@@ -1690,11 +1690,15 @@ world map by its country. Not a new feature: every field it shows already existe
 The country is a reasonable axis because phraseology changes by region, which is
 why progress is stored per `level||country` in the first place.
 
-**How losing things was prevented.** The grid's own pass computes the state —
-locked, complete, the plan lock, the status words, the region counts — and records
-it in `_lmModels` as a by-product. Both views read that one array. The grid's
-markup was **not** restructured: it is the view that works today, so it carries no
-regression risk, and the map is a new function consuming the model.
+**How losing things was prevented.** The state — locked, complete, the plan lock,
+the status words, the region counts — is computed once and both views read it.
+
+*Amended 2026-09-10.* It used to be recorded as a by-product of the grid's own
+pass, which meant the state of a level could only be had by drawing the grid. The
+home page needs it without drawing anything, so it is `_lmBuildModels` now, and
+the catalogue as a whole is read by `_lmSurface`. `test/level-model.test.js` lifts
+both from source: the parity suite builds its models by hand and would have stayed
+green over a broken computation.
 
 `test/level-map-parity.test.js` runs the map on a synthetic catalogue and checks
 every level is drawn exactly once, that each card carries the state its model was
@@ -1720,15 +1724,19 @@ map would otherwise be visibly wrong.
 position. A country with no entry appears in a visible strip below the map, still
 reachable, rather than being dropped or dumped in the Atlantic.
 
-**Card positions are authored, and that is a trade rather than an oversight.** The
-pin derives from the country's coordinates; the card does not. Nine levels on a
-fixed stage need nine pairs of numbers, and a placement algorithm that must not
-oscillate needs a great deal more. The stage is a fixed 1180×500 scaled by
-transform, so a pin and its card keep their relationship at every width and
-nothing is ever recomputed. The mockup supplied for this work used the same
-approach, despite the ticket describing a derived one — that discrepancy was
-raised before building. Deriving them is the next piece of work **if** the map
-earns it.
+**Card positions were authored, and are gone.**
+
+*Amended 2026-09-10.* This paragraph described nine hand-authored pairs of
+coordinates as a deliberate trade. It was one, and it failed twice: keyed by
+country the cards hid each other's levels, and grouped by country they hid each
+other — India's behind the United Kingdom's, Checkpoint 2 buried under that.
+Cards that grow rows cannot be placed by hand on a fixed stage.
+
+There are no card coordinates now. Each country is one anchor holding a pin and a
+popover that hangs off it, so a panel cannot collide with anything: only one is
+open at a time and it touches its own marker. That also retired the leader lines —
+a card touching its pin needs no line explaining which pin it belongs to. Edge
+flipping is computed at render from the pin's quadrant.
 
 **Which is a question with a number, not an opinion.** `_lmSetView` reports
 through the client event log, so levels started from the map versus the grid can
@@ -1760,6 +1768,83 @@ the model the whole time and simply never rendered.
 it now, beside `tag`, falling back to the level's first country when the sheet is
 silent.
 
-**What is not verified (rule 6).** That it looks right. Card positions, overlap at
-widths between 1100 and 1600, and whether the coastlines read at all are geometry,
-and nothing in this repository can see them.
+**What is not verified (rule 6).** That it looks right. Panel overlap at widths
+between 1100 and 1600, and whether the coastlines read at all, are geometry, and
+nothing in this repository can see them.
+
+---
+
+## The home page opens on the map, the weather module is withdrawn, and the mock test is a square
+
+**Status** **Shipped** — six commits on 2026-09-10. The plan, criterion and
+checklist are in `WORKLOG.md` under that day.
+
+**No bot ID.** Asked for by the instructor on 2026-09-10, as three things at once:
+the map as the default on the home page, the weather module gone for every role,
+and the mock test as a small square at the foot of the map.
+
+**Why the map moved.** It had no address. There is no Simulator button in the nav
+bar — `Index.html` carries Home, Progress, Crew, Shop, Admin, Analytics and
+nothing else — so the only route to the map was the ATC Simulator card and then a
+toggle inside the screen that card opens. Two clicks and a stored preference, for
+the thing the course actually is.
+
+**What was rejected, and why.** Pointing the Home nav button at
+`renderSimulatorPlaceholder` is a one-line change and the wrong one. That screen
+makes six `google.script.run` calls and caches none of them, against Home's four
+with two cached for ten minutes — a 50% rise in login cost on the one screen every
+student pays for at once, under a 30-execution ceiling. It also deletes the home
+page: above 1100px the map view returns tab strip, hero, tier bar, stage and
+Operational and nothing else, and below 1100px it lands on the grid, which is
+neither the map nor Home.
+
+**So Home draws the map instead of becoming it.** `_lmSurface(data)` reads the
+catalogue into everything a drawing is made of; `_lmStageHtml` is the map; Home
+composes those with its own sections around them, above 1100px only. The levels
+screen keeps its grid default and its toggle, so the `levelmap_view` comparison —
+does the map move levels-started, or is it only prettier — still has a control
+group.
+
+**The catalogue is replaced, not aged out.** It carries completion state. Cached
+for ten minutes it would show a country a student finished two minutes ago as
+unfinished, which is the app misreporting their own progress. So it is written
+wherever a fresher one appears: when a route completes and when the levels screen
+fetches one.
+
+**The weather module is withdrawn on the server, not hidden on the client.**
+`apiModuleGetAll` returns only rows the Modules sheet marks `ACTIVE`, so setting
+that cell stops the module reaching admin, instructor and student alike — the
+browser never receives it, which is what rule 5 asks. It is also the only switch
+that reaches both renderers: `renderModules` is a second one, exported to
+`window` and reachable independently.
+
+The client half is that the section leaves the page when the list comes back
+empty, rather than drawing "No modules available yet. Check back soon" — which
+would swap a module for a notice about a module. Flip the row back to `ACTIVE` and
+the section returns with no deploy.
+
+**Two defects found while doing this, filed and not fixed:**
+
+1. `_simTabStrip` hides the LMS tab unless `_lmsVisible()` — ADMIN or INSTRUCTOR —
+   with a comment saying the modules are not being shown to students yet.
+   `renderHome` never checks. Students have been seeing the module roadmap on the
+   home page the whole time. Two copies of one decision, disagreeing. Moot while
+   the module is withdrawn; still wrong.
+2. The daily-challenge banner and the modules section both `display:none`
+   themselves when their fetch fails, which makes a broken home page and an empty
+   one the same observable — nothing reaches the developer and nothing reaches the
+   student. The new map section does not copy this: it says so on screen, offers a
+   retry, and reports through `_reportClientError`.
+
+**One door to the exam.** The full ICAO card leaves the card row where the square
+is drawn. Below 1100px there is no map and no square, so the card stays — removing
+it there would take the exam off the home page on every phone.
+
+**Derived, not asked for.** That nothing else on Home is removed; that the square
+replaces the ICAO card rather than joining it; that Operational Level comes to the
+home page under the map. All three are marked `DERIVED` in `WORKLOG.md` with what
+was assumed.
+
+**What is not verified (rule 6).** Whether the map and the square land above the
+fold, whether login feels slower, and the Modules sheet itself — this repository
+cannot see what that row's status is.

@@ -202,5 +202,62 @@ console.log('--- the identities load before the card that names them ---');
 ok('_levelMeta is waited for', /_levelMeta === null[\s\S]{0,120}_loadLevelMeta/.test(mapLoader));
 ok('and the stage is fitted after it is written', /_lmFitStage\(\)/.test(mapLoader));
 
+console.log('--- a withdrawn module leaves no notice behind it ---');
+/* apiModuleGetAll returns only the rows the Modules sheet marks ACTIVE. Setting
+ * the Weather module off ACTIVE stops it reaching every role — the browser never
+ * receives it — but _renderModuleRoadmap then draws "No modules available yet.
+ * Check back soon", which swaps a module for a notice about a module. The
+ * section leaves the page instead.
+ *
+ * Run, not grepped: the removal is a DOM operation and a grep would be green
+ * about a line that never fires. */
+const paint = (function () {
+  const dom = {};
+  const el = (id) => (dom[id] = dom[id] || {
+    id, innerHTML: '', removed: false,
+    get parentNode() { return { removeChild: (c) => { c.removed = true; } }; }
+  });
+  const fn = new Function('byId', '_renderModuleRoadmap',
+    grab('function _homePaintModules(modules)') + '\nreturn _homePaintModules;'
+  )(el, (ms) => 'ROADMAP:' + ms.length);
+  return { run: fn, el };
+})();
+
+paint.run([]);
+ok('an empty list removes the section',  paint.el('homeModulesSection').removed === true);
+ok('and paints no notice in its place',  paint.el('homeModulesArea').innerHTML === '');
+paint.run(null);
+ok('so does no list at all',             paint.el('homeModulesSection').removed === true);
+
+const paint2 = (function () {
+  const dom = {};
+  const el = (id) => (dom[id] = dom[id] || {
+    id, innerHTML: '', removed: false,
+    get parentNode() { return { removeChild: (c) => { c.removed = true; } }; }
+  });
+  const fn = new Function('byId', '_renderModuleRoadmap',
+    grab('function _homePaintModules(modules)') + '\nreturn _homePaintModules;'
+  )(el, (ms) => 'ROADMAP:' + ms.length);
+  return { run: fn, el };
+})();
+paint2.run([{ title: 'Weather' }, { title: 'Engineering' }]);
+ok('two modules are drawn',              paint2.el('homeModulesArea').innerHTML === 'ROADMAP:2');
+ok('and the section stays',              paint2.el('homeModulesSection').removed === false);
+
+console.log('--- and both routes into it go through that one function ---');
+/* The cached route and the fetched route are two call sites, and the failure this
+ * repository keeps repeating is a change landing on one of them. */
+ok('the cached modules are painted by it',
+   /_modCached\.modules \|\| \[\]\);[\s\S]{0,60}return;/.test(home) &&
+   /_homePaintModules\(_modCached\.modules/.test(home));
+ok('the fetched modules too',   /_homePaintModules\(res\.modules/.test(home));
+ok('nothing else paints a roadmap here',
+   (home.match(/_renderModuleRoadmap\(/g) || []).length === 1);
+
+console.log('--- a failed fetch is still a different thing from an empty one ---');
+/* Withdrawing content and being unable to reach the server must not look the
+ * same. The failure path is untouched and still says so. */
+ok('a failure still says so', /Could not load modules\./.test(home));
+
 console.log(fails ? '\n' + fails + ' FAILING' : '\nAll home-map assertions passed.');
 process.exit(fails ? 1 : 0);
