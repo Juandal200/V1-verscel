@@ -2583,16 +2583,27 @@ window.tierByExam = function (examNum) {
           '<button style="flex-shrink:0;width:auto;white-space:nowrap;background:var(--accent);color:var(--accent-ink);border:none;border-radius: 8px;padding:7px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;" onclick="_navTo(renderSimulatorPlaceholder)">Continue →</button>' +
         '</div>';
 
-      /* One door to the exam, not two.
+      /* Where the map is drawn, this row is whatever the map cannot say.
        *
-       * Where the map is drawn the mock test is the square at the foot of it, so
-       * the card comes out of this row. Below 1100px there is no map and no
-       * square, and the card is the only way in from here — taking it out there
-       * would remove the exam from the home page on every phone. */
-      var cardsRow =
-        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:16px;">' +
-          simCard + (_lmWideEnough() ? '' : teaCard) + streakCard +
-        '</div>';
+       * The mock test is the square at the foot of the map, and the checkpoint is
+       * the mark on the map itself, so the ICAO card and the ATC card both come
+       * out — the second only once the checkpoint could actually be sat from the
+       * map, which was the one thing that card could do and the map could not.
+       * What is left is the streak card, which is about a deadline rather than a
+       * level and has no place on a map.
+       *
+       * Below 1100px there is no map and no square, so both cards stay: taking
+       * them out there would leave a phone with no way into either.
+       *
+       * And the row is not drawn at all when it is empty. The streak card only
+       * appears after a two-day streak, so on most days above 1100px this holds
+       * nothing, and an empty grid still carries its bottom margin. */
+      var rowCards = _lmWideEnough() ? streakCard : (simCard + teaCard + streakCard);
+      var cardsRow = rowCards
+        ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:16px;">' +
+            rowCards +
+          '</div>'
+        : '';
 
       // ── Daily challenge banner placeholder ──
       var dcBannerHtml =
@@ -2635,7 +2646,7 @@ window.tierByExam = function (examNum) {
            * Operational card takes its name from the Levels sheet, and drawing
            * before that arrives publishes a card with no name on it. */
           if (_levelMeta === null) { _loadLevelMeta(function() { _paint(catalog); }); return; }
-          el.innerHTML = _lmHomeMapHtml(catalog, _homeExamSquare());
+          el.innerHTML = _homeGridLink() + _lmHomeMapHtml(catalog, _homeExamSquare());
           _lmFitStage();
         }
 
@@ -6042,6 +6053,25 @@ var LEVEL_THEMES = {
       '<section class="level-ops-section">' + heroCard + '</section>';
   }
 
+  /* The way to the grid, from the home page.
+   *
+   * Deliberately the levels screen's own switch, markup and all: two screens
+   * disagreeing about where the view switch sits is a small thing noticed every
+   * day. It sits above the tier bar here for the same reason — that is where the
+   * levels screen puts its own.
+   *
+   * Without it the grid would be unreachable from a cold desktop home page. The
+   * mobile Continue bar is 768px and below, the streak card only appears after a
+   * two-day streak, and the ATC card that used to carry this route is gone. That
+   * would also have ended the levelmap_view comparison, since there would be no
+   * way left to choose the grid. */
+  function _homeGridLink() {
+    return '<div class="lm-switch">' +
+      '<button type="button" class="lm-switch-btn" onclick="window._lmGoToView(\'grid\')">' +
+        uiIconInline('bands') + 'Grid view</button>' +
+    '</div>';
+  }
+
   /* The mock test, as a square at the foot of the map.
    *
    * One action, so one square rather than a fourth card in the row below — and it
@@ -6770,7 +6800,9 @@ var LEVEL_THEMES = {
   function _lmViewIsMap() {
     try { return localStorage.getItem(_lmViewKey()) === 'map'; } catch (e) { return false; }
   }
-  window._lmSetView = function (v) {
+  /* Recording the choice and acting on it are two things, because two screens ask
+   * for it. The levels screen repaints itself; the home page has to travel. */
+  function _lmStoreView(v) {
     try { localStorage.setItem(_lmViewKey(), v); } catch (e) {}
     /* Instrumented, because the question is not whether it looks better.
      * apiLogClientEvent already exists; if the map does not move how many people
@@ -6778,7 +6810,22 @@ var LEVEL_THEMES = {
     try {
       if (window._reportClientEvent) window._reportClientEvent('levelmap_view', { view: v });
     } catch (e) {}
+  }
+  window._lmSetView = function (v) {
+    _lmStoreView(v);
     renderLevelMap(AppState.training.catalog);
+  };
+  /* From the home page: record the choice, then go to the screen that honours it.
+   *
+   * Navigating without storing would have sent a student who once picked "Map
+   * view" straight back to the map they were trying to leave, and storing without
+   * navigating would paint the levels screen into the home page with the nav bar
+   * still saying Home and three of its fetches never made. */
+  window._lmGoToView = function (v) {
+    _lmStoreView(v);
+    if (window._navTo && window.renderSimulatorPlaceholder) {
+      window._navTo(window.renderSimulatorPlaceholder);
+    }
   };
 
   /* The state of every level, computed once.

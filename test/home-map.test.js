@@ -135,14 +135,41 @@ ok('the levels screen does not get one',
 ok('and the stage builder knows nothing about it',
    grab('function _lmStageHtml(models, tiers, vrSlot)').indexOf('home-exam') === -1);
 
-console.log('--- one door to the exam, not two ---');
-/* The full card leaves the row where the square is drawn. Below 1100px there is
- * no map and no square, so the card stays — taking it out there would remove the
- * exam from the home page on every phone. */
-ok('the card row asks the width',
-   /simCard \+ \(_lmWideEnough\(\) \? '' : teaCard\) \+ streakCard/.test(home));
+console.log('--- where the map is drawn, the cards it replaces are gone ---');
+/* The mock test is the square at the foot of the map and the checkpoint is the
+ * mark on the map itself, so the ICAO card and the ATC card both come out. Below
+ * 1100px there is no map and no square, so both stay — taking them out there
+ * would leave a phone with no way into either. */
+ok('the row asks the width',
+   /_lmWideEnough\(\) \? streakCard : \(simCard \+ teaCard \+ streakCard\)/.test(home));
 ok('the square is drawn only where the map is',
    home.indexOf('_homeExamSquare()') > home.indexOf('if (_lmWideEnough()) (function()'));
+/* The streak card only appears after a two-day streak, so on most days above
+ * 1100px this row holds nothing — and an empty grid still carries its margin. */
+ok('an empty row is not drawn at all', /var cardsRow = rowCards\s*\?/.test(home));
+
+console.log('--- and the grid is still reachable ---');
+/* Without this the grid would be unreachable from a cold desktop home page: the
+ * Continue bar is 768px and below, the streak card is conditional, and the ATC
+ * card that carried this route is gone. That would also have ended the
+ * levelmap_view comparison, since nothing would be left to choose the grid. */
+ok('there is a Grid view link',   /_homeGridLink\(\)/.test(home));
+ok('drawn above the map',
+   home.indexOf('_homeGridLink() + _lmHomeMapHtml') !== -1);
+const link = strip(grab('function _homeGridLink()'));
+ok('it uses the levels screen\'s own switch', /lm-switch-btn/.test(link));
+/* Escaped in source, because the onclick lives inside a JavaScript string. */
+ok('and asks for the grid',                    /_lmGoToView\(\\?'grid\\?'\)/.test(link));
+const goTo = strip(S.slice(S.indexOf('window._lmGoToView = function'),
+                           S.indexOf('window._lmGoToView = function') + 400));
+ok('which records the choice', /_lmStoreView\(v\)/.test(goTo));
+ok('and then travels',         /renderSimulatorPlaceholder/.test(goTo));
+/* Storing without navigating would paint the levels screen into the home page
+ * with the nav bar still saying Home; navigating without storing would send a
+ * student who once picked Map view straight back to the map. */
+ok('the levels screen still repaints in place',
+   /window\._lmSetView = function \(v\) \{\s*_lmStoreView\(v\);\s*renderLevelMap/.test(strip(S)));
+ok('one place writes the stored view', (strip(S).match(/localStorage\.setItem\(_lmViewKey\(\)/g) || []).length === 1);
 
 console.log('--- the map is the first thing on the page ---');
 const composition = home.match(/byId\('contentArea'\)\.innerHTML\s*=\s*([^;]+);/);
