@@ -86,5 +86,59 @@ console.log('--- double XP was a property of a tour, so it is gone ---');
 ok('the weekly board never claims it',
    /isDoubleXp\s*=\s*false/.test(strip(grab(T, 'function getWeeklyLeaderboard('))));
 
+/* ── and the screens agree with the server ────────────────────────────────
+ *
+ * The server stopped sending medallions, activeTour, totalCp, toursCompleted and
+ * maxStreak. A client still reading them renders "undefined CP" and a bar of NaN
+ * width — which is not an error anywhere, just a wrong screen. So the contract is
+ * checked from the client's side too.
+ */
+const S  = fs.readFileSync(__dirname + '/../Scripts.html', 'utf8');
+const UI = fs.readFileSync(__dirname + '/../GamificationUI.html', 'utf8');
+const client = strip(S);
+
+console.log('--- the client reads nothing the server stopped sending ---');
+[['medallions', /res\.medallions/], ['activeTour', /res\.activeTour/],
+ ['totalCp', /totalCp/], ['toursCompleted', /toursCompleted/],
+ ['maxStreak', /maxStreak/], ['streakBonusPct', /streakBonusPct/]].forEach(function (p) {
+  /* renderAdminTour is the one screen still allowed to speak of tours; it goes
+   * with the weekly emails. Everything else must be clean. */
+  const withoutAdmin = client.replace(/function renderAdminTour\(\)[\s\S]*?\n  \}\n/, '');
+  ok('no student screen reads ' + p[0], !p[1].test(withoutAdmin));
+});
+
+console.log('--- the board is denominated in XP ---');
+const career = strip(grab(S, 'function _gamRenderCareerBoard(res)'));
+/* Matched without a closing quote: the source reads `p.totalXp + ' XP</span>'`,
+ * so a pattern ending in `' XP'` finds nothing and fails against correct code —
+ * which is what the first version of these two lines did. */
+ok('the score reads XP',        /p\.totalXp \+ ' XP/.test(career));
+ok('and the subtitle counts levels', /p\.completedLevels \+ ' levels/.test(career));
+ok('the bar scales on XP',      /p\.totalXp \/ maxXp/.test(career));
+ok('and nothing says CP',       !/ CP/.test(career));
+
+console.log('--- the banner space is used, not left empty ---');
+/* Deleting the tour banner and leaving the hole would have made the panel look
+ * broken rather than changed. The element and its styling are the banner's own. */
+ok('an XP banner exists',       /function _gamRenderXpBanner\(res\)/.test(client));
+ok('it writes into the same slot', /_gEl\('gamTourBanner'\)/.test(client));
+/* Twice: the definition and the call. The first version of this line matched
+ * `_gamRenderXpBanner(res)` anywhere, which the DEFINITION also contains — so
+ * deleting the call left it green. An assertion that cannot fail is worse than
+ * no assertion, because it looks like cover. */
+ok('and it is actually called',
+   (client.match(/_gamRenderXpBanner\(res\)/g) || []).length === 2);
+
+console.log('--- the dead widgets are gone, markup and styling with them ---');
+['_gamRenderTourBanner', '_gamRenderMedallions', '_gamMedallionColor',
+ '_gamUpdateStreakChip'].forEach(function (fn) {
+  ok(fn + ' is gone', S.indexOf(fn) === -1);
+});
+ok('the medallion strip is out of the markup', UI.indexOf('gamMedallions') === -1);
+ok('and its stylesheet with it',               UI.indexOf('gam-medallion') === -1);
+ok('the CP legend is gone',                    UI.indexOf('gamLbLegendCp') === -1);
+/* Both boards are XP now; they differ in the window, not the unit. */
+ok('the XP legend stays',                      UI.indexOf('gamLbLegendXp') !== -1);
+
 console.log(fails ? '\n' + fails + ' FAILING' : '\nAll xp-only assertions passed.');
 process.exit(fails ? 1 : 0);

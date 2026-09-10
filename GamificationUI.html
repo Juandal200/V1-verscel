@@ -1029,63 +1029,6 @@
     background: rgba(var(--accent-rgb),0.05);
   }
 
-  /* ── Tour medallions ─────────────────────────────────────────── */
-  #gamification-module .gam-medallions-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid var(--gam-border);
-  }
-
-  #gamification-module .gam-med-label {
-    font-size: 0.62rem;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--gam-muted);
-    margin-right: 4px;
-    white-space: nowrap;
-  }
-
-  #gamification-module .gam-medallion {
-    position: relative;
-    width: 22px;
-    height: 22px;
-    border-radius: 4px;
-    border: 1.5px solid;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    cursor: default;
-    transition: transform 0.15s var(--ease), box-shadow 0.15s var(--ease);
-    flex-shrink: 0;
-  }
-
-  #gamification-module .gam-medallion:hover {
-    transform: scale(1.35);
-    box-shadow: 0 4px 14px rgba(var(--scrim-rgb), 0.42);
-    z-index: 10;
-  }
-
-  #gamification-module .gam-medallion.gam-med--missed { opacity: 0.2; }
-
-  #gamification-module .gam-medallion.gam-med--dxp {
-    box-shadow: 0 0 7px rgba(var(--yellow-rgb), 0.55);
-  }
-
-  #gamification-module .gam-medallion.gam-med--comeback {
-    box-shadow: 0 0 7px rgba(var(--yellow-rgb), 0.5);
-  }
-
-  #gamification-module .gam-med-icon {
-    font-size: 0.62rem;
-    line-height: 1;
-    pointer-events: none;
-  }
-
   /* ── Tier dividers ───────────────────────────────────────────── */
   #gamification-module .gam-lb-tier-divider {
     display: flex;
@@ -1233,7 +1176,6 @@
       </div>
     </div>
   </div>
-  <div id="gamMedallions" class="gam-medallions-row" style="display:none;padding:0 24px 16px;"></div>
 </div>
 
 <!-- ── Tab navigation ──────────────────────────────────────── -->
@@ -1285,7 +1227,6 @@
   <!-- Score legend -->
   <div id="gamLbLegend" style="display:flex;gap:16px;padding:6px 20px 2px;font-size: 0.72rem;letter-spacing: 0.06em;">
     <span id="gamLbLegendXp" style="color:var(--accent);font-weight:700;">XP <span style="color:var(--muted);font-weight:400;">— Experience Points</span></span>
-    <span id="gamLbLegendCp" style="color:var(--yellow);font-weight:700;display:none;">CP <span style="color:var(--muted);font-weight:400;">— Career Points</span></span>
   </div>
 
   <!-- Leaderboard content -->

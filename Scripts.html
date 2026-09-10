@@ -25512,10 +25512,8 @@ var LEVEL_THEMES = {
     var btnC = _gEl('gamLbTabCareer');
     if (btnW) btnW.classList.toggle('active', tab === 'weekly');
     if (btnC) btnC.classList.toggle('active', tab === 'career');
-    var legXp = _gEl('gamLbLegendXp');
-    var legCp = _gEl('gamLbLegendCp');
-    if (legXp) legXp.style.display = tab === 'weekly' ? '' : 'none';
-    if (legCp) legCp.style.display = tab === 'career' ? '' : 'none';
+    // Both boards are XP now — This Week and All Time differ in the window, not
+    // in the unit. The CP legend went with the career points it explained.
     _gamLoadLeaderboard();
   }
 
@@ -25544,25 +25542,6 @@ var LEVEL_THEMES = {
     }
   }
 
-  // ── Tour banner ────────────────────────────────────────────────────────────
-  function _gamRenderTourBanner(tour, isDoubleXp) {
-    var el = _gEl('gamTourBanner');
-    if (!el || !tour) return;
-    var days = tour.daysRemaining || 0;
-    var urgency = days <= 2 ? 'gam-tour-banner--urgent' : '';
-    var dxpBadge = isDoubleXp
-      ? '<span class="gam-dxp-badge">2× XP</span>' : '';
-    var timeLabel = days <= 1
-      ? (tour.hoursRemaining || 0) + 'h remaining'
-      : days + ' days remaining';
-    el.className  = 'gam-tour-banner ' + urgency;
-    el.innerHTML  =
-      '<span class="gam-tour-label">TOUR ' + (tour.weekNumber || '') + dxpBadge + '</span>' +
-      '<span class="gam-tour-countdown ' + (days <= 2 ? 'gam-tour-countdown--urgent' : '') + '">' +
-        '⏱ ' + timeLabel +
-      '</span>';
-    el.style.display = '';
-  }
 
   // ── Weekly board renderer ─────────────────────────────────────────────────
   function _gamRenderWeeklyBoard(res) {
@@ -25572,7 +25551,6 @@ var LEVEL_THEMES = {
       box.innerHTML = '<div class="gam-lb-empty">Could not load rankings. Try again.</div>';
       return;
     }
-    _gamRenderTourBanner(res.tour, res.isDoubleXp);
     if (!res.data || !res.data.length) {
       box.innerHTML = '<div class="gam-lb-empty">No activity this week yet — complete levels to appear here.</div>';
       return;
@@ -25587,16 +25565,13 @@ var LEVEL_THEMES = {
     var box = _gEl('gamLeaderboard');
     if (!box) return;
     if (!res || !res.ok || !res.data || !res.data.length) {
-      box.innerHTML = '<div class="gam-lb-empty">No career data yet — complete tours to appear here.</div>';
+      box.innerHTML = '<div class="gam-lb-empty">No XP yet — complete a level to appear here.</div>';
       return;
     }
-    var fallbackNote = res.fallback
-      ? '<div style="padding:8px 16px 0;font-size: 0.72rem;color:var(--muted);letter-spacing: 0.02em;">Season 1 in progress — CP based on current progress</div>'
-      : '';
     var myEmail = _gam.myEmail ? _gam.myEmail.toLowerCase() : '';
     var medals  = ['🥇', '🥈', '🥉'];
     // Max CP for bar scale (first entry is highest)
-    var maxCp   = res.data[0].totalCp || 1;
+    var maxXp   = res.data[0].totalXp || 1;
 
     var html = '';
     res.data.forEach(function (p) {
@@ -25606,31 +25581,28 @@ var LEVEL_THEMES = {
       var rankCls = rank <= 3 ? ' gam-lb-rank--' + rank : '';
       var avaCls  = rank <= 3 ? ' gam-lb-avatar--' + rank : '';
       var rowCls  = isMe ? ' gam-lb-row--me' : '';
-      var barW    = Math.min(100, Math.round((p.totalCp / maxCp) * 100));
+      var barW    = Math.min(100, Math.round((p.totalXp / maxXp) * 100));
       var nameTag = _gEsc(p.name) + (isMe
         ? ' <span style="color:var(--gam-green);font-size:0.72rem;font-weight:700;margin-left:5px;">YOU</span>'
         : '');
-      var streakTxt = p.maxStreak >= 2
-        ? '<span class="gam-streak-chip"><span class="chip-glyph">' + uiIcon('streak', 12) +
-          '</span>' + p.maxStreak + '</span>' : '';
 
       html +=
         '<div class="gam-lb-row' + rowCls + '">' +
           '<span class="gam-lb-rank' + rankCls + '">' + medal + '</span>' +
           '<div class="gam-lb-avatar' + avaCls + '">' + _gIni(p.name) + '</div>' +
           '<div class="gam-lb-info">' +
-            '<div class="gam-lb-name">' + nameTag + streakTxt + '</div>' +
+            '<div class="gam-lb-name">' + nameTag + '</div>' +
             '<div class="gam-lb-bar-wrap">' +
               '<div class="gam-lb-bar" style="width:' + barW + '%;background:linear-gradient(90deg,var(--yellow),#DAA52088);"></div>' +
             '</div>' +
           '</div>' +
           '<div class="gam-lb-right">' +
-            '<span class="gam-lb-score">' + p.totalCp + ' CP</span>' +
-            '<span class="gam-lb-level" style="color:var(--gam-muted);">' + p.toursCompleted + ' tours</span>' +
+            '<span class="gam-lb-score">' + p.totalXp + ' XP</span>' +
+            '<span class="gam-lb-level" style="color:var(--gam-muted);">' + p.completedLevels + ' levels</span>' +
           '</div>' +
         '</div>';
     });
-    box.innerHTML = fallbackNote + html;
+    box.innerHTML = html;
   }
 
   // Rank tier definition — single source of truth used by renderer and chip helper
@@ -25823,65 +25795,38 @@ var LEVEL_THEMES = {
     }, 3200);
   }
 
+  /* Where the tour banner was.
+   *
+   * Medallions, the weekly streak chip and the countdown all read the snapshot,
+   * so they went with it. This puts the one thing that replaced them — total XP —
+   * in the space they left, rather than leaving the panel with a hole in it. The
+   * element and its styling are the banner's own; only what is written into it
+   * has changed. */
+  function _gamRenderXpBanner(res) {
+    var el = _gEl('gamTourBanner');
+    if (!el) return;
+    var xp  = Number(res.totalXp || 0);
+    var lvl = Number(res.completedLevels || 0);
+    el.className = 'gam-tour-banner';
+    el.innerHTML =
+      '<span class="gam-tour-label">' + xp.toLocaleString() + ' XP</span>' +
+      '<span class="gam-tour-countdown">' + lvl + (lvl === 1 ? ' level' : ' levels') + ' complete</span>';
+    el.style.display = '';
+  }
+
   // ── Career stats sidebar update ───────────────────────────────────────────
   function _gamLoadCareerStats() {
     google.script.run
       .withSuccessHandler(function (res) {
         if (!res || !res.ok) return;
-        _gamRenderTourBanner(res.activeTour, res.activeTour && res.activeTour.isDoubleXp);
-        _gamUpdateStreakChip(res.currentStreak, res.streakBonusPct);
-        _gamRenderMedallions(res.medallions || []);
+        _gamRenderXpBanner(res);
       })
       .withFailureHandler(function () {})
       .apiGetMyCareerStats(window.AppState && AppState.sessionToken);
   }
 
-  // Medallion color based on completion level
-  function _gamMedallionColor(completedLevels) {
-    if (completedLevels >= 10) return 'var(--yellow)';        // gold  — full
-    if (completedLevels >= 7)  return '#DAA52077';      // gold dimmed
-    if (completedLevels >= 4)  return 'var(--line)';        // silver
-    if (completedLevels >= 1)  return 'transparent';    // outline only
-    return 'transparent';                               // missed
-  }
 
-  function _gamRenderMedallions(medallions) {
-    var el = _gEl('gamMedallions');
-    if (!el) return;
-    if (!medallions || !medallions.length) { el.style.display = 'none'; return; }
 
-    var html = '<span class="gam-med-label">TOUR HISTORY</span>';
-    medallions.forEach(function (m) {
-      var lvls   = parseInt(m.completedLevels, 10) || 0;
-      var color  = _gamMedallionColor(lvls);
-      var border = lvls > 0 ? color : 'var(--panel)';
-      var bg     = lvls > 0 ? color : 'transparent';
-      var dxp    = m.isDoubleXp  ? ' gam-med--dxp' : '';
-      var back   = m.isComeback  ? ' gam-med--comeback' : '';
-      var missed = lvls === 0    ? ' gam-med--missed' : '';
-      var title  = 'Tour ' + (m.weekNumber || '') + ' · ' + lvls + '/10 levels · ' + (m.careerPoints || 0) + ' CP';
-
-      html +=
-        '<span class="gam-medallion' + dxp + back + missed + '"' +
-          ' title="' + title + '"' +
-          ' style="background:' + bg + ';border-color:' + border + ';">' +
-          (m.isDoubleXp ? '<span class="gam-med-icon">⚡</span>' :
-           m.isComeback ? '<span class="gam-med-icon">' + uiIcon('streak', 20) + '</span>' : '') +
-        '</span>';
-    });
-
-    el.innerHTML     = html;
-    el.style.display = '';
-  }
-
-  function _gamUpdateStreakChip(streak, bonusPct) {
-    var chip = _gEl('gamStreakChip');
-    if (!chip) return;
-    if (!streak || streak < 2) { chip.style.display = 'none'; return; }
-    chip.innerHTML      = '<span class="chip-glyph">' + uiIcon('streak', 13) + '</span>' +
-                          streak + '-week streak \u00b7 +' + bonusPct + '% CP';
-    chip.style.display  = '';
-  }
 
   window._gamInit            = _gamInit;
   window._gamStartPoll       = _gamStartPoll;
