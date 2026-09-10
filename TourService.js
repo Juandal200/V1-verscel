@@ -696,8 +696,7 @@ var TourService = (function () {
       ? { rank: rankPos || entries.length + 1, totalXp: calcW.totalXp, completedLevels: calcW.completedLevels }
       : null;
 
-    var testLogoBase64 = getLogoDataUrl().split(',')[1];
-    var testLogoBlob   = Utilities.newBlob(Utilities.base64Decode(testLogoBase64), 'image/png', 'logo.png');
+    var testLogoBlob = getLogoBlob_();
     MailApp.sendEmail({
       to:       email,
       subject:  '[TEST PREVIEW] aerocomms — Tour ' + tour.weekNumber + ' · New Scenarios Available',
@@ -705,7 +704,7 @@ var TourService = (function () {
         '<div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:10px 16px;margin-bottom:20px;font-size:12px;color:' + EC_.amber + ';font-weight:700;letter-spacing:0.5px;">TEST PREVIEW — This is how the weekly email looks to your students</div>' +
         _buildWeeklyEmail_(name, stats, entries.length || 1, tour, appUrl, isDoubleXp, String(user.profession || 'PILOT').toUpperCase())
       ),
-      inlineImages: { aerocommsLogo: testLogoBlob }
+      inlineImages: testLogoBlob ? { aerocommsLogo: testLogoBlob } : {}
     });
     _logEmail_(ss, tour, email, name, 'test', stats, 'sent');
 
@@ -779,13 +778,12 @@ var TourService = (function () {
       var stats      = rankMap[u.userId] || null;
       var profession = String(u.profession || 'PILOT').toUpperCase();
       try {
-        var wkLogoBase64 = getLogoDataUrl().split(',')[1];
-        var wkLogoBlob   = Utilities.newBlob(Utilities.base64Decode(wkLogoBase64), 'image/png', 'logo.png');
+        var wkLogoBlob = getLogoBlob_();
         MailApp.sendEmail({
           to:       email,
           subject:  'aerocomms — Tour ' + tour.weekNumber + ' · New Scenarios Available',
           htmlBody: _emailWrap_(_buildWeeklyEmail_(name, stats, totalRanked, tour, appUrl, isDoubleXp, profession)),
-          inlineImages: { aerocommsLogo: wkLogoBlob }
+          inlineImages: wkLogoBlob ? { aerocommsLogo: wkLogoBlob } : {}
         });
         _logEmail_(ss, tour, email, name, 'weekly', stats, 'sent');
         sent++;

@@ -210,7 +210,7 @@ function sendRequest(sessionToken, friendEmail) {
         htmlBody: _emailWrap_(
           '<table width="100%" cellpadding="0" cellspacing="0" style="text-align:center;margin-bottom:24px;">' +
             '<tr><td>' +
-              '<img src="' + getLogoDataUrl() + '" alt="aerocomms" style="width:64px;height:64px;border-radius:8px;object-fit:contain;background:#000;border:2px solid ' + EC_.edge + ';">' +
+              '<img src="' + getLogoUrl() + '" alt="aerocomms" style="width:64px;height:64px;border-radius:8px;object-fit:contain;background:#000;border:2px solid ' + EC_.edge + ';">' +
             '</td></tr>' +
             '<tr><td style="padding-top:12px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:' + EC_.accent + ';">aerocomms</td></tr>' +
             '<tr><td style="padding-top:3px;font-size:12px;color:' + EC_.faint + ';">Aviation English Interactive Campus</td></tr>' +
@@ -380,7 +380,7 @@ function sendChallenge(sessionToken, targetEmail, scenarioName, myScore) {
         htmlBody: _emailWrap_(
           '<table width="100%" cellpadding="0" cellspacing="0" style="text-align:center;margin-bottom:24px;">' +
             '<tr><td>' +
-              '<img src="' + getLogoDataUrl() + '" alt="aerocomms" style="width:64px;height:64px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(245,158,11,0.4);">' +
+              '<img src="' + getLogoUrl() + '" alt="aerocomms" style="width:64px;height:64px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(245,158,11,0.4);">' +
             '</td></tr>' +
             '<tr><td style="padding-top:12px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:' + EC_.amber + ';">aerocomms</td></tr>' +
             '<tr><td style="padding-top:3px;font-size:12px;color:' + EC_.faint + ';">Aviation English Interactive Campus</td></tr>' +

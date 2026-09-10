@@ -291,15 +291,14 @@ var UserService = {
         '<p style="margin:20px 0 0;font-size:12px;color:' + EC_.faint + ';">Approve or block this user from Admin &gt; Users.</p>'
       );
 
-      var logoBase64 = getLogoDataUrl().split(',')[1];
-      var logoBlob   = Utilities.newBlob(Utilities.base64Decode(logoBase64), 'image/png', 'logo.png');
+      var logoBlob = getLogoBlob_();
 
       MailApp.sendEmail({
         to:           adminEmails.join(','),
         subject:      subject,
         body:         plainBody,
         htmlBody:     htmlBody,
-        inlineImages: { aerocommsLogo: logoBlob }
+        inlineImages: logoBlob ? { aerocommsLogo: logoBlob } : {}
       });
 
       LogService.admin(
@@ -590,14 +589,13 @@ var UserService = {
         '<p style="margin:0;font-size:12px;color:' + EC_.faint + ';text-align:center;">If you did not register for this service, you can safely ignore this email.</p>'
       );
 
-      var logoBase64Act = getLogoDataUrl().split(',')[1];
-      var logoBlobAct   = Utilities.newBlob(Utilities.base64Decode(logoBase64Act), 'image/png', 'logo.png');
+      var logoBlobAct = getLogoBlob_();
       MailApp.sendEmail({
         to: user.email,
         subject: subject,
         body: plainBody,
         htmlBody: htmlBody,
-        inlineImages: { aerocommsLogo: logoBlobAct }
+        inlineImages: logoBlobAct ? { aerocommsLogo: logoBlobAct } : {}
       });
 
       LogService.admin(
@@ -811,9 +809,8 @@ function bulkInviteUsers() {
         '<p style="margin:0;font-size:12px;color:' + EC_.faint + ';text-align:center;">If you were not expecting this invitation, you can safely ignore this email.</p>'
       );
 
-      var logoBase64Inv = getLogoDataUrl().split(',')[1];
-      var logoBlobInv   = Utilities.newBlob(Utilities.base64Decode(logoBase64Inv), 'image/png', 'logo.png');
-      MailApp.sendEmail({ to: email, subject: subject, body: plainBody, htmlBody: htmlBody, inlineImages: { aerocommsLogo: logoBlobInv } });
+      var logoBlobInv = getLogoBlob_();
+      MailApp.sendEmail({ to: email, subject: subject, body: plainBody, htmlBody: htmlBody, inlineImages: logoBlobInv ? { aerocommsLogo: logoBlobInv } : {} });
       results.created.push({ email: email, name: name, role: role });
 
     } catch(err) {

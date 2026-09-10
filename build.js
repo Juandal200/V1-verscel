@@ -83,18 +83,20 @@ function resolveIncludes(html) {
   });
 }
 
-// Extract the base64 data URL from getLogoDataUrl() in ConfigService.js
-function getLogoDataUrl() {
+/* The brand images are files now, so this reads a path rather than 339 KB of
+ * base64. Both names come from ConfigService.js, which is the one place that
+ * knows them — including the content hash in each filename, so a picture that
+ * changes gets a new URL and the old one stays cached harmlessly.
+ *
+ * Root-relative on purpose. Apps Script's own doGet serves this same template
+ * and needs the absolute form, which getLogoUrl() builds there; the browser
+ * loading from Vercel does not, and a relative path keeps the built file free of
+ * a hard-coded domain. */
+function brandFile(constName) {
   const config = read('ConfigService.js');
-  const match  = config.match(/function getLogoDataUrl[\s\S]*?return\s+"(data:image\/[^"]+)"/);
-  return match ? match[1] : '';
-}
-
-// Extract the pilot avatar data URL from getPilotAvatarUrl() in ConfigService.js
-function getPilotAvatarUrl() {
-  const config = read('ConfigService.js');
-  const match  = config.match(/function getPilotAvatarUrl[\s\S]*?return\s+"(data:image\/[^"]+)"/);
-  return match ? match[1] : '';
+  const match  = config.match(new RegExp('var ' + constName + "\\s*=\\s*'([^']+)'"));
+  if (!match) throw new Error('build: ' + constName + ' not found in ConfigService.js');
+  return match[1];
 }
 
 // ── Main build ────────────────────────────────────────────────────────────────
@@ -112,9 +114,9 @@ html = html.replace(
 );
 
 // 3. Replace logo and pilot avatar data URL calls
-const logoUrl   = getLogoDataUrl();
-const avatarUrl = getPilotAvatarUrl();
-html = html.replace(/<\?!=\s*getLogoDataUrl\(\)\s*\?>/g, logoUrl);
+const logoUrl   = brandFile('BRAND_LOGO_FILE_');
+const avatarUrl = brandFile('BRAND_AVATAR_FILE_');
+html = html.replace(/<\?!=\s*getLogoUrl\(\)\s*\?>/g, logoUrl);
 html = html.replace(/<\?!=\s*getPilotAvatarUrl\(\)\s*\?>/g, avatarUrl);
 
 // 4. Resolve all <?!= include('X') ?> tags
@@ -216,7 +218,18 @@ html = html.replace(/(<style[^>]*>)([\s\S]*?)(<\/style>)/gi, function(_, open, c
   }, null, 2));
   console.log('✓ dist/manifest.json');
 
-  // 9. Service worker
+  // 9. Brand images — content-hashed filenames, so they cache indefinitely.
+  const brandSrc = path.join(ROOT, 'brand');
+  const brandOut = path.join(DIST, 'brand');
+  fs.mkdirSync(brandOut, { recursive: true });
+  let brandBytes = 0;
+  for (const f of fs.readdirSync(brandSrc)) {
+    fs.copyFileSync(path.join(brandSrc, f), path.join(brandOut, f));
+    brandBytes += fs.statSync(path.join(brandSrc, f)).size;
+  }
+  console.log('✓ dist/brand  (' + Math.round(brandBytes / 1024) + ' KB, cacheable)');
+
+  // 10. Service worker
   fs.copyFileSync(path.join(ROOT, 'sw.js'), path.join(DIST, 'sw.js'));
   console.log('✓ dist/sw.js');
 })();

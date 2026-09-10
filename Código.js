@@ -6836,9 +6836,8 @@ function _sendInviteEmail_(user) {
     '<p style="margin:0;font-size:12px;color:' + EC_.faint + ';text-align:center;">If you were not expecting this invitation, you can safely ignore this email.</p>'
   );
 
-  var logoBase64Si = getLogoDataUrl().split(',')[1];
-  var logoBlobSi   = Utilities.newBlob(Utilities.base64Decode(logoBase64Si), 'image/png', 'logo.png');
-  MailApp.sendEmail({ to: user.email, subject: subject, body: plainBody, htmlBody: htmlBody, inlineImages: { aerocommsLogo: logoBlobSi } });
+  var logoBlobSi = getLogoBlob_();
+  MailApp.sendEmail({ to: user.email, subject: subject, body: plainBody, htmlBody: htmlBody, inlineImages: logoBlobSi ? { aerocommsLogo: logoBlobSi } : {} });
 }
 
 function _escapeHtmlInline_(str) {
@@ -7450,15 +7449,14 @@ function apiAdminSendProgressReport(sessionToken, payload) {
         studentEmail.toLowerCase() !== recipientEmail.toLowerCase() &&
         ccList.indexOf(studentEmail) === -1) ccList.push(studentEmail);
 
-    var logoBase64 = getLogoDataUrl().split(',')[1];
-    var logoBlob   = Utilities.newBlob(Utilities.base64Decode(logoBase64), 'image/png', 'logo.png');
+    var logoBlob = getLogoBlob_();
 
     MailApp.sendEmail({
       to:           recipientEmail,
       cc:           ccList.join(','),
       subject:      subject,
       htmlBody:     html,
-      inlineImages: { aerocommsLogo: logoBlob }
+      inlineImages: logoBlob ? { aerocommsLogo: logoBlob } : {}
     });
 
     var sentTo = [recipientEmail].concat(ccList).filter(Boolean).join(', ');

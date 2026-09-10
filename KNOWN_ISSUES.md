@@ -1538,3 +1538,75 @@ sitting. One real examination settles both.
 
 **What this does not fix.** The fallback still takes over in silence. That is why
 this ran unnoticed, and it has its own ticket.
+
+---
+
+## Two pictures were 92% of the heaviest file in the project
+
+**Status** **Fixed** — the logo and the avatar are static files with
+content-hashed names. `ConfigService.js` went from 366,555 bytes to 31,215, and
+`dist/index.html` from 2,138 KB to 1,318 KB.
+
+**No bot ID.** Raised by the instructor on 2026-09-10.
+
+**What it was.** `getLogoDataUrl()` and `getPilotAvatarUrl()` returned base64 data
+URLs of 250,510 and 88,850 characters — **339,364 of the file's 366,555 bytes**.
+Decoded they are a 680×395 PNG and a 256×256 PNG, drawn at 64–200px.
+
+**What it cost on every open.** The logo was embedded three times in the initial
+document and the avatar once, so roughly 751 KB of base64 shipped inside the HTML.
+Gzip barely helped: underneath is an already-compressed PNG, so compression only
+recovered base64's own expansion. None of it was cacheable, because it lived
+inside the HTML — and `sw.js` is network-first for navigation deliberately, so
+that weight was paid on **every single open**, not once.
+
+**The three kinds of caller, which is what made this more than a delete.**
+
+*The initial document* — four placeholders in `Index.html`. These need a URL, and
+that is where the 820 KB was won.
+
+*Seven emails* — `Userservice.js` 294/593/814, `TourService.js` 699/782,
+`Código.js` 6839/7453. Each decoded the base64 by hand and passed a Blob to
+MailApp's `inlineImages`, which is the correct way to put an image in an email; a
+message read outside the app cannot reference a URL into it. They now call one
+helper, `getLogoBlob_()`, which fetches the same static file the browser gets. One
+copy of the picture, not a literal kept for email alone.
+
+*Two that only look like emails* — `Gamification.js` 213 and 383 put
+`<img src="data:...">` straight into an `htmlBody`, which mail clients discard.
+Those were **renamed only**, so they do not call a deleted function; the defect
+underneath is filed separately.
+
+**The second implementation this ran into.** `doGet` serves the same `Index.html`
+through `HtmlService.createTemplateFromFile('Index').evaluate()`, so
+`<?!= getLogoUrl() ?>` is evaluated in **two** places — Apps Script at runtime and
+`build.js` for Vercel. A Drive-hosted file would have solved the emails and left
+that placeholder with nothing to return. Both resolve now, and the test asserts
+both can.
+
+**A fifth base URL, named rather than hidden.** `appBaseUrl_()` is the fifth place
+in the project that works out where the app lives. The others are
+`ScriptApp.getService().getUrl()` at Userservice 237/561, TourService 664/743,
+EnvService 92 and Gamification 398, plus an `APP_URL` chain at Userservice 456 and
+556 — so some emails link to `/exec` and others to the Vercel domain. This one
+cannot use `getService().getUrl()`, because Apps Script does not serve
+`/brand/logo.png`. It follows the fullest existing chain rather than inventing a
+sixth answer, and consolidating them is filed.
+
+**A new dependency, accepted deliberately.** Emails now fetch the logo over the
+network. `getLogoBlob_()` returns null rather than throwing and every caller sends
+without the picture instead — a brand image is not worth failing a password email
+over.
+
+**The cold-start hypothesis: NOT TESTED.** `KNOWN_ISSUES` records a 49.157s cold
+start with ~48s unattributed and "recompiling 26 files" among the suspects. Apps
+Script compiles the whole project cold, and that included a 367 KB file which was
+a 250 KB string. The bytes are now out of the project entirely, which is what the
+hypothesis needs. **Whether it moved the cold start is unmeasured** — that needs a
+real cold start before and after, and nothing in this repository can produce one.
+If it does not move, the hypothesis is dead and should be written down as dead;
+339 KB of bundle is gone either way.
+
+**What is not verified (rule 6).** The cold start above. Whether the `/exec` front
+door is still in real use — if it is, its logo now loads cross-origin from Vercel
+rather than inline. And that the emails still render, which needs a real inbox.

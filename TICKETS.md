@@ -599,3 +599,109 @@ ran longer, both invisible because the app quietly did something else instead.
 **Notes** Worth doing regardless of whether the pipeline itself is healthy — it is
 the difference between finding the next one in a log and finding it in a
 spreadsheet.
+
+---
+
+## FLAG_SVG ids collide when more than one flag is drawn
+
+**No bot ID.** Found 2026-09-10 while removing the brand images from the bundle.
+
+**Source** Found during other work · reported 2026-09-10
+**Severity** Medium — affects live screens, not only the map that surfaced it
+**Area** `FLAG_SVG` in Scripts.html, and the 20 call sites of `getFlagHtml`
+
+**Observed** The inlined flags carry short ids and reference them internally:
+
+    us  defines a b c d e   references a b c d e
+    gb  defines a b         references a b
+    au  defines a b c d     references a b c d
+
+Two flags in the same document share that namespace, and `#a` resolves against
+the **first** in document order. `Scripts.html` 13414-13417 draws four flags in a
+row in the subscription modal, and 6243/6286 draw them in a loop.
+
+**Expected** Each insertion namespaces its own ids so a flag keeps its own
+references regardless of what else is on the page.
+
+**Done when** `DERIVED` Two different flags rendered into one document each keep
+their own gradients, clips and masks, asserted by a test that renders two and
+checks the second's references still resolve to its own definitions.
+
+**Status** Open. Not fixed alongside the brand-image work because it touches
+`getFlagHtml`, which 20 call sites use, and the screens affected are not the one
+that surfaced it.
+
+---
+
+## Two reward emails embed an image mail clients discard
+
+**No bot ID.** Found 2026-09-10 while removing the brand images from the bundle.
+
+**Source** Found during other work · reported 2026-09-10
+**Severity** Low — cosmetic, in two emails
+**Area** `Gamification.js` 213 and 383
+
+**Observed** Both put the logo directly into a `MailApp.sendEmail` `htmlBody` as
+an `<img src>` rather than using `inlineImages` with a Blob, the way the other
+seven email paths do. Gmail and most clients discard `data:` images outright, so
+those two logos have probably not rendered for some time.
+
+**Expected** The same `inlineImages` treatment as the other seven, or the image
+dropped from those templates deliberately.
+
+**Done when** `DERIVED` Both use `inlineImages` with a Blob, or the image is
+removed from those two templates by decision.
+
+**Status** Open. They were renamed to `getLogoUrl()` when the base64 getter was
+removed — enough that they do not call a deleted function, and no worse than
+before, since a remote URL is at least not stripped outright. The defect is
+unchanged.
+
+---
+
+## Progress shows every student a PILOT rank label
+
+**No bot ID.** Found 2026-09-10 while reading the tier definitions.
+
+**Source** Found during other work · reported 2026-09-10
+**Severity** Medium — student-facing, and wrong for three of four professions
+**Area** `_PROG_TIERS` (Scripts.html:20340) and `PROFESSION_TIERS` (24725)
+
+**Observed** `_PROG_TIERS` hard-codes `'Junior Captain'` and its siblings — the
+PILOT labels — while `PROFESSION_TIERS` exists and carries all four professions.
+A CONTROLLER sees "Junior Captain" on the Progress screen.
+
+**Expected** The rank label on Progress comes from the student's own profession,
+as it does everywhere else.
+
+**Done when** `DERIVED` A student whose profession is not PILOT sees their own
+profession's rank label on Progress.
+
+**Status** Open.
+
+---
+
+## The app's base URL is computed five different ways
+
+**No bot ID.** Found 2026-09-10 while adding the fifth.
+
+**Source** Found during other work · reported 2026-09-10
+**Severity** Medium — some emails link students to /exec and others to the domain
+**Area** Userservice.js 237, 456, 561 · TourService.js 664, 743 · EnvService.js 92
+· Gamification.js 398 · ConfigService.js `appBaseUrl_()`
+
+**Observed** Four of them call `ScriptApp.getService().getUrl()`, which returns
+the Apps Script `/exec` URL. Two read an `APP_URL` Script Property with different
+fallback chains. The fifth, added with the brand-image work, follows the fullest
+of those chains because it needs the Vercel domain — Apps Script does not serve
+`/brand/logo.png`.
+
+The consequence is already live: a student's emails link to two different places
+depending on which template sent them.
+
+**Done when** `DERIVED` One function answers "where is the app", every caller uses
+it, and a test counts the callers so a sixth cannot appear quietly.
+
+**Status** Open. Not consolidated alongside the brand-image work because it
+changes which URL students receive in emails, which is a behaviour change on
+screens that work today.
