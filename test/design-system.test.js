@@ -14,6 +14,33 @@
 const fs = require('fs');
 const C = fs.readFileSync(__dirname + '/../Styles.html', 'utf8');
 const S = fs.readFileSync(__dirname + '/../Scripts.html', 'utf8');
+let fails0 = 0;
+
+/* ── the stylesheet is a stylesheet ───────────────────────────────────────────
+ *
+ * A block appended to the END of this file lands AFTER </style>, and the browser
+ * renders nine thousand characters of CSS as body text across the whole app. That
+ * shipped: the build succeeded, every suite here was green, and the live site was
+ * a wall of declarations over a black ground.
+ *
+ * Nothing caught it because nothing had ever needed to — until a change was made
+ * by appending rather than inserting. It is the cheapest possible assertion and it
+ * belongs first in the file, because every measurement below it is meaningless if
+ * the CSS is not CSS. */
+{
+  const open = C.indexOf('<style>');
+  const close = C.lastIndexOf('</style>');
+  const after = close >= 0 ? C.slice(close + '</style>'.length).trim() : '';
+  const before = open >= 0 ? C.slice(0, open).trim() : 'MISSING';
+  const ok0 = (n, c) => { if (!c) fails0++; console.log((c ? '  PASS  ' : '  FAIL  ') + n); };
+  console.log('--- the stylesheet is a stylesheet ---');
+  ok0('it opens with <style>',            open === 0);
+  ok0('and nothing precedes it',          before === '');
+  ok0('it closes once',                   (C.match(/<\/style>/g) || []).length === 1);
+  ok0('and NOTHING follows the close',    after === '');
+  if (after) console.log('        ' + after.length + ' characters outside the tag, starting: ' +
+                         after.slice(0, 70).replace(/\s+/g, ' '));
+}
 /* The flag table is national colour and national geometry — the red of Canada,
  * the stroke that draws the Union Flag's saltire. It is data the countries own,
  * not a design decision this app gets to make, so it is cut out before any scan
@@ -22,7 +49,7 @@ const S = fs.readFileSync(__dirname + '/../Scripts.html', 'utf8');
 const cutFlags = t => t.replace(/var FLAG_SVG = \{[\s\S]*?\n  \};/, '');
 
 const ALL = C + S;
-let fails = 0; const ok=(n,c)=>{if(!c)fails++;console.log((c?'  PASS  ':'  FAIL  ')+n);};
+let fails = fails0; const ok=(n,c)=>{if(!c)fails++;console.log((c?'  PASS  ':'  FAIL  ')+n);};
 
 const distinct = (re, clean = v => v) =>
   new Set([...ALL.matchAll(re)].map(m => clean(m[1].trim().replace(' !important', ''))));
