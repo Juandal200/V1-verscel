@@ -28309,9 +28309,30 @@ var LEVEL_THEMES = {
 
   // Every step resolves through here exactly once, whatever happened, so a failed
   // clip or a denied microphone costs that step and not the sitting.
+  /* Once, and with whatever it was given.
+   *
+   * This called fn() bare. It guards four callbacks and two of them carry the
+   * only thing the exam exists to collect: _scRecord passes the transcript
+   * Whisper returned, and _scTyped passes what the candidate typed. Both arrived
+   * as undefined, and `String(undefined || '(no answer given)')` wrote the words
+   * "(no answer given)" into the graded transcript instead.
+   *
+   * Every spoken answer, every scripted sitting, deterministically. The exam
+   * recorded the audio correctly, uploaded it correctly, and paid OpenAI to
+   * transcribe it — then dropped the answer on arrival and marked the candidate
+   * against the silence it had written itself. A C1 pilot was awarded band 1 in
+   * all six descriptors, and the grading was right about what it was shown.
+   *
+   * The other two consumers are unaffected: _scAsk's callback is invoked bare,
+   * and _scSpeak's is `el.onended`, so it now forwards a DOM Event to three
+   * callers that all ignore parameters — _scNextStep declares none. */
   function _scOnce(fn) {
     var used = false;
-    return function () { if (used) return; used = true; try { fn(); } catch (e) {} };
+    return function () {
+      if (used) return;
+      used = true;
+      try { fn.apply(null, arguments); } catch (e) {}
+    };
   }
 
   // Recordings already fetched during this sitting, keyed by paper and item.

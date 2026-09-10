@@ -1225,3 +1225,88 @@ new element is safer given a new class than given an existing one.
 reports every duplicate with its declarations, and a decision per selector about
 whether the earlier copy was meant to be overridden or was a paste. Then a
 before-and-after screenshot of every screen, because nothing else can confirm it.
+
+---
+
+## Every spoken exam answer was thrown away on arrival
+
+**Status** **Fixed** — `_scOnce` forwards its arguments. Recorded in full because
+the helper looked correct, the tests were green, nothing logged an error, and the
+result was a fluent pilot marked band 1 in all six descriptors.
+
+**No bot ID.** Reported by the instructor on 2026-09-09 from student complaints.
+
+**What was reported.** Students with good English — C1 among them — sitting the
+mock test smoothly, hearing every audio, answering every question aloud, and
+receiving **1 in all six descriptors**.
+
+**The cause, in three lines.**
+
+```js
+function _scOnce(fn) {
+  var used = false;
+  return function () { if (used) return; used = true; try { fn(); } catch (e) {} };
+}
+```
+
+`fn()` — bare. It guards four callbacks and two of them carry the only thing the
+exam exists to collect: `_scRecord` passes the transcript Whisper returned, and
+`_scTyped` passes what the candidate typed. Both arrived as `undefined`, and the
+caller's `String(transcript || '(no answer given)')` wrote the words
+**"(no answer given)"** into the graded transcript instead.
+
+Deterministic. Every spoken answer, every scripted sitting, since the scripted
+exam shipped.
+
+**Why nothing caught it.** Every part of the system behaved correctly and
+reported success. The microphone recorded, the audio was full length, the upload
+succeeded, OpenAI transcribed it and **charged for it** — the day of the reported
+sitting was the highest spend in the billing period. The transcript was correct
+when it arrived. It was dropped one function call later, and the exam then marked
+the candidate against silence it had written itself. The grading was right about
+what it was shown.
+
+**How it was found.** Not from the repository. Four hypotheses were ruled out in
+order — a rendering bug, a missing API key, exhausted credit, a silent microphone
+— and each was killed by evidence the instructor supplied: the saved sitting JSON,
+the OpenAI usage chart, and a screenshot of a live microphone meter. The billing
+chart is what forced it: money spent means the transcription **succeeded**, so the
+loss had to be after it. Two of the four hypotheses were mine and stated with more
+confidence than they had earned.
+
+**The two consumers that were not affected, and why forwarding is safe for them.**
+`_scAsk` invokes its callback bare. `_scSpeak` assigns its callback to
+`el.onended`, so it now forwards a DOM `Event` — harmless, because all three
+callers ignore parameters and `_scNextStep` declares none. Asserted in
+`test/scripted-answer.test.js` so a future edit cannot start reading it.
+
+**What is still open.** The safety net that should have refused to grade this
+sitting did not fire, for an unrelated reason. See the entry below it.
+
+---
+
+## The band-1 sittings already in the sheet stay there
+
+**Status** **Closed by decision** (product owner, 2026-09-09). Not deferred —
+declined.
+
+**What the decision covers.** Every scripted sitting recorded before the fix
+above carries descriptor scores that measure a dropped function argument rather
+than a candidate. The instructor's decision is to leave those rows in the sheet
+as they are, rather than void or annotate them.
+
+**Why this is worth writing down rather than leaving silent.** Someone reading
+the results table in six months has no way to tell those rows apart from real
+assessments. A band 1 is not a neutral number — it reads as a judgement on a
+person's English, and it is the figure an employer would be shown. Anyone doing
+analysis on historical exam results, or answering a student who asks about an old
+score, needs to know that sittings before this fix are not evidence of anything.
+
+**How to identify them.** Rows in the TEA results sheet with `Source` =
+`conversation` and a date before the deploy of this fix. The `Source` column
+exists precisely so results graded by different paths can be told apart.
+
+**What would reopen it.** A student disputing a recorded band, or the results
+being used for anything beyond practice — a certificate, a report to an employer,
+an intake decision. At that point the rows have to be dealt with rather than
+explained.
