@@ -5531,10 +5531,6 @@ window.tierByExam = function (examNum) {
              'c0 5.8-8.5 11.1-8.5 11.1z"/>',
     heartOn: '<path d="M12 20.5S3.5 15.2 3.5 9.4A4.4 4.4 0 0 1 12 7.3a4.4 4.4 0 0 1 8.5 2.1' +
              'c0 5.8-8.5 11.1-8.5 11.1z" fill="currentColor"/>',
-    moon:    '<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>',
-    sun:     '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4"/><path d="M12 19.1v2.4"/>' +
-             '<path d="M2.5 12h2.4"/><path d="M19.1 12h2.4"/><path d="M5.3 5.3l1.7 1.7"/>' +
-             '<path d="M17 17l1.7 1.7"/><path d="M18.7 5.3L17 7"/><path d="M7 17l-1.7 1.7"/>',
     headset: '<path d="M4 15v-3a8 8 0 0 1 16 0v3"/>' +
              '<rect x="2.5" y="14" width="4.5" height="6" rx="2"/>' +
              '<rect x="17" y="14" width="4.5" height="6" rx="2"/>',
@@ -13374,24 +13370,6 @@ var LEVEL_THEMES = {
       '</section>';
   }
 
-  function toggleTheme() {
-    var html    = document.documentElement;
-    var isLight = html.getAttribute('data-theme') === 'light';
-    var btn     = document.getElementById('themeToggleBtn');
-    var metaTheme = document.querySelector('meta[name="theme-color"]');
-    if (isLight) {
-      html.removeAttribute('data-theme');
-      try { localStorage.setItem('aerocomms-theme', 'dark'); } catch(e) {}
-      if (btn) btn.innerHTML = uiIcon('sun', 17);
-      if (metaTheme) metaTheme.setAttribute('content', 'var(--bg)');
-    } else {
-      html.setAttribute('data-theme', 'light');
-      try { localStorage.setItem('aerocomms-theme', 'light'); } catch(e) {}
-      if (btn) btn.innerHTML = uiIcon('moon', 17);
-      if (metaTheme) metaTheme.setAttribute('content', 'var(--text)');
-    }
-  }
-
   function logout() {
     var token = AppState.sessionToken;
     localStorage.removeItem('icao_session_token');
@@ -15761,7 +15739,6 @@ var LEVEL_THEMES = {
   window.verifyLoginCode = verifyLoginCode;
   window.setAuthMode = setAuthMode;
   window.logout      = logout;
-  window.toggleTheme = toggleTheme;
 
   window.toggleAvatarMenu = function() {
     var existing = byId('_avatarMenu');
@@ -15788,9 +15765,6 @@ var LEVEL_THEMES = {
     var xpText   = (byId('topnavXpLabel')    || {}).textContent || '';
     var nextText = (byId('topnavLevelsLabel') || {}).textContent || '';
 
-    var isLight = document.documentElement.getAttribute('data-theme') === 'light';
-    var themeLabel = isLight ? uiIconInline('moon') + 'Dark mode'
-                            : uiIconInline('sun')  + 'Light mode';
 
     var adminHtml = isAdmin ?
       '<div class="avm-divider"></div>' +
@@ -15808,8 +15782,6 @@ var LEVEL_THEMES = {
         (nextText ? '<div style="font-size: 0.72rem;color:var(--muted);margin-top:1px;">' + safeText(nextText) + '</div>' : '') +
       '</div>' +
       adminHtml +
-      '<div class="avm-divider"></div>' +
-      '<button class="avm-item" onclick="toggleTheme();var m=byId(\'_avatarMenu\');if(m)m.remove();"><span class="avm-icon">' + uiIconInline('moon') + '</span>' + themeLabel + '</button>' +
       '<div class="avm-divider"></div>' +
       '<button class="avm-item avm-signout" onclick="logout()"><span class="avm-icon">↪</span>Sign out</button>';
 
@@ -15837,10 +15809,6 @@ var LEVEL_THEMES = {
   };
 
   // Sync icon on load in case theme was already active from localStorage
-  (function() {
-    var btn = document.getElementById('themeToggleBtn');
-    if (btn && document.documentElement.getAttribute('data-theme') === 'light') btn.innerHTML = uiIcon('moon', 17);
-  })();
 
   window.renderHome = renderHome;
   window.renderSimulatorPlaceholder = renderSimulatorPlaceholder;

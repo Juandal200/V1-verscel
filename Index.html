@@ -15,14 +15,12 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
 
-  <script>
-    (function() {
-      try {
-        if (localStorage.getItem('aerocomms-theme') === 'light')
-          document.documentElement.setAttribute('data-theme', 'light');
-      } catch(e) {}
-    })();
-  </script>
+  <!-- Light mode is not offered for now.
+       This used to read localStorage and set data-theme="light" before first
+       paint. Nothing sets it any more, so the app is dark in every case.
+       The [data-theme="light"] rules stay in Styles.html, inert — five test
+       suites assert against them, and turning the theme back on is deleting
+       this comment and restoring six lines rather than rewriting a stylesheet. -->
 
   <script>
     window.APP_CONFIG = <?!= getClientConfigJson(); ?>;
@@ -138,7 +136,6 @@
         </nav>
 
         <div class="topnav-actions">
-          <button id="themeToggleBtn" class="btn secondary topnav-btn" onclick="toggleTheme()" title="Toggle light/dark mode" aria-label="Toggle light/dark mode">☀</button>
 <div class="topnav-pilot-wrap">
             <div class="topnav-rank-meta" id="topnavRankMeta">
               <div id="userRankStripes" class="topbar-rank-stripes" style="display:none;"></div>

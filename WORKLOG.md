@@ -17,6 +17,37 @@ Newest day first.
 
 ## 2026-09-10
 
+### Light mode is not offered, for now
+
+**Plan.** Remove every way to select the light theme — the boot script, the
+top-bar button, the avatar-menu item and `toggleTheme` — and leave the 127
+`[data-theme="light"]` rules in place, inert.
+
+**Criterion.** Stated: eliminate the light mode for now.
+
+`DERIVED`, on the strength of "for now": disabled rather than deleted. Five test
+suites assert against those rules; deleting them would mean rewriting five suites
+and then restoring both to turn it back on. As it stands, reversing this is six
+lines in `Index.html` and one function.
+
+`DERIVED`: the `sun` and `moon` icons go. They served only the toggle, and
+`typography.test.js` counts icons drawn and never used. They come back with it.
+
+**Why, in one line.** It settles the map's palette question — with no light theme
+to break, the geodata map can use the flat dark values it was specified with.
+
+**Checklist.**
+
+- [ ] The app is dark, whatever was stored before
+- [ ] No sun/moon button in the top bar
+- [ ] No "Light mode" item in the avatar menu
+- [ ] Nothing looks half-styled — no element left expecting a light background
+- [ ] A student who had light mode on gets dark, not a broken screen
+
+**Not verifiable from the repo.** How it looks to someone who had light mode
+selected.
+
+
 ### The coastlines read as a world map
 
 **Plan.** Rewrite `_LM_LAND` at roughly three times the resolution and add the
