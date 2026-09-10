@@ -54,7 +54,8 @@ function models(planLockedAt) {
   });
 }
 
-function renderMap(ms) {
+function renderMap(ms) { return renderMapWith(ms, {}, ''); }
+function renderMapWith(ms, extra, heroCard) {
   const stubs = {
     _levelMeta: Object.fromEntries([1,2,3,4,5,6,7,8,9].map(n =>
       [n, { name: 'Level ' + n, accent: COUNTRY[n] + ' ATC', tag: 'TAG' + n,
@@ -75,10 +76,11 @@ function renderMap(ms) {
     grab('var _LM_PLACE = {').replace(/^var /, 'var '),
     grab('var _LM_CP = {'),
     grab('function _lmCountryOf(model)'), grab('function _lmPlace(model)'),
-    grab('function _lmFlag(country, uid)'), grab('function _lmRenderMap(models, tiers, heroBar)'),
+    grab('function _lmFlag(country, uid)'), grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)'),
     'return _lmRenderMap;'
   ].join('\n');
-  return new Function(...Object.keys(stubs), src)(...Object.values(stubs))(ms, TIERS, '');
+  Object.assign(stubs, extra || {});
+  return new Function(...Object.keys(stubs), src)(...Object.values(stubs))(ms, TIERS, '', heroCard || '', '19:00');
 }
 
 console.log('--- every level the grid computed is drawn ---');
@@ -119,7 +121,7 @@ console.log('--- the map goes to openLevelCountries and nowhere else ---');
  * simulator read, and carries the two-lock branch that offers the plans modal
  * rather than a dead end. A map calling startCountryTraining directly would skip
  * both. */
-const mapFn = strip(grab('function _lmRenderMap(models, tiers, heroBar)'));
+const mapFn = strip(grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)'));
 ok('every card calls it',        /onclick="openLevelCountries\(/.test(mapFn));
 ok('and nothing calls past it',
    !/startCountryTraining|renderCountryTrainingHub|apiGetTrainingRoute/.test(mapFn));
@@ -140,6 +142,54 @@ const ids = [...html.matchAll(/id="([^"]+)"/g)].map(m => m[1]);
 ok('no id is used twice', ids.length > 0 && new Set(ids).size === ids.length);
 ok('and every reference is namespaced with its own card',
    [...html.matchAll(/href="#([^"]+)"/g)].every(m => ids.includes(m[1])));
+
+console.log('--- the inventory the grid draws, drawn here too ---');
+/* Three of these were missing when the map first shipped, which is the failure
+ * the inventory exists to prevent: not a view that breaks, a view that quietly
+ * shows less than the one it replaces. */
+const vr = models(2);
+vr[0].vr = { type: 'double', icon: '<svg></svg>', label: 'DOUBLE XP', desc: 'Twice the XP' };
+const vh = renderMap(vr);
+ok('a reward event is drawn on the level that has it', /lm-vr-badge[\s\S]{0,80}DOUBLE XP/.test(vh));
+/* The wording depends on the level's state, exactly as the grid's banner does:
+ * a finished level is offered a replay for bonus XP, a locked one is told to
+ * unlock first, and only a level you can actually play gets the description. */
+ok('a completed level is offered the replay', /Replay for bonus XP/.test(vh));
+const vr2 = models(2);
+vr2[3].vr = vr[0].vr;                       // level 4, locked
+ok('a locked level is told to unlock first',
+   /Unlock to claim this clearance/.test(renderMap(vr2)));
+const vr3 = models(2);
+vr3[3].locked = false; vr3[3].vr = vr[0].vr;
+ok('and a playable one gets the description', /Twice the XP/.test(renderMap(vr3)));
+ok('and when it closes',         /CLOSES 19:00/.test(vh));
+ok('and a level without one gets no banner',
+   (vh.match(/lm-vr-badge/g) || []).length === 1);
+
+/* _buildExamCard reads AppState.examStatus and has five branches. The map drew
+ * two of its own invention, so a candidate with one attempt left was told the
+ * checkpoint was simply open. */
+const mapSrc = strip(grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)'));
+ok('the checkpoint reads the same source the grid card reads',
+   /AppState\.examStatus/.test(mapSrc));
+['passed', 'replay_required', 'failed_once', 'locked'].forEach(function (st) {
+  ok('it knows the ' + st + ' state', new RegExp("'" + st + "'").test(mapSrc));
+});
+ok('and the fifth, ready to sit', /READY TO SIT/.test(mapSrc));
+ok('a score is shown where there is one', /info\.score/.test(mapSrc));
+
+/* The Operational group renders below the grid's tiers. A sheet that publishes
+ * one would have shown it on the grid and not here. */
+const oh2 = renderMapWith(models(2), {}, '<article>OPS CARD</article>');
+ok('the Operational block is drawn when there is one', /OPS CARD/.test(oh2));
+ok('under the same divider the grid uses',   /OPERATIONAL CLEARANCE/.test(oh2));
+ok('and nothing is drawn when there is not', !/OPERATIONAL CLEARANCE/.test(renderMap(models(2))));
+
+console.log('--- the map country comes from the sheet ---');
+const LS = fs.readFileSync(__dirname + '/../LevelService.js', 'utf8');
+ok('apiGetLevelMeta emits mapCountry', /mapCountry:\s*String\(r\.mapCountry/.test(LS));
+ok('and the client reads it',          /meta\.mapCountry/.test(code));
+ok('falling back to the level\'s own country', /\|\| \(\(model\.item\.countries \|\| \[\]\)\[0\]/.test(code));
 
 console.log('--- the entry point is unchanged ---');
 ok('renderLevelMap keeps its signature', /function renderLevelMap\(data\) \{/.test(code));

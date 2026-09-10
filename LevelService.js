@@ -124,6 +124,9 @@ function apiGetLevelMeta(sessionToken) {
         tag:         String(r.tag  || '').trim(),
         description: String(r.description || '').trim(),
         accent:      String(r.accent || '').trim(),
+        // Optional. Where the level sits on the world map; the map falls back to
+        // the level's first country when the sheet does not say.
+        mapCountry:  String(r.mapCountry || '').trim().toUpperCase(),
         groupKey:    String(r.groupKey  || '').trim().toUpperCase(),
         groupName:   String(r.groupName || '').trim(),
         phases:      String(r.phases || '').split(',').map(function(p) { return p.trim(); })

@@ -13427,6 +13427,34 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 .lm-chip--upgrade  { color: var(--yellow); border-color: rgba(var(--yellow-rgb), .4); background: rgba(var(--yellow-rgb), .09); }
 .lm-frac { font-family: var(--font-instrument); font-size: var(--t-label); color: var(--muted); }
 
+/* The reward event, on the card that carries it. Same information the grid's
+   banner gives: what it is, what it is worth, and when it closes. */
+.lm-vr {
+  display: block; margin-top: 9px; padding: 7px 8px;
+  border: 1px solid rgba(var(--yellow-rgb), .35); border-radius: 8px;
+  background: rgba(var(--yellow-rgb), .07);
+}
+.lm-vr-badge {
+  display: block; font-family: var(--font-instrument); font-size: var(--t-label);
+  letter-spacing: 0.08em; color: var(--yellow); font-weight: 600;
+}
+.lm-vr-desc { display: block; margin-top: 3px; font-size: var(--t-label); color: var(--muted); line-height: 1.35; }
+.lm-vr-slot {
+  display: block; margin-top: 3px; font-family: var(--font-instrument);
+  font-size: var(--t-label); letter-spacing: 0.08em; color: var(--muted);
+}
+
+/* Five checkpoint states, the same five the grid's card reads. */
+.lm-cp--passed .lm-cp-ring { border-color: var(--green); }
+.lm-cp--passed .lm-cp-ring svg { fill: var(--green); }
+.lm-cp--passed .lm-cp-state { color: var(--green); }
+.lm-cp--failed_once .lm-cp-ring, .lm-cp--replay_required .lm-cp-ring { border-color: var(--yellow); }
+.lm-cp--failed_once .lm-cp-ring svg, .lm-cp--replay_required .lm-cp-ring svg { fill: var(--yellow); }
+.lm-cp--failed_once .lm-cp-state, .lm-cp--replay_required .lm-cp-state { color: var(--yellow); }
+.lm-cp--ready .lm-cp-ring { border-color: var(--accent); }
+.lm-cp--ready .lm-cp-ring svg { fill: var(--accent); }
+.lm-cp--ready .lm-cp-state { color: var(--text); }
+
 /* A level with no coordinates is shown, not dropped and not guessed at. */
 .lm-unplaced {
   display: flex; align-items: center; flex-wrap: wrap; gap: 8px;

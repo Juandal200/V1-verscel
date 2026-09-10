@@ -6354,7 +6354,7 @@ var LEVEL_THEMES = {
      * and none can be forgotten. The map is offered above 1100px only; below it
      * the grid renders exactly as it always has and the toggle is not drawn. */
     if (_lmViewIsMap() && _lmWideEnough()) {
-      byId('contentArea').innerHTML = _lmRenderMap(_lmModels, TIERS, heroBar);
+      byId('contentArea').innerHTML = _lmRenderMap(_lmModels, TIERS, heroBar, heroCard, vrSlot);
       _lmFitStage();
       return;
     }
@@ -6526,7 +6526,7 @@ var LEVEL_THEMES = {
     renderLevelMap(AppState.training.catalog);
   };
 
-  function _lmRenderMap(models, tiers, heroBar) {
+  function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot) {
     var uid = 'lm' + Date.now().toString(36);
     var unplaced = [];
 
@@ -6597,6 +6597,19 @@ var LEVEL_THEMES = {
             (meta.description ? '<span class="lm-card-desc">' + safeText(meta.description) + '</span>' : '') +
             (phases ? '<span class="lm-phases">' + phases + '</span>' : '') +
             '<span class="lm-card-meta">' + m.total + ' scenarios · ' + m.done + ' completed</span>' +
+            /* The reward event, which the grid draws and this did not.
+             * It was carried in the model all along and simply never rendered —
+             * a level worth double XP for the next few hours looked identical to
+             * one that was not, which is the whole point of the event. */
+            (m.vr
+              ? '<span class="lm-vr lm-vr--' + safeText(m.vr.type) + '">' +
+                  '<span class="lm-vr-badge">' + m.vr.icon + ' ' + safeText(m.vr.label) + '</span>' +
+                  '<span class="lm-vr-desc">' + safeText(
+                    m.locked ? 'Unlock to claim this clearance'
+                             : (m.isCompleted ? 'Replay for bonus XP' : (m.vr.desc || ''))) + '</span>' +
+                  (vrSlot ? '<span class="lm-vr-slot">CLOSES ' + safeText(vrSlot) + '</span>' : '') +
+                '</span>'
+              : '') +
           '</span>' +
           '<span class="lm-card-foot">' +
             '<span class="lm-chip lm-chip--' + state + '">' + safeText(m.statusText.toUpperCase()) + '</span>' +
@@ -6605,22 +6618,42 @@ var LEVEL_THEMES = {
         '</button>';
     });
 
+    /* The checkpoint reads the same status the grid's card reads.
+     *
+     * This drew two states of its own invention — passed or locked — from
+     * counting completed levels. _buildExamCard reads AppState.examStatus and has
+     * FIVE branches: locked, passed, replay_required, failed_once, and ready to
+     * sit. A candidate who failed once has one attempt left and the map was
+     * telling them the checkpoint was simply open; one required to review levels
+     * was told the same. Same source, same words. */
     var cpMarks = '';
     tiers.forEach(function (t) {
       var at = _LM_CP[t.examNum];
       if (!at) return;
-      var done = 0, total = 0;
-      models.forEach(function (m) { if (m.tier === t.num) { total++; if (m.isCompleted) done++; } });
-      var passed = total > 0 && done >= total;
+      var all = (window.AppState && AppState.examStatus) || [];
+      var info = null;
+      for (var i = 0; i < all.length; i++) if (Number(all[i].examNum) === t.examNum) info = all[i];
+      var status = info ? String(info.status || 'locked') : 'locked';
+      var score  = (info && info.score !== null && info.score !== undefined) ? info.score + '/100' : '—';
+      var label, sub, mark;
+      if (status === 'passed') {
+        label = 'PASSED';        mark = 'passed'; sub = 'Score ' + score;
+      } else if (status === 'replay_required') {
+        label = 'REVIEW REQUIRED'; mark = 'retry'; sub = 'Review the levels before retrying';
+      } else if (status === 'failed_once') {
+        label = 'ONE ATTEMPT LEFT'; mark = 'alert'; sub = 'Score ' + score;
+      } else if (status === 'locked') {
+        label = 'LOCKED';        mark = 'locked'; sub = 'Complete Levels ' + t.levels[0] + '–' + t.levels[t.levels.length - 1];
+      } else {
+        label = 'READY TO SIT';  mark = 'paper';  sub = 'Opens ' + (t.nextLevel >= 10 ? 'level 10' : 'the next tier');
+      }
       cpMarks +=
-        '<div class="lm-cp' + (passed ? ' lm-cp--passed' : '') + '" style="left:' + _lmX(at.lon).toFixed(1) +
+        '<div class="lm-cp lm-cp--' + safeText(status) + '" style="left:' + _lmX(at.lon).toFixed(1) +
           'px;top:' + _lmY(at.lat).toFixed(1) + 'px;">' +
-          '<span class="lm-cp-ring">' + uiIconInline(passed ? 'passed' : 'locked') + '</span>' +
+          '<span class="lm-cp-ring">' + uiIconInline(mark) + '</span>' +
           '<span class="lm-cp-name">Checkpoint ' + t.examNum + '</span>' +
-          '<span class="lm-cp-state">' + (passed ? 'READY TO SIT' : 'LOCKED') + '</span>' +
-          '<span class="lm-cp-sub">' + (passed
-            ? 'Opens ' + safeText(t.name === 'Expert' ? 'level 10' : 'the next tier')
-            : 'Complete Levels ' + t.levels[0] + '–' + t.levels[t.levels.length - 1]) + '</span>' +
+          '<span class="lm-cp-state">' + label + '</span>' +
+          '<span class="lm-cp-sub">' + safeText(sub) + '</span>' +
         '</div>';
     });
 
@@ -6655,7 +6688,19 @@ var LEVEL_THEMES = {
         '<svg class="lm-geo" viewBox="0 0 ' + _LM_W + ' ' + _LM_H + '" aria-hidden="true">' + geo + '</svg>' +
         '<svg class="lm-edges" viewBox="0 0 ' + _LM_W + ' ' + _LM_H + '" aria-hidden="true">' + edges + '</svg>' +
         pins + cpMarks + cards +
-      '</div></div>' + strip;
+      '</div></div>' + strip +
+      /* The Operational group, drawn below the map exactly as the grid draws it
+       * below the tiers. It was missing entirely: a student whose sheet publishes
+       * an Operational level would have seen it on the grid and not on the map,
+       * which is the map showing less than the view it replaces. */
+      (heroCard
+        ? '<div class="ops-divider-wrap">' +
+            '<div class="ops-divider-line"></div>' +
+            '<span class="ops-divider-label">&#10022; OPERATIONAL CLEARANCE &#10022;</span>' +
+            '<div class="ops-divider-line"></div>' +
+          '</div>' +
+          '<section class="level-ops-section">' + heroCard + '</section>'
+        : '');
   }
 
   function renderCountryPreviewFlags(countries) {

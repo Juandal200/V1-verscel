@@ -17,6 +17,38 @@ Newest day first.
 
 ## 2026-09-10
 
+### The world map draws everything the grid draws
+
+**Plan.** Four changes, one commit: emit `mapCountry` from LevelService beside `tag`;
+draw the reward banner from the `vr` already carried in the model; derive the
+checkpoint from `AppState.examStatus` — the same five branches `_buildExamCard`
+reads — instead of two invented ones; pass the Operational hero through like the
+hero bar.
+
+**Criterion.** `STATED`, from the ticket's own inventory: items 2, 6 and 7 appear in
+the map, and `mapCountry` is emitted by the server rather than read from nothing.
+
+**Checklist — walk this with the map open, above 1100px wide.**
+
+- [ ] A **Map view** button sits above the level cards. Below 1100px it is not there
+- [ ] Pressing it draws a world map; pressing **Grid view** returns, and the choice survives a reload
+- [ ] Nine flag pins, each in its country, joined by a dashed route
+- [ ] The pin for a finished level has a green ring; the current one amber; a locked one shows a padlock
+- [ ] Hovering a card opens its description, its flight phases and its scenario count
+- [ ] **Exactly one** card offers "Unlock with a plan", in gold — never two, never seven
+- [ ] A level with a reward event shows a gold banner naming it, what it is worth and when it closes
+- [ ] A finished level's banner says "Replay for bonus XP"; a locked one says "Unlock to claim this clearance"
+- [ ] Each checkpoint reads one of: LOCKED · READY TO SIT · PASSED · ONE ATTEMPT LEFT · REVIEW REQUIRED
+- [ ] A passed checkpoint shows the score
+- [ ] If the sheet publishes an Operational level, the OPERATIONAL CLEARANCE block appears below the map
+- [ ] Clicking any card opens that level's country screen, and **Back** from the simulator returns to the map
+- [ ] Every flag renders correctly — none loses its colours to the one before it
+- [ ] Nothing in the light theme is invisible
+- [ ] A level whose country has no coordinates appears in a "NOT ON THE MAP" strip below, still clickable
+
+**Not verifiable from the repo.** Every line above. They are all geometry or a
+browser, which is the reason this checklist exists.
+
 ### CLAUDE.md gains the plan / criterion / checklist rule
 
 **Plan.** Append the section as dictated. Create this file, which the section refers to

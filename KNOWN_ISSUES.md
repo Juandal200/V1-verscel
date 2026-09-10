@@ -1748,6 +1748,18 @@ first pass — an untokenised shadow, a fifth transition speed, and four new
 letter-spacing steps written without leading zeros, which also counted as a second
 way of writing `0.12em`. All three were conformed to, not exempted.
 
+**Three inventory items were missing on the first pass, and are not now.** The map
+shipped without the variable-reward banners, with two checkpoint states of its own
+invention instead of the five `_buildExamCard` reads, and with no Operational block
+at all. That is exactly the failure the inventory exists to prevent — not a view
+that breaks, but one that quietly shows less than the view it replaces — and it was
+caught by walking the list rather than by any test. The reward event was carried in
+the model the whole time and simply never rendered.
+
+`mapCountry` was read by the client and emitted by nothing. `apiGetLevelMeta` sends
+it now, beside `tag`, falling back to the level's first country when the sheet is
+silent.
+
 **What is not verified (rule 6).** That it looks right. Card positions, overlap at
 widths between 1100 and 1600, and whether the coastlines read at all are geometry,
 and nothing in this repository can see them.

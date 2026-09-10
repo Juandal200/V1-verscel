@@ -104,7 +104,7 @@ ok('the rank labels stay separate from the content tier names',
 /* The world map draws tiers. If it brought its own idea of where they end, it
  * would be the fifth copy — which is why T2 came before it. */
 ok('the map takes the partition rather than declaring one',
-   /_lmRenderMap\(_lmModels, TIERS, heroBar\)/.test(S) &&
+   /_lmRenderMap\(_lmModels, TIERS, heroBar, heroCard, vrSlot\)/.test(S) &&
    !/function _lmRenderMap[\s\S]{0,4000}levels: \[1, ?2, ?3\]/.test(S));
 /* The map's own body, matched by braces on STRIPPED source — not a character
  * window on the raw file. The window version caught the comment inside the
@@ -122,7 +122,7 @@ function bodyOf(sig) {
   }
   return '';
 }
-const mapBody = bodyOf('function _lmRenderMap(models, tiers, heroBar)');
+const mapBody = bodyOf('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)');
 ok('the map is handed the level states', mapBody.length > 500);
 ok('and does not work them out again',   !/lockedByPlan|unlocked === false/.test(mapBody));
 
