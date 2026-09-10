@@ -13302,3 +13302,149 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
     font-weight: 700;
   }
 </style>
+
+/* ══ LEVEL MAP — the world view ═════════════════════════════════════════════
+ *
+ * A second drawing of renderLevelMap, and every colour here is a token. The
+ * mockup this came from carried its own palette — #0a0a0b, #3ddc84, #e2b13c —
+ * and none of it survived: this app has a light theme, and a literal that looks
+ * right on the dark ground is invisible on the other one. Anything below that
+ * had to be translucent uses the --lift-rgb / --scrim-rgb channels, which is how
+ * the rest of this stylesheet does it.
+ *
+ * Desktop only. The stage is a fixed 1180x500 scaled with a transform, so a pin
+ * never has to be recomputed and nothing can oscillate. */
+
+.lm-switch { display: flex; justify-content: flex-end; margin: 0 0 10px; }
+.lm-switch-btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-family: var(--font-ui); font-size: var(--t-caption);
+  color: var(--muted); background: var(--panel-soft);
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: 6px 12px; cursor: pointer;
+  transition: color 0.25s var(--ease), border-color 0.25s var(--ease);
+}
+.lm-switch-btn:hover { color: var(--text); border-color: var(--line-strong); }
+.lm-switch-btn svg { width: 14px; height: 14px; }
+
+.lm-tiers { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 12px 12px 0 0; overflow: hidden; }
+.lm-tier { padding: 13px 18px 15px; border-right: 1px solid var(--line); }
+.lm-tier:last-child { border-right: 0; }
+.lm-tier h2 {
+  margin: 0 0 5px; font-family: var(--font-instrument); font-size: var(--t-label);
+  letter-spacing: 0.12em; color: var(--muted); font-weight: 400;
+}
+.lm-tier h2 span { color: var(--text); letter-spacing: 0.12em; font-weight: 600; margin-left: 6px; }
+.lm-tier-count { font-family: var(--font-instrument); font-size: var(--t-caption); color: var(--muted); }
+.lm-tier-bar { margin-top: 7px; height: 2px; background: var(--line); position: relative; }
+.lm-tier-bar i { position: absolute; inset: 0 auto 0 0; background: var(--green); display: block; }
+
+.lm-stage-wrap {
+  position: relative; overflow: hidden;
+  border: 1px solid var(--line); border-top: 0; border-radius: 0 0 12px 12px;
+  background: radial-gradient(120% 90% at 50% 20%,
+              rgba(var(--lift-rgb), .03) 0%, rgba(var(--scrim-rgb), .12) 70%);
+}
+.lm-stage { position: absolute; top: 0; left: 0; width: 1180px; height: 500px; transform-origin: 0 0; }
+.lm-geo, .lm-edges { position: absolute; inset: 0; width: 1180px; height: 500px; overflow: visible; }
+.lm-geo path {
+  fill: rgba(var(--lift-rgb), .022);
+  stroke: rgba(var(--lift-rgb), .13); stroke-width: 1;
+  stroke-dasharray: 2 3.5; stroke-linejoin: round;
+}
+.lm-edges line { stroke: rgba(var(--lift-rgb), .15); stroke-width: 1; stroke-dasharray: 3 5; }
+.lm-edges line.lm-edge-done { stroke: rgba(var(--green-rgb), .5); stroke-dasharray: none; }
+
+.lm-pin {
+  position: absolute; transform: translate(-50%, -50%); z-index: 2;
+  width: 28px; height: 28px; border-radius: 50%; overflow: hidden;
+  border: 1px solid var(--line-strong); background: var(--panel);
+  display: grid; place-items: center;
+}
+.lm-pin svg { width: 28px; height: 28px; display: block; }
+.lm-pin--locked { border-color: var(--line); }
+.lm-pin--locked svg { width: 12px; height: 12px; fill: var(--muted); }
+.lm-pin--current { border-color: var(--yellow); box-shadow: 0 0 0 3px rgba(var(--yellow-rgb), .13); }
+.lm-pin--complete { border-color: var(--green); }
+.lm-pin--upgrade { border-color: var(--yellow); }
+
+.lm-cp { position: absolute; transform: translate(-50%, -50%); text-align: center; z-index: 2; width: 150px; }
+.lm-cp-ring {
+  width: 52px; height: 52px; border-radius: 50%; margin: 0 auto;
+  display: grid; place-items: center;
+  border: 1px solid var(--line-strong); background: var(--panel);
+}
+.lm-cp-ring svg { width: 17px; height: 17px; fill: var(--muted); }
+.lm-cp--passed .lm-cp-ring { border-color: var(--green); }
+.lm-cp--passed .lm-cp-ring svg { fill: var(--green); }
+.lm-cp-name { display: block; margin-top: 7px; font-size: var(--t-body); font-weight: 600; color: var(--text); }
+.lm-cp-state {
+  display: block; font-family: var(--font-instrument); font-size: var(--t-label);
+  letter-spacing: 0.12em; color: var(--muted); margin-top: 2px;
+}
+.lm-cp--passed .lm-cp-state { color: var(--green); }
+.lm-cp-sub { display: block; font-size: var(--t-label); color: var(--muted); margin-top: 3px; line-height: 1.35; }
+
+.lm-card {
+  position: absolute; width: 216px; z-index: 3; cursor: pointer; text-align: left;
+  display: block; font-family: var(--font-ui);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 11px 12px 10px;
+  box-shadow: var(--shadow-2);
+  transition: border-color 0.25s var(--ease);
+}
+.lm-card:hover, .lm-card:focus-visible { z-index: 9; border-color: var(--line-strong); }
+.lm-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lm-card--locked { background: var(--panel-soft); box-shadow: none; }
+.lm-card--locked .lm-card-name, .lm-card--locked .lm-card-sub { color: var(--muted); }
+.lm-card--current { border-color: var(--accent); }
+.lm-card--upgrade { border-color: rgba(var(--yellow-rgb), .45); }
+.lm-card-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-family: var(--font-instrument); font-size: var(--t-label);
+  letter-spacing: 0.12em; color: var(--muted);
+}
+.lm-card-name { display: block; margin: 5px 0 1px; font-size: var(--t-body); font-weight: 600; color: var(--text); }
+.lm-card-sub { display: block; font-size: var(--t-caption); color: var(--muted); }
+.lm-card-detail { display: none; margin-top: 9px; }
+.lm-card:hover .lm-card-detail, .lm-card:focus-visible .lm-card-detail { display: block; }
+.lm-card-desc { display: block; font-size: var(--t-caption); line-height: 1.45; color: var(--muted); margin-bottom: 9px; }
+.lm-phases { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
+.lm-phase {
+  font-family: var(--font-instrument); font-size: var(--t-label);
+  letter-spacing: 0.08em; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px;
+}
+.lm-card-meta { display: block; font-size: var(--t-label); color: var(--muted); }
+.lm-card-foot { display: flex; align-items: center; gap: 8px; margin-top: 9px; }
+.lm-chip {
+  font-family: var(--font-instrument); font-size: var(--t-label);
+  letter-spacing: 0.12em; padding: 3px 6px; border-radius: 4px;
+  color: var(--muted); border: 1px solid var(--line);
+}
+.lm-chip--complete { color: var(--green); border-color: rgba(var(--green-rgb), .4); background: rgba(var(--green-rgb), .08); }
+.lm-chip--current  { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.lm-chip--upgrade  { color: var(--yellow); border-color: rgba(var(--yellow-rgb), .4); background: rgba(var(--yellow-rgb), .09); }
+.lm-frac { font-family: var(--font-instrument); font-size: var(--t-label); color: var(--muted); }
+
+/* A level with no coordinates is shown, not dropped and not guessed at. */
+.lm-unplaced {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin-top: 10px; padding: 10px 14px;
+  border: 1px dashed var(--line-strong); border-radius: 10px;
+}
+.lm-unplaced-label {
+  font-family: var(--font-instrument); font-size: var(--t-label);
+  letter-spacing: 0.12em; color: var(--yellow);
+}
+.lm-unplaced-card {
+  font-family: var(--font-ui); font-size: var(--t-caption); color: var(--text);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 6px 10px; cursor: pointer;
+}
+.lm-unplaced-card span { color: var(--muted); }
+
+/* Never on a phone. The grid is what renders below this width, untouched. */
+@media (max-width: 1100px) {
+  .lm-stage-wrap, .lm-tiers, .lm-switch { display: none; }
+}

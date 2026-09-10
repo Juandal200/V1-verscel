@@ -101,6 +101,31 @@ ok('and tierOfLevel returns null rather than guessing',
 ok('the rank labels stay separate from the content tier names',
    /_PROG_RANKS = \[/.test(S) && /Junior Captain/.test(S) && !/name: 'Junior Captain'/.test(S));
 
+/* The world map draws tiers. If it brought its own idea of where they end, it
+ * would be the fifth copy — which is why T2 came before it. */
+ok('the map takes the partition rather than declaring one',
+   /_lmRenderMap\(_lmModels, TIERS, heroBar\)/.test(S) &&
+   !/function _lmRenderMap[\s\S]{0,4000}levels: \[1, ?2, ?3\]/.test(S));
+/* The map's own body, matched by braces on STRIPPED source — not a character
+ * window on the raw file. The window version caught the comment inside the
+ * function explaining that lockedByPlan opens the plans modal, and reported the
+ * map as recomputing a state it only reads. Fifth time this week that a comment
+ * broke the check written beside it. */
+function bodyOf(sig) {
+  const src = S.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/[^\n]*/g, '$1');
+  const i = src.indexOf(sig);
+  if (i < 0) return '';
+  let d = 0;
+  for (let k = src.indexOf('{', i); k < src.length; k++) {
+    if (src[k] === '{') d++;
+    else if (src[k] === '}') { d--; if (!d) return src.slice(i, k + 1); }
+  }
+  return '';
+}
+const mapBody = bodyOf('function _lmRenderMap(models, tiers, heroBar)');
+ok('the map is handed the level states', mapBody.length > 500);
+ok('and does not work them out again',   !/lockedByPlan|unlocked === false/.test(mapBody));
+
 /* Client and server is a genuine boundary, so the seventh copy stays — and is
  * compared instead. Código.js gates levels 4, 7 and 10 on the preceding exam;
  * if the client's partition ever disagrees, the map offers a checkpoint the

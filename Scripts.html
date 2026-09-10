@@ -6033,6 +6033,17 @@ var LEVEL_THEMES = {
 
     var TIERS = _levelTiers();
 
+    /* One computation, two drawings.
+     *
+     * The world map is a second way to draw this screen, and the way a second
+     * view loses things is by recomputing them slightly differently. So the state
+     * is worked out ONCE, here, as the grid builds — locked, complete, the plan
+     * lock, the status words, the region counts — and both views read it.
+     *
+     * Recorded as a by-product rather than by restructuring the loop: the grid is
+     * the view that works today and its markup is untouched. */
+    var _lmModels = [];
+
     var tierSections = '';
 
     TIERS.forEach(function(tier) {
@@ -6068,6 +6079,22 @@ var LEVEL_THEMES = {
         var statusClass = isCompleted ? 'ACTIVE'   : (locked ? 'BLOCKED' : 'PENDING');
         var regions     = totalCountries;
         var vr          = vrEvents[levelItem.level] || null;
+
+        _lmModels.push({
+          level:       Number(levelItem.level),
+          tier:        tier.num,
+          locked:      locked,
+          isCompleted: isCompleted,
+          planLock:    _planLock,
+          statusText:  statusText,
+          statusClass: statusClass,
+          done:        completedCountries,
+          total:       totalCountries,
+          regions:     regions,
+          pct:         progressPct,
+          vr:          vr,
+          item:        levelItem
+        });
         var vrClass     = vr ? ' vr-event vr-' + vr.type : '';
         var vrBanner    = vr
           ? '<div class="vr-event-banner vr-event-banner--' + vr.type + '">' +
@@ -6320,9 +6347,25 @@ var LEVEL_THEMES = {
                      '<p class="subtitle">Contact your training administrator to configure active routes.</p></div>';
     }
 
+    /* One entry point, two drawings.
+     *
+     * renderLevelMap keeps its signature and its five call sites — 5507, 5861,
+     * 11216, 19653 and the window export — so no caller has to know this exists
+     * and none can be forgotten. The map is offered above 1100px only; below it
+     * the grid renders exactly as it always has and the toggle is not drawn. */
+    if (_lmViewIsMap() && _lmWideEnough()) {
+      byId('contentArea').innerHTML = _lmRenderMap(_lmModels, TIERS, heroBar);
+      _lmFitStage();
+      return;
+    }
+
     byId('contentArea').innerHTML =
       _simTabStrip('flight') +
       heroBar +
+      (_lmWideEnough()
+        ? '<div class="lm-switch"><button type="button" class="lm-switch-btn" ' +
+            'onclick="window._lmSetView(\'map\')">' + uiIconInline('globe') + 'Map view</button></div>'
+        : '') +
       tierSections +
       (heroCard
         ? '<div class="ops-divider-wrap">' +
@@ -6333,6 +6376,286 @@ var LEVEL_THEMES = {
           '<section class="level-ops-section">' + heroCard + '</section>'
         : '');
 
+  }
+
+  /* ══ THE WORLD MAP ═══════════════════════════════════════════════════════
+   *
+   * A second way to draw renderLevelMap, not a second screen. Everything it
+   * shows is computed by the grid's own pass and handed over in _lmModels, so
+   * the two cannot drift about whether a level is locked or which one is for
+   * sale. renderLevelMap keeps its signature and its five call sites; the branch
+   * is inside.
+   *
+   * Why the country is the axis: phraseology changes by region, which is why
+   * progress is stored per level||country in the first place. The map draws an
+   * axis the syllabus already has.
+   *
+   * Desktop only, above 1100px — the breakpoint this stylesheet already declares.
+   * London, Dublin and Frankfurt fall inside 1.7% of the map's width and a card
+   * is 18% of it, so a phone would be nine cards fighting over the same corner.
+   * Below that width the grid renders unchanged, and the toggle is not offered.
+   *
+   * No library and no remote asset. sw.js caches only '/', so a tile source would
+   * break offline outright. The coastlines are one coarse path per landmass and
+   * the projection is three lines of equirectangular arithmetic. */
+
+  var _LM_W = 1180, _LM_H = 500, _LM_LAT_T = 80, _LM_LAT_B = -58;
+  function _lmX(lon) { return (Number(lon) + 180) / 360 * _LM_W; }
+  function _lmY(lat) { return (_LM_LAT_T - Number(lat)) / (_LM_LAT_T - _LM_LAT_B) * _LM_H; }
+
+  /* Coarse coastlines, lon/lat pairs. Deliberately low fidelity: this is a
+   * backdrop that has to read at 1100px on a dark ground, not an atlas. */
+  var _LM_LAND = {
+    north_america:[-168,65.5,-164,60,-152,58,-140,60,-132,54,-124,48,-123,38,-117,32,-110,23,-105,20,-97,16,-92,15,-87,13,-83,9,-79,9,-83,15,-88,21,-91,19,-95,19,-97,22,-97,26,-94,29,-89,29,-84,30,-82,25,-80,26,-81,32,-75,35,-74,40,-70,42,-67,45,-60,47,-56,51,-64,55,-78,63,-95,70,-110,69,-125,70,-140,70,-156,71],
+    greenland:[-45,60,-30,68,-22,70,-20,76,-30,82,-45,83,-58,82,-55,75,-50,68],
+    south_america:[-79,9,-75,11,-70,12,-62,10,-52,5,-50,0,-44,-2,-38,-5,-35,-8,-39,-14,-41,-22,-48,-25,-53,-33,-57,-38,-62,-40,-65,-45,-68,-50,-71,-54,-75,-50,-75,-45,-73,-40,-71,-33,-70,-25,-70,-18,-76,-14,-81,-6,-80,-2,-78,1,-77,8],
+    eurasia:[-10,36,-9,43,-1,44,3,43,12,44,18,40,23,38,27,41,30,41,36,36,36,31,34,31,43,13,52,13,57,25,57,30,50,30,48,30,56,26,62,25,67,25,72,20,73,16,77,8,80,13,84,19,87,21,91,22,95,16,98,8,104,1,105,10,108,15,110,21,117,23,122,31,122,37,126,40,130,43,135,48,141,53,143,59,150,59,160,61,170,60,178,65,179,68,170,70,160,70,140,73,130,74,110,76,95,78,80,74,70,73,60,70,50,69,40,68,33,70,28,71,22,68,16,68,12,65,10,60,5,60,8,55,4,52,-4,49,-2,44],
+    africa:[-17,15,-16,20,-10,26,-5,31,0,35,10,37,20,32,25,32,32,31,35,28,39,15,43,11,51,12,43,4,41,-2,40,-10,36,-18,33,-26,28,-33,20,-35,18,-33,13,-23,11,-16,9,-1,5,4,-4,5,-8,4,-13,8],
+    uk:[-5,50,-3,54,-3,58,-5,58,-6,55],
+    ireland:[-10,52,-6,52,-6,55,-10,54],
+    japan:[130,32,136,34,140,40,142,45,141,42,139,37,135,34,132,33],
+    australia:[113,-22,114,-27,118,-34,125,-32,132,-32,138,-35,145,-38,150,-37,153,-28,146,-19,142,-11,136,-12,130,-11,125,-14,122,-17,116,-20],
+    newzealand:[173,-35,178,-38,174,-41,171,-44,167,-46,170,-43,172,-40],
+    madagascar:[44,-16,50,-15,50,-25,45,-25],
+    indonesia:[95,5,104,2,110,-3,116,-3,119,-5,114,-8,105,-7,98,0],
+    philippines:[120,18,124,14,126,9,122,6,120,12],
+    iceland:[-24,65,-14,66,-14,63,-22,63]
+  };
+
+  /* Where each level sits, and where its card sits.
+   *
+   * The pin is derived from the country's coordinates. The CARD position is
+   * authored, and that is a deliberate trade rather than an oversight: nine
+   * levels in fixed places on a fixed stage need nine pairs of numbers, and a
+   * placement algorithm that must not oscillate needs considerably more than
+   * that. If the map earns its keep — the instrumentation below is how we find
+   * out — deriving the card positions is the next piece of work.
+   *
+   * A country with no entry here is NOT given a default position. A level
+   * dropped in the middle of the Atlantic because nobody noticed is worse than
+   * one listed plainly as unplaced, which is what happens instead. */
+  var _LM_PLACE = {
+    US: { lon: -73.8,  lat: 40.6,  card: [385,  40] },
+    GB: { lon: -0.45,  lat: 51.5,  card: [615,  15] },
+    CO: { lon: -74.1,  lat: 4.7,   card: [55,  375] },
+    CA: { lon: -123.2, lat: 49.2,  card: [20,   15] },
+    BR: { lon: -46.5,  lat: -23.4, card: [330, 395] },
+    IN: { lon: 72.9,   lat: 19.1,  card: [930, 120] },
+    MX: { lon: -99.1,  lat: 19.4,  card: [35,  150] },
+    AU: { lon: 151.2,  lat: -34,   card: [925, 290] },
+    ZA: { lon: 28.2,   lat: -26.1, card: [585, 405] }
+  };
+
+  // The checkpoints sit between the tiers they join, out over water.
+  var _LM_CP = {
+    1: { lon: -52, lat: 22 },
+    2: { lon: 13,  lat: 25 },
+    3: { lon: 55,  lat: -8 }
+  };
+
+  /* A level's country, and the coordinates for it.
+   *
+   * mapCountry from the sheet when it is there, the level's first country
+   * otherwise — which is the same thing today, because a level has had exactly
+   * one country since the curriculum was restructured. */
+  function _lmCountryOf(model) {
+    var meta = (_levelMeta && _levelMeta[model.level]) || {};
+    var raw  = meta.mapCountry || ((model.item.countries || [])[0] || {}).country || '';
+    return String(raw).trim().toUpperCase();
+  }
+  function _lmPlace(model) {
+    var c = _lmCountryOf(model);
+    var ui = null;
+    try { ui = getCountryUi(c); } catch (e) {}
+    var code = ui && ui.code ? String(ui.code).toUpperCase() : c.slice(0, 2);
+    return _LM_PLACE[code] || _LM_PLACE[c] || null;
+  }
+
+  /* Flags carry ids and reference them — us defines a..e, gb defines a and b —
+   * and #a resolves against the FIRST in document order. Nine flags on one
+   * screen is precisely when that bites, so each is namespaced on the way in.
+   * The same hazard exists at the other call sites and has its own ticket; this
+   * fixes it here, where the map would otherwise be visibly wrong. */
+  function _lmFlag(country, uid) {
+    var html = '';
+    try { html = getFlagHtml(country, 'lm-flag'); } catch (e) { return ''; }
+    return html
+      .replace(/id="([^"]+)"/g, 'id="' + uid + '-$1"')
+      .replace(/url\(#([^)]+)\)/g, 'url(#' + uid + '-$1)')
+      .replace(/(xlink:href|href)="#([^"]+)"/g, '$1="#' + uid + '-$2"');
+  }
+
+  /* The map is offered, not imposed, and never on a phone.
+   *
+   * 1100px is the breakpoint this stylesheet already declares. Below it the grid
+   * renders untouched — this app is a phone app first, with a PWA, push and an
+   * install screen, and a world map at 390px is nine cards in one corner. */
+  function _lmWideEnough() {
+    try { return window.innerWidth >= 1100; } catch (e) { return false; }
+  }
+
+  /* The stage is a fixed 1180x500 scaled to whatever width it gets.
+   *
+   * Scaling rather than reflowing is what makes the hand-authored card positions
+   * safe: a pin and its card keep their relationship at every width, so nothing
+   * has to be recomputed and no separation pass can oscillate. */
+  function _lmFitStage() {
+    var wrap  = document.querySelector('.lm-stage-wrap');
+    var stage = document.querySelector('.lm-stage');
+    if (!wrap || !stage) return;
+    var scale = Math.min(1, wrap.clientWidth / _LM_W);
+    stage.style.transform = 'scale(' + scale + ')';
+    wrap.style.height = (_LM_H * scale) + 'px';
+  }
+  window.addEventListener('resize', function () {
+    if (document.querySelector('.lm-stage')) _lmFitStage();
+  });
+
+  function _lmViewKey() { return 'aero_levelmap_view'; }
+  function _lmViewIsMap() {
+    try { return localStorage.getItem(_lmViewKey()) === 'map'; } catch (e) { return false; }
+  }
+  window._lmSetView = function (v) {
+    try { localStorage.setItem(_lmViewKey(), v); } catch (e) {}
+    /* Instrumented, because the question is not whether it looks better.
+     * apiLogClientEvent already exists; if the map does not move how many people
+     * start a level, it is prettier and nothing else, and that gets written down. */
+    try {
+      if (window._reportClientEvent) window._reportClientEvent('levelmap_view', { view: v });
+    } catch (e) {}
+    renderLevelMap(AppState.training.catalog);
+  };
+
+  function _lmRenderMap(models, tiers, heroBar) {
+    var uid = 'lm' + Date.now().toString(36);
+    var unplaced = [];
+
+    var geo = '';
+    Object.keys(_LM_LAND).forEach(function (k) {
+      var a = _LM_LAND[k], d = '';
+      for (var i = 0; i < a.length; i += 2) {
+        d += (i ? 'L' : 'M') + _lmX(a[i]).toFixed(1) + ' ' + _lmY(a[i + 1]).toFixed(1) + ' ';
+      }
+      geo += '<path d="' + d + 'Z"/>';
+    });
+
+    // The route, level to checkpoint to level, in the order a student walks it.
+    var seq = [];
+    tiers.forEach(function (t) {
+      t.levels.forEach(function (n) {
+        var m = null;
+        for (var i = 0; i < models.length; i++) if (models[i].level === n) m = models[i];
+        if (m && _lmPlace(m)) seq.push({ kind: 'level', model: m, at: _lmPlace(m) });
+      });
+      if (_LM_CP[t.examNum]) seq.push({ kind: 'cp', examNum: t.examNum, at: _LM_CP[t.examNum] });
+    });
+
+    var edges = '';
+    for (var i = 0; i < seq.length - 1; i++) {
+      var A = seq[i].at, B = seq[i + 1].at;
+      var walked = seq[i].kind === 'level' && seq[i].model.isCompleted;
+      edges += '<line x1="' + _lmX(A.lon).toFixed(1) + '" y1="' + _lmY(A.lat).toFixed(1) +
+               '" x2="' + _lmX(B.lon).toFixed(1) + '" y2="' + _lmY(B.lat).toFixed(1) +
+               '"' + (walked ? ' class="lm-edge-done"' : '') + '/>';
+    }
+
+    var pins = '', cards = '';
+    models.forEach(function (m) {
+      var place = _lmPlace(m);
+      if (!place) { unplaced.push(m); return; }
+      var country = _lmCountryOf(m);
+      var meta    = (_levelMeta && _levelMeta[m.level]) || {};
+      var state   = m.isCompleted ? 'complete' : m.planLock ? 'upgrade' : m.locked ? 'locked' : 'current';
+
+      pins +=
+        '<div class="lm-pin lm-pin--' + state + '" style="left:' + _lmX(place.lon).toFixed(1) +
+          'px;top:' + _lmY(place.lat).toFixed(1) + 'px;">' +
+          (m.locked && !m.planLock ? uiIconInline('locked') : _lmFlag(country, uid + '-' + m.level)) +
+        '</div>';
+
+      /* Every card is a button and goes to openLevelCountries and nowhere else.
+       *
+       * That function writes selectedLevelData, which five "back" buttons in the
+       * simulator read; a map that called startCountryTraining directly would
+       * skip that write and leave all five pointing at null. It also carries the
+       * two-lock branch — lockedByPlan opens the plans modal, everything else
+       * explains itself — and telling somebody their level is shut without
+       * offering the way in is how a student is lost. */
+      var phases = (meta.phases || []).slice(0, 3).map(function (p) {
+        return '<span class="lm-phase">' + safeText(p) + '</span>';
+      }).join('');
+
+      cards +=
+        '<button type="button" class="lm-card lm-card--' + state + '"' +
+          ' style="left:' + place.card[0] + 'px;top:' + place.card[1] + 'px;"' +
+          ' onclick="openLevelCountries(' + m.level + ')">' +
+          '<span class="lm-card-head"><span>LEVEL ' + m.level + '</span>' +
+            '<span>' + safeText(meta.tag || '') + '</span></span>' +
+          '<span class="lm-card-name">' + safeText(meta.name || ('Level ' + m.level)) + '</span>' +
+          '<span class="lm-card-sub">' + safeText(meta.accent || '') + '</span>' +
+          '<span class="lm-card-detail">' +
+            (meta.description ? '<span class="lm-card-desc">' + safeText(meta.description) + '</span>' : '') +
+            (phases ? '<span class="lm-phases">' + phases + '</span>' : '') +
+            '<span class="lm-card-meta">' + m.total + ' scenarios · ' + m.done + ' completed</span>' +
+          '</span>' +
+          '<span class="lm-card-foot">' +
+            '<span class="lm-chip lm-chip--' + state + '">' + safeText(m.statusText.toUpperCase()) + '</span>' +
+            '<span class="lm-frac">' + m.done + '/' + m.total + ' scenarios</span>' +
+          '</span>' +
+        '</button>';
+    });
+
+    var cpMarks = '';
+    tiers.forEach(function (t) {
+      var at = _LM_CP[t.examNum];
+      if (!at) return;
+      var done = 0, total = 0;
+      models.forEach(function (m) { if (m.tier === t.num) { total++; if (m.isCompleted) done++; } });
+      var passed = total > 0 && done >= total;
+      cpMarks +=
+        '<div class="lm-cp' + (passed ? ' lm-cp--passed' : '') + '" style="left:' + _lmX(at.lon).toFixed(1) +
+          'px;top:' + _lmY(at.lat).toFixed(1) + 'px;">' +
+          '<span class="lm-cp-ring">' + uiIconInline(passed ? 'passed' : 'locked') + '</span>' +
+          '<span class="lm-cp-name">Checkpoint ' + t.examNum + '</span>' +
+          '<span class="lm-cp-state">' + (passed ? 'READY TO SIT' : 'LOCKED') + '</span>' +
+          '<span class="lm-cp-sub">' + (passed
+            ? 'Opens ' + safeText(t.name === 'Expert' ? 'level 10' : 'the next tier')
+            : 'Complete Levels ' + t.levels[0] + '–' + t.levels[t.levels.length - 1]) + '</span>' +
+        '</div>';
+    });
+
+    /* A level with nowhere to stand is SHOWN, not dropped and not guessed at.
+     * The strip is visible under the map with the same cards, so a country that
+     * has not been given coordinates is a thing somebody notices. */
+    var strip = '';
+    if (unplaced.length) {
+      strip = '<div class="lm-unplaced"><span class="lm-unplaced-label">NOT ON THE MAP</span>' +
+        unplaced.map(function (m) {
+          var meta = (_levelMeta && _levelMeta[m.level]) || {};
+          return '<button type="button" class="lm-unplaced-card" onclick="openLevelCountries(' + m.level + ')">' +
+            'LEVEL ' + m.level + ' · ' + safeText(meta.name || '') +
+            ' <span>' + safeText(_lmCountryOf(m) || 'no country') + '</span></button>';
+        }).join('') + '</div>';
+    }
+
+    var tierBar = tiers.map(function (t) {
+      var done = 0, total = 0;
+      models.forEach(function (m) { if (m.tier === t.num) { total++; if (m.isCompleted) done++; } });
+      var pct = total ? Math.round(done / total * 100) : 0;
+      return '<section class="lm-tier"><h2>TIER ' + t.num + '<span>' + safeText(t.name.toUpperCase()) + '</span></h2>' +
+        '<div class="lm-tier-count">' + done + ' / ' + total + ' complete</div>' +
+        '<div class="lm-tier-bar"><i style="width:' + pct + '%"></i></div></section>';
+    }).join('');
+
+    return _simTabStrip('flight') + heroBar +
+      '<div class="lm-switch"><button type="button" class="lm-switch-btn" onclick="window._lmSetView(\'grid\')">' +
+        uiIconInline('bands') + 'Grid view</button></div>' +
+      '<div class="lm-tiers">' + tierBar + '</div>' +
+      '<div class="lm-stage-wrap"><div class="lm-stage">' +
+        '<svg class="lm-geo" viewBox="0 0 ' + _LM_W + ' ' + _LM_H + '" aria-hidden="true">' + geo + '</svg>' +
+        '<svg class="lm-edges" viewBox="0 0 ' + _LM_W + ' ' + _LM_H + '" aria-hidden="true">' + edges + '</svg>' +
+        pins + cpMarks + cards +
+      '</div></div>' + strip;
   }
 
   function renderCountryPreviewFlags(countries) {

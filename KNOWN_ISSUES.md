@@ -1675,3 +1675,79 @@ matters. Filed.
 
 **What is not verified (rule 6).** That the six screens still render identically.
 That is geometry and needs a browser.
+
+---
+
+## The level map has a world view, and both drawings read one computation
+
+**Status** **Fixed / shipped** — `renderLevelMap` branches inside; the grid is
+untouched below 1100px and when the toggle says grid.
+
+**No bot ID.** Requested by the instructor on 2026-09-10 with a working mockup.
+
+**What it is.** A second way to draw `renderLevelMap`, placing each level on a
+world map by its country. Not a new feature: every field it shows already existed.
+The country is a reasonable axis because phraseology changes by region, which is
+why progress is stored per `level||country` in the first place.
+
+**How losing things was prevented.** The grid's own pass computes the state —
+locked, complete, the plan lock, the status words, the region counts — and records
+it in `_lmModels` as a by-product. Both views read that one array. The grid's
+markup was **not** restructured: it is the view that works today, so it carries no
+regression risk, and the map is a new function consuming the model.
+
+`test/level-map-parity.test.js` runs the map on a synthetic catalogue and checks
+every level is drawn exactly once, that each card carries the state its model was
+given, and that **exactly one** level says Upgrade — the failure most easily
+reintroduced by a redraw, since every level past the plan carries `lockedByPlan`
+and offering it on all of them implies level 5 is one payment away.
+
+**One entry point, deliberately.** Every card calls `openLevelCountries(n)` and
+nothing else. That function writes `selectedLevelData`, which five "back" buttons
+in the simulator read — a map calling `startCountryTraining` directly would skip
+that write and leave all five pointing at null — and it carries the two-lock
+branch, so a plan-locked level offers the plans modal rather than a dead end. The
+suite fails if the map ever calls past it.
+
+**Flag ids are namespaced here.** `FLAG_SVG` entries define short ids and
+reference them — `us` defines `a` to `e`, `gb` defines `a` and `b` — and `#a`
+resolves against the first in document order. Nine flags on one screen is exactly
+when that bites, so each is prefixed on the way in. The same hazard exists at the
+other 20 `getFlagHtml` call sites and has its own ticket; this fixes it where the
+map would otherwise be visibly wrong.
+
+**A level with no coordinates is shown, not guessed at.** There is no default
+position. A country with no entry appears in a visible strip below the map, still
+reachable, rather than being dropped or dumped in the Atlantic.
+
+**Card positions are authored, and that is a trade rather than an oversight.** The
+pin derives from the country's coordinates; the card does not. Nine levels on a
+fixed stage need nine pairs of numbers, and a placement algorithm that must not
+oscillate needs a great deal more. The stage is a fixed 1180×500 scaled by
+transform, so a pin and its card keep their relationship at every width and
+nothing is ever recomputed. The mockup supplied for this work used the same
+approach, despite the ticket describing a derived one — that discrepancy was
+raised before building. Deriving them is the next piece of work **if** the map
+earns it.
+
+**Which is a question with a number, not an opinion.** `_lmSetView` reports
+through the client event log, so levels started from the map versus the grid can
+be compared. If it does not move that figure it is prettier and nothing else, and
+that should be written down here.
+
+**Desktop only, at the 1100px breakpoint this stylesheet already declares.**
+London, Dublin and Frankfurt fall inside 1.7% of the map's width and a card is
+18% of it. Below that width the grid renders unchanged and the toggle is not
+drawn. This is a phone-first product — PWA, push, install screen, a 20:00 streak
+cron — so the phone keeps the view that works on it.
+
+**Every colour is a token.** The mockup carried its own palette. None of it
+survived: this app has a light theme, and a literal that reads on the dark ground
+disappears on the other. The design-system suites caught three violations on the
+first pass — an untokenised shadow, a fifth transition speed, and four new
+letter-spacing steps written without leading zeros, which also counted as a second
+way of writing `0.12em`. All three were conformed to, not exempted.
+
+**What is not verified (rule 6).** That it looks right. Card positions, overlap at
+widths between 1100 and 1600, and whether the coastlines read at all are geometry,
+and nothing in this repository can see them.
