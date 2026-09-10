@@ -15122,6 +15122,22 @@ var LEVEL_THEMES = {
     var a = AppState.accessStatus;
     if (typeof fn !== 'function') return;
 
+    /* Eight buttons, one guard.
+     *
+     * The examination runs inside the ordinary app shell — unlike the simulator it
+     * never calls enableSimulatorFocusMode, so Home, Progress, Crew and Shop stay
+     * live on both the desktop and the mobile bar throughout a sitting. Every one
+     * of them routes through here, and none of them used to ask. A student half an
+     * hour into an exam lost the lot to one mis-tap, and the app said nothing
+     * before or after.
+     *
+     * Guarded and cross-IIFE, so a missing definition cannot become the
+     * ReferenceError that takes navigation down with it. If the exam module is not
+     * loaded there is no sitting to protect, and this is a no-op. */
+    try {
+      if (window._teaConfirmLeave && !window._teaConfirmLeave()) return;
+    } catch (e) {}
+
     var ca = byId('contentArea');
     if (!ca) { fn(); return; }
 
@@ -30313,7 +30329,62 @@ function _showReportScreen(json) {
     }
   };
 
+  /* Is there a sitting to lose.
+   *
+   * _t and _sc are the two exam modes and both have to answer. The report being
+   * on screen is what makes it safe to leave: _t._examDone is NOT that test — it
+   * means the answering phase is over and the input bar is locked, and grading
+   * runs after it. Leaving during grading loses the result of a sitting that was
+   * fully given, which is the worst moment of all.
+   *
+   * False on the Begin screen and false once the report is up, so the question is
+   * only ever asked when there is something behind it. A guard that asks every
+   * time is a guard people learn to click through. */
+  window._teaSittingInProgress = function () {
+    try {
+      if (_t._studentView) return false;                              // report is up
+      if (_sc.running || _t._started) return true;                    // answering
+      if (_t._finishing || Number(_t._awaitingFinalReport || 0) > 0) return true;  // marking
+      return false;
+    } catch (e) { return false; }
+  };
+
+  /* True if it is all right to leave. Asks only when it is not.
+   *
+   * window.confirm rather than a styled modal, for two reasons. It is already how
+   * this app asks before something irreversible — a dozen call sites — and a
+   * custom dialog cannot help on the beforeunload path anyway, where the browser
+   * insists on its own. One mechanism for one rule.
+   *
+   * The wording names what is lost. "Are you sure?" is a question nobody reads. */
+  window._teaConfirmLeave = function () {
+    if (!window._teaSittingInProgress()) return true;
+    return window.confirm(
+      'Your examination is in progress.\n\n' +
+      'If you leave now, your answers and recordings are lost and cannot be ' +
+      'recovered. You will have to sit the test again from the beginning.\n\n' +
+      'Leave anyway?'
+    );
+  };
+
+  /* Back, reload, close, swiped away.
+   *
+   * There is no pushState anywhere in this app, so the browser's back button does
+   * not navigate between screens — it leaves the site. beforeunload is the only
+   * thing that can catch that, and it is a weak instrument: the browser writes its
+   * own message and ignores ours, and this file already records that it often does
+   * not fire at all on mobile Safari. It is worth binding because it costs four
+   * lines and catches the desktop case, and it is worth saying plainly that it is
+   * not the layer doing the work. The in-app guards are. */
+  window.addEventListener('beforeunload', function (e) {
+    if (!window._teaSittingInProgress()) return;
+    e.preventDefault();
+    e.returnValue = '';     // the spec's way of asking; the text is the browser's
+    return '';
+  });
+
   window._teaExitToHome = function() {
+    if (!window._teaConfirmLeave()) return;
     window._teaStopAll();
     if (typeof window.renderHome === 'function') window.renderHome();
     else window.location.reload();

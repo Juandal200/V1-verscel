@@ -489,3 +489,83 @@ that label in.
 *Not in scope, and confirmed distinct.* Only one "Retry" in this card
 (Scripts.html:10928). The other 30+ in Scripts.html belong to the home reconnect,
 the exams, the TEA examiner and the test-result screens.
+
+---
+
+## Admin and Analytics navigation bypasses the sitting guard
+
+**No bot ID.** Found 2026-09-10 while building the sitting guard.
+
+**Source** Found during other work · reported 2026-09-10
+**Severity** Low — staff-only surface
+**Area** `Index.html:136-137`, the top navigation
+
+**Observed** Every student-facing nav button calls `_navTo(fn)`, which now asks
+before abandoning a live examination. The Admin and Analytics buttons call
+`renderAdminNav()` and `renderAdminAnalytics()` directly, so they skip it.
+
+**Expected** Either they route through `_navTo` like the rest, or they carry the
+guard themselves.
+
+**Done when** `DERIVED` Both buttons ask before abandoning a live sitting, and
+`test/sitting-guard.test.js` no longer needs to whitelist them.
+
+**Status** Open — deliberately out of scope of the guard commit. Changing markup
+outside the exam flow is a drive-by under rule 4, and an admin sitting the exam is
+a rare case. The suite pins the count at exactly two so a third cannot appear
+unnoticed.
+
+---
+
+## A simulator route in progress has no guard either
+
+**No bot ID.** Found 2026-09-10 while building the sitting guard.
+
+**Source** Found during other work · reported 2026-09-10
+**Severity** Medium — student-facing, same shape as the exam defect
+**Area** `renderScenarioStageImmersive`, the simulator route flow
+
+**Observed** The exam now asks before a sitting is abandoned. A simulator route in
+progress does not. It is less costly than losing an exam — phases are recorded as
+they are completed rather than all at the end — but a student mid-route still
+loses the current phase and the run's continuity with no warning.
+
+**Expected** A decision about whether the same question is owed, and the same
+answer applied everywhere it is.
+
+**Done when** `UNDERIVABLE`
+
+**Status** Open — needs a product decision before code. The simulator uses
+`enableSimulatorFocusMode`, so its exposure is smaller than the exam's was; whether
+that is small enough to leave alone is not a question the repository can answer.
+
+---
+
+## A sitting cannot survive a crash, only a mis-tap
+
+**No bot ID.** Found 2026-09-10 while building the sitting guard.
+
+**Source** Found during other work · reported 2026-09-10
+**Severity** Medium
+**Area** `_t` in the TEA module
+
+**Observed** `_t` is a plain in-memory object. There is no draft, no server-side
+partial and no resume. The guard shipped alongside this ticket stops accidental
+navigation, but a dead battery, a crashed tab or a page evicted by the browser
+still costs the candidate the whole examination.
+
+**Expected** A sitting interrupted by something other than a deliberate exit can be
+resumed, or at minimum its completed answers survive to be graded.
+
+**Done when** `DERIVED` A sitting interrupted by a page reload can be resumed or
+submitted from what was already answered.
+
+**Status** Open — and it is not small. `_t.history` is text and would fit anywhere,
+but `_t.segments` holds roughly two dozen base64 recordings, well past
+localStorage's limit, so durable storage means IndexedDB. Persisting the history
+alone is worse than useless: without the audio the pipeline cannot grade, and the
+sitting would fall to the text-only grader, which is the path that produced every
+straight-1 result on record.
+
+**Notes** The guard is the seatbelt. This is the airbag, and it is the one that
+matters when the failure is not the student's doing.

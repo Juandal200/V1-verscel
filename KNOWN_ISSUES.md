@@ -1417,3 +1417,59 @@ carry it identically.
 **What this does not fix.** Nothing here improves the evidence either grader is
 given. A rubric is only as good as the transcript under it, and the defect above
 this entry is why that mattered.
+
+---
+
+## Leaving a sitting mid-examination asked nothing and lost everything
+
+**Status** **Fixed** — `_navTo`, `_teaExitToHome` and `beforeunload` all ask before
+a live sitting is abandoned. Recorded because the exposure was larger than the
+button that got pressed, and because the fix is a seatbelt and not an airbag.
+
+**No bot ID.** Reported by the instructor on 2026-09-10, from losing a sitting
+mid-exam to a mis-tap.
+
+**What was reported.** Half an hour into the examination, one wrong button, back
+to Home, everything gone. No warning before, no recovery after.
+
+**How much was reachable.** The exam runs inside the ordinary app shell. Unlike
+the simulator it never calls `enableSimulatorFocusMode`, so Home, Progress, Crew
+and Shop stay live on **both** the desktop bar and the mobile bar for the whole
+sitting — eight buttons, one tap each, none of them asking. All eight route
+through `_navTo`, which is why one guard covers them.
+
+**What was NOT lost, and is worth knowing.** The attempt is not spent. An attempt
+is counted only where a row carries a band, and `_icaoSittingsFor_` skips unmarked
+rows on purpose — *"a candidate is charged for a result, not for a row."* The exam
+hold is also released, because `_teaExitToHome` calls `_teaStopAll`. So the cost
+was the half hour, not the allowance.
+
+**The predicate, and the trap in it.** `_t._examDone` is **not** a test for "safe
+to leave": it means the answering phase is over and the input bar is locked, and
+grading runs after it. Keying the guard off that flag would have waved a student
+out **during marking**, losing the result of a sitting that had been fully given —
+the worst moment of all. The test for safe is `_t._studentView`: the report is on
+screen. Asserted directly in `test/sitting-guard.test.js`.
+
+**Why `window.confirm` and not a styled modal.** It is already how this app asks
+before something irreversible, at a dozen call sites, and a custom dialog cannot
+help on the `beforeunload` path — browsers insist on their own text there. One
+mechanism for one rule beats two that can disagree.
+
+**What `beforeunload` is worth here.** Little, honestly. There is no `pushState`
+anywhere in the app, so the browser's back button leaves the site rather than
+moving between screens, and `beforeunload` is the only thing that can catch it.
+This file already records that it often does not fire at all on mobile Safari.
+It is bound because it costs four lines and catches the desktop case. **The in-app
+guards are what actually do the work.**
+
+**What this does not do.** It prevents accidents. It does not prevent loss. A dead
+battery, a crashed tab or an evicted page still takes the sitting, because `_t` is
+a plain in-memory object with no draft and no resume. That is filed separately —
+see the ticket on persisting a sitting — and it is a much larger piece of work,
+because `_t.segments` holds two dozen base64 recordings and will not fit in
+localStorage.
+
+**What would reopen it.** A navigation route that does not go through `_navTo`.
+The suite pins the inventory: exactly two buttons bypass it today, both admin, and
+a third would fail the test.
