@@ -1017,9 +1017,33 @@ action — not a timer.
 
 ## The first call of a cold session takes ~49s and the proxy gives up at 45s
 
-**Status** **Open — measured, not explained.** Left open deliberately rather than
-guessed at. It is not a blocker: it hits one call per cold session and the boot
-retry recovers on the next attempt, which is warm.
+**Status** **Fixed 2026-09-10 — explained, then deleted.** Kept in full because the
+diagnosis is the useful part: four hypotheses were wrong before the right one, and
+the reason it hid for two days is a pattern, not an accident.
+
+**What it was.** `TourService.getActiveTour()` — a function that reads like an
+accessor. On an expired tour it closed the old tour, snapshotted every active user
+with one `appendRow` each, awarded commendations and opened the next one. Inline,
+synchronously, inside whichever student's request arrived first after the deadline.
+
+Four properties made it invisible:
+
+1. A batch job wearing a getter's name.
+2. `_weekStart` set the deadline at Monday 19:00 UTC — 2:00 PM Colombia, the middle
+   of a teaching afternoon. The batch was scheduled for peak.
+3. No lock. `dbWithScriptLock_` appeared zero times in the whole file, so two
+   students booting in the same second each ran the entire batch and each appended
+   their own snapshot rows.
+4. `getMyCompletedLevels` wrapped the call in `try { … } catch(e) {}` with an empty
+   body. Failing at second 44 produced a normal-looking response and a **success**
+   in the Executions panel.
+
+**It had two doors, not one.** The rank badge called it on every boot; the rankings
+tab called it again through `getWeeklyLeaderboard`. The original diagnosis found
+only the first, and closing that alone would have left the other open.
+
+**How it was closed.** The instructor's call, and the right one: delete the tour
+rather than fix it. Rank is XP now, with no weekly window. See the entry below.
 
 **No bot ID.** Found in the Executions panel on 2026-09-08 while measuring the
 Phase 1–3 backend work.
@@ -1848,3 +1872,72 @@ was assumed.
 **What is not verified (rule 6).** Whether the map and the square land above the
 fold, whether login feels slower, and the Modules sheet itself — this repository
 cannot see what that row's status is.
+
+---
+
+## The tour is gone and the rank is XP
+
+**Status** **Shipped** — 2026-09-10, three commits. Plan and checklist in
+`WORKLOG.md` under that day.
+
+**No bot ID.** The instructor's decision, after reading the diagnosis of the 49s
+cold start above: stop with the tour logic, rank on pure XP.
+
+**Why deleting beat fixing.** The proposed repair was three changes — move the
+calculation out of the getter, batch the writes, align the trigger to the boundary
+— plus an idempotency key so a partial run could be detected. Deleting removed all
+of it, plus the `O(U² · W)` scans in `_currentStreak` and `_isComeback`, plus the
+6-minute-timeout exposure, plus a weekly email about standings the app no longer
+shows.
+
+**What went.** `getActiveTour`, `_createTour`, `_closeTourRow`, `_snapshotAllUsers`,
+`_checkWeeklyTopPilot`, `_checkCommendations`, `_currentStreak`, `_isComeback`,
+`forceCloseTour`, the weekly reset email and its template, the email log, the
+commendation definitions, the admin Tour Reset tab and five endpoints. TourService
+went from 960 lines to 355 and no longer writes to anything.
+
+**What students lose.** The tour banner and countdown, the medallion strip, Double
+XP weeks, commendations, career points with their streak and comeback multipliers,
+and the weekly rank reset. Stated plainly before the decision was taken.
+
+**What replaced the banner.** Total XP and levels complete, in the same element
+with the same styling. Deleting the countdown and leaving the hole would have made
+the panel look broken rather than changed.
+
+**The one thing that had to keep its exact spelling.** `VRBonusLog` holds
+idempotency keys shaped `TOUR_2026_W37`, written by `_tourId` — including its quirk
+of pairing the original year with the ISO-adjusted week, which is why 2025-12-31
+keys as W01 of 2025. `_vrWeekKey_` reproduces that rather than improving it: a
+different format would match none of the existing rows and hand every student every
+bonus a second time. `test/xp-only.test.js` pins five dates including the year
+boundary.
+
+**Left alone deliberately.** The `TourProgress` and `Commendations` sheets still
+hold their rows, read by nothing. A refactor does not destroy data.
+
+**One action outstanding.** A live Monday 19:00 UTC trigger still points at
+`sendWeeklyResetEmails`, which no longer exists. `deleteWeeklyEmailTrigger()` is
+kept for exactly that and has no setup counterpart any more. Until it is run once
+from the editor, a trigger fires weekly at a missing function.
+
+**What is not verified (rule 6).** That the cold start is actually gone — that
+needs a real cold boot after this deploys. And whether anyone misses the medallions.
+
+---
+
+## No ceiling on spend, accepted
+
+**Status** **Accepted, not fixed** — 2026-09-10, the instructor's call when the
+phases were ordered.
+
+**What it is.** There is no cap, quota, alert or daily limit on either the Google
+TTS key or the OpenAI key. Nothing anywhere counts what is spent.
+
+**What is accepted.** Once the proxies require a session, spending needs a
+logged-in student. But a logged-in student in a retry loop — or a plain bug, which
+needs no attacker at all — still has no ceiling, and the first notice would be the
+invoice.
+
+**Why it is written down.** Accepted is a decision. Forgotten is not. Reversing it
+is a budget cap and an alert on each key, in the provider console, and needs no
+code.

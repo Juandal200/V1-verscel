@@ -17,6 +17,50 @@ Newest day first.
 
 ## 2026-09-10
 
+### The tour is deleted and the rank is XP
+
+**Plan.** Three commits. Every student path stops reaching `getActiveTour` — the
+rank badge and, less obviously, the rankings tab. The Crew screen is redenominated
+in XP. Then the batch, the weekly email and the admin tab are deleted rather than
+left unreachable.
+
+**Criterion.** Stated: stop with the tour logic; rank on pure XP.
+
+`DERIVED`, and a change from the shape agreed before starting: the VR bonus key is
+`(user, level, ISO week)` rather than `(user, level)`. It keeps today's behaviour —
+a bonus stays repeatable weekly — because deleting the tour is a plumbing change,
+and turning a repeatable reward into a once-ever one is a gameplay change nobody
+asked for. One line to flip.
+
+`DERIVED`: the tour banner's slot is reused for total XP rather than emptied.
+Deleting the countdown and leaving the hole makes a panel look broken instead of
+changed.
+
+`DERIVED`: `TourProgress` and `Commendations` keep their rows, read by nothing.
+
+**Why, in one line.** The weekly batch had two student doors, not one, and the
+second was not in the diagnosis — so it was deleted rather than repaired.
+
+**Checklist.**
+
+- [ ] Log in cold: no 49-second first call
+- [ ] The rank badge counts every level ever finished
+- [ ] It does not drop to zero on a Monday afternoon
+- [ ] Crew → **This Week** and **All Time** both read XP, and neither is empty
+- [ ] Where the tour countdown was, total XP and levels complete
+- [ ] No medallion strip, no "TOUR 12", no 2× XP badge
+- [ ] Admin → no **Tour Reset** tab in the strip
+- [ ] Finishing a level still awards XP; the tier still moves at 1000 / 3000 / 8000
+- [ ] A VR bonus can still be earned again the following week
+- [ ] Streaks, daily challenge and certificates unchanged
+
+**One action for the editor.** Run `deleteWeeklyEmailTrigger()` once. A live Monday
+19:00 UTC trigger still points at a function that no longer exists.
+
+**Not verifiable from the repo.** That the cold start is gone — that needs a real
+cold boot after deploy.
+
+
 ### The lock gets measured, and LoginCodes stops growing into it
 
 **Plan.** Two commits. `apiAdminMeasureLock` joins the three diagnostics already on
