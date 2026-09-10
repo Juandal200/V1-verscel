@@ -1180,3 +1180,48 @@ file whose stylesheet already carries 73 duplicated top-level selectors.
 is geometry, and `getFlagHtml` degrades to a two-letter box for a country with no
 SVG — of which there are none in `COUNTRY_UI` today, asserted by
 `test/sitting-report.test.js`.
+
+---
+
+## 73 top-level selectors in Styles.html are declared twice
+
+**Status** **Open — filed, not fixed.** Found 2026-09-09 while placing the
+read-back card's reserved height. Not touched: deduplicating a stylesheet by hand
+is a change with no test that can hold it, on a file whose effects are only
+visible in a browser.
+
+**No bot ID.** Found during other work.
+
+**What it is.** 73 selectors are declared more than once at top level — not in a
+media query, not in a theme block, just twice in the same cascade. 30 of them are
+in the simulator's own namespace. Where the two copies differ, **the later one
+wins and the earlier one is dead code that reads as if it were live.**
+
+**The one that was caught.** `.sim-feedback-box` at line 2770 declares
+`min-height: 56px` and at line 3958 declares `min-height: 50px`. The first has
+never had any effect. The read-back card needed exactly that property, and an
+edit written at 2770 — the first hit any search returns — would have changed
+nothing and looked correct in the diff. The reserve is on `#simFeedbackBox`
+instead, because an ID outranks both copies and cannot land on the wrong one.
+
+**Why it matters more here than in most codebases.** This is the two-copies rule
+in the file least able to show it. A duplicated function can be caught by a
+parity test; duplicated CSS produces no error, no warning and no failing test —
+it silently discards half of what is written. CLAUDE.md records five instances of
+this pattern in the JavaScript, including a live security exposure. This is the
+same shape, at 73x, and it has been sitting there the whole time.
+
+**A partial list, simulator only:** `.sim-action-row` [2798, 3675],
+`.sim-feedback-box` [2770, 3958], `.sim-feedback-box.success` [2792, 3980, 4090],
+`.sim-live-dot::before` [2578, 3483, 4026], `.sim-plane-icon` [2672, 3603, 4015],
+`.sim-radar-sweep` [2659, 3590, 4011], `.sim-radio-console` [3622, 4056],
+`.sim-side-item` [2723, 3698], `.sim-readback-priority-input:focus` [3670, 4067].
+
+**How to work with it until it is fixed.** Before editing any rule in Styles.html,
+check whether the selector is declared more than once, and edit the LAST one. A
+new element is safer given a new class than given an existing one.
+
+**What closing it would need.** Not a hand pass. A script that parses the sheet,
+reports every duplicate with its declarations, and a decision per selector about
+whether the earlier copy was meant to be overridden or was a paste. Then a
+before-and-after screenshot of every screen, because nothing else can confirm it.
