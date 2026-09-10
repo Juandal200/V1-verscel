@@ -5,14 +5,38 @@ export const config = {
   },
 };
 
+import { sessionValid, tokenFrom, SESSION_UNAVAILABLE } from '../lib/session.mjs';
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Session-Token');
 
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
   if (req.method !== 'POST') {
     res.status(405).json({ ok: false, error: 'Method not allowed' });
+    return;
+  }
+
+  /* Who is asking, before OpenAI is billed.
+   *
+   * This endpoint took raw audio from anyone on the internet and paid for the
+   * transcription. The body is binary, so the token arrives in a header.
+   *
+   * It answers with the same shape as a missing key — ok:false, noKey — because
+   * the client already treats that as "Whisper is unavailable" and falls back to
+   * the browser's own speech recognition. So a refusal costs the student a less
+   * accurate transcript rather than their answer, and costs the budget nothing,
+   * which is why failing CLOSED here is affordable when it would not be
+   * elsewhere. */
+  const caller = await sessionValid(tokenFrom(req));
+  if (!caller || caller === SESSION_UNAVAILABLE) {
+    res.status(200).json({
+      ok: false,
+      noKey: true,
+      code: caller === SESSION_UNAVAILABLE ? 'SESSION_UNCONFIRMED' : 'FORBIDDEN',
+      error: 'Not authorised to transcribe.',
+    });
     return;
   }
 

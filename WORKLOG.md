@@ -17,6 +17,53 @@ Newest day first.
 
 ## 2026-09-10
 
+### Nothing spends money for a stranger
+
+**Plan.** `lib/session.mjs` — outside `api/`, because every file in that directory
+becomes a public route, which is why two drifted copies of `sessionValid` already
+exist. `api/tea-audio.mjs` and `api/whisper.mjs` import it and refuse before
+touching a key. The `doPost` allowlist stops matching names that end in `_`.
+
+**Criterion.** Stated: anyone on the internet can no longer spend the Google TTS
+or OpenAI budget.
+
+`DERIVED`: `api/tea.mjs` and `api/tea-pipeline.mjs` keep their own copies for now.
+Migrating them touches the live exam path and their return shapes differ, so the
+callers would change too. They move once the shared import is proven on a preview
+— sequencing the risk, not avoiding it.
+
+`DERIVED`: whisper fails CLOSED on an unconfirmed session, answering `noKey` — the
+shape the client already reads as "Whisper is unavailable", which trips the
+browser-speech fallback. A refusal costs a less accurate transcript, not the
+student's answer, and costs the budget nothing.
+
+`DERIVED`: the session verdict is cached five minutes in warm proxy memory. A
+token revoked by signing out can still transcribe for up to five minutes on one
+instance. For "may you use the transcription budget" that is the right trade.
+
+**Why, in one line.** Three endpoints billed a third party for anyone who could
+send a POST, and `api/tea-pipeline.mjs` already carried a secret — somebody
+recognised the class and closed one member of it.
+
+**Checklist.**
+
+- [ ] Speak an answer in a scenario — the transcript comes back as it does today
+- [ ] Start an exam — the examiner's audio plays
+- [ ] Do both again straight away — no slower the second time
+- [ ] Sign out, then POST to `/api/whisper` by hand — refused
+- [ ] POST to `/api/tea-audio` with no token — refused
+- [ ] POST `{"action":"apiError_"}` to `/api/gas` — `Not allowed`
+- [ ] POST a real action with a valid token — still works
+- [ ] Turn the network off mid-answer — browser fallback, not a lost answer
+
+**How it ships.** On a branch. Vercel builds a preview; the two spoken checks
+happen there before anything reaches `main`, because whisper is on the answer path
+and nobody has previously imported a module from outside `api/` in this project.
+
+**Not verifiable from the repo.** Whether Vercel bundles an import from outside
+`api/`. That is what the preview answers.
+
+
 ### The tour is deleted and the rank is XP
 
 **Plan.** Three commits. Every student path stops reaching `getActiveTour` — the

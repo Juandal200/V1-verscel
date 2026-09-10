@@ -1,4 +1,20 @@
 <script>
+/* Content type plus the session, for the two Whisper calls that post raw audio.
+ *
+ * The proxy will not spend the transcription budget without one, and the body is
+ * binary so there is nowhere else to put it. Written once because there are three
+ * call sites and a fourth would have copied whichever it found.
+ *
+ * On window, and called through window with a guard, because the three call sites
+ * are inside different IIFEs — a bare cross-IIFE reference is the ReferenceError
+ * that locked every new student out in September. The guard degrades to plain
+ * headers, so the worst case is a refused transcript and the browser-speech
+ * fallback, not a thrown error in the middle of an answer. */
+window._waHdrs = function (mime) {
+  var h = { 'Content-Type': mime };
+  try { if (window.AppState && AppState.sessionToken) h['X-Session-Token'] = AppState.sessionToken; } catch (e) {}
+  return h;
+};
 /* ── Global mic utility — used by live simulator, ICAO test, and exam ──────── */
 (function() {
   var _gMicRecorder = null;
@@ -428,11 +444,12 @@
           // right heading" are both in it, which is what separates "turn right"
           // from "tongue right". What is gone is the one string that made the
           // echo worth having.
-          var _hdrs = { 'Content-Type': mime };
-
+          /* The session travels in a header because the body is the audio.
+           * Without it the proxy refuses and answers noKey, which trips the
+           * browser-speech fallback below rather than losing the answer. */
           fetch('/api/whisper', {
             method:  'POST',
-            headers: _hdrs,
+            headers: (window._waHdrs ? window._waHdrs(mime) : { 'Content-Type': mime }),
             body:    blob
           })
           .then(function(r) { return r.json(); })
@@ -28716,7 +28733,7 @@ var LEVEL_THEMES = {
           reader.readAsDataURL(blob);
 
           // Also send to Whisper for live STT
-          fetch('/api/whisper', { method:'POST', headers:{'Content-Type': mime}, body: blob })
+          fetch('/api/whisper', { method:'POST', headers: (window._waHdrs ? window._waHdrs(mime) : { 'Content-Type': mime }), body: blob })
             .then(function(r) { return r.json(); })
             .then(function(d) {
               if (btn) { btn.classList.remove('processing'); btn.innerHTML = window.uiIcon('mic'); btn.disabled = false; }
@@ -29280,7 +29297,7 @@ var LEVEL_THEMES = {
            *
            * Kept beside the recording rather than instead of it: _t.segments is
            * still the durable evidence of what was said. */
-          fetch('/api/whisper?verbose=1', { method: 'POST', headers: { 'Content-Type': type }, body: blob })
+          fetch('/api/whisper?verbose=1', { method: 'POST', headers: (window._waHdrs ? window._waHdrs(type) : { 'Content-Type': type }), body: blob })
             .then(function (r) { return r.json(); })
             .then(function (d) {
               if (d && d.ok && d.verbose) {
