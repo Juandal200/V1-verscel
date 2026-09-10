@@ -13350,24 +13350,53 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   stroke: rgba(var(--lift-rgb), .13); stroke-width: 1;
   stroke-dasharray: 2 3.5; stroke-linejoin: round;
 }
-/* Leaders only. The country-to-country route was removed: consecutive levels sit
-   on different continents, so those lines crossed the map in every direction and
-   read as noise. A leader does the opposite job — it ties one card to one pin. */
-.lm-leader { stroke: rgba(var(--lift-rgb), .18); stroke-width: 1; stroke-dasharray: 2 4; }
-.lm-leader--done { stroke: rgba(var(--green-rgb), .3); }
+
+/* An anchor is a pin and the panel that hangs off it. Nothing here is positioned
+   by hand: the panel is attached to its own marker, so two of them cannot collide
+   the way two hand-placed cards did. */
+.lm-anchor { position: absolute; transform: translate(-50%, -50%); z-index: 2; }
+.lm-anchor.is-open { z-index: 20; }
 
 .lm-pin {
-  position: absolute; transform: translate(-50%, -50%); z-index: 2;
-  width: 28px; height: 28px; border-radius: 50%; overflow: hidden;
-  border: 1px solid var(--line-strong); background: var(--panel);
-  display: grid; place-items: center;
+  display: flex; align-items: center; gap: 7px;
+  padding: 3px 9px 3px 3px; cursor: pointer;
+  font-family: var(--font-ui);
+  background: var(--panel); border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  transition: border-color 0.25s var(--ease);
 }
-.lm-pin svg { width: 28px; height: 28px; display: block; }
-.lm-pin--locked { border-color: var(--line); }
-.lm-pin--locked svg { width: 12px; height: 12px; fill: var(--muted); }
+.lm-pin:hover { border-color: var(--accent); }
+.lm-pin:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.lm-pin-flag {
+  width: 26px; height: 26px; border-radius: 50%; overflow: hidden;
+  display: grid; place-items: center; flex: 0 0 auto;
+}
+.lm-pin-flag svg { width: 26px; height: 26px; display: block; }
+/* The map says something at rest. A field of bare flags would say less than the
+   grid it offers to replace, so the country and its count stay visible and the
+   levels are what opens. */
+.lm-pin-chip {
+  display: flex; align-items: baseline; gap: 6px; white-space: nowrap;
+  font-size: var(--t-label); font-weight: 600; color: var(--text);
+}
+.lm-pin-count { font-family: var(--font-instrument); color: var(--muted); }
+.lm-pin--locked .lm-pin-chip { color: var(--muted); }
 .lm-pin--current { border-color: var(--yellow); box-shadow: 0 0 0 3px rgba(var(--yellow-rgb), .13); }
-.lm-pin--complete { border-color: var(--green); }
+.lm-pin--complete { border-color: rgba(var(--green-rgb), .55); }
 .lm-pin--upgrade { border-color: var(--yellow); }
+
+/* Closed until asked for. One at a time, so there is never a second to overlap. */
+.lm-pop {
+  display: none; position: absolute; top: calc(100% + 8px); left: 0;
+  width: 232px; padding: 10px;
+  background: var(--panel); border: 1px solid var(--line-strong);
+  border-radius: 10px; box-shadow: var(--shadow-3);
+}
+.lm-anchor.is-open .lm-pop { display: block; }
+/* Flipped at render from the pin's quadrant, because .lm-stage-wrap clips and a
+   country at the bottom right would otherwise open into nothing. */
+.lm-anchor--left .lm-pop { left: auto; right: 0; }
+.lm-anchor--up .lm-pop { top: auto; bottom: calc(100% + 8px); }
 
 .lm-cp { position: absolute; transform: translate(-50%, -50%); text-align: center; z-index: 2; width: 150px; }
 .lm-cp-ring {
@@ -13386,35 +13415,14 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 .lm-cp--passed .lm-cp-state { color: var(--green); }
 .lm-cp-sub { display: block; font-size: var(--t-label); color: var(--muted); margin-top: 3px; line-height: 1.35; }
 
-.lm-card {
-  position: absolute; width: 216px; z-index: 3; cursor: pointer; text-align: left;
-  display: block; font-family: var(--font-ui);
-  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-  padding: 11px 12px 10px;
-  box-shadow: var(--shadow-2);
-  transition: border-color 0.25s var(--ease);
-}
-.lm-card:hover, .lm-card:focus-visible { z-index: 9; border-color: var(--line-strong); }
-.lm-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.lm-card--locked { background: var(--panel-soft); box-shadow: none; }
-.lm-card--locked .lm-card-name, .lm-card--locked .lm-card-sub { color: var(--muted); }
-.lm-card--current { border-color: var(--accent); }
-.lm-card--upgrade { border-color: rgba(var(--yellow-rgb), .45); }
-.lm-card-head {
-  display: flex; justify-content: space-between; align-items: baseline;
-  font-family: var(--font-instrument); font-size: var(--t-label);
-  letter-spacing: 0.12em; color: var(--muted);
-}
-.lm-card-country { color: var(--text); font-weight: 600; letter-spacing: 0.04em; }
 
 /* The one level a plan withholds. Grouping by country buried it as the second row
    of a card that was otherwise finished, so the card says so too. */
 .lm-card-sale {
-  display: block; margin-top: 6px; font-size: var(--t-label);
+  display: block; margin: 0 0 8px; font-size: var(--t-label);
   color: var(--yellow); line-height: 1.35;
 }
 
-.lm-rows { display: block; margin-top: 8px; }
 .lm-row {
   display: block; width: 100%; text-align: left; cursor: pointer;
   font-family: var(--font-ui);
@@ -13422,7 +13430,7 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   border-radius: 8px; padding: 7px 9px; margin-top: 6px;
   transition: border-color 0.25s var(--ease);
 }
-.lm-row:first-child { margin-top: 0; }
+.lm-pop > .lm-row:first-child { margin-top: 0; }
 .lm-row:hover { border-color: var(--line-strong); }
 .lm-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .lm-row--current { border-color: var(--accent); }
@@ -13441,8 +13449,6 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 
 /* A card low on the stage grows upward. .lm-stage-wrap clips, and Australia's
    three rows at y=290 on a 500px stage would have run off the bottom. */
-.lm-card--up { transform: translateY(-100%); }
-.lm-card--up .lm-leader-anchor { top: auto; bottom: 0; }
 .lm-phase {
   font-family: var(--font-instrument); font-size: var(--t-label);
   letter-spacing: 0.08em; color: var(--muted);

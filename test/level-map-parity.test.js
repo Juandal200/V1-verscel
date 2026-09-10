@@ -101,10 +101,48 @@ ok('nine levels drawn',        drawn.length === 9);
 ok('each exactly once',        new Set(drawn).size === 9);
 ok('and they are 1 through 9', drawn.slice().sort((a,b)=>a-b).join() === '1,2,3,4,5,6,7,8,9');
 
-console.log('--- grouped by country, so nothing hides under anything ---');
-ok('five cards, one per country',   (html.match(/class="lm-card /g) || []).length === 5);
-ok('five pins, one per country',    (html.match(/class="lm-pin /g) || []).length === 5);
-ok('and five leaders',              (html.match(/class="lm-leader/g) || []).length === 5);
+console.log('--- one anchor per country, and nothing placed by hand ---');
+ok('five anchors, one per country', (html.match(/class="lm-anchor/g) || []).length === 5);
+ok('five pins',                     (html.match(/class="lm-pin /g) || []).length === 5);
+ok('five panels',                   (html.match(/class="lm-pop"/g) || []).length === 5);
+/* Nothing is positioned independently any more, so nothing can collide. Cards
+ * used to be placed from a table: keyed by country they hid each other's levels,
+ * and grouped by country they hid each other. */
+ok('no card carries its own coordinates', !/lm-card[^-]/.test(html));
+ok('and the leader lines are gone with them', !/lm-leader/.test(html));
+
+console.log('--- the map says something before anything is clicked ---');
+/* A field of bare flags would say less than the grid it offers to replace. */
+ok('every pin names its country',   (html.match(/class="lm-pin-chip"/g) || []).length === 5);
+ok('and shows how far through it is', (html.match(/class="lm-pin-count"/g) || []).length === 5);
+/* The first version of the first line here had no .test(html) — a bare regex
+ * literal, which is truthy, so it asserted nothing at all and would have passed
+ * against any output whatsoever. It also expected 3/3 where the fixture completes
+ * only level 1, so it was wrong twice over and green. */
+ok('Australia reads 0 of its 3',    /Australia<span class="lm-pin-count">0\/3</.test(html));
+ok('the United Kingdom reads 0 of 2', /United Kingdom<span class="lm-pin-count">0\/2</.test(html));
+// And the counts move with the data rather than being decoration.
+const allAu = models(2);
+[2, 7, 8].forEach(i => { allAu[i].isCompleted = true; allAu[i].locked = false; });
+ok('finish Australia and it reads 3/3',
+   /Australia<span class="lm-pin-count">3\/3</.test(renderMap(allAu)));
+
+console.log('--- the pin is reachable by keyboard ---');
+/* It was a div, which no keyboard could reach, and the ticket asked for buttons
+ * for exactly that reason. */
+ok('the pin is a button',           (html.match(/<button type="button" class="lm-pin/g) || []).length === 5);
+ok('it says whether it is open',    (html.match(/aria-expanded="false"/g) || []).length === 5);
+ok('and it says what it is',        /aria-label="Australia — 0 of 3 levels complete"/.test(html));
+
+console.log('--- panels near an edge open inward ---');
+/* .lm-stage-wrap clips, so a country at the bottom right would open into nothing.
+ * Decided at render from the pin's quadrant rather than measured in the browser. */
+ok('Australia opens leftward and upward',
+   /class="lm-anchor lm-anchor--left lm-anchor--up" data-country="AU"/.test(html));
+ok('the United States opens rightward and downward',
+   /class="lm-anchor" data-country="US"/.test(html));
+ok('India opens leftward, not upward',
+   /class="lm-anchor lm-anchor--left" data-country="IN"/.test(html));
 // Australia holds four in the catalogue; level 10 is the Operational block and
 // is not among the models the map is given.
 const auCard = html.slice(html.indexOf('Australia'));
@@ -165,10 +203,11 @@ const orphan = models(2);
 orphan[5].item.countries = [{ country: 'ZZ', completed: false }];   // level 6, nowhere
 const oh = renderMap(orphan);
 ok('it is not silently dropped',   /lm-unplaced/.test(oh));
+ok('and only one country is missing', (oh.match(/class="lm-anchor/g) || []).length === 4);
 ok('it is still reachable',        /lm-unplaced-card[^>]*openLevelCountries\(6\)/.test(oh));
-ok('and it is NOT placed on the map', !/lm-card[^>]*openLevelCountries\(6\)/.test(oh));
+ok('and it is NOT placed on the map', !/lm-anchor[\s\S]{0,900}?openLevelCountries\(6\)/.test(oh));
 // Level 6 is Canada's only level, so removing it removes the whole card.
-ok('the other four countries still are', (oh.match(/lm-card lm-card--/g) || []).length === 4);
+ok('the other four countries still are', (oh.match(/class="lm-anchor/g) || []).length === 4);
 
 console.log('--- nine flags on one screen keep their own references ---');
 /* FLAG_SVG entries define short ids and reference them: us defines a..e, gb
@@ -231,16 +270,15 @@ ok('no line is drawn between one country and the next',
 console.log('--- but every card is tied to its own pin ---');
 /* Nine cards scattered over a map with nothing joining them to a country is
  * unreadable, and it is the failure the original ticket warned about. */
-ok('one leader per country', (html.match(/class="lm-leader/g) || []).length === 5);
-/* A leader is marked done only when EVERY level in that country is finished.
- * Canada holds level 6 alone, so it is the one that can be, and the fixture's
- * default completes only level 1 — which is India, where level 5 is not. */
+/* A pin is marked complete only when EVERY level in that country is finished.
+ * Canada holds level 6 alone, so it is the one that can be; the fixture's default
+ * completes only level 1, which is India, where level 5 is not. */
 const caDone = models(2);
 caDone[5].isCompleted = true; caDone[5].locked = false;
-ok('a country whose levels are all finished is marked as such',
-   /lm-leader--done/.test(renderMap(caDone)));
-ok('and one with a level outstanding is not',
-   (renderMap(caDone).match(/lm-leader--done/g) || []).length === 1);
+ok('a country whose levels are all finished is marked complete',
+   (renderMap(caDone).match(/lm-pin--complete/g) || []).length === 1);
+ok('and India, with level 5 outstanding, is not',
+   !/lm-pin--complete[\s\S]{0,200}India/.test(renderMap(caDone)));
 
 console.log('--- the header does not fight itself ---');
 /* tag is a category word here — LevelService's own defaults use 'Operational' —

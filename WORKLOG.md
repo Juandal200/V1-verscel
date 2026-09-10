@@ -17,6 +17,37 @@ Newest day first.
 
 ## 2026-09-10
 
+### The map's cards become panels that hang off their own pin
+
+**Plan.** Rewrite the pin/card block: each country becomes an anchor holding a pin
+button — flag, country, `n/m` — and a panel of its levels. Click or Enter opens
+it, one at a time, Escape or a click on the map closes. The panel hangs off its
+pin, so hand-authored coordinates and the leader lines both go.
+
+**Criterion.** `DERIVED` — "pin chips plus clicks" is the direction given. The
+edge flip, single-open and Escape are my inference of what makes it usable.
+
+**Why, in one line.** Grouping fixed levels hiding under levels and replaced it
+with cards hiding under cards — India's behind the United Kingdom's, Checkpoint 2
+buried under that. Cards that grow rows cannot be placed by hand on a fixed stage.
+
+**Checklist — map open, above 1100px.**
+
+- [ ] Five pins, each showing a flag, its country name and a count like `2/2`
+- [ ] Nothing overlaps anything: no panel is visible until one is opened
+- [ ] All three checkpoints are readable, none buried
+- [ ] Clicking a pin opens its levels; clicking another closes the first
+- [ ] **Tab** reaches every pin and **Enter** opens it; **Escape** closes
+- [ ] Clicking empty map closes the open panel
+- [ ] Australia's panel opens up and to the left, and stays on the map
+- [ ] The United States' opens down and to the right
+- [ ] Australia lists 3, 8 and 9 — not 10
+- [ ] Each row names its tier, and Australia's rows disagree, which is correct
+- [ ] Exactly one row is gold, and its panel says "Next level behind your plan"
+- [ ] Clicking a row opens that level; **Back** from the simulator returns to the map
+
+**Not verifiable from the repo.** All of it.
+
 ### The map is grouped by country, because that is what the curriculum is
 
 **Plan.** One change to the drawing loop: group the models by country and emit one

@@ -6434,16 +6434,27 @@ var LEVEL_THEMES = {
    * A country with no entry here is NOT given a default position. A level
    * dropped in the middle of the Atlantic because nobody noticed is worse than
    * one listed plainly as unplaced, which is what happens instead. */
+  /* Where each country sits. Coordinates only.
+   *
+   * There were card positions here too, hand-authored per country, and they were
+   * the wrong shape twice over. Keyed by country they collided when several levels
+   * shared one; grouped by country the cards grew rows and collided with EACH
+   * OTHER — India's ended up behind the United Kingdom's and Checkpoint 2 was
+   * buried under it.
+   *
+   * A popover anchored to its own pin cannot collide, because only one is open.
+   * So the layout has one number per country now instead of four, and there is
+   * nothing left to place by hand. */
   var _LM_PLACE = {
-    US: { lon: -73.8,  lat: 40.6,  card: [385,  40] },
-    GB: { lon: -0.45,  lat: 51.5,  card: [615,  15] },
-    CO: { lon: -74.1,  lat: 4.7,   card: [55,  375] },
-    CA: { lon: -123.2, lat: 49.2,  card: [20,   15] },
-    BR: { lon: -46.5,  lat: -23.4, card: [330, 395] },
-    IN: { lon: 72.9,   lat: 19.1,  card: [930, 120] },
-    MX: { lon: -99.1,  lat: 19.4,  card: [35,  150] },
-    AU: { lon: 151.2,  lat: -34,   card: [925, 290] },
-    ZA: { lon: 28.2,   lat: -26.1, card: [585, 405] }
+    US: { lon: -73.8,  lat: 40.6  },
+    GB: { lon: -0.45,  lat: 51.5  },
+    CO: { lon: -74.1,  lat: 4.7   },
+    CA: { lon: -123.2, lat: 49.2  },
+    BR: { lon: -46.5,  lat: -23.4 },
+    IN: { lon: 72.9,   lat: 19.1  },
+    MX: { lon: -99.1,  lat: 19.4  },
+    AU: { lon: 151.2,  lat: -34   },
+    ZA: { lon: 28.2,   lat: -26.1 }
   };
 
   // The checkpoints sit between the tiers they join, out over water.
@@ -6519,6 +6530,45 @@ var LEVEL_THEMES = {
     return t;
   }
 
+  /* One country open at a time, and a way out of it.
+   *
+   * Opening a second closes the first: two panels on a map is the overlap this
+   * whole approach exists to avoid. Escape and a click on the map close it, so
+   * nobody is trapped behind a panel they opened by accident, and aria-expanded
+   * is kept in step because the pin is a real button. */
+  window._lmOpenCountry = function (code) {
+    var wrap = document.querySelector('.lm-stage');
+    if (!wrap) return;
+    var all = wrap.querySelectorAll('.lm-anchor');
+    var opened = false;
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      var isTarget = el.getAttribute('data-country') === code;
+      var willOpen = isTarget && !el.classList.contains('is-open');
+      el.classList.toggle('is-open', willOpen);
+      var btn = el.querySelector('.lm-pin');
+      if (btn) btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+      if (willOpen) opened = true;
+    }
+    return opened;
+  };
+  window._lmCloseCountries = function () {
+    var all = document.querySelectorAll('.lm-anchor.is-open');
+    for (var i = 0; i < all.length; i++) {
+      all[i].classList.remove('is-open');
+      var btn = all[i].querySelector('.lm-pin');
+      if (btn) btn.setAttribute('aria-expanded', 'false');
+    }
+  };
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && document.querySelector('.lm-anchor.is-open')) window._lmCloseCountries();
+  });
+  document.addEventListener('click', function (e) {
+    if (!document.querySelector('.lm-anchor.is-open')) return;
+    if (e.target && e.target.closest && e.target.closest('.lm-anchor')) return;
+    window._lmCloseCountries();
+  });
+
   function _lmViewKey() { return 'aero_levelmap_view'; }
   function _lmViewIsMap() {
     try { return localStorage.getItem(_lmViewKey()) === 'map'; } catch (e) { return false; }
@@ -6570,20 +6620,20 @@ var LEVEL_THEMES = {
      * own pin — which is a different job. Nine cards scattered around a map with
      * nothing tying them to a country is unreadable, and it is the failure the
      * original ticket warned about. */
-    var edges = '';
 
-    /* One pin and one card per COUNTRY, not per level.
+    /* One anchor per country: a pin you can press, and its levels on top.
      *
-     * This drew one of each per level, positioned from a table keyed by country.
-     * The curriculum puts several levels in the same country — Australia has 3, 8
-     * and 9, India has 1 and 5, the United Kingdom has 2 and 7 — so those cards
-     * landed on identical coordinates and the last one drawn hid the rest. Five
-     * cards were visible out of nine and the missing four were not in the unplaced
-     * strip either, because they WERE placed, just underneath. The pins collided
-     * the same way.
+     * The cards used to be positioned from a table and they collided — first with
+     * each other's levels, then, once grouped, with each other. Cards that grow
+     * cannot be placed by hand on a fixed stage.
      *
-     * Ten levels across five countries is what this curriculum is, so that is what
-     * the map draws: a country, its flag, and the levels flown there. */
+     * A popover cannot collide, because only one is open at a time and it hangs
+     * off its own pin. That also retires the leader lines: a card touching its
+     * marker does not need a line explaining which marker it belongs to.
+     *
+     * At rest the map still says something. Each pin carries the country and its
+     * count, so progress is readable without hunting with the mouse — a map of
+     * bare flags would say less than the grid it offers to replace. */
     var byCountry = {}, countryOrder = [];
     models.forEach(function (m) {
       var place = _lmPlace(m);
@@ -6596,51 +6646,30 @@ var LEVEL_THEMES = {
       byCountry[code].levels.push(m);
     });
 
-    var pins = '', cards = '', leaders = '';
+    var anchors = '';
     countryOrder.forEach(function (code) {
       var g = byCountry[code];
-      var place = g.place;
+      var x = _lmX(g.place.lon), y = _lmY(g.place.lat);
       g.levels.sort(function (a, b) { return a.level - b.level; });
 
-      var allDone  = g.levels.every(function (m) { return m.isCompleted; });
-      var forSale  = g.levels.some(function (m) { return m.planLock; });
-      var anyOpen  = g.levels.some(function (m) { return !m.locked && !m.isCompleted; });
-      var cState   = allDone ? 'complete' : forSale ? 'upgrade' : anyOpen ? 'current' : 'locked';
+      var allDone = g.levels.every(function (m) { return m.isCompleted; });
+      var forSale = g.levels.some(function (m) { return m.planLock; });
+      var anyOpen = g.levels.some(function (m) { return !m.locked && !m.isCompleted; });
+      var cState  = allDone ? 'complete' : forSale ? 'upgrade' : anyOpen ? 'current' : 'locked';
 
-      /* Tall cards open upward in the lower half of the stage.
-       *
-       * A country with three levels is about 170px collapsed and more once a row
-       * expands, and .lm-stage-wrap clips. Australia sits at y=290 on a 500px
-       * stage, so downward growth would have run off the bottom. */
-      var lower = place.card[1] > (_LM_H / 2);
+      /* Which way the popover opens, decided here rather than in the browser.
+       * A pin in the right half opens leftward and one in the lower half opens
+       * upward, so the panel stays on the stage — .lm-stage-wrap clips, and
+       * Australia at the bottom right would otherwise open into nothing. */
+      var flip = (x > _LM_W / 2 ? ' lm-anchor--left' : '') + (y > _LM_H / 2 ? ' lm-anchor--up' : '');
 
-      /* The leader joins the card to its country. Drawn to the card's header
-       * rather than its centre, because the card grows and a line to the middle
-       * would slide. The pin never moves. */
-      leaders += '<line class="lm-leader' + (allDone ? ' lm-leader--done' : '') +
-        '" x1="' + _lmX(place.lon).toFixed(1) + '" y1="' + _lmY(place.lat).toFixed(1) +
-        '" x2="' + (place.card[0] + 108) + '" y2="' + (place.card[1] + 22) + '"/>';
-
-      pins +=
-        '<div class="lm-pin lm-pin--' + cState + '" style="left:' + _lmX(place.lon).toFixed(1) +
-          'px;top:' + _lmY(place.lat).toFixed(1) + 'px;">' +
-          _lmFlag(code, uid + '-' + code) +
-        '</div>';
-
-      /* Every row is a button and goes to openLevelCountries and nowhere else.
-       *
-       * That function writes selectedLevelData, which five "back" buttons in the
-       * simulator read; a map calling startCountryTraining directly would skip
-       * that write and leave all five pointing at null. It also carries the
-       * two-lock branch — lockedByPlan opens the plans modal rather than saying
-       * "closed" with no way in. */
       var rows = g.levels.map(function (m) {
         var meta  = (_levelMeta && _levelMeta[m.level]) || {};
         var state = m.isCompleted ? 'complete' : m.planLock ? 'upgrade' : m.locked ? 'locked' : 'current';
-        /* The tier, on every row. Grouping by country mixes them — Australia holds
-         * a Foundation level and two Expert ones — and without this the map would
-         * stop saying something the grid makes obvious. */
-        var tier  = _tierOf(m.level);
+        /* The tier on every row: grouping by country mixes them — Australia holds
+         * a Foundation level and two Expert ones — and the grid says so just by
+         * having sections. */
+        var tier = _tierOf(m.level);
         return '<button type="button" class="lm-row lm-row--' + state + '"' +
             ' onclick="event.stopPropagation();openLevelCountries(' + m.level + ')">' +
             '<span class="lm-row-top">' +
@@ -6667,19 +6696,26 @@ var LEVEL_THEMES = {
       var doneCount = g.levels.filter(function (m) { return m.isCompleted; }).length;
       var ui = null;
       try { ui = getCountryUi(code); } catch (e) {}
+      var label = safeText((ui && ui.label) || code);
 
-      cards +=
-        '<div class="lm-card lm-card--' + cState + (lower ? ' lm-card--up' : '') + '"' +
-          ' style="left:' + place.card[0] + 'px;top:' + place.card[1] + 'px;">' +
-          '<span class="lm-card-head">' +
-            '<span class="lm-card-country">' + safeText((ui && ui.label) || code) + '</span>' +
-            '<span>' + doneCount + '/' + g.levels.length + '</span>' +
-          '</span>' +
-          /* Marked on the card as well as the row. The one level a plan withholds
-           * is the single thing offered for sale, and grouping had buried it as
-           * the second line of a card that was otherwise finished. */
-          (forSale ? '<span class="lm-card-sale">Next level behind your plan</span>' : '') +
-          '<span class="lm-rows">' + rows + '</span>' +
+      /* The pin is a <button>. It was a div, which no keyboard could reach, and
+       * the ticket asked for buttons for exactly that reason. */
+      anchors +=
+        '<div class="lm-anchor' + flip + '" data-country="' + safeText(code) + '"' +
+          ' style="left:' + x.toFixed(1) + 'px;top:' + y.toFixed(1) + 'px;">' +
+          '<button type="button" class="lm-pin lm-pin--' + cState + '"' +
+            ' aria-expanded="false" aria-label="' + label + ' — ' + doneCount + ' of ' +
+              g.levels.length + ' levels complete"' +
+            ' onclick="event.stopPropagation();window._lmOpenCountry(\'' + safeText(code) + '\')">' +
+            '<span class="lm-pin-flag">' + _lmFlag(code, uid + '-' + code) + '</span>' +
+            '<span class="lm-pin-chip">' + label +
+              '<span class="lm-pin-count">' + doneCount + '/' + g.levels.length + '</span>' +
+            '</span>' +
+          '</button>' +
+          '<div class="lm-pop">' +
+            (forSale ? '<span class="lm-card-sale">Next level behind your plan</span>' : '') +
+            rows +
+          '</div>' +
         '</div>';
     });
 
@@ -6743,8 +6779,7 @@ var LEVEL_THEMES = {
       '<div class="lm-tiers">' + tierBar + '</div>' +
       '<div class="lm-stage-wrap"><div class="lm-stage">' +
         '<svg class="lm-geo" viewBox="0 0 ' + _LM_W + ' ' + _LM_H + '" aria-hidden="true">' + geo + '</svg>' +
-        '<svg class="lm-edges" viewBox="0 0 ' + _LM_W + ' ' + _LM_H + '" aria-hidden="true">' + edges + leaders + '</svg>' +
-        pins + cpMarks + cards +
+        cpMarks + anchors +
       '</div></div>' + strip +
       /* The Operational group, drawn below the map exactly as the grid draws it
        * below the tiers. It was missing entirely: a student whose sheet publishes
