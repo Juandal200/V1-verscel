@@ -723,13 +723,6 @@ function getMyCompletedLevels(sessionToken) {
     if (data.length < 2) return { ok: true, completedLevels: 0 };
     var headers = data[0].map(function(h) { return String(h); });
 
-    // Use the active tour's start date so rank resets weekly
-    var tourStart = null;
-    try {
-      var tour = TourService.getActiveTour();
-      if (tour && tour.startDate) tourStart = new Date(tour.startDate);
-    } catch(e) {}
-
     // Identical for every student and every call — built once, cached script-wide.
     var levelCountryMap = _gamLevelCountryMap_(ss);
 
@@ -742,8 +735,6 @@ function getMyCompletedLevels(sessionToken) {
     var iLevel   = headers.indexOf('level');
     var iCountry = headers.indexOf('country');
     var iDone    = headers.indexOf('completed');
-    var iUpd     = headers.indexOf('updatedAt');
-    var iComp    = headers.indexOf('completedAt');
     if (iUser === -1) return { ok: true, completedLevels: 0 };
 
     var levelCountries = {};
@@ -753,22 +744,19 @@ function getMyCompletedLevels(sessionToken) {
       obj['level']       = iLevel   === -1 ? '' : row[iLevel];
       obj['country']     = iCountry === -1 ? '' : row[iCountry];
       obj['completed']   = iDone    === -1 ? '' : row[iDone];
-      obj['updatedAt']   = iUpd     === -1 ? '' : row[iUpd];
-      obj['completedAt'] = iComp    === -1 ? '' : row[iComp];
       var lvl     = parseInt(obj['level'] || '0', 10);
       var country = String(obj['country'] || '').trim().toUpperCase();
       var c       = String(obj['completed'] || '').toLowerCase();
       var isDone  = (c === 'true' || c === '1' || c === 'yes');
       if (lvl < 1) return;
-      // Only count levels updated this tour.
-      // Rows with no timestamp are treated as pre-tour (excluded) so old
-      // completed=TRUE data never inflates the rank badge.
-      if (tourStart) {
-        var ts = obj['updatedAt'] || obj['completedAt'] || '';
-        if (!ts) return; // no timestamp → treat as older than tourStart
-        var d = ts instanceof Date ? ts : new Date(String(ts));
-        if (isNaN(d.getTime()) || d < tourStart) return;
-      }
+      /* Every level a student has finished counts, for good.
+       *
+       * This used to be filtered to the current tour, which is what put
+       * TourService.getActiveTour() on the boot path — and that call, once a week
+       * when the tour expired, closed the old tour, snapshotted every user one
+       * appendRow at a time, awarded commendations and opened the next one, inline,
+       * inside a student's page load. It is the 49.157s cold start, and the rank
+       * dropping to zero every Monday afternoon was the same line. */
       var lcKey = lvl + '||' + country;
       if (!levelCountries[lcKey]) levelCountries[lcKey] = false;
       if (isDone) levelCountries[lcKey] = true;

@@ -7061,6 +7061,27 @@ function _ensureVrBonusLog_() {
   return sheet;
 }
 
+/* The ISO week, in exactly the shape TourService._tourId used to produce.
+ *
+ * The VR bonus is idempotent per (user, level, week) and the log already holds
+ * thousands of keys shaped TOUR_2026_W37. Changing the format would stop every
+ * one of them matching and hand every student every bonus again, so the format
+ * is reproduced rather than improved — including _tourId's use of the ORIGINAL
+ * date's year alongside the ISO-adjusted week, which differs at a year boundary
+ * and is what the existing rows contain.
+ *
+ * No sheet, no state, no tour: two dates and some arithmetic. */
+function _vrWeekKey_() {
+  var now  = new Date();
+  var year = now.getUTCFullYear();
+  var date = new Date(now);
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+  var yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  var week = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  return 'TOUR_' + year + '_W' + (week < 10 ? '0' + week : week);
+}
+
 // Called when ALL countries in a level are newly complete.
 // Checks today's VR assignment for that level and logs the bonus.
 // Returns { type, bonusXp, bonusCp } or null.
@@ -7073,11 +7094,12 @@ function _vrApplyLevelCompletionBonus_(user, level) {
     var eventType   = assignments[String(level)];
     if (!eventType) return null;
 
-    var tour = null;
-    try { tour = TourService.getActiveTour(); } catch(e) {}
-    var tourId = tour ? String(tour.tourId) : '';
+    // The week, computed rather than looked up. This used to ask
+    // TourService.getActiveTour(), which on an expired tour ran the whole weekly
+    // snapshot inline — a batch job reached through a bonus check.
+    var tourId = _vrWeekKey_();
 
-    // Idempotency: never award the same (user, level, tour) twice
+    // Idempotency: never award the same (user, level, week) twice
     var already = dbReadAll_('VRBonusLog').filter(function(r) {
       return String(r.userId || '') === String(user.userId) &&
              Number(r.level  || 0) === Number(level) &&
@@ -7142,12 +7164,11 @@ function apiAdminDiagnoseMyProgress(sessionToken) {
     var rows = dbReadAll_('Progress').filter(function(r) {
       return String(r.userId || '').trim() === String(user.userId || '').trim();
     });
-    var tour = null;
-    try { tour = TourService.getActiveTour(); } catch(e) {}
     return {
       ok: true,
       userId: user.userId,
-      tourStart: tour ? tour.startDate : null,
+      // No tour, so no window: the rank counts everything, for good.
+      tourStart: null,
       rows: rows.map(function(r) {
         return {
           level: r.level, country: r.country,

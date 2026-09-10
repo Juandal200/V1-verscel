@@ -458,21 +458,36 @@ var TourService = (function () {
 
   // ─── Public: Weekly leaderboard ───────────────────────────────────────────
 
+  /* Monday 00:00 UTC, computed. No sheet, no tour, no side effects.
+   *
+   * This board used to open with getActiveTour(), which on an expired tour ran the
+   * entire weekly snapshot inline — so opening the rankings tab was a SECOND door
+   * to the 49-second cold start, and closing the one on the boot path would not
+   * have shut it. */
+  function _thisWeekStart_() {
+    var d = new Date();
+    d.setUTCHours(0, 0, 0, 0);
+    d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));   // back to Monday
+    return d;
+  }
+
   function getWeeklyLeaderboard(limit) {
     var ss         = _ss();
-    var tour       = getActiveTour();
-    var isDoubleXp = String(tour.isDoubleXp).toLowerCase() === 'true';
+    // Double XP was a property of a tour. There are no tours.
+    var isDoubleXp = false;
     var progRows   = _readSheet(ss, 'Progress');
 
-    // Weekly XP: only levels updated since this tour started
-    var byUserWeekly  = _aggregateProgress(progRows, null, new Date(tour.startDate));
+    // Weekly XP: only levels updated since Monday
+    var byUserWeekly  = _aggregateProgress(progRows, null, _thisWeekStart_());
     // All-time levels: no date filter — used for rank/tier badge
     var byUserAllTime = _aggregateProgress(progRows, null, null);
     var userMap         = _buildUserMap(ss);
     var levelCountryMap = _buildLevelCountryMap_(ss);
     var safeLimit = Math.min(limit || 20, 100);
 
-    var vrBonuses = _getVrBonusesByUserForTour_(ss, tour.tourId);
+    // _vrWeekKey_ lives in Código.js and is the one place the week key is spelled.
+    // Apps Script shares a global scope, so it is called rather than copied.
+    var vrBonuses = _getVrBonusesByUserForTour_(ss, _vrWeekKey_());
 
     var entries = Object.keys(byUserWeekly).map(function (uid) {
       var weekly  = byUserWeekly[uid];
@@ -502,10 +517,7 @@ var TourService = (function () {
 
     return {
       ok:        true,
-      tour:      { tourId: tour.tourId, weekNumber: tour.weekNumber,
-                   daysRemaining: tour.daysRemaining, hoursRemaining: tour.hoursRemaining,
-                   isDoubleXp: isDoubleXp },
-      isDoubleXp: isDoubleXp,
+      isDoubleXp: false,
       data:      entries.slice(0, safeLimit).map(function (p, i) {
         return { rank: i + 1, name: p.name, email: p.email,
                  totalXp: p.totalXp, completedLevels: p.completedLevels,
@@ -517,143 +529,71 @@ var TourService = (function () {
 
   // ─── Public: Career leaderboard ───────────────────────────────────────────
 
+  /* All-time XP, derived from Progress every time.
+   *
+   * This used to aggregate careerPoints out of TourProgress snapshots, and fall
+   * back to deriving from Progress only when no tour had ever closed. The snapshot
+   * is gone, so the fallback is the only honest source — and it was already
+   * written, already correct, and already the path a new deployment took. */
   function getCareerLeaderboard(limit) {
-    var ss        = _ss();
-    var tpRows    = _readSheet(ss, SHEETS.TOUR_PROGRESS);
-    var safeLimit = Math.min(limit || 20, 100);
-    var userMap   = _buildUserMap(ss);
+    var ss              = _ss();
+    var safeLimit       = Math.min(limit || 20, 100);
+    var userMap         = _buildUserMap(ss);
+    var progRows        = _readSheet(ss, 'Progress');
+    var raw             = _aggregateProgress(progRows, null, null);
+    var levelCountryMap = _buildLevelCountryMap_(ss);
 
-    // ── Fallback: TourProgress is empty (no tours have closed yet) ────────────
-    // Derive career points from raw Progress data so the board is never blank.
-    if (!tpRows.length) {
-      var progRows        = _readSheet(ss, 'Progress');
-      var raw             = _aggregateProgress(progRows, null, null);
-      var levelCountryMap = _buildLevelCountryMap_(ss);
-      var fallback = Object.keys(raw).map(function (uid) {
-        var calc = _calcUserXp(raw[uid].levels, false, raw[uid].levelCountries, levelCountryMap);
-        var u    = userMap[uid] || {};
-        var cp   = _cpForLevels(calc.completedLevels);
-        return { userId: uid, name: String(u['name'] || u['email'] || uid),
-                 email: String(u['email'] || ''), totalCp: cp,
-                 maxStreak: 0, toursCompleted: 0 };
-      });
-      fallback.sort(function (a, b) { return b.totalCp - a.totalCp; });
+    var entries = Object.keys(raw).map(function (uid) {
+      var calc = _calcUserXp(raw[uid].levels, false, raw[uid].levelCountries, levelCountryMap);
+      var u    = userMap[uid] || {};
       return {
-        ok: true, fallback: true,
-        data: fallback.slice(0, safeLimit).map(function (p, i) {
-          return { rank: i + 1, name: p.name, email: p.email,
-                   totalCp: p.totalCp, maxStreak: 0, toursCompleted: 0 };
-        })
+        userId:          uid,
+        name:            String(u['name'] || u['email'] || uid),
+        email:           String(u['email'] || ''),
+        profession:      String(u['profession'] || 'PILOT').toUpperCase(),
+        totalXp:         calc.totalXp,
+        completedLevels: calc.completedLevels,
+        maxLevel:        raw[uid].maxLevel || 1
       };
-    }
-
-    // ── Normal path: aggregate from TourProgress snapshots ───────────────────
-    var byUser = {};
-    tpRows.forEach(function (r) {
-      var uid = String(r.userId || '').trim();
-      if (!uid) return;
-      var cp     = parseInt(r.careerPoints, 10) || 0;
-      var streak = parseInt(r.streakCount, 10)  || 0;
-      if (!byUser[uid]) byUser[uid] = { totalCp: 0, maxStreak: 0, toursCompleted: 0 };
-      byUser[uid].totalCp        += cp;
-      byUser[uid].toursCompleted += 1;
-      if (streak > byUser[uid].maxStreak) byUser[uid].maxStreak = streak;
-    });
-
-    var entries = Object.keys(byUser).map(function (uid) {
-      var agg = byUser[uid];
-      var u   = userMap[uid] || {};
-      return { userId: uid, name: String(u['name'] || u['email'] || uid),
-               email: String(u['email'] || ''), profession: String(u['profession'] || 'PILOT').toUpperCase(),
-               totalCp: agg.totalCp, maxStreak: agg.maxStreak, toursCompleted: agg.toursCompleted };
-    });
+    }).filter(function (e) { return e.totalXp > 0 || e.completedLevels > 0; });
 
     entries.sort(function (a, b) {
-      return b.totalCp - a.totalCp ||
-             b.maxStreak - a.maxStreak ||
-             b.toursCompleted - a.toursCompleted;
+      return b.totalXp - a.totalXp || b.completedLevels - a.completedLevels;
     });
 
     return {
       ok:   true,
       data: entries.slice(0, safeLimit).map(function (p, i) {
         return { rank: i + 1, name: p.name, email: p.email,
-                 totalCp: p.totalCp, maxStreak: p.maxStreak,
-                 toursCompleted: p.toursCompleted };
+                 totalXp: p.totalXp, completedLevels: p.completedLevels,
+                 maxLevel: p.maxLevel };
       })
     };
   }
 
   // ─── Public: My career stats ───────────────────────────────────────────────
 
+  /* One student's standing, in XP.
+   *
+   * Medallions, commendations and the streak of consecutive 10/10 weeks were all
+   * read out of the weekly snapshot. With no snapshot there is nothing behind
+   * them, and a card that reports zero for ever is worse than a card that is not
+   * there — so they are not reported rather than reported empty. */
   function getMyCareerStats(user) {
     var ss  = _ss();
     var uid = String(user.userId || '').trim();
-    var tour = getActiveTour();
 
-    var tpRows = _readSheet(ss, SHEETS.TOUR_PROGRESS)
-      .filter(function (r) { return String(r.userId || '').trim() === uid; })
-      .sort(function (a, b) {
-        return (parseInt(a.weekNumber, 10) || 0) - (parseInt(b.weekNumber, 10) || 0);
-      });
-
-    var totalCp = tpRows.reduce(function (s, r) {
-      return s + (parseInt(r.careerPoints, 10) || 0);
-    }, 0);
-
-    // Current streak (consecutive 10/10 from most recent backwards)
-    var streak = 0;
-    for (var i = tpRows.length - 1; i >= 0; i--) {
-      if (parseInt(tpRows[i].completedLevels, 10) >= 10) streak++;
-      else break;
-    }
-
-    // Tour medallions — last 16 tours for visual row
-    var medallions = tpRows.slice(-16).map(function (r) {
-      return {
-        tourId:          r.tourId,
-        weekNumber:      parseInt(r.weekNumber, 10) || 0,
-        completedLevels: parseInt(r.completedLevels, 10) || 0,
-        careerPoints:    parseInt(r.careerPoints, 10) || 0,
-        isDoubleXp:      String(r.isDoubleXp).toLowerCase() === 'true',
-        isComeback:      String(r.isComeback).toLowerCase() === 'true'
-      };
-    });
-
-    // Earned commendations
-    var commRows = _readSheet(ss, SHEETS.COMMENDATIONS)
-      .filter(function (r) { return String(r.userId || '').trim() === uid; });
-    var earnedKeys = commRows.reduce(function (acc, r) {
-      acc[String(r.commendationKey)] = true; return acc;
-    }, {});
-    var commendations = commRows.map(function (r) {
-      var def = COMMENDATIONS.filter(function (c) { return c.key === r.commendationKey; })[0] || {};
-      return { key: r.commendationKey, label: def.label || r.label,
-               icon: def.icon || '', desc: def.desc || '',
-               earnedAt: r.earnedAt, next: def.next || null };
-    });
-
-    // Next commendation to chase
-    var nextComm = null;
-    for (var j = 0; j < COMMENDATIONS.length; j++) {
-      if (!earnedKeys[COMMENDATIONS[j].key]) { nextComm = COMMENDATIONS[j]; break; }
-    }
+    var progRows        = _readSheet(ss, 'Progress');
+    var raw             = _aggregateProgress(progRows, uid, null);
+    var levelCountryMap = _buildLevelCountryMap_(ss);
+    var mine            = raw[uid] || { levels: {}, levelCountries: {}, maxLevel: 0 };
+    var calc            = _calcUserXp(mine.levels, false, mine.levelCountries, levelCountryMap);
 
     return {
-      ok:             true,
-      totalCp:        totalCp,
-      currentStreak:  streak,
-      streakBonusPct: _streakBonus(streak),
-      medallions:     medallions,
-      commendations:  commendations,
-      nextCommendation: nextComm,
-      activeTour: {
-        tourId:        tour.tourId,
-        weekNumber:    tour.weekNumber,
-        daysRemaining: tour.daysRemaining,
-        hoursRemaining: tour.hoursRemaining,
-        isDoubleXp:    String(tour.isDoubleXp).toLowerCase() === 'true'
-      }
+      ok:              true,
+      totalXp:         calc.totalXp,
+      completedLevels: calc.completedLevels,
+      maxLevel:        mine.maxLevel || 1
     };
   }
 
