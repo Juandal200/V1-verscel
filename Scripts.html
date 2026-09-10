@@ -7002,14 +7002,27 @@ var LEVEL_THEMES = {
       } else {
         label = 'READY TO SIT';  mark = 'paper';  sub = 'Opens ' + (t.nextLevel >= 10 ? 'level 10' : 'the next tier');
       }
+      /* The mark is a button, and it does what the card on the levels screen does.
+       *
+       * It was a div showing five states and offering none of them. A student on
+       * level 4 read READY TO SIT at the top of the home page and had to scroll
+       * past the Operational block to a card that had quietly renamed itself.
+       *
+       * The action is not decided here — _examActionFor answers the same question
+       * for the grid's card, so the two cannot come to disagree about where a
+       * checkpoint leads. Locked comes back as `disabled`, so it is unreachable by
+       * keyboard as well as by mouse rather than merely looking unavailable. */
       cpMarks +=
-        '<div class="lm-cp lm-cp--' + safeText(status) + '" style="left:' + _lmX(at.lon).toFixed(1) +
-          'px;top:' + _lmY(at.lat).toFixed(1) + 'px;">' +
+        '<button type="button" class="lm-cp lm-cp--' + safeText(status) + '"' +
+          ' style="left:' + _lmX(at.lon).toFixed(1) +
+          'px;top:' + _lmY(at.lat).toFixed(1) + 'px;"' +
+          ' aria-label="Checkpoint ' + t.examNum + ' — ' + safeText(label) + '. ' + safeText(sub) + '"' +
+          ' ' + _examActionFor(t.examNum, status) + '>' +
           '<span class="lm-cp-ring">' + uiIconInline(mark) + '</span>' +
           '<span class="lm-cp-name">Checkpoint ' + t.examNum + '</span>' +
           '<span class="lm-cp-state">' + label + '</span>' +
           '<span class="lm-cp-sub">' + safeText(sub) + '</span>' +
-        '</div>';
+        '</button>';
     });
 
     /* A level with nowhere to stand is SHOWN, not dropped and not guessed at.

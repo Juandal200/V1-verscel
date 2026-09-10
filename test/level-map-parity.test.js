@@ -96,6 +96,7 @@ function lift(extra) {
     grab('var _LM_CP = {'),
     grab('function _lmCountryOf(model)'), grab('function _lmPlace(model)'),
     grab('function _lmFlag(country, uid)'), grab('function _lmShortTag(meta)'),
+    grab('function _examActionFor(examNum, status)'),
     grab('function _lmOpsBlock(heroCard)'),
     grab('function _lmStageHtml(models, tiers, vrSlot)'),
     grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)'),
@@ -270,6 +271,63 @@ ok('the checkpoint reads the same source the grid card reads',
 });
 ok('and the fifth, ready to sit', /READY TO SIT/.test(mapSrc));
 ok('a score is shown where there is one', /info\.score/.test(mapSrc));
+
+console.log('--- and a checkpoint on the map can be sat ---');
+/* It was a div. The map stated five checkpoint states at the top of the home page
+ * and offered none of them: a student on level 4 read READY TO SIT and had to
+ * scroll past the Operational block to a card that had quietly renamed itself.
+ *
+ * The map does not decide where a checkpoint leads — _examActionFor answers that
+ * for the grid's card too, and this renders the real map against the real table
+ * for each of the five states rather than asserting the strings twice. */
+const examAction = new Function('Number',
+  grab('function _examActionFor(examNum, status)') + '\nreturn _examActionFor;')(Number);
+
+function mapWithExam(status) {
+  /* Both, because the map guards on window.AppState and then reads AppState
+   * bare. Stubbing only the bare one left every checkpoint reading 'locked' and
+   * made four assertions fail against a fixture, not a product. */
+  const st = { training: {}, examStatus: [
+    { examNum: 1, status: status, score: 72 },
+    { examNum: 2, status: 'locked' },
+    { examNum: 3, status: 'locked' }
+  ] };
+  return renderMapWith(models(2), { AppState: st, window: { AppState: st } }, '');
+}
+/* The OPENING TAG of checkpoint 1's button, attributes and all. Slicing to the
+ * first "Checkpoint 1" instead stopped at the aria-label, which sits before the
+ * action — so every comparison below ran against a string that could not contain
+ * the thing it was looking for, and five assertions failed for a reason that had
+ * nothing to do with the product. */
+function cp1(html) {
+  const open = html.lastIndexOf('<button', html.indexOf('Checkpoint 1'));
+  return html.slice(open, html.indexOf('>', open) + 1);
+}
+
+/* The five the server actually emits. computeExamStatus_ in Codigo.js returns
+ * 'locked', 'passed', 'available', 'failed_once' or 'replay_required' and nothing
+ * else — the first draft of this test invented '' for "ready", which the map
+ * folds to 'locked', so it failed against a fixture rather than a product. */
+ok('the mark is a button', /<button type="button" class="lm-cp /.test(mapWithExam('available')));
+['available', 'failed_once', 'passed', 'replay_required', 'locked'].forEach(function (st) {
+  const want = examAction(1, st);
+  const got  = cp1(mapWithExam(st));
+  ok('an ' + st + ' checkpoint does what the grid card does', got.indexOf(want) !== -1);
+});
+/* Recorded, not fixed. The map folds any falsy status to 'locked'; the grid card
+ * leaves it alone, so _examActionFor's fallthrough would offer the exam. The two
+ * therefore disagree about a status the server cannot produce. If that ever stops
+ * being true, this line is where it will be noticed. */
+ok('a status the server does not emit reads as locked on the map',
+   /\sdisabled[\s>]/.test(cp1(mapWithExam(''))));
+/* Disabled, not merely styled: a locked checkpoint must be unreachable by
+ * keyboard as well as by mouse. */
+ok('and a locked one is disabled',        /\sdisabled[\s>]/.test(cp1(mapWithExam('locked'))));
+ok('while an available one is not',       !/\sdisabled[\s>]/.test(cp1(mapWithExam('available'))));
+ok('every checkpoint is labelled for a screen reader',
+   (mapWithExam('available').match(/aria-label="Checkpoint \d/g) || []).length === 3);
+ok('three marks, no more',
+   (mapWithExam('available').match(/class="lm-cp lm-cp--/g) || []).length === 3);
 
 /* The Operational group renders below the grid's tiers. A sheet that publishes
  * one would have shown it on the grid and not here. */

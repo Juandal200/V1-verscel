@@ -63,6 +63,7 @@ const homeMap = (function () {
     grab('function _lmFlag(country, uid)'), grab('function _lmShortTag(meta)'),
     grab('function _lmBuildModels(levelByNum, tiers, vrEvents, firstPlanLockedLevel)'),
     grab('function _lmSurface(data)'),
+    grab('function _examActionFor(examNum, status)'),
     grab('function _lmOpsBlock(heroCard)'),
     grab('function _lmStageHtml(models, tiers, vrSlot)'),
     grab('function _lmHomeMapHtml(data, betweenHtml)'),
