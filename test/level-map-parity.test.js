@@ -61,8 +61,17 @@ function models(planLockedAt) {
   });
 }
 
+/* The map is two functions now — the stage both screens draw, and the chrome the
+ * levels screen wraps it in — so the assertions that read the map's SOURCE read
+ * both. Grepping only _lmRenderMap would have gone quiet the moment the drawing
+ * moved out of it, which is exactly what happened when it did. */
+const MAP_SRC = strip(
+  grab('function _lmStageHtml(models, tiers, vrSlot)') +
+  grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)')
+);
+
 function renderMap(ms) { return renderMapWith(ms, {}, ''); }
-function renderMapWith(ms, extra, heroCard) {
+function lift(extra) {
   const stubs = {
     _levelMeta: Object.fromEntries([1,2,3,4,5,6,7,8,9].map(n =>
       [n, { name: 'Level ' + n, accent: COUNTRY[n] + ' ATC', tag: 'TAG' + n,
@@ -86,11 +95,19 @@ function renderMapWith(ms, extra, heroCard) {
     grab('var _LM_CP = {'),
     grab('function _lmCountryOf(model)'), grab('function _lmPlace(model)'),
     grab('function _lmFlag(country, uid)'), grab('function _lmShortTag(meta)'),
+    grab('function _lmStageHtml(models, tiers, vrSlot)'),
     grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)'),
-    'return _lmRenderMap;'
+    'return { map: _lmRenderMap, stage: _lmStageHtml };'
   ].join('\n');
   Object.assign(stubs, extra || {});
-  return new Function(...Object.keys(stubs), src)(...Object.values(stubs))(ms, TIERS, '', heroCard || '', '19:00');
+  return new Function(...Object.keys(stubs), src)(...Object.values(stubs));
+}
+function renderMapWith(ms, extra, heroCard) {
+  return lift(extra).map(ms, TIERS, '', heroCard || '', '19:00');
+}
+/* The stage on its own, which is what the home page draws. */
+function renderStage(ms, extra) {
+  return lift(extra).stage(ms, TIERS, '19:00');
 }
 
 console.log('--- every level the grid computed is drawn ---');
@@ -193,7 +210,7 @@ console.log('--- the map goes to openLevelCountries and nowhere else ---');
  * simulator read, and carries the two-lock branch that offers the plans modal
  * rather than a dead end. A map calling startCountryTraining directly would skip
  * both. */
-const mapFn = strip(grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)'));
+const mapFn = MAP_SRC;
 ok('every card calls it',        /onclick="openLevelCountries\(/.test(mapFn));
 ok('and nothing calls past it',
    !/startCountryTraining|renderCountryTrainingHub|apiGetTrainingRoute/.test(mapFn));
@@ -243,7 +260,7 @@ ok('and a level without one gets no banner',
 /* _buildExamCard reads AppState.examStatus and has five branches. The map drew
  * two of its own invention, so a candidate with one attempt left was told the
  * checkpoint was simply open. */
-const mapSrc = strip(grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)'));
+const mapSrc = MAP_SRC;
 ok('the checkpoint reads the same source the grid card reads',
    /AppState\.examStatus/.test(mapSrc));
 ['passed', 'replay_required', 'failed_once', 'locked'].forEach(function (st) {
@@ -301,6 +318,29 @@ const LS = fs.readFileSync(__dirname + '/../LevelService.js', 'utf8');
 ok('apiGetLevelMeta emits mapCountry', /mapCountry:\s*String\(r\.mapCountry/.test(LS));
 ok('and the client reads it',          /meta\.mapCountry/.test(code));
 ok('falling back to the level\'s own country', /\|\| \(\(model\.item\.countries \|\| \[\]\)\[0\]/.test(code));
+
+console.log('--- the stage is the map, and the chrome is not part of it ---');
+/* The home page draws the stage and nothing else. It is not the levels screen: it
+ * has no tab strip to sit under and no grid to go back to, and a "Grid view"
+ * button there would throw a student onto a different screen entirely, because
+ * _lmSetView repaints the levels screen.
+ *
+ * So the boundary is asserted from both sides. Removing the switch from
+ * _lmRenderMap broke nothing at all until these lines existed — the suite had
+ * plenty to say about reaching the map and nothing about getting back. */
+const stageOnly = renderStage(models(2));
+ok('the stage draws the map',        /class="lm-stage"/.test(stageOnly));
+ok('and the tier bar above it',      /class="lm-tiers"/.test(stageOnly));
+ok('it carries no tab strip',        !/<nav>/.test(stageOnly));
+ok('and no way back to the grid',    !/lm-switch/.test(stageOnly));
+ok('and no Operational block',       !/OPERATIONAL CLEARANCE/.test(stageOnly));
+
+const chrome = renderMap(models(2));
+ok('the levels screen keeps its tab strip', /<nav>/.test(chrome));
+ok('and its way back to the grid',          /lm-switch/.test(chrome));
+ok('which sets the view to grid',           /_lmSetView\('grid'\)/.test(chrome));
+ok('drawn exactly once',                    (chrome.match(/lm-switch-btn/g) || []).length === 1);
+ok('and the stage it wraps is drawn once',  (chrome.match(/class="lm-stage"/g) || []).length === 1);
 
 console.log('--- the entry point is unchanged ---');
 ok('renderLevelMap keeps its signature', /function renderLevelMap\(data\) \{/.test(code));

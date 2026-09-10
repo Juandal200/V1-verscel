@@ -6618,7 +6618,13 @@ var LEVEL_THEMES = {
     return out;
   }
 
-  function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot) {
+  /* The map itself: the tier bar, the stage, and the strip of levels that have
+   * nowhere to stand on it.
+   *
+   * Everything here is a drawing of the models and nothing else — no tab strip,
+   * no way back to the grid, no Operational group. Two screens draw this now, and
+   * the chrome around it is the part they disagree about. */
+  function _lmStageHtml(models, tiers, vrSlot) {
     var uid = 'lm' + Date.now().toString(36);
     var unplaced = [];
 
@@ -6807,14 +6813,24 @@ var LEVEL_THEMES = {
         '<div class="lm-tier-bar"><i style="width:' + pct + '%"></i></div></section>';
     }).join('');
 
-    return _simTabStrip('flight') + heroBar +
-      '<div class="lm-switch"><button type="button" class="lm-switch-btn" onclick="window._lmSetView(\'grid\')">' +
-        uiIconInline('bands') + 'Grid view</button></div>' +
-      '<div class="lm-tiers">' + tierBar + '</div>' +
+    return '<div class="lm-tiers">' + tierBar + '</div>' +
       '<div class="lm-stage-wrap"><div class="lm-stage">' +
         '<svg class="lm-geo" viewBox="0 0 ' + _LM_W + ' ' + _LM_H + '" aria-hidden="true">' + geo + '</svg>' +
         cpMarks + anchors +
-      '</div></div>' + strip +
+      '</div></div>' + strip;
+  }
+
+  /* The map as the LEVELS screen draws it.
+   *
+   * Signature and five call sites unchanged, so no caller has to know the stage
+   * came out of it. What is left here is the chrome that belongs to this screen
+   * and not to the map: the tab strip it shares with the modules hub, the way
+   * back to the grid, and the Operational group underneath. */
+  function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot) {
+    return _simTabStrip('flight') + heroBar +
+      '<div class="lm-switch"><button type="button" class="lm-switch-btn" onclick="window._lmSetView(\'grid\')">' +
+        uiIconInline('bands') + 'Grid view</button></div>' +
+      _lmStageHtml(models, tiers, vrSlot) +
       /* The Operational group, drawn below the map exactly as the grid draws it
        * below the tiers. It was missing entirely: a student whose sheet publishes
        * an Operational level would have seen it on the grid and not on the map,
