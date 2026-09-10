@@ -86,7 +86,9 @@ console.log('--- the emails still get the bytes ---');
 /* An email is read outside the app, so a URL into the app is no use to it.
  * These seven inline the picture with MailApp's inlineImages and genuinely need
  * a Blob. */
-const MAIL = ['Userservice.js', 'TourService.js', 'Código.js'];
+/* TourService no longer sends anything. The weekly reset email was deleted with
+ * the tours it reported on, taking two of the seven logo callers with it. */
+const MAIL = ['Userservice.js', 'Código.js'];
 let blobCalls = 0, guarded = 0;
 for (const f of MAIL) {
   const src = read(f);
@@ -95,9 +97,10 @@ for (const f of MAIL) {
   ok(f + ' no longer decodes base64 by hand',
      !/getLogoDataUrl\(\)\.split\(','\)\[1\]/.test(src));
 }
-ok('all seven callers use the one helper', blobCalls === 7);
+// Five since the weekly reset email went: three in Userservice, two in Código.
+ok('all five callers use the one helper', blobCalls === 5);
 // A brand image is not worth failing a password email over.
-ok('and every one sends without the logo if the fetch fails', guarded === 7);
+ok('and every one sends without the logo if the fetch fails', guarded === 5);
 ok('the helper returns null rather than throwing',
    /function getLogoBlob_\(\)[\s\S]{0,700}return null;/.test(CFG));
 ok('and it fetches the same file the browser gets',

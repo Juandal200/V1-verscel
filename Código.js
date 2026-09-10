@@ -6585,41 +6585,10 @@ function apiGetMyCareerStats(sessionToken) {
   } catch(err) { return apiError_('apiGetMyCareerStats', err); }
 }
 
-function apiAdminResetTour(sessionToken) {
-  try {
-    AuthService.requireRole(sessionToken, ['ADMIN']);
-    return TourService.forceCloseTour();
-  } catch(err) { return apiError_('apiAdminResetTour', err); }
-}
 
-function apiGetActiveTour(sessionToken) {
-  try {
-    AuthService.requireRole(sessionToken, ['ADMIN']);
-    var tour = TourService.getActiveTour();
-    return { ok: true, tour: tour };
-  } catch(err) { return apiError_('apiGetActiveTour', err); }
-}
 
-function apiAdminSendWeeklyEmails(sessionToken) {
-  try {
-    AuthService.requireRole(sessionToken, ['ADMIN']);
-    return TourService.sendWeeklyResetEmails();
-  } catch(err) { return apiError_('apiAdminSendWeeklyEmails', err); }
-}
 
-function apiAdminSendTestEmail(sessionToken) {
-  try {
-    var user = AuthService.requireRole(sessionToken, ['ADMIN']);
-    return TourService.sendTestEmail(user);
-  } catch(err) { return apiError_('apiAdminSendTestEmail', err); }
-}
 
-function apiAdminGetEmailLog(sessionToken) {
-  try {
-    AuthService.requireRole(sessionToken, ['ADMIN']);
-    return TourService.getEmailLog();
-  } catch(err) { return apiError_('apiAdminGetEmailLog', err); }
-}
 
 function apiAdminDiagnoseTts(sessionToken) {
   try {
@@ -8977,28 +8946,13 @@ function saveLMSScore(email, moduleName, score) {
   }
 }
 
-// Run this function ONCE from the Apps Script editor (Extensions > Apps Script > Run)
-// to register the weekly automatic trigger. Do NOT run it again — it creates a new
-// duplicate trigger each time. Use deleteWeeklyEmailTrigger() to remove all first.
-function setupWeeklyEmailTrigger() {
-  // Remove any existing triggers for sendWeeklyResetEmails to avoid duplicates
-  ScriptApp.getProjectTriggers().forEach(function(trigger) {
-    if (trigger.getHandlerFunction() === 'sendWeeklyResetEmails') {
-      ScriptApp.deleteTrigger(trigger);
-    }
-  });
 
-  // Fire every Monday at 19:00–20:00 UTC (= 2:00 PM Colombia / UTC-5)
-  ScriptApp.newTrigger('sendWeeklyResetEmails')
-    .timeBased()
-    .onWeekDay(ScriptApp.WeekDay.MONDAY)
-    .atHour(19)
-    .create();
-
-  Logger.log('Weekly email trigger set: every Monday at 19:00 UTC (2:00 PM Colombia).');
-}
-
-// Run this to remove all triggers for sendWeeklyResetEmails (e.g. before re-running setup).
+/* Kept deliberately after sendWeeklyResetEmails was deleted.
+ *
+ * There is a live Monday 19:00 UTC trigger pointing at that handler, and deleting
+ * the function does not delete the trigger — it leaves one that fires weekly at a
+ * name that no longer exists. This is how it gets removed. Run it once, then this
+ * can go too. There is deliberately no setup counterpart any more. */
 function deleteWeeklyEmailTrigger() {
   var removed = 0;
   ScriptApp.getProjectTriggers().forEach(function(trigger) {

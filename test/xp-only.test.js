@@ -48,10 +48,15 @@ ok('no tour window is applied',   !/tourStart/.test(completed));
 ok('and no date filter survives', !/updatedAt|completedAt/.test(completed));
 
 console.log('--- the week key kept its shape, so earned bonuses stay earned ---');
-/* VRBonusLog holds keys written as TOUR_2026_W37 by TourService._tourId. If the
- * new key spelled the week differently, none of them would match and every
- * student would be handed every bonus a second time. So the two are run against
- * the same dates and compared. */
+/* VRBonusLog holds keys written as TOUR_2026_W37 by the old TourService._tourId.
+ * If the replacement spelled the week differently, none of them would match and
+ * every student would be handed every bonus a second time.
+ *
+ * The expected strings are written out rather than compared against the old
+ * function, because the old function is deleted — and they are not a copy of code
+ * anyway, they are a fact about rows already sitting in the sheet. They include
+ * _tourId's quirk of pairing the ORIGINAL year with the ISO-adjusted week, which
+ * is why 2025-12-31 is W01 of 2025 and not W53. */
 function withDate(src, expr, ms) {
   const FakeDate = function (v) {
     return arguments.length ? new (Date.bind.apply(Date, [null, v]))() : new Date(ms);
@@ -61,16 +66,15 @@ function withDate(src, expr, ms) {
   FakeDate.prototype = Date.prototype;
   return new Function('Date', 'Math', src + '\nreturn (' + expr + ');')(FakeDate, Math);
 }
-const OLD = grab(T, 'function _isoWeek(d)') + grab(T, 'function _tourId(d)');
 const NEW = grab(C, 'function _vrWeekKey_()');
-
-[Date.UTC(2026, 8, 10), Date.UTC(2026, 0, 1), Date.UTC(2025, 11, 31),
- Date.UTC(2026, 5, 15), Date.UTC(2027, 2, 1)].forEach(function (ms) {
-  const before = withDate(OLD, '_tourId(new Date())',  ms);
-  const after  = withDate(NEW, '_vrWeekKey_()',        ms);
-  ok('same key on ' + new Date(ms).toISOString().slice(0, 10) + ' → ' + after, before === after);
+[[Date.UTC(2026, 8, 10),  'TOUR_2026_W37'],
+ [Date.UTC(2026, 0,  1),  'TOUR_2026_W01'],
+ [Date.UTC(2025, 11, 31), 'TOUR_2025_W01'],
+ [Date.UTC(2026, 5, 15),  'TOUR_2026_W25'],
+ [Date.UTC(2027, 2,  1),  'TOUR_2027_W09']].forEach(function (pair) {
+  const got = withDate(NEW, '_vrWeekKey_()', pair[0]);
+  ok(new Date(pair[0]).toISOString().slice(0, 10) + ' still keys as ' + pair[1], got === pair[1]);
 });
-ok('and it is the shape already in the sheet', /^TOUR_\d{4}_W\d{2}$/.test(withDate(NEW, '_vrWeekKey_()', Date.UTC(2026, 8, 10))));
 
 console.log('--- the weekly board still means "since Monday" ---');
 const monday = withDate(grab(T, 'function _thisWeekStart_()'), '_thisWeekStart_()', Date.UTC(2026, 8, 10));
@@ -139,6 +143,40 @@ ok('and its stylesheet with it',               UI.indexOf('gam-medallion') === -
 ok('the CP legend is gone',                    UI.indexOf('gamLbLegendCp') === -1);
 /* Both boards are XP now; they differ in the window, not the unit. */
 ok('the XP legend stays',                      UI.indexOf('gamLbLegendXp') !== -1);
+
+console.log('--- and the batch itself no longer exists ---');
+/* Not merely unreachable — gone. An unreachable batch is one refactor away from
+ * being reachable again, and this one was reached through a getter nobody read as
+ * a getter. */
+const ALL = [T, C, G, S].join('\n');
+ok('getActiveTour is deleted',        !/function getActiveTour/.test(ALL));
+ok('_snapshotAllUsers with it',       !/_snapshotAllUsers/.test(ALL));
+ok('and _checkWeeklyTopPilot',        !/_checkWeeklyTopPilot/.test(ALL));
+ok('the weekly reset email is gone',  !/function sendWeeklyResetEmails/.test(ALL));
+/* Deleting the function does not delete the live Monday trigger pointing at it —
+ * that would leave one firing weekly at a name that no longer exists. So nothing
+ * can create one any more, and the remover survives until it has been run. */
+ok('nothing can schedule it again',   !/setupWeeklyEmailTrigger/.test(ALL));
+ok('but it can still be unscheduled', /function deleteWeeklyEmailTrigger/.test(C));
+ok('so is the admin Tour Reset tab',  !/renderAdminTour|Tour Reset/.test(S));
+
+console.log('--- the appendRow loop is gone with it ---');
+/* One round trip per user, inside a loop, on a student page load. That was the
+ * 45 seconds, and it is the pattern worth never seeing here again. */
+const tourSrc = strip(T);
+ok('nothing in TourService appends at all', !/\.appendRow\(/.test(tourSrc));
+ok('and nothing writes to a sheet',         !/setValues\(|setValue\(/.test(tourSrc));
+ok('it only reads',                         /getDataRange\(\)\.getValues\(\)/.test(tourSrc));
+
+console.log('--- TourService is a leaderboard now, and says so by its surface ---');
+const surface = tourSrc.slice(tourSrc.lastIndexOf('return {'));
+['getWeeklyLeaderboard', 'getCareerLeaderboard', 'getMyCareerStats'].forEach(function (k) {
+  ok('it still offers ' + k, surface.indexOf(k) !== -1);
+});
+['getActiveTour', 'forceCloseTour', 'sendWeeklyResetEmails', 'sendTestEmail',
+ 'getEmailLog'].forEach(function (k) {
+  ok('and no longer offers ' + k, surface.indexOf(k) === -1);
+});
 
 console.log(fails ? '\n' + fails + ' FAILING' : '\nAll xp-only assertions passed.');
 process.exit(fails ? 1 : 0);

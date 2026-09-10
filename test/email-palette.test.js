@@ -124,7 +124,10 @@ SERVICES.forEach(f => {
     ok(`${f} body ${n + 1} renders (${html.length} chars)`, typeof html === 'string' && html.length > 40);
   });
 });
-ok('all nine inline email bodies were found', rendered === 9);
+/* Eight since the weekly reset email was deleted with the tours it reported on.
+ * Lowering this number is allowed; lowering it without noticing is what the count
+ * exists to stop. */
+ok('all eight inline email bodies were found', rendered === 8);
 
 console.log('--- and what comes out is the palette, nothing else ---');
 ok('no teal in any rendered email', !/00d48e/i.test(allHtml) && !/0\s*,\s*212\s*,\s*142/.test(allHtml));

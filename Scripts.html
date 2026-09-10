@@ -2841,7 +2841,6 @@ window.tierByExam = function (examNum) {
         '<button class="btn ' + (activeTab === 'voicelab'  ? 'primary' : 'secondary') + '" onclick="renderAdminVoiceLab()">Voice Lab</button>' +
         '<button class="btn ' + (activeTab === 'icaotest'      ? 'primary' : 'secondary') + '" onclick="renderAdminIcaoTestResults()">ICAO Test</button>' +
         '<button class="btn ' + (activeTab === 'testimonials'  ? 'primary' : 'secondary') + '" onclick="renderAdminTestimonials()">Testimonials</button>' +
-        '<button class="btn ' + (activeTab === 'tour'          ? 'primary' : 'secondary') + '" onclick="renderAdminTour()">Tour Reset</button>' +
         '<button class="btn ' + (activeTab === 'evaltests'    ? 'primary' : 'secondary') + '" onclick="renderAdminReadbackTests()">Eval Tests</button>' +
         '<button class="btn ' + (activeTab === 'incentives'   ? 'primary' : 'secondary') + '" onclick="renderAdminIncentives()">' + uiIconInline('bolt') + 'Incentives</button>' +
         '<button class="btn ' + (activeTab === 'invites'      ? 'primary' : 'secondary') + '" onclick="renderAdminInvites()">✉ Invites</button>' +
@@ -13651,207 +13650,10 @@ var LEVEL_THEMES = {
    * ADMIN TOUR RESET
    ***********************/
 
-  function renderAdminTour() {
-    setActiveNav('Admin');
-    byId('contentArea').innerHTML =
-      '<div class="panel">' + renderAdminTabs('tour') +
-        '<p class="eyebrow">Admin · Tour Reset</p>' +
-        '<h3 style="margin-bottom:4px;">Weekly Tour Control</h3>' +
-        '<p class="subtitle" style="margin-bottom:24px;">Close the current tour and start a new one. This snapshots all students\' XP into Career Points and resets the weekly leaderboard to zero.</p>' +
-        '<div id="tourResetInfo" style="margin-bottom:20px;color:var(--muted);font-size: 0.82rem;">Loading tour info…</div>' +
-        '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">' +
-          '<button class="btn danger"     id="tourResetBtn"     onclick="adminConfirmResetTour()">Close Tour &amp; Reset Weekly XP</button>' +
-          '<button class="btn primary"    id="tourEmailBtn"     onclick="adminConfirmSendEmails()">Send Weekly Email to All Students</button>' +
-          '<button class="btn secondary"  id="tourTestEmailBtn" onclick="adminSendTestEmail()">Send Test Email to Me</button>' +
-          '<button class="btn secondary"  id="tourEmailLogBtn"  onclick="adminShowEmailLog()">' + uiIconInline('paper') + 'Email Log</button>' +
-          '<button class="btn secondary"  id="tourTtsDiagBtn"   onclick="adminDiagnoseTts()">' + uiIconInline('mic') + 'Voice Check</button>' +
-        '</div>' +
-        '<div id="tourResetMsg" style="margin-top:8px;"></div>' +
-        '<div id="tourEmailLogPanel" style="margin-top:20px;display:none;"></div>' +
-      '</div>';
 
-    google.script.run
-      .withSuccessHandler(function(res) {
-        var info = byId('tourResetInfo');
-        if (!info) return;
-        if (res && res.ok) {
-          var t = res.tour || res;
-          var endIso   = String(t.endDate || '');
-          var endLocal = endIso ? new Date(endIso).toLocaleString() : '—';
-          var hrs      = Number(t.hoursRemaining || 0);
-          var countdownColor = hrs <= 24 ? 'var(--red)' : hrs <= 72 ? 'var(--yellow)' : 'var(--accent)';
-          var countdown = hrs <= 48
-            ? hrs + 'h remaining'
-            : (t.daysRemaining || 0) + ' day(s) remaining';
-          info.innerHTML =
-            '<strong style="color:var(--text);">Tour ' + safeText(t.weekNumber || '') + '</strong>' +
-            ' &nbsp;|&nbsp; Started: ' + safeText(String(t.startDate || '').substring(0, 10)) +
-            '<br style="margin:4px 0;">' +
-            '<span style="font-size:1rem;">⏱ Resets: <strong style="color:var(--text);">' + safeText(endLocal) + '</strong>' +
-            ' &nbsp;— <span style="color:' + countdownColor + ';font-weight:700;">' + safeText(countdown) + '</span></span>';
-        } else {
-          info.innerHTML = '<span style="color:var(--yellow);">' + uiIconInline('alert') + 'Could not load tour info — buttons still work.</span>';
-        }
-      })
-      .withFailureHandler(function() {
-        var info = byId('tourResetInfo');
-        if (info) info.innerHTML = '<span style="color:var(--yellow);">' + uiIconInline('alert') + 'Could not load tour info — buttons still work.</span>';
-      })
-      .apiGetActiveTour(AppState.sessionToken);
-  }
 
-  function adminConfirmResetTour() {
-    if (!confirm('Close the current tour now? All students\' weekly XP will be converted to Career Points and the weekly board will reset to zero. This cannot be undone.')) return;
-    var btn = byId('tourResetBtn');
-    var msg = byId('tourResetMsg');
-    if (btn) btn.disabled = true;
-    if (msg) msg.innerHTML = '<span style="color:var(--muted);">Closing tour…</span>';
 
-    google.script.run
-      .withSuccessHandler(function(res) {
-        if (btn) btn.disabled = false;
-        if (!msg) return;
-        if (res && res.ok) {
-          var newId = (res.newTour && res.newTour.tourId) || '';
-          msg.innerHTML = '<span style="color:var(--accent);">&#10003; Done. New tour started' + (newId ? ': <strong>' + safeText(newId) + '</strong>' : '') + '. Weekly XP has been reset.</span>';
-          var info = byId('tourResetInfo');
-          if (info && res.newTour) {
-            var t = res.newTour;
-            var endIso2   = String(t.endDate || '');
-            var endLocal2 = endIso2 ? new Date(endIso2).toLocaleString() : '—';
-            info.innerHTML =
-              '<strong style="color:var(--text);">Tour ' + safeText(t.weekNumber || '') + '</strong>' +
-              ' &nbsp;|&nbsp; Started: ' + safeText(String(t.startDate || '').substring(0, 10)) +
-              '<br style="margin:4px 0;">' +
-              '<span style="font-size:1rem;">⏱ Resets: <strong style="color:var(--text);">' + safeText(endLocal2) + '</strong>' +
-              ' &nbsp;— <span style="color:var(--accent);font-weight:700;">7 days remaining</span></span>';
-          }
-        } else {
-          msg.innerHTML = '<span style="color:var(--red);">Error: ' + safeText((res && res.message) || 'Unknown error') + '</span>';
-        }
-      })
-      .withFailureHandler(function(err) {
-        if (btn) btn.disabled = false;
-        if (msg) msg.innerHTML = '<span style="color:var(--red);">Server error. Try again.</span>';
-      })
-      .apiAdminResetTour(AppState.sessionToken);
-  }
 
-  function adminSendTestEmail() {
-    var btn = byId('tourTestEmailBtn');
-    var msg = byId('tourResetMsg');
-    if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
-    if (msg) msg.innerHTML = '';
-
-    google.script.run
-      .withSuccessHandler(function(res) {
-        if (btn) { btn.disabled = false; btn.textContent = 'Send Test Email to Me'; }
-        if (!msg) return;
-        if (res && res.ok) {
-          msg.innerHTML = '<span style="color:var(--accent);">&#10003; Test email sent to <strong>' + safeText(res.sentTo || '') + '</strong> — check your inbox.</span>';
-        } else {
-          msg.innerHTML = '<span style="color:var(--red);">Error: ' + safeText((res && res.message) || 'Unknown error') + '</span>';
-        }
-      })
-      .withFailureHandler(function() {
-        if (btn) { btn.disabled = false; btn.textContent = 'Send Test Email to Me'; }
-        if (msg) msg.innerHTML = '<span style="color:var(--red);">Server error. Try again.</span>';
-      })
-      .apiAdminSendTestEmail(AppState.sessionToken);
-  }
-
-  function adminConfirmSendEmails() {
-    if (!confirm('Send the weekly tour email to all active students? Each will receive their XP, rank, and a login link. This cannot be undone.')) return;
-    var btn = byId('tourEmailBtn');
-    var msg = byId('tourResetMsg');
-    if (btn) btn.disabled = true;
-    if (msg) msg.innerHTML = '<span style="color:var(--muted);">Sending emails…</span>';
-
-    google.script.run
-      .withSuccessHandler(function(res) {
-        if (btn) btn.disabled = false;
-        if (!msg) return;
-        if (res && res.ok) {
-          msg.innerHTML = '<span style="color:var(--accent);">&#10003; Sent to <strong>' + safeText(res.sent) + '</strong> student(s).' +
-            (res.failed > 0 ? ' <span style="color:var(--yellow);">' + safeText(res.failed) + ' failed.</span>' : '') + '</span>';
-        } else {
-          msg.innerHTML = '<span style="color:var(--red);">Error: ' + safeText((res && res.message) || 'Unknown error') + '</span>';
-        }
-      })
-      .withFailureHandler(function() {
-        if (btn) btn.disabled = false;
-        if (msg) msg.innerHTML = '<span style="color:var(--red);">Server error. Try again.</span>';
-      })
-      .apiAdminSendWeeklyEmails(AppState.sessionToken);
-  }
-
-  function adminShowEmailLog() {
-    var panel = byId('tourEmailLogPanel');
-    var btn   = byId('tourEmailLogBtn');
-    if (!panel) return;
-
-    // Toggle off if already showing
-    if (panel.style.display !== 'none') {
-      panel.style.display = 'none';
-      if (btn) btn.textContent = 'Email Log';
-      return;
-    }
-
-    if (btn) btn.textContent = 'Loading…';
-    panel.style.display = 'block';
-    panel.innerHTML = '<span style="color:var(--muted);font-size: 0.82rem;">Loading email log…</span>';
-
-    google.script.run
-      .withSuccessHandler(function(rows) {
-        if (btn) btn.textContent = 'Email Log';
-        if (!panel) return;
-        if (!rows || rows.length === 0) {
-          panel.innerHTML = '<p style="color:var(--muted);font-size: 0.82rem;">No emails logged yet.</p>';
-          return;
-        }
-        var html =
-          '<p class="eyebrow" style="margin-bottom:10px;">Email Log — last ' + rows.length + ' entries (newest first)</p>' +
-          '<div style="overflow-x:auto;">' +
-          '<table style="width:100%;border-collapse:collapse;font-size: 0.82rem;color:var(--muted);">' +
-            '<thead>' +
-              '<tr style="border-bottom:1px solid #1e3048;">' +
-                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">DATE</th>' +
-                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">NAME</th>' +
-                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">EMAIL</th>' +
-                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">TOUR</th>' +
-                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">TYPE</th>' +
-                '<th style="text-align:right;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">XP</th>' +
-                '<th style="text-align:right;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">RANK</th>' +
-                '<th style="text-align:left;padding:6px 10px;color:var(--muted);font-weight:700;letter-spacing: 0.06em;">STATUS</th>' +
-              '</tr>' +
-            '</thead>' +
-            '<tbody>';
-        rows.forEach(function(r) {
-          var ts     = r.timestamp ? String(r.timestamp).substring(0, 16).replace('T', ' ') : '';
-          var status = String(r.status || '');
-          var statusColor = status === 'sent' ? 'var(--accent)' : 'var(--red)';
-          var typeColor   = String(r.type || '') === 'test' ? 'var(--yellow)' : 'var(--muted)';
-          html +=
-            '<tr style="border-bottom:1px solid var(--bg);">' +
-              '<td style="padding:6px 10px;">' + safeText(ts) + '</td>' +
-              '<td style="padding:6px 10px;color:var(--text);">' + safeText(r.recipientName || '') + '</td>' +
-              '<td style="padding:6px 10px;">' + safeText(r.recipientEmail || '') + '</td>' +
-              '<td style="padding:6px 10px;">' + safeText(r.weekNumber || '') + '</td>' +
-              '<td style="padding:6px 10px;color:' + typeColor + ';text-transform:uppercase;font-size: 0.72rem;font-weight:700;">' + safeText(r.type || '') + '</td>' +
-              '<td style="padding:6px 10px;text-align:right;color:var(--accent);">' + safeText(r.weeklyXp || '0') + '</td>' +
-              '<td style="padding:6px 10px;text-align:right;">' + safeText(r.rank || '—') + '</td>' +
-              '<td style="padding:6px 10px;color:' + statusColor + ';font-weight:700;">' + safeText(status) + '</td>' +
-            '</tr>';
-        });
-        html += '</tbody></table></div>';
-        panel.innerHTML = html;
-      })
-      .withFailureHandler(function() {
-        if (btn) btn.textContent = 'Email Log';
-        if (panel) panel.innerHTML = '<span style="color:var(--red);">Could not load email log.</span>';
-      })
-      .apiAdminGetEmailLog(AppState.sessionToken);
-  }
 
   function adminDiagnoseTts() {
     var btn   = byId('tourTtsDiagBtn');
@@ -16010,7 +15812,6 @@ var LEVEL_THEMES = {
   window.renderAdminVoiceLab       = renderAdminVoiceLab;
   window.renderAdminIcaoTestResults = renderAdminIcaoTestResults;
   window.renderAdminTestimonials    = renderAdminTestimonials;
-  window.renderAdminTour            = renderAdminTour;
   window.renderAdminReadbackTests   = renderAdminReadbackTests;
   window.renderAdminIncentives      = renderAdminIncentives;
   window.renderAdminInvites         = renderAdminInvites;
@@ -16071,10 +15872,6 @@ var LEVEL_THEMES = {
   window.runReadbackTestSuite       = runReadbackTestSuite;
   window.adminDiagnoseMyProgress    = adminDiagnoseMyProgress;
   window.adminMeasureLock           = adminMeasureLock;
-  window.adminConfirmResetTour      = adminConfirmResetTour;
-  window.adminConfirmSendEmails     = adminConfirmSendEmails;
-  window.adminSendTestEmail         = adminSendTestEmail;
-  window.adminShowEmailLog          = adminShowEmailLog;
   window.adminDiagnoseTts           = adminDiagnoseTts;
   window.adminEditTestimonial       = adminEditTestimonial;
   window.adminCancelTmEdit          = adminCancelTmEdit;
