@@ -122,3 +122,30 @@ shape is always the same — doing nothing and succeeding are the same observabl
 So for anything whose success is silent, construct the case that must fail and
 watch it fail. A green test, an accepted beacon and a passing hook are worth
 nothing until you have seen each of them reject something.
+
+## Every piece of work gets a plan, a criterion, and a checklist
+This applies to anything I ask for — a ticket, a comment from a meeting, a passing remark.
+Not just numbered tickets.
+
+Before building, produce three things and wait:
+
+1. **Plan** — what you'll change, in what order, and what you'll touch. If it turns out to
+   be more than one change, say so before starting rather than discovering it midway.
+
+2. **Criterion** — how we'll know it's done, written as something checkable rather than a
+   description of the work. If I stated it, use my words. If you inferred it, mark it
+   DERIVED and say what you assumed — a derived criterion is your inference, not my
+   requirement.
+
+3. **Checklist** — the observable results, one line each, in a form someone can walk
+   through and tick. Written for a person looking at the screen, not for someone reading
+   code. "The Practice again button sits above the feedback panel" — not "renderAttempt
+   emits the action row before the feedback div."
+
+The checklist is the part that leaves the repo. QA, or I, walk it and mark each line. Code
+evidence proves the change landed; the checklist proves it's what was wanted. Those are
+different claims and the second one is the one that matters for anything a person can see.
+
+Where the work has a ticket, the criterion becomes its Done when and the checklist attaches
+to it. Where it doesn't, the plan and checklist still get written — into WORKLOG.md under
+the day, so the work is traceable even without an ID.
