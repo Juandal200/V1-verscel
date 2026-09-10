@@ -17,6 +17,49 @@ Newest day first.
 
 ## 2026-09-10
 
+### The mock test is named honestly and sits on the map
+
+**Plan.** Two halves of one request. The square's three lines become
+`Based on ICAO / Mock test / Begin`, and it moves inside the map container as an
+absolutely positioned overlay. Separately, anything student-facing that reads as
+the NAME of ICAO's own examination is renamed.
+
+**Criterion.** Stated: it is not the official ICAO exam, so the name must not
+imply it is; and the square sits inside the map rather than below it.
+
+`DERIVED`: the overlay anchors to `.lm-stage-wrap`, not `.lm-stage`. The stage is
+a fixed 1180x500 scaled by transform, so a child of it would shrink with the
+window and the square's own text with it. The wrap is unscaled, already
+position:relative and already clips.
+
+`DERIVED`: `z-index: 10` — above a resting pin at 2 so the square is visible,
+below an opened country panel at 20 so a panel a student just opened is never
+hidden behind it.
+
+`DERIVED`, and confirmed with the instructor before starting: `ICAO-based practice
+test` is left alone in all nine places. It says "based on" and is already honest;
+renaming it would have tripled the diff for no gain in accuracy.
+
+`DERIVED`: the admin results screen keeps its "ICAO Test" label. An administrator
+reading that in their own panel is an internal label, not a claim made to a
+candidate.
+
+**Checklist.**
+
+- [ ] The square is **on** the map, bottom right, not below it
+- [ ] It reads `Based on ICAO` / `Mock test` / `Begin`
+- [ ] Its text does not shrink when the window narrows
+- [ ] Opening Australia's panel is not hidden behind the square
+- [ ] Clicking it still opens the exam
+- [ ] The levels screen has no square on its map
+- [ ] Nowhere a student can reach says "ICAO Test" or "ICAO TEST"
+- [ ] The exam's loader, result banner and history all say Mock test
+- [ ] Below 1100px, the ICAO card is still in the card row, unchanged
+
+**Not verifiable from the repo.** Whether the square sits well against the
+coastlines at each width.
+
+
 ### Nothing spends money for a stranger
 
 **Plan.** `lib/session.mjs` — outside `api/`, because every file in that directory

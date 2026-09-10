@@ -66,7 +66,7 @@ function models(planLockedAt) {
  * both. Grepping only _lmRenderMap would have gone quiet the moment the drawing
  * moved out of it, which is exactly what happened when it did. */
 const MAP_SRC = strip(
-  grab('function _lmStageHtml(models, tiers, vrSlot)') +
+  grab('function _lmStageHtml(models, tiers, vrSlot, overlayHtml)') +
   grab('function _lmOpsBlock(heroCard)') +
   grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)')
 );
@@ -98,7 +98,7 @@ function lift(extra) {
     grab('function _lmFlag(country, uid)'), grab('function _lmShortTag(meta)'),
     grab('function _examActionFor(examNum, status)'),
     grab('function _lmOpsBlock(heroCard)'),
-    grab('function _lmStageHtml(models, tiers, vrSlot)'),
+    grab('function _lmStageHtml(models, tiers, vrSlot, overlayHtml)'),
     grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)'),
     'return { map: _lmRenderMap, stage: _lmStageHtml };'
   ].join('\n');

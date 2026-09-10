@@ -65,8 +65,8 @@ const homeMap = (function () {
     grab('function _lmSurface(data)'),
     grab('function _examActionFor(examNum, status)'),
     grab('function _lmOpsBlock(heroCard)'),
-    grab('function _lmStageHtml(models, tiers, vrSlot)'),
-    grab('function _lmHomeMapHtml(data, betweenHtml)'),
+    grab('function _lmStageHtml(models, tiers, vrSlot, overlayHtml)'),
+    grab('function _lmHomeMapHtml(data, overlayHtml)'),
     grab('function _homeExamSquare()'),
     'return { map: _lmHomeMapHtml, square: _homeExamSquare };'
   ].join('\n');
@@ -111,21 +111,51 @@ ok('no way back to a grid that is not here', !/lm-switch/.test(html));
 ok('no _lmSetView anywhere in it',           !/_lmSetView/.test(html));
 ok('and no tab strip',                       !/sim-subtab/.test(html));
 
-console.log('--- the mock test is a square at the foot of the map ---');
-/* "A little square on the right side above operational level, but on the bottom
- * of the map." Between the stage and the Operational divider, right-aligned. */
-const iStage = html.indexOf('class="lm-stage"');
-const iSq    = html.indexOf('home-exam-square');
+console.log('--- the mock test is ON the map, not under it ---');
+/* Inside .lm-stage-wrap and AFTER .lm-stage closes — a sibling of the stage, not
+ * a child of it. A child would be scaled by the stage's transform along with the
+ * coastlines and its text would shrink as the window narrowed. */
+const iWrap  = html.indexOf('class="lm-stage-wrap"');
+const iSq    = html.indexOf('home-exam-overlay');
 const iOps   = html.indexOf('OPERATIONAL CLEARANCE');
-ok('the square is drawn',        iSq > -1);
-ok('below the map',              iSq > iStage);
-ok('and above Operational Level', iSq < iOps);
-ok('it says which exam it is',   /ICAO TEST/.test(html));
+ok('the square is drawn',            iSq > -1);
+ok('inside the map container',       iSq > iWrap);
+ok('and still above Operational',    iSq < iOps);
+/* The precise structural claim, counted rather than pattern-matched.
+ *
+ * The first version looked for `</div>` immediately before the overlay — which
+ * the anchors also end with, so it matched whether the square was inside the
+ * stage or outside it and could not fail. This walks the div nesting from the
+ * stage's opening tag until it balances, which is where .lm-stage closes, and
+ * checks the overlay begins after that point. */
+function stageClosesAt(h) {
+  const open = h.indexOf('<div class="lm-stage">');
+  let depth = 0, i = open;
+  while (i < h.length) {
+    const nextOpen  = h.indexOf('<div', i + 1);
+    const nextClose = h.indexOf('</div>', i + 1);
+    if (nextClose === -1) return -1;
+    if (nextOpen !== -1 && nextOpen < nextClose) { depth++; i = nextOpen; }
+    else { if (depth === 0) return nextClose; depth--; i = nextClose; }
+  }
+  return -1;
+}
+const stageEnd = stageClosesAt(html);
+ok('the stage closes somewhere',  stageEnd > 0);
+ok('and the square begins after it — a sibling, not a child',
+   html.indexOf('home-exam-overlay') > stageEnd);
+/* "Based on ICAO", never "ICAO TEST". This is not the official examination and
+ * the name must not imply that it is — which is the whole reason the copy
+ * changed, so it is asserted from both directions. */
+ok('it says the exam it is based on', /Based on ICAO/.test(html));
+ok('and never claims to BE it',       !/ICAO TEST|ICAO Test/.test(html));
+ok('it is called a mock test',        /Mock test/.test(html));
+ok('the third line is the action',    />Begin</.test(html));
 ok('and opens that exam',        /_navTo\(renderTeaExam\)/.test(html));
 /* A button, not a div. The pins on this same page were divs once and no keyboard
  * could reach any of them. */
 ok('it is a button',             /<button type="button" class="home-exam-square"/.test(html));
-ok('with a label for a screen reader', /aria-label="ICAO practice test/.test(html));
+ok('with a label for a screen reader', /aria-label="Mock test based on ICAO/.test(html));
 ok('drawn exactly once',         (html.match(/home-exam-square/g) || []).length === 1);
 
 /* It is NOT part of the map. The levels screen draws the same stage and must not
@@ -133,7 +163,16 @@ ok('drawn exactly once',         (html.match(/home-exam-square/g) || []).length 
 ok('the levels screen does not get one',
    grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)').indexOf('_homeExamSquare') === -1);
 ok('and the stage builder knows nothing about it',
-   grab('function _lmStageHtml(models, tiers, vrSlot)').indexOf('home-exam') === -1);
+   grab('function _lmStageHtml(models, tiers, vrSlot, overlayHtml)').indexOf('home-exam') === -1);
+
+/* The levels screen draws the same stage and must NOT grow a square in it. The
+ * overlay is opt-in: a caller that passes nothing gets nothing. */
+/* grab() here takes ONE argument and reads Scripts.html itself. Passing the
+ * source as a second argument made the first one the signature, so it searched
+ * for the whole file and found nothing — an assertion failing for a reason that
+ * had nothing to do with the product. */
+ok('and _lmRenderMap passes no overlay to the stage',
+   /_lmStageHtml\(models, tiers, vrSlot\)/.test(strip(grab('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)'))));
 
 console.log('--- where the map is drawn, the cards it replaces are gone ---');
 /* The mock test is the square at the foot of the map and the checkpoint is the
@@ -286,6 +325,40 @@ console.log('--- a failed fetch is still a different thing from an empty one ---
 /* Withdrawing content and being unable to reach the server must not look the
  * same. The failure path is untouched and still says so. */
 ok('a failure still says so', /Could not load modules\./.test(home));
+
+console.log('--- the app does not call this the ICAO test ---');
+/* It is not the official examination. "ICAO-based practice test" stays — it says
+ * "based on" and is honest — but anything that reads as the NAME of ICAO's own
+ * test does not.
+ *
+ * The admin results screen is excluded: an administrator reading "ICAO Test" in
+ * their own panel is an internal label, not a claim made to a candidate. So are
+ * console lines and setActiveNav's identifier, which is compared in three places
+ * and displays nowhere. */
+const adminScreens = grab('function renderAdminIcaoTestResults()') +
+                     grab('function _renderIcaoTestResultsTable(results)');
+/* Excluded by BODY, not by line. The offending strings sit inside those two
+ * functions without naming them, so a line-level filter could not see it —
+ * which is how the first version of this reported a failure it could not
+ * explain. */
+const studentFacing = S.replace(adminScreens.slice(0, 0), '')
+  .split('\n').filter(function (l) {
+    const t = l.trim();
+    if (!t || t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return false;
+    if (adminScreens.indexOf(t) !== -1) return false;
+    if (/console\.|setActiveNav|_nl ===|label !==|renderAdminIcaoTest/.test(t)) return false;
+    return /ICAO TEST|ICAO Test|ICAO test/.test(t);
+  });
+ok('no student screen names it the ICAO test',
+   studentFacing.length === 0, studentFacing.slice(0, 3).join(' | '));
+/* And the replacements are actually there, so this is not green by deletion. */
+ok('the exam badges say BASED ON ICAO',   (S.match(/BASED ON ICAO/g) || []).length >= 3);
+ok('the loader says MOCK TEST',           /renderRadarLoader\('MOCK TEST'/.test(S));
+ok('the result banner says MOCK TEST',    /MOCK TEST · RESULT/.test(S));
+ok('and the history says MY MOCK TEST',   /MY MOCK TEST HISTORY/.test(S));
+/* Left alone deliberately: "based on" is not a claim to be the thing. */
+ok('"ICAO-based practice test" is untouched',
+   (S.match(/ICAO-based practice test/g) || []).length >= 5);
 
 console.log(fails ? '\n' + fails + ' FAILING' : '\nAll home-map assertions passed.');
 process.exit(fails ? 1 : 0);

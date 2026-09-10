@@ -2568,7 +2568,7 @@ window.tierByExam = function (examNum) {
           : '_navTo(renderSimulatorPlaceholder)'
       });
 
-      var teaStatusHtml = '<span style="position:absolute;top:10px;right:12px;font-size: 0.72rem;font-weight:800;background:rgba(139,92,246,.25);border:1px solid rgba(139,92,246,.5);color:var(--muted);padding:2px 10px;border-radius: 22px;letter-spacing: 0.06em;">ICAO TEST</span>';
+      var teaStatusHtml = '<span style="position:absolute;top:10px;right:12px;font-size: 0.72rem;font-weight:800;background:rgba(139,92,246,.25);border:1px solid rgba(139,92,246,.5);color:var(--muted);padding:2px 10px;border-radius: 22px;letter-spacing: 0.06em;">BASED ON ICAO</span>';
       var teaBodyHtml =
         '<p style="margin:0;font-size: 0.82rem;color:var(--muted);line-height:1.55;">Evaluate your reading, listening and comprehension skills for ICAO Level 4+.</p>'
 ;
@@ -6141,20 +6141,24 @@ var LEVEL_THEMES = {
     '</div>';
   }
 
-  /* The mock test, as a square at the foot of the map.
+  /* The mock test, on the map rather than under it.
    *
-   * One action, so one square rather than a fourth card in the row below — and it
-   * sits between the stage and the Operational divider because that is where the
-   * eye leaves the map. It carries what the card carried: the badge that says
-   * which exam this is, and the way in. */
+   * It overlays .lm-stage-wrap and NOT .lm-stage. The stage is a fixed 1180x500
+   * scaled by transform, so anything inside it shrinks with the window — the
+   * square's own text would get smaller as the map did. The wrap is not scaled,
+   * is already position:relative, and already clips, so the square stays its own
+   * size and cannot escape the map's edges.
+   *
+   * "Based on ICAO", not "ICAO TEST". This is not the official examination and
+   * the name must not imply that it is. */
   function _homeExamSquare() {
-    return '<div class="home-exam-row">' +
+    return '<div class="home-exam-overlay">' +
       '<button type="button" class="home-exam-square" onclick="_navTo(renderTeaExam)"' +
-        ' aria-label="ICAO practice test — begin">' +
+        ' aria-label="Mock test based on ICAO — begin">' +
         '<span class="home-exam-ring">' + uiIconInline('paper') + '</span>' +
-        '<span class="home-exam-kicker">ICAO TEST</span>' +
+        '<span class="home-exam-kicker">Based on ICAO</span>' +
         '<span class="home-exam-name">Mock test</span>' +
-        '<span class="home-exam-go">Begin &rarr;</span>' +
+        '<span class="home-exam-go">Begin</span>' +
       '</button>' +
     '</div>';
   }
@@ -6164,10 +6168,9 @@ var LEVEL_THEMES = {
    * None of the levels screen's chrome. There is no tab strip to sit under here,
    * and no "Grid view" button — _lmSetView repaints the levels screen, so on the
    * home page that button would not switch a view, it would leave the page. */
-  function _lmHomeMapHtml(data, betweenHtml) {
+  function _lmHomeMapHtml(data, overlayHtml) {
     var surface = _lmSurface(data);
-    return _lmStageHtml(surface.models, surface.tiers, surface.vrSlot) +
-           (betweenHtml || '') +
+    return _lmStageHtml(surface.models, surface.tiers, surface.vrSlot, overlayHtml) +
            _lmOpsBlock(surface.heroCard);
   }
 
@@ -6962,7 +6965,7 @@ var LEVEL_THEMES = {
    * Everything here is a drawing of the models and nothing else — no tab strip,
    * no way back to the grid, no Operational group. Two screens draw this now, and
    * the chrome around it is the part they disagree about. */
-  function _lmStageHtml(models, tiers, vrSlot) {
+  function _lmStageHtml(models, tiers, vrSlot, overlayHtml) {
     var uid = 'lm' + Date.now().toString(36);
     var unplaced = [];
 
@@ -7164,11 +7167,15 @@ var LEVEL_THEMES = {
         '<div class="lm-tier-bar"><i style="width:' + pct + '%"></i></div></section>';
     }).join('');
 
+    /* The overlay is a SIBLING of .lm-stage inside the wrap, not a child of it.
+     * A child would be scaled by the stage's transform along with the coastlines;
+     * a sibling sits on the unscaled wrap and keeps its own size at every width.
+     * The levels screen passes nothing and gets nothing. */
     return '<div class="lm-tiers">' + tierBar + '</div>' +
       '<div class="lm-stage-wrap"><div class="lm-stage">' +
         '<svg class="lm-geo" viewBox="0 0 ' + _LM_W + ' ' + _LM_H + '" aria-hidden="true">' + geo + '</svg>' +
         cpMarks + anchors +
-      '</div></div>' + strip;
+      '</div>' + (overlayHtml || '') + '</div>' + strip;
   }
 
   /* The map as the LEVELS screen draws it.
@@ -28800,7 +28807,7 @@ var LEVEL_THEMES = {
     if (!host) return;
     host.innerHTML =
       '<div class="panel" style="margin:16px;padding:24px;text-align:left;">' +
-        '<p class="eyebrow" style="margin:0 0 10px;">ICAO TEST \u00b7 NOT MARKED</p>' +
+        '<p class="eyebrow" style="margin:0 0 10px;">MOCK TEST \u00b7 NOT MARKED</p>' +
         '<h3 style="margin:0 0 12px;font-size:1.15rem;color:var(--white,#fff);">' +
           'Your examination could not be heard</h3>' +
         '<p style="margin:0 0 10px;font-size: 0.9rem;line-height:1.6;color:var(--text,#cacaca);">' +
@@ -29960,7 +29967,7 @@ var LEVEL_THEMES = {
     // nothing at all for as long as the call took — and Apps Script cold-starts.
     // A wait you can see is a wait; a wait you cannot see is a broken button.
     var _startLoader = window.renderRadarLoader
-      ? window.renderRadarLoader('ICAO TEST', [
+      ? window.renderRadarLoader('MOCK TEST', [
           'Checking your attempts\u2026',
           'Reserving your sitting\u2026',
           'Selecting your paper\u2026',
@@ -30084,7 +30091,7 @@ var LEVEL_THEMES = {
     // the first off the screen and rebuilt it, which read as a flash of nothing
     // half way through the wait.
     var loader = _sc.startLoader || (window.renderRadarLoader
-      ? window.renderRadarLoader('ICAO TEST', [
+      ? window.renderRadarLoader('MOCK TEST', [
           'Loading your examination…',
           'Selecting a version…',
           'Preparing the recordings…'
@@ -30619,7 +30626,7 @@ var LEVEL_THEMES = {
       '<div style="min-height:calc(100vh - 60px);display:flex;align-items:center;' +
         'justify-content:center;padding:26px 16px;">' +
         '<div class="tea-score-box" style="max-width:420px;text-align:center;">' +
-          '<p class="eyebrow" style="margin:0 0 8px;">ICAO test \u00b7 result saved</p>' +
+          '<p class="eyebrow" style="margin:0 0 8px;">Mock test \u00b7 result saved</p>' +
           (band > 0 ? '<div class="tea-score-band-value" style="color:var(--accent);">' +
                         band + '</div>' +
                       '<div class="tea-score-band-sub" style="color:var(--accent);">' +
@@ -30731,7 +30738,7 @@ function _showReportScreen(json) {
       '<div style="min-height:calc(100vh - 60px);background:var(--bg);padding:26px 16px 60px;overflow-y:auto;">' +
         '<div style="max-width:760px;margin:0 auto;">' +
           '<div style="text-align:center;margin-bottom:20px;">' +
-            '<div class="tea-part-badge" style="font-size: 0.72rem;padding:5px 16px;">ICAO TEST · RESULT</div>' +
+            '<div class="tea-part-badge" style="font-size: 0.72rem;padding:5px 16px;">MOCK TEST · RESULT</div>' +
           '</div>' +
           // The free sitting is examined and graded in full — only the reading of
           // the result is withheld. Blurring rather than hiding is deliberate: the
@@ -30991,7 +30998,7 @@ function _showReportScreen(json) {
       '<div style="min-height:calc(100vh - 60px);background:var(--bg);padding:26px 16px 60px;overflow-y:auto;">' +
         '<div style="max-width:760px;margin:0 auto;">' +
           '<div style="text-align:center;margin-bottom:6px;">' +
-            '<div class="tea-part-badge" style="font-size: 0.72rem;padding:5px 16px;">MY ICAO TEST HISTORY</div>' +
+            '<div class="tea-part-badge" style="font-size: 0.72rem;padding:5px 16px;">MY MOCK TEST HISTORY</div>' +
           '</div>' +
           body +
           '<div style="text-align:center;margin-top:26px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">' +
@@ -31440,7 +31447,7 @@ function _showReportScreen(json) {
 
     content.innerHTML =
       '<div class="tea-begin-shell" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 60px);background:var(--bg);gap:24px;">' +
-        '<div class="tea-part-badge" style="font-size:0.9rem;padding:6px 18px;">ICAO TEST</div>' +
+        '<div class="tea-part-badge" style="font-size:0.9rem;padding:6px 18px;">BASED ON ICAO</div>' +
         '<div style="font-size: 1.35rem;font-weight:700;color:var(--text);">ICAO-based practice test</div>' +
         '<div style="font-size: 0.82rem;color:var(--muted);text-align:center;max-width:340px;line-height:1.6;">' +
           'This is a full ICAO aviation English proficiency exam.<br>The examiner will speak. Respond via microphone.' +
@@ -31511,7 +31518,7 @@ function _showReportScreen(json) {
       '<div class="tea-exam-shell" style="display:flex;flex-direction:column;' +
         'height:calc(100dvh - 60px - env(safe-area-inset-top));background:var(--bg);">' +
         '<div class="tea-header">' +
-          '<div><div class="tea-part-badge">ICAO TEST</div>' +
+          '<div><div class="tea-part-badge">BASED ON ICAO</div>' +
           '<div class="tea-header-title">ICAO-based practice test</div></div>' +
           // Where am I in a 25-30 minute exam? There was no answer to that anywhere
           // on screen — only an elapsed clock, which tells you time has passed but

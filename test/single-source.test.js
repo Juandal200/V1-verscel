@@ -136,7 +136,7 @@ function bodyOf(sig) {
  * the map, and the chrome the levels screen wraps it in. Reading only the wrapper
  * would report a 400-character function as "handed the level states" and mean
  * nothing by it. */
-const mapBody = bodyOf('function _lmStageHtml(models, tiers, vrSlot)') +
+const mapBody = bodyOf('function _lmStageHtml(models, tiers, vrSlot, overlayHtml)') +
                 bodyOf('function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot)');
 ok('the map is handed the level states', mapBody.length > 500);
 ok('and does not work them out again',   !/lockedByPlan|unlocked === false/.test(mapBody));
