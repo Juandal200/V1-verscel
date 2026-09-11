@@ -17,6 +17,41 @@ Newest day first.
 
 ## 2026-09-10
 
+### The altitude fits above the answer bar on a phone
+
+Second of the three.
+
+**Plan.** On a phone, in focus mode: Back moves out of its own row into the
+exercise header — a ← beside Pause and Menu that calls the same `goSmartBack`
+the row calls — and the row is hidden only while a cockpit is on screen. The
+altitude card becomes one row: reading and target on the left, Climb and
+Descend on the right, the same 46px buttons. The cockpit's height stops
+subtracting the 50px of navigation that focus mode hides.
+
+**Criterion.** From the approved plan: on a 393×852 phone the altitude readout,
+Climb and Descend are fully visible above the answer bar without scrolling.
+Harness: the card is 64px (was 138) at 503–567, the bar starts at 598; before,
+the card sat at 571–709 behind it.
+
+`DERIVED`: the row is hidden with `:has()` on the cockpit, not on focus mode
+alone. The simulator turns focus mode on before it knows there is a scenario,
+and the error panel it draws on failure needs its Back.
+
+**Checklist.**
+
+- [ ] The exercise screen has no separate Back row; a ← sits left of "Exercise N of 8"
+- [ ] ← leaves the exercise for the country screen, as the old Back did
+- [ ] On a Climb exercise the altitude, target, Climb and Descend are all visible, nothing over them
+- [ ] Climb and Descend are as easy to tap as before
+- [ ] Open the menu (≡) — the normal Back row returns and the ← goes
+- [ ] Taxi exercises still show no altitude card
+- [ ] On a laptop, nothing changed
+
+**Not verifiable from the repo.** WebKit. Phones shorter than 852px (an iPhone
+SE) still scroll to reach the altitude, by design. iOS before 15.4 has no
+`:has()` and shows both Backs.
+
+
 ### The answer bar is pinned to the screen, not to the page area
 
 First of three changes approved together for the phone simulator (the altitude

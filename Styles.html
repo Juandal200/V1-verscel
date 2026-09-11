@@ -3379,6 +3379,9 @@ body.cabina-mode .content-grid {
   padding: 7px 10px;
 }
 
+/* The cockpit's own Back is a phone control; the desktop keeps the row above. */
+.sim-header-back { display: none; }
+
 /* Pause button — estado activo (reproduciendo) */
 #simMediaPauseBtn {
   transition: background 0.25s var(--ease), color 0.25s var(--ease), border-color 0.25s var(--ease);
@@ -13088,7 +13091,8 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
       width: auto !important;
     }
     /* The glyph says it. Each of these was taking a full row for a word. */
-    .sim-cockpit-actions .btn {
+    .sim-cockpit-actions .btn,
+    .sim-cockpit-header .sim-header-back {
       padding: 7px 10px !important;
       min-width: 38px !important;
       width: auto !important;
@@ -13097,6 +13101,27 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
       line-height: 1 !important;
     }
     .sim-cockpit-actions .btn-label { display: none !important; }
+
+    /* Back joins this row, and the row above the cockpit goes.
+
+       That row was 68px on a phone, and the altitude sat behind the pinned answer
+       bar by about that much. The header's Back calls goSmartBack, the same as the
+       row, so nothing about leaving changes but where the button is.
+
+       The row is hidden only while #contentArea holds a cockpit. Focus mode alone
+       is not enough: the simulator turns it on before it knows there is a
+       scenario, and on failure draws an error panel with it still on — and that
+       panel needs its Back. Without :has() (iOS before 15.4) the row simply stays,
+       beside a second Back: untidy, and nothing lost. */
+    body.sim-focus-mode .sim-cockpit-header .sim-header-back {
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+    }
+    body.sim-focus-mode #contentArea:has(> .sim-cockpit) > #globalSmartBackButton {
+      display: none !important;
+    }
 
     /* The boxes go. Five bordered cards inside one bordered column is four borders
        nobody needs, and the padding on each was costing more height than the content
@@ -13126,15 +13151,34 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
     .sim-side-card              { order: 2 !important; }
     .sim-readback-priority-card { order: 3 !important; }
 
-    /* The altitude reads as one line: where you are, where you should be, and the two
-       controls. It was a card the height of the read-back for two numbers. */
+    /* The altitude reads as one row: the reading and the target on the left, the
+       two controls on the right.
+
+       This note said "one line" before it was. Label, reading, target and a
+       full-width row of buttons were still stacked — 138px of card for two
+       numbers, and it was the part the pinned answer bar covered. Same elements,
+       same 46px buttons; a grid instead of a stack.
+
+       display without !important, and on the card: ground phases hide the
+       altitude with an inline display:none on the ROW around it, which nothing
+       here may outrank. */
     .sim-instrument--solo {
-      padding: 10px 12px !important;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: "label btns" "value btns" "target btns";
+      align-items: center;
+      column-gap: 12px;
+      padding: 8px 10px 8px 12px !important;
       border-radius: 12px !important;
     }
+    .sim-instrument--solo .sim-instr-label  { grid-area: label; margin-bottom: 2px; }
+    .sim-instrument--solo .sim-instr-value  { grid-area: value; }
+    .sim-instrument--solo .sim-instr-target { grid-area: target; margin-top: 2px; min-height: 0; }
     .sim-instr-value { font-size: 1.35rem !important; line-height: 1 !important; }
     .sim-instr-label { font-size: 0.62rem !important; }
     .sim-instr-btns  { margin-top: 8px !important; gap: 8px !important; }
+    .sim-instrument--solo .sim-instr-btns { grid-area: btns; margin-top: 0 !important; }
+    .sim-instrument--solo .sim-instr-btn  { min-width: 84px; }
 
     /* An empty result card is not a result.
      *
@@ -13214,6 +13258,12 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
     body.sim-focus-mode .sim-cockpit {
       padding-bottom: calc(var(--answer-h, 150px) +
                            env(safe-area-inset-bottom) + 14px) !important;
+    }
+    /* And its height stops subtracting that navigation. The base rule takes 128px
+       for the top bar and the bottom navigation; with the navigation hidden, 78px
+       is the top bar's share. */
+    body.sim-focus-mode .sim-cockpit {
+      max-height: calc(100dvh - 78px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     }
 
     .sim-cockpit-header {

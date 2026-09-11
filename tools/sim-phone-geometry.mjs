@@ -155,7 +155,15 @@ window.__geo = (function () {
       nextReachable: reachable(q('#simActionRow .btn.primary')),
       retryReachable: reachable(q('#simActionRow .btn.secondary')),
       paused: shown(q('.sim-paused-banner')) ? r(q('.sim-paused-banner')) : null,
+      altitudeShown: shown(q('#altInstrument')),
+      topnav: r(q('.app-topnav')), contentArea: r(q('#contentArea')),
     };
+  }
+  // Another phase of the same route, drawn the way Next draws it.
+  function phase(i) {
+    AppState.training.currentIndex = i;
+    window.renderScenarioStageImmersive();
+    return new Promise(function (res) { setTimeout(res, 700); }).then(settle);
   }
   function fixtureScenarios() {
     var phases = [['TAXI_OUT', 'Taxi Out'], ['TAKEOFF', 'Takeoff'], ['CLIMB', 'Climb'], ['CRUISE', 'Cruise'],
@@ -215,7 +223,7 @@ window.__geo = (function () {
     window.retryCurrentScenario();
     return new Promise(function (res) { setTimeout(res, 700); }).then(settle);
   }
-  return { measure: measure, enter: enter, verdict: verdict, retry: retry, shown: shown };
+  return { measure: measure, enter: enter, verdict: verdict, retry: retry, phase: phase, shown: shown };
 })();
 true;`;
 
@@ -265,6 +273,8 @@ try {
   results.paused = await tab.ev('__geo.measure("paused")');            await tab.shot('5-paused');
   await tab.ev('window.simMediaTogglePause(); window.toggleSimulatorFocusMode(); new Promise(r => setTimeout(r, 300))');
   results.menu = await tab.ev('__geo.measure("menu shown")');          await tab.shot('6-menu');
+  await tab.ev('__geo.phase(0)');
+  results.taxi = await tab.ev('__geo.measure("taxi out")');            await tab.shot('8-taxi');
   await tab.close();
 
   writePage(false);
@@ -327,6 +337,9 @@ console.log('--- the menu, and the desktop ---');
 ok('with the menu shown there is still exactly one Back', results.menu.backsShown === 1,
    results.menu.backsShown + ' shown');
 ok('the desktop simulator has one Back',   results.desktop.backsShown === 1, results.desktop.backsShown);
+ok('a taxi phase still has no altitude card', !results.taxi.altitudeShown);
+ok('and its one Back can be pressed',      results.taxi.backsShown === 1 && results.taxi.backReachable,
+   results.taxi.backsShown + ' shown');
 
 if (JSON_OUT) console.log('\n' + JSON.stringify(results, null, 1));
 console.log(fails ? '\n' + fails + ' FAILING' : '\nAll phone geometry checks passed.');

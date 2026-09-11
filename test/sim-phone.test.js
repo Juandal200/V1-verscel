@@ -129,6 +129,45 @@ ok('and the scroll reserve drops the same 50px',
 ok('while still reserving room for the bar itself',
    !!focusPad && /--answer-h/.test(focusPad));
 
+console.log('--- Back moves into the header, and the altitude fits ---');
+/* The app-wide Back is a full row above the cockpit — 68px on a phone, which is
+ * the difference between the altitude fitting above the pinned bar and sitting
+ * behind it. The cockpit carries its own Back, calling the same function. */
+ok('the header carries a Back',
+   /<div class="sim-cockpit-header">'[\s\S]{0,1500}class="btn secondary sim-header-back" onclick="goSmartBack\(\)"/.test(S));
+ok('and it is the same exit the row uses',  /btn\.onclick = goSmartBack;/.test(S));
+ok('the icon it asks for is drawn',          /^\s{4}back:\s+'</m.test(S));
+ok('on a phone in focus mode it is shown',
+   /^inline-flex/.test(lastValue('body.sim-focus-mode .sim-cockpit-header .sim-header-back', 'display') || ''));
+const hideRow = lastValue('body.sim-focus-mode #contentArea:has(> .sim-cockpit) > #globalSmartBackButton', 'display');
+ok('and the row is hidden only while the cockpit is on screen', /^none/.test(hideRow || ''), String(hideRow));
+/* Not on focus mode alone. renderScenarioStageImmersive turns focus mode on
+ * BEFORE it knows there is a scenario, and on failure draws an error panel with
+ * focus mode still on — a rule keyed on focus mode alone would take Back away
+ * from exactly that panel. */
+ok('because focus mode is on before the cockpit exists',
+   /enableSimulatorFocusMode\(\);[\s\S]{0,400}showContentError\('No scenarios available/.test(S));
+const offPhone = ST.replace(/@media[^{]*\{(?:[^{}]|\{[^}]*\})*\}/g, '');
+ok('off the phone it is not shown', /\.sim-header-back\s*\{[^}]*display:\s*none/.test(offPhone));
+
+const altDisplay = lastValue('.sim-instrument--solo', 'display');
+ok('the altitude is one row on a phone',    /^grid\b/.test(altDisplay || ''), String(altDisplay));
+/* Ground phases hide the altitude with an inline display:none on the ROW, and
+ * only an !important display on the row could beat that. */
+ok('ground phases still hide it on the row',
+   /card\.closest\('\.sim-instruments-row'\)[\s\S]{0,160}\.style\.display = on \? '' : 'none'/.test(S));
+ok('and no phone rule forces the row visible',
+   !/!important/.test(lastValue('.sim-instruments-row', 'display') || ''));
+
+/* The cockpit's height subtracted 128px — the top bar and the bottom
+ * navigation — and focus mode hides the navigation. */
+const focusMax = lastValue('body.sim-focus-mode .sim-cockpit', 'max-height');
+ok('in focus mode the cockpit stops subtracting the hidden navigation',
+   !!focusMax && !/\b128px/.test(focusMax), String(focusMax));
+ok('but still subtracts the top bar and both safe areas',
+   !!focusMax && /\b78px/.test(focusMax) && /safe-area-inset-top/.test(focusMax) &&
+   /safe-area-inset-bottom/.test(focusMax), String(focusMax));
+
 console.log('--- and none of it reaches the desktop ---');
 /* Every one of these lives inside the phone breakpoint. A max-height on the
  * desktop card would clip the feedback it is supposed to show. */
