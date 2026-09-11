@@ -17,6 +17,35 @@ Newest day first.
 
 ## 2026-09-10
 
+### The answer bar stops reserving room for a navigation bar that is not there
+
+**Plan.** Inside the phone breakpoint, scope the bar's bottom offset and the
+cockpit's scroll reserve to `body.sim-focus-mode` and drop the 50px each reserves
+for the mobile bottom navigation.
+
+**Criterion.** Stated, from the screenshot: the bar sits on the bottom edge and
+the ATC card is no longer sliced by its top edge.
+
+`DERIVED`: scoped to focus mode rather than removed. The Focus button can turn it
+off, and then the navigation really is displayed and the 50px is really needed.
+
+**Why, in one line.** The simulator turns focus mode on as it renders, focus mode
+hides the bottom navigation, and the bar was still holding 50px open for it —
+visible as an empty strip under "Practice again" while "AFTER 4 REPLAYS" was cut
+in half above.
+
+**Checklist.**
+
+- [ ] The bar sits on the bottom edge, no empty strip under "Practice again"
+- [ ] "ATC TEXT HIDDEN — UNLOCKS AFTER 4 REPLAYS" reads in full
+- [ ] Turn Focus off — the bottom navigation appears and the bar clears it
+- [ ] Turn Focus back on — the bar returns to the bottom edge
+- [ ] On a laptop, nothing changed
+
+**Not verifiable from the repo.** Whether the reclaimed 50px is enough for the ATC
+card on every phone height.
+
+
 ### The pinned answer bar stops covering the exercise
 
 **Plan.** Three CSS changes inside the phone breakpoint: `:empty` becomes

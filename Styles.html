@@ -13187,6 +13187,24 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
                            env(safe-area-inset-bottom) + 14px) !important;
     }
 
+    /* In focus mode there is no bottom navigation.
+     *
+     * It is hidden by `body.sim-focus-mode .mobile-bottom-nav { display: none }`,
+     * and the simulator turns focus mode ON as it renders — so the 50px the bar
+     * reserves for that navigation is 50px of clearance the student cannot see.
+     * It showed as an empty strip under "Practice again" while the bottom of the
+     * ATC card was sliced off by the bar's top edge.
+     *
+     * Scoped to focus mode rather than removed: the Focus button can turn it off,
+     * and then the navigation really is there and the 50px is really needed. */
+    body.sim-focus-mode .sim-readback-priority-card {
+      bottom: env(safe-area-inset-bottom) !important;
+    }
+    body.sim-focus-mode .sim-cockpit {
+      padding-bottom: calc(var(--answer-h, 150px) +
+                           env(safe-area-inset-bottom) + 14px) !important;
+    }
+
     .sim-cockpit-header {
       position: sticky !important;
       top: 0 !important;

@@ -27,6 +27,13 @@ const ok = (n, c, d) => { if (!c) fails++; console.log((c ? '  PASS  ' : '  FAIL
  * decided by order and !important, and picking the first match is how a rule
  * gets "fixed" somewhere it never applied. */
 function phoneRules(selector) {
+  /* Selectors compared EXACTLY, not by regex.
+   *
+   * Two earlier versions of this escaped an already-escaped selector and matched
+   * nothing. And a regex for ".sim-readback-priority-card" also matches the tail
+   * of "body.sim-focus-mode .sim-readback-priority-card", so the unscoped rule
+   * would have read the scoped rule's value and reported it as its own. */
+  const want = selector.trim();
   const out = [];
   const re = /@media\s*\(\s*max-width:\s*768px\s*\)\s*\{/g;
   let m;
@@ -34,21 +41,25 @@ function phoneRules(selector) {
     let d = 1, i = m.index + m[0].length;
     while (d && i < ST.length) { if (ST[i] === '{') d++; else if (ST[i] === '}') d--; i++; }
     const block = ST.slice(m.index + m[0].length, i);
-    /* Escaped ONCE. The first version took an already-escaped selector and
-     * escaped it again, so `\.sim-` became `\\.sim-` and matched nothing — five
-     * assertions failed against correct CSS. */
-    const rr = new RegExp(selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\{([^}]*)\\}', 'g');
-    /* r[1], not r[2]: dropping the prefix group moved the body to the first
-     * capture, and pushing undefined made six rules look like none. */
-    let r; while ((r = rr.exec(block))) out.push(r[1]);
+    const rr = /([^{}]+)\{([^}]*)\}/g;
+    let r;
+    while ((r = rr.exec(block))) {
+      const sels = r[1].split(',').map(function (x) { return x.trim().replace(/\s+/g, ' '); });
+      if (sels.indexOf(want) !== -1) out.push(r[2]);
+    }
   }
   return out;
 }
+
 function lastValue(selector, prop) {
-  const decls = phoneRules(selector).join(';').split(';');
+  /* Whitespace collapsed first: a calc() wrapped across two lines is one
+   * declaration, and `.` does not cross a newline — so the multi-line
+   * padding-bottom read as absent until this was added. */
+  const decls = phoneRules(selector).join(';').split(';')
+    .map(function (d) { return d.replace(/\s+/g, ' ').trim(); });
   let found = null;
   decls.forEach(function (d) {
-    const mm = d.match(new RegExp('^\\s*' + prop + '\\s*:\\s*(.+)$'));
+    const mm = d.match(new RegExp('^' + prop + '\\s*:\\s*(.+)$'));
     if (mm) found = mm[1].trim();
   });
   return found;
@@ -83,6 +94,40 @@ ok('and it is not the translucent panel token',
    !!bg && !/--panel\b/.test(bg), String(bg));
 ok('--panel really is translucent',  /--panel:\s*rgba\([^)]*0\.9\d\)/.test(ST));
 ok('--bg is a solid colour',         /--bg:\s*#[0-9a-f]{6}\s*;/i.test(ST));
+
+console.log('--- and it does not reserve room for a bar that is not there ---');
+/* The simulator turns focus mode on as it renders, and focus mode hides the
+ * mobile bottom navigation. The pinned bar was still offset 50px above the
+ * bottom edge for it — an empty strip under "Practice again" while the bottom of
+ * the ATC card was sliced off by the bar's top edge.
+ *
+ * Scoped to focus mode, not removed: the Focus button can turn it off, and then
+ * the navigation really is there. */
+ok('focus mode hides the bottom navigation',
+   /body\.sim-focus-mode\s+\.mobile-bottom-nav[^{]*\{[^}]*display:\s*none/.test(ST));
+ok('and the simulator enables focus mode as it renders',
+   /renderScenarioStageImmersive[\s\S]{0,200}enableSimulatorFocusMode\(\)/.test(S));
+
+const focusBottom = lastValue('body.sim-focus-mode .sim-readback-priority-card', 'bottom');
+ok('in focus mode the bar sits on the bottom edge', !!focusBottom, 'no rule');
+ok('with no phantom 50px',
+   !!focusBottom && !/\b50px/.test(focusBottom), String(focusBottom));
+ok('but the safe area is still respected',
+   !!focusBottom && /safe-area-inset-bottom/.test(focusBottom));
+
+/* The unscoped rule keeps the 50px, for when Focus is switched off. */
+const plainBottom = lastValue('.sim-readback-priority-card', 'bottom');
+ok('outside focus mode the navigation is still allowed for',
+   !!plainBottom && /\b50px/.test(plainBottom), String(plainBottom));
+
+const focusPad = lastValue('body.sim-focus-mode .sim-cockpit', 'padding-bottom');
+/* \b50px, not 50px. The fallback in var(--answer-h, 150px) CONTAINS the
+ * substring "50px", so a plain search reported a phantom reserve that had
+ * already been removed. */
+ok('and the scroll reserve drops the same 50px',
+   !!focusPad && !/\b50px/.test(focusPad), String(focusPad));
+ok('while still reserving room for the bar itself',
+   !!focusPad && /--answer-h/.test(focusPad));
 
 console.log('--- and none of it reaches the desktop ---');
 /* Every one of these lives inside the phone breakpoint. A max-height on the
