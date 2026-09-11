@@ -17,6 +17,42 @@ Newest day first.
 
 ## 2026-09-10
 
+### The pinned answer bar stops covering the exercise
+
+**Plan.** Three CSS changes inside the phone breakpoint: `:empty` becomes
+`.is-empty` so the placeholder verdict panel actually hides; the bar gets a
+`max-height` and scrolls inside itself; and its background becomes opaque.
+
+**Criterion.** Stated, from three screenshots: the read-back bar must not cover
+the ATC clearance or the Climb/Descend controls, and what it covers must not show
+through it.
+
+`DERIVED`: 50vh. Half the screen is the most a bar can take and still leave the
+exercise readable behind it; the exact figure is a judgement and easy to change.
+
+`DERIVED`: `var(--bg)` rather than `var(--panel)`. `--panel` is
+`rgba(18,18,18,0.97)` — fine on a card in the flow, wrong on something fixed over
+the content. This is correct on its own merits whether or not it explains the
+screenshots.
+
+**Why, in one line.** Everything the student acts with lives in one fixed bar with
+no ceiling, so a marked attempt grew it past the viewport and fixed elements
+cannot be scrolled clear.
+
+**Checklist.**
+
+- [ ] Start an exercise on a phone — the ATC radio panel is fully visible
+- [ ] No large empty "Feedback appears after evaluation" box before answering
+- [ ] The altitude readout and Climb/Descend are reachable, not behind the bar
+- [ ] Speak an answer — the verdict appears and the bar scrolls inside itself
+- [ ] Nothing behind the bar shows through it
+- [ ] The rating stars are reachable by scrolling the bar
+- [ ] On a laptop, the read-back card is unchanged and feedback is not clipped
+
+**Not verifiable from the repo.** Whether 50vh is the right ceiling, and whether
+the transparency had a cause beyond the translucent token. Both need the phone.
+
+
 ### No rooms, no module section in the reports
 
 **Plan.** Three renderers, one rule each: when `res.modules` is empty, omit the

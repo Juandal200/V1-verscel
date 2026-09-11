@@ -13125,8 +13125,17 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
     .sim-instr-label { font-size: 0.62rem !important; }
     .sim-instr-btns  { margin-top: 8px !important; gap: 8px !important; }
 
-    /* An empty result card is not a result. */
-    .sim-feedback-box:empty {
+    /* An empty result card is not a result.
+     *
+     * This was `.sim-feedback-box:empty`, and :empty means no children AND no
+     * text. The box ships with the words "Feedback appears after evaluation" in
+     * it, so it was never empty and this rule never fired once. The class that
+     * does mean empty is is-empty, which #simFeedbackBox.is-empty already uses.
+     *
+     * Two rules below this one, the file records making the identical mistake:
+     * "The class is sim-section-title, not eyebrow — naming the wrong one is why
+     * they were still showing." Same error, caught once and missed once. */
+    .sim-feedback-box.is-empty {
       display: none !important;
       padding: 0 !important;
       margin: 0 !important;
@@ -13195,7 +13204,22 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
       z-index: 7 !important;
       margin: 0 !important;
       padding: 10px 12px !important;
-      background: var(--panel) !important;
+      /* Never more than half the screen.
+       *
+       * Everything lives in this bar — the answer, Speak, Practice again, the
+       * verdict and the rating widget — and it had no ceiling. Once an attempt
+       * was marked it grew past the viewport and covered the ATC clearance and
+       * the Climb/Descend controls, which cannot be scrolled clear because the
+       * bar is fixed. It scrolls inside itself now instead of over everything
+       * else. */
+      max-height: 50vh !important;
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+      /* Fully opaque. --panel is rgba(18,18,18,0.97), and 3% of transparency is
+       * fine on a card sitting in the flow and wrong on an overlay: whatever it
+       * covers shows through it. An overlay hides what is beneath it or it is
+       * not an overlay. */
+      background: var(--bg) !important;
       border-top: 1px solid var(--line) !important;
       box-shadow: var(--shadow-2) !important;
     }
