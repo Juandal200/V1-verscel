@@ -18297,19 +18297,27 @@ var LEVEL_THEMES = {
             '<div style="font-size: 0.72rem;font-weight:700;color:var(--muted);letter-spacing: 0.12em;text-transform:uppercase;margin-bottom:6px;">Total Active Time</div>' +
             '<div style="font-size: 1.6rem;font-weight:800;color:var(--text);">' + timeStr + '</div>' +
           '</div>' +
-          '<div style="flex:1;min-width:140px;padding:16px 20px;background:var(--panel-soft);border:1px solid var(--line);border-radius: 8px;">' +
-            '<div style="font-size: 0.72rem;font-weight:700;color:var(--muted);letter-spacing: 0.12em;text-transform:uppercase;margin-bottom:6px;">Modules Completed</div>' +
-            '<div style="font-size: 1.6rem;font-weight:800;color:var(--text);">' + completedCount + ' <span style="font-size:1rem;color:var(--muted);">/ ' + mods.length + '</span></div>' +
-          '</div>' +
-          '<div style="flex:1;min-width:140px;padding:16px 20px;background:var(--panel-soft);border:1px solid var(--line);border-radius: 8px;">' +
-            '<div style="font-size: 0.72rem;font-weight:700;color:var(--muted);letter-spacing: 0.12em;text-transform:uppercase;margin-bottom:6px;">Overall Progress</div>' +
-            '<div style="font-size: 1.6rem;font-weight:800;color:' + (overallPct >= 85 ? 'var(--green)' : overallPct >= 50 ? 'var(--yellow)' : 'var(--text)') + ';">' + overallPct + '%</div>' +
-          '</div>' +
+          (mods.length
+            ? '<div style="flex:1;min-width:140px;padding:16px 20px;background:var(--panel-soft);border:1px solid var(--line);border-radius: 8px;">' +
+                '<div style="font-size: 0.72rem;font-weight:700;color:var(--muted);letter-spacing: 0.12em;text-transform:uppercase;margin-bottom:6px;">Modules Completed</div>' +
+                '<div style="font-size: 1.6rem;font-weight:800;color:var(--text);">' + completedCount + ' <span style="font-size:1rem;color:var(--muted);">/ ' + mods.length + '</span></div>' +
+              '</div>' +
+              '<div style="flex:1;min-width:140px;padding:16px 20px;background:var(--panel-soft);border:1px solid var(--line);border-radius: 8px;">' +
+                '<div style="font-size: 0.72rem;font-weight:700;color:var(--muted);letter-spacing: 0.12em;text-transform:uppercase;margin-bottom:6px;">Overall Progress</div>' +
+                '<div style="font-size: 1.6rem;font-weight:800;color:' + (overallPct >= 85 ? 'var(--green)' : overallPct >= 50 ? 'var(--yellow)' : 'var(--text)') + ';">' + overallPct + '%</div>' +
+              '</div>'
+            : '') +
           '<div style="flex:0;display:flex;align-items:center;">' +
             '<button class="btn primary" style="padding:10px 18px;font-size:0.82rem;" onclick="_downloadProgressPdf()">&darr; Download PDF</button>' +
           '</div>' +
         '</div>' +
-        // Skills table
+        /* No rooms, no section.
+         *
+         * With the modules withdrawn this printed an empty table under a full set
+         * of headers, and two tiles reading 0 and 0%. "Overall Progress: 0%" is
+         * module progress wearing a general name — a student reads it as their
+         * progress, and it is not. Absent is truthful; zero is not. */
+        (mods.length ? (
         '<div style="overflow-x:auto;">' +
           '<table style="width:100%;border-collapse:collapse;">' +
             '<thead><tr style="border-bottom:2px solid var(--line);">' +
@@ -18320,9 +18328,9 @@ var LEVEL_THEMES = {
               '<th style="padding:10px 12px;font-size: 0.72rem;color:var(--muted);">Listening</th>' +
               '<th style="padding:10px 12px;font-size: 0.72rem;color:var(--muted);">Evaluation</th>' +
             '</tr></thead>' +
-            '<tbody>' + (rows || '<tr><td colspan="6" style="padding:24px;text-align:center;color:var(--muted);">No modules available.</td></tr>') + '</tbody>' +
+            '<tbody>' + rows + '</tbody>' +
           '</table>' +
-        '</div>' +
+        '</div>') : '') +
       '</div>';
 
     byId('contentArea').innerHTML = html;
@@ -18464,16 +18472,22 @@ var LEVEL_THEMES = {
       '</div>' +
       '<div class="summary">' +
         '<div class="card"><div class="card-label">Active Time</div><div class="card-value">' + timeStr + '</div></div>' +
-        '<div class="card"><div class="card-label">Modules Completed</div><div class="card-value">' + completedCount + ' / ' + mods.length + '</div></div>' +
-        '<div class="card"><div class="card-label">Overall Progress</div><div class="card-value">' + overallPct + '%</div></div>' +
+        /* Same rule as the screen: no rooms, no section. A printed "Overall
+         * Progress: 0%" is worse than a shorter report, because paper is read
+         * without the context that explains it. */
+        (mods.length
+          ? '<div class="card"><div class="card-label">Modules Completed</div><div class="card-value">' + completedCount + ' / ' + mods.length + '</div></div>' +
+            '<div class="card"><div class="card-label">Overall Progress</div><div class="card-value">' + overallPct + '%</div></div>'
+          : '') +
       '</div>' +
+      (mods.length ? (
       '<table>' +
         '<thead><tr>' +
           '<th>Module</th><th style="text-align:center;">Status</th>' +
           '<th>Quiz</th><th>Grammar</th><th>Listening</th><th>Evaluation</th>' +
         '</tr></thead>' +
         '<tbody>' + moduleRows + '</tbody>' +
-      '</table>' +
+      '</table>') : '') +
       '</body></html>';
 
     _openReportWindow(html, 'downloadProgressPdf');
@@ -18572,7 +18586,13 @@ var LEVEL_THEMES = {
 
       '<hr>' +
 
-      // ── Course Modules section ─────────────────────────────────────
+      /* ── Course Modules section, or nothing ──────────────────────────
+       *
+       * The whole section goes when there are no rooms, not just its table. It
+       * used to print a heading, three cards reading 0 and 0%, four skill
+       * averages reading "—", and an empty table. On paper, without the context
+       * that explains why, that reads as a student who has done nothing. */
+      (mods.length ? (
       '<div class="section">' +
         '<h2>Course Modules</h2>' +
         '<div class="stats" style="margin-bottom:14px;">' +
@@ -18596,11 +18616,11 @@ var LEVEL_THEMES = {
           }).join('');
           return '<div class="stats" style="margin-bottom:18px;">' + skillCards + '</div>';
         })() +
-        (mods.length ? '<table>' +
+        '<table>' +
           '<thead><tr><th>Module</th><th style="text-align:center;">Status</th><th>Quiz</th><th>Grammar</th><th>Listening</th><th>Evaluation</th></tr></thead>' +
           '<tbody>' + moduleRows + '</tbody>' +
-        '</table>' : '') +
-      '</div>' +
+        '</table>' +
+      '</div>') : '') +
 
       '</body></html>';
 

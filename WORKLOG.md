@@ -17,6 +17,39 @@ Newest day first.
 
 ## 2026-09-10
 
+### No rooms, no module section in the reports
+
+**Plan.** Three renderers, one rule each: when `res.modules` is empty, omit the
+Modules Completed tile, the Overall Progress tile and the module table.
+`_renderProgressReport` on screen, `_downloadProgressPdf`, and
+`_downloadUnifiedProgressPdf` which drops its whole Course Modules section.
+
+**Criterion.** Stated: when the rooms are off, the reports should not have that
+section.
+
+`DERIVED`: "Overall Progress" goes with it. It is `completedCount / mods.length`
+— module progress wearing a general name — and reporting 0% when there are no
+modules states something false. The report keeps Total Active Time and the
+download button.
+
+**Why, in one line.** On paper, read without the screen's context, "Overall
+Progress: 0%" describes a student who has done nothing.
+
+**Checklist.**
+
+- [ ] Open a progress report with the rooms off — no Modules Completed tile
+- [ ] No Overall Progress tile either
+- [ ] No module table, and no "No modules available" row
+- [ ] Total Active Time is still there
+- [ ] Download PDF still works, and prints no module section
+- [ ] The unified PDF has no Course Modules heading at all
+- [ ] Set a module back to ACTIVE — all of it returns, unchanged
+
+**Not verifiable from the repo.** Whether the report now looks too thin with only
+Total Active Time. If it does, that is a design call rather than something to fill
+with invented content.
+
+
 ### The map is real geodata
 
 **Plan.** `tools/gen-map.mjs` projects world-atlas through `geoNaturalEarth1` and
