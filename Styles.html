@@ -13312,6 +13312,85 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
       margin-bottom: 8px !important;
     }
 
+    /* With a verdict, the bar is a result, not an input.
+
+       Once an attempt is marked the read-back is locked until Practice again
+       redraws the card. The bar stayed laid out for answering anyway — Speak with
+       nothing to speak into, a two-line box, two buttons stacked, then the verdict
+       in heading type — and reached its 426px ceiling, over the clearance the
+       student would want to check the verdict against.
+
+       So: what was said on one line, no Speak, the two actions side by side, the
+       verdict and the score on one line, the two progress lines on one. The
+       rating keeps its full-size stars, which are what a thumb has to hit; its
+       label moves beside them and its comment box is one line until typed in. */
+    .sim-readback-priority-card.has-verdict #simMicBtn { display: none; }
+    .sim-readback-priority-card.has-verdict .sim-readback-priority-input {
+      min-height: 0 !important;
+      max-height: 40px !important;
+      margin-bottom: 6px !important;
+      height: 40px;
+      padding-top: 8px;
+      padding-bottom: 8px;
+      line-height: 1.35;
+      white-space: nowrap;
+      overflow: hidden;
+      resize: none;
+    }
+    .sim-readback-priority-card.has-verdict .sim-action-row {
+      flex-direction: row !important;
+      gap: 8px;
+    }
+    .sim-readback-priority-card.has-verdict .sim-action-row > * {
+      flex: 1 1 0;
+      min-width: 0;
+      margin: 0;
+    }
+    .sim-readback-priority-card.has-verdict .sim-status-text { text-align: center; }
+    .sim-readback-priority-card.has-verdict .sim-feedback-box {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      column-gap: 10px;
+      row-gap: 3px;
+      min-height: 0;
+      margin: 4px 0 0;
+      padding: 8px 12px;
+    }
+    .sim-readback-priority-card.has-verdict .sim-feedback-box > * { flex: 1 1 100%; margin: 0; }
+    .sim-readback-priority-card.has-verdict .sim-feedback-box > p { font-size: 0.82rem; line-height: 1.35; }
+    .sim-readback-priority-card.has-verdict .sim-feedback-box > h3 {
+      flex: 0 1 auto;
+      font-size: 1rem;
+      line-height: 1.3;
+    }
+    .sim-readback-priority-card.has-verdict .sim-feedback-box > h3 + p { flex: 0 1 auto; font-size: 0.9rem; }
+    .sim-readback-priority-card.has-verdict .sim-feedback-box > .route-progress-live,
+    .sim-readback-priority-card.has-verdict .sim-feedback-box > .route-progress-best {
+      flex: 0 1 auto;
+      font-size: 0.75rem;
+    }
+    .sim-readback-priority-card.has-verdict .scenario-rating {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      column-gap: 10px;
+      margin-top: 2px;
+      padding-top: 5px;
+    }
+    .sim-readback-priority-card.has-verdict .scenario-rating > * { flex: 1 1 100%; }
+    /* Side by side where they fit — 313px of the ~340 on this phone — and wrapped
+       back to two lines where they do not. */
+    .sim-readback-priority-card.has-verdict .scenario-rating > .feedback-card-label,
+    .sim-readback-priority-card.has-verdict .scenario-rating > .star-row { flex: 0 0 auto; margin: 0; }
+    .sim-readback-priority-card.has-verdict .scenario-rating textarea {
+      height: 34px;
+      min-height: 34px;
+      padding: 6px 10px;
+      margin: 4px 0;
+    }
+    .sim-readback-priority-card.has-verdict .feedback-btn { padding: 4px 12px; }
+
     /* When the keyboard opens, iOS shrinks the visual viewport rather than the layout
        one, so a bar fixed to the bottom of the page ends up behind the keyboard. The
        client sets --kb to the keyboard height it measures; without it this is zero and

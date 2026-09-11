@@ -11976,6 +11976,11 @@ var LEVEL_THEMES = {
 
     var input = byId('pilotReadback');
     if (input) input.disabled = true;
+    // Locked until Practice again redraws the card, so on a phone the bar is laid
+    // out as a result from here on (Styles.html, has-verdict). Here and not in
+    // setImmersiveFeedback, which carries a dozen messages that are not a verdict.
+    var resultCard = document.querySelector('.sim-readback-priority-card');
+    if (resultCard) resultCard.classList.add('has-verdict');
     if (window._fbResetRating) window._fbResetRating();
   }
 

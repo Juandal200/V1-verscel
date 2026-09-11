@@ -156,6 +156,9 @@ window.__geo = (function () {
       retryReachable: reachable(q('#simActionRow .btn.secondary')),
       paused: shown(q('.sim-paused-banner')) ? r(q('.sim-paused-banner')) : null,
       altitudeShown: shown(q('#altInstrument')),
+      console: r(q('.sim-radio-console')),
+      retry: r(q('#simActionRow .btn.secondary')),
+      progressReachable: !!fb && reachable(fb.querySelector('.route-progress-live')),
       topnav: r(q('.app-topnav')), contentArea: r(q('#contentArea')),
     };
   }
@@ -321,12 +324,22 @@ ok('the score is readable',                A.scoreReachable);
 ok('Next exercise can be pressed',         A.nextReachable, JSON.stringify(A.next));
 ok('Practice again can be pressed',        A.retryReachable);
 ok('the bar is still pinned to the screen', A.bar && A.bar.left === 0 && gap(A) === PHONE.safeBottom);
+ok('Speak is gone while the answer is locked', !A.speakShown);
+ok('Practice again and Next exercise share a row', !!A.next && !!A.retry && A.next.top === A.retry.top,
+   JSON.stringify(A.retry) + ' / ' + JSON.stringify(A.next));
+ok('"This run" is readable without scrolling the bar', A.progressReachable);
+// DERIVED from the plan's heading, "the verdict stops covering the clearance".
+ok('the clearance panel is clear of the bar', !!A.console && A.console.bottom <= A.bar.top,
+   'panel ends ' + (A.console && A.console.bottom) + ', bar starts ' + A.bar.top);
 
 console.log('--- after a rejected answer ---');
 ok('Replay ATC can still be pressed',      R.replayReachable, JSON.stringify(R.replay) + ' bar ' + JSON.stringify(R.bar));
 ok('the verdict is readable',              R.verdictReachable);
 ok('the score is readable',                R.scoreReachable);
 ok('Practice again can be pressed',        R.retryReachable);
+ok('Speak is gone while the answer is locked', !R.speakShown);
+ok('the clearance panel is clear of the bar', !!R.console && R.console.bottom <= R.bar.top,
+   'panel ends ' + (R.console && R.console.bottom) + ', bar starts ' + R.bar.top);
 
 console.log('--- Practice again hands the turn back ---');
 ok('Speak is back',                        T.speakShown);

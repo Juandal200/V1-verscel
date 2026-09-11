@@ -17,6 +17,46 @@ Newest day first.
 
 ## 2026-09-10
 
+### The verdict stops covering the clearance on a phone
+
+Third of the three.
+
+**Plan.** When an attempt is marked, `renderAttemptFeedback` adds `has-verdict`
+to the answer bar — the read-back is locked from there until Practice again
+redraws the card. On a phone that state lays the bar out as a result: what was
+said on one line, Speak hidden, Practice again and Next side by side, the
+verdict and score on one line, the two progress lines on one, the rating's
+label beside its stars and its comment box one line.
+
+**Criterion.** From the approved plan: after answering, Replay ATC stays fully
+visible, and the verdict, score and next button are readable without scrolling
+inside the bar. `DERIVED` from the plan's heading: the clearance panel is clear
+of the bar as well. Harness: with an accepted verdict the bar is 304px (was 426,
+its ceiling) and starts 35px below the clearance panel; rejected, 284px and 78px
+clear; nothing scrolls inside it.
+
+**Correction to the approved checklist.** It said "a wrong answer lists what's
+missing". The product deliberately does not — `renderAttemptFeedback` gives a
+wrong answer its score and nothing else, because naming the missing parts is an
+answer key. The line below says what the screen actually does.
+
+**Checklist.**
+
+- [ ] After answering, the flag, Replay ATC and the clearance panel are all fully visible
+- [ ] The verdict and the score read on one line; "This run" and "Best on this route" on one
+- [ ] Practice again and Next exercise sit side by side
+- [ ] Speak is gone until Practice again
+- [ ] A wrong answer shows its verdict and score, with the clearance still visible
+- [ ] The stars can still be tapped, and a comment can still be typed and sent
+- [ ] Practice again brings back the typing box and Speak, and clears the verdict
+- [ ] On a laptop, nothing changed
+
+**Not verifiable from the repo.** WebKit. The real top bar is ~9px taller than
+the harness's (three lines of XP text against an avatar), which the 35px margin
+absorbs. Whether Safari honours `white-space: nowrap` on a textarea — if not,
+the transcript wraps and its 40px height shows the first line only.
+
+
 ### The altitude fits above the answer bar on a phone
 
 Second of the three.

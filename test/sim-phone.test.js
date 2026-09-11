@@ -168,6 +168,31 @@ ok('but still subtracts the top bar and both safe areas',
    !!focusMax && /\b78px/.test(focusMax) && /safe-area-inset-top/.test(focusMax) &&
    /safe-area-inset-bottom/.test(focusMax), String(focusMax));
 
+console.log('--- with a verdict, the bar is a result, not an input ---');
+/* Once marked, the read-back is locked until Practice again redraws the card, so
+ * Speak has nothing to speak into and the verdict is what matters. The bar was
+ * laid out as an input regardless — Speak, a two-line box, two stacked buttons,
+ * then the verdict in heading type — and reached 426px, half the screen, over
+ * the clearance. */
+ok('the verdict marks the card as a result, where the answer is locked',
+   /input\.disabled = true;[\s\S]{0,1200}\.sim-readback-priority-card'\)[\s\S]{0,80}classList\.add\('has-verdict'\)/.test(S));
+/* Not in setImmersiveFeedback: that also carries "ATC transmission playing" and
+ * a dozen other messages that are not a verdict. */
+ok('and not for every message in the verdict panel',
+   !/function setImmersiveFeedback[\s\S]{0,700}has-verdict/.test(S));
+ok('Practice again redraws the card, which is what takes it off',
+   /function retryCurrentScenario\(\)[\s\S]{0,300}renderScenarioStageImmersive\(\)/.test(S));
+const RES = '.sim-readback-priority-card.has-verdict ';
+ok('Speak goes while the answer is locked',
+   /^none\b/.test(lastValue(RES + '#simMicBtn', 'display') || ''));
+ok('what was said shrinks to one line',
+   /^40px/.test(lastValue(RES + '.sim-readback-priority-input', 'max-height') || ''));
+ok('Practice again and Next share a row',
+   /^row\b/.test(lastValue(RES + '.sim-action-row', 'flex-direction') || ''));
+ok('the verdict and the score share a line',
+   /^flex\b/.test(lastValue(RES + '.sim-feedback-box', 'display') || ''));
+ok('none of it reaches the desktop', !/has-verdict/.test(offPhone));
+
 console.log('--- and none of it reaches the desktop ---');
 /* Every one of these lives inside the phone breakpoint. A max-height on the
  * desktop card would clip the feedback it is supposed to show. */

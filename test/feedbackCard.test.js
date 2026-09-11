@@ -42,8 +42,12 @@ if (!body) { console.error('\ncannot continue'); process.exit(1); }
 const anything = () => new Proxy({}, { get: (t, p) => (p in t ? t[p] : function () {}) });
 
 let written = '';
+// classList because the card marks itself as a result once the verdict is on it
+// (has-verdict, for the phone layout). Every real element has one; this stub did
+// not, and the first line to use it threw before a single assertion ran.
 const el = { set innerHTML(v) { written = v; }, get innerHTML() { return written; },
-             style: {}, className: '', appendChild() {}, addEventListener() {} };
+             style: {}, className: '', appendChild() {}, addEventListener() {},
+             classList: { add() {}, remove() {}, contains() { return false; } } };
 const AppState = { training: { currentIndex: 0, scenarios: [{}, {}, {}], completedScenarioIds: {} } };
 const stubs = {
   AppState,
