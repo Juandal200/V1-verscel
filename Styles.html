@@ -11875,9 +11875,20 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 
 /* Content area cross-fade on navigation */
 /* ── Content transitions ──────────────────────────────────────────── */
+/* Opacity only. It used to rise 10px as well, and a transform here does more
+   than move the page. The fill-mode below is `both`, so the animation stays in
+   effect after it ends, and an element with a transform animation in effect is
+   the frame for every position:fixed element inside it — until the next
+   navigation takes the class off.
+
+   #contentArea is where the simulator draws its pinned answer bar. After every
+   navigation that bar was pinned to the page area rather than the screen: 12px
+   in from both edges on a phone, and 28px higher than its bottom offset says,
+   with the PAUSED banner inset the same way. A fade cannot frame anything.
+   test/fixed-frame.test.js walks the whole chain from the bar to the screen. */
 @keyframes contentReveal {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: none; }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 #contentArea {
   transition: opacity 0.15s var(--ease);

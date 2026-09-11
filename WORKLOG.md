@@ -17,6 +17,41 @@ Newest day first.
 
 ## 2026-09-10
 
+### The answer bar is pinned to the screen, not to the page area
+
+First of three changes approved together for the phone simulator (the altitude
+hidden behind the bar, and the verdict covering the clearance).
+
+**Plan.** The page fade-in (`contentReveal`, run by `#contentArea.nav-in`) fades
+opacity only; its 10px rise goes. Nothing else changes. Adds
+`test/fixed-frame.test.js` for the rule, and `tools/sim-phone-geometry.mjs` —
+the real build rendered in headless Chrome at iPhone size and measured — which
+the next two changes are checked with as well.
+
+**Criterion.** `DERIVED` from the 8:59 screenshots: on a 393×852 phone the
+answer bar reaches both screen edges and its bottom sits on the home-indicator
+line (34px up). Measured by the harness: before, 12→381px and 70px up; after,
+0→393px and 34px up.
+
+**Why, in one line.** A transform animation with fill-mode `both` stays in
+effect after it ends, and that makes `#contentArea` the frame for every fixed
+element inside it — the answer bar and the PAUSED banner — until the next
+navigation.
+
+**Checklist.**
+
+- [ ] The answer bar touches both edges of the screen
+- [ ] No empty strip under the bar apart from the home-indicator line
+- [ ] Pause all — the PAUSED banner runs edge to edge
+- [ ] Moving between pages still fades in (it no longer slides up)
+- [ ] On a laptop, nothing changed
+
+**Not verifiable from the repo.** WebKit: the harness is Chrome, calibrated
+against the 8:59 screenshots to within ~8px. The printed certificate is the
+third fixed element inside `#contentArea` (fixed only under `@media print`);
+printing was not checked.
+
+
 ### The answer bar stops reserving room for a navigation bar that is not there
 
 **Plan.** Inside the phone breakpoint, scope the bar's bottom offset and the
