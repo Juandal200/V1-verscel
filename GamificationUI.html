@@ -650,6 +650,22 @@
     margin: 0 -26px;
   }
 
+  /* Challenge, from the ranking. Icon only — the row is already dense, and on a
+     phone a worded button would push the XP off the edge. */
+  #gamification-module .gam-lb-chal {
+    flex: 0 0 auto; width: 32px; height: 32px; margin-left: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--gam-orange);
+    background: rgba(var(--yellow-rgb), 0.12);
+    border: 1px solid var(--gam-border);
+    border-radius: 8px; cursor: pointer;
+    transition: background 0.15s var(--ease), border-color 0.15s var(--ease);
+  }
+  #gamification-module .gam-lb-chal:hover {
+    background: rgba(var(--yellow-rgb), 0.22);
+    border-color: rgba(var(--yellow-rgb), 0.4);
+  }
+
   /* ── The duel screen ──────────────────────────────────────────
      Every colour is a token and every size is on the app's scale — the module
      is inside the design system now and ranking.test.js keeps it there. The

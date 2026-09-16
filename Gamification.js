@@ -45,6 +45,13 @@ var GAM_STATUS = {
 /* Ten a correct answer, fifty more for taking the duel. Named here because the
  * server pays them and the screen animates them, and a number in two places
  * drifts. */
+/* A duel goes stale after a day. It is not a cron and not a status anybody
+ * writes: the row carries Created_At, and both the list and the paper compare
+ * against it. A sweep that has to run is a sweep that can stop running, and an
+ * expiry nobody enforces at the point of use is a challenge you can still open
+ * a week later from an old email. */
+var CHALLENGE_EXPIRY_HOURS = 24;
+
 var CHALLENGE_XP_PER_CORRECT = 10;
 var CHALLENGE_XP_WIN_BONUS   = 50;
 
@@ -470,6 +477,12 @@ function getChallengePaper(sessionToken, challengeId) {
     if (row[side + '_Correct'] !== '' && row[side + '_Correct'] !== null) {
       return _gamErr_('You have already played this challenge.', 'ALREADY_PLAYED');
     }
+    /* Checked here and not only in the list: the email carries a link, and a link
+     * outlives the card it came with. */
+    if (_gamChallengeExpired_(row)) {
+      return _gamErr_('This challenge expired — they are open for ' +
+                      CHALLENGE_EXPIRY_HOURS + ' hours.', 'EXPIRED');
+    }
 
     /* Stamped on first sight, not on every fetch — a refresh is not a restart. */
     if (!row[side + '_Started_At']) {
@@ -611,7 +624,8 @@ function getIncomingChallenges(sessionToken) {
     var incoming = _gamReadAll_(GAM_SHEETS.CHALLENGES)
       .filter(function (row) {
         return String(row.Target_Email || '').toLowerCase() === myLower &&
-               String(row.Status || '') === GAM_STATUS.AWAITING_TARGET;
+               String(row.Status || '') === GAM_STATUS.AWAITING_TARGET &&
+               !_gamChallengeExpired_(row);
       })
       .map(function (row) {
         var who = String(row.Challenger_Email || '');
@@ -646,6 +660,15 @@ function _gamSideOf_(row, emailLower) {
   if (String(row.Challenger_Email || '').toLowerCase() === emailLower) return 'Challenger';
   if (String(row.Target_Email     || '').toLowerCase() === emailLower) return 'Target';
   return null;
+}
+
+/* Expired is computed, never stored. Storing it would need something to run and
+ * would disagree with the row the moment it stopped. */
+function _gamChallengeExpired_(row) {
+  var created = row && row.Created_At;
+  if (!created) return false;
+  var age = Date.now() - new Date(created).getTime();
+  return age > CHALLENGE_EXPIRY_HOURS * 3600 * 1000;
 }
 
 function _gamShuffle_(arr) {

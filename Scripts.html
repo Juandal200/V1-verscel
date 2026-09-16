@@ -25016,14 +25016,18 @@ var LEVEL_THEMES = {
       return;
     }
     list.innerHTML = challenges.map(function (c) {
-      var id = _gEsc(String(c.challengeId)), n = _gEsc(c.challengerName), sc = _gEsc(c.scenarioName);
-      var scoreBadge = (c.challengerScore !== null && c.challengerScore !== undefined)
-        ? '<span class="gam-score-badge">Score: ' + Number(c.challengerScore) + '</span>' : '';
+      var id = _gEsc(String(c.challengeId)), n = _gEsc(c.challengerName);
+      /* The score to beat, not a scenario name — there are no scenarios any more.
+       * data-name rides on the button because the duel screen titles itself with
+       * it, and the card is gone from the DOM by the time the paper arrives. */
+      var scoreBadge = '<span class="gam-score-badge">' +
+        Number(c.challengerCorrect) + ' / ' + Number(c.questionCount) + '</span>';
       return '<div class="gam-chal-item" id="gam-chal-' + id + '">' +
         '<div class="gam-chal-row"><span class="gam-chal-from">' + n + '</span>' + scoreBadge + '</div>' +
-        '<div class="gam-chal-scenario">' + sc + '</div>' +
+        '<div class="gam-chal-scenario">Beat their score on the same ' +
+          Number(c.questionCount) + ' questions</div>' +
         '<div style="display:flex;gap:6px;margin-top:8px;">' +
-          '<button class="gam-btn-sm gam-btn-sm--accept" data-chalid="' + id + '">Accept</button>' +
+          '<button class="gam-btn-sm gam-btn-sm--accept" data-chalid="' + id + '" data-name="' + n + '">Accept</button>' +
           '<button class="gam-btn-sm gam-btn-sm--decline" data-chalid="' + id + '">Decline</button>' +
         '</div>' +
       '</div>';
@@ -25292,6 +25296,23 @@ var LEVEL_THEMES = {
         _gToast('Connection error. Try again.', 'err');
       })
       .getChallengePaper(AppState.sessionToken, chalId);
+  }
+
+  /* One button, two leaderboards.
+   *
+   * The all-time board and the weekly board draw the same .gam-lb-row from two
+   * separate blocks of markup — a genuine second implementation, and the kind
+   * this repo has been bitten by. Refactoring them into one is not this change's
+   * job, so the challenge control at least exists once: both call this, and a
+   * fix lands in both by construction rather than by somebody remembering.
+   *
+   * No button against yourself, and none against a row whose account is not in
+   * Users — an orphan has no address to challenge. */
+  function _gamLbChallengeBtn(p, isMe) {
+    if (isMe || p.orphan || !p.email) return '';
+    return '<button class="gam-lb-chal gam-challenge-btn" data-email="' + _gEsc(p.email) +
+           '" data-name="' + _gEsc(p.name) + '" title="Challenge">' +
+           window.uiIconInline('target') + '</button>';
   }
 
   function _gamSyncBadge(badge, n) {
@@ -25606,10 +25627,16 @@ var LEVEL_THEMES = {
           '<div class="gam-lb-right">' +
             '<span class="gam-lb-score">' + p.totalXp + ' XP</span>' +
             '<span class="gam-lb-level" style="color:var(--gam-muted);">' + p.completedLevels + ' levels</span>' +
-          '</div>' +
+          '</div>' + _gamLbChallengeBtn(p, isMe) +
         '</div>';
     });
     box.innerHTML = html;
+    /* Bound here and not in the roster's sweep: that one is scoped to #gamRoster
+     * and these rows are not in it. Same handler, so a challenge from the board
+     * behaves exactly like one from the squadron. */
+    Array.prototype.forEach.call(box.querySelectorAll('.gam-lb-chal'), function (b) {
+      b.addEventListener('click', function () { _gamOpenModal(b); });
+    });
   }
 
   // Rank tier definition — single source of truth used by renderer and chip helper
@@ -25769,12 +25796,18 @@ var LEVEL_THEMES = {
             '<div class="gam-lb-right">' +
               '<span class="gam-lb-score" style="color:' + pilotTier.color + ';">' + (p.weeklyXp || 0) + ' XP</span>' +
               '<span class="gam-lb-alltime">' + (p.mergedXp || 0) + ' total</span>' +
-            '</div>' +
+            '</div>' + _gamLbChallengeBtn(p, isMe) +
           '</div>';
       });
     });
 
     box.innerHTML = html;
+    /* Bound here and not in the roster's sweep: that one is scoped to #gamRoster
+     * and these rows are not in it. Same handler, so a challenge from the board
+     * behaves exactly like one from the squadron. */
+    Array.prototype.forEach.call(box.querySelectorAll('.gam-lb-chal'), function (b) {
+      b.addEventListener('click', function () { _gamOpenModal(b); });
+    });
   }
 
   // ── Bootstrap ────────────────────────────────────────────────────────────────
