@@ -17,6 +17,56 @@ Newest day first.
 
 ## 2026-09-16
 
+### The brand moves above the globe, and the wordmark becomes type
+
+**Plan.** The corner logo read as a smudge on a phone. Move the mark above the
+globe at a size worth looking at, and set "aerocomms" as live text in the app's own
+font rather than as pixels inside a PNG.
+
+**Criterion.** `STATED` — the mark is bigger, it sits above the globe, and the word
+is in the font we use, lowercase.
+
+**The PNG already contains the word**, so using it whole would print "aerocomms"
+twice. It goes in cropped: a 120px window over a 147px image, which cuts at 81.6% of
+the height. That number is not taste. Decoding the PNG (680×395) shows rows 321–327
+are alpha zero from edge to edge — a clean gap between the emblem and the word — and
+81.6% lands inside it, so nothing is sliced. `tools/brand-crop.py` re-derives that
+from the image and the CSS and exits 1 if the cut moves outside the gap; it was seen
+red by setting the image height to 200px. Run it when the logo changes, or when either
+height does.
+
+**The mark lives in the stage, not in the host** — the opposite of the corner logo it
+replaces. There, position mattered relative to the window; here it matters relative to
+the globe, and the globe is drawn in stage coordinates. The block occupies y=56..222
+and the globe begins at y=244, leaving 22px of air.
+
+**That cost a cap on the scale.** The stage is scaled to cover the window, and on a
+very wide, short window covering the width crops top and bottom — the emblem is now the
+highest thing drawn, so it is the first thing lost. The scale is capped so the band
+y=40..1040 is always whole. Past the cap the stage stops reaching the side edges, which
+is invisible: what is missing is black sky on a black background.
+
+**Checklist.**
+
+- [ ] The emblem sits above the globe, large enough to read as the aerocomms mark
+- [ ] "aerocomms" is below it, lowercase, in the same font as the rest of the app
+- [ ] The word appears once — the PNG's own wordmark is not showing as well
+- [ ] No hard edge or sliced letter along the bottom of the emblem
+- [ ] The mark fades out with "Loading", not after it
+- [ ] On a phone, nothing overlaps the globe and nothing is cut off at the top
+
+**Verified in Firefox, through geckodriver**, at three window shapes — 1280×714,
+500×814 and 1900×534 (3.6:1, where the cap does the work). At all three: the emblem is
+whole on screen, emblem and word share a centre to within a pixel, the word ends above
+the top of the globe, "Loading" is still below it, and there is no sideways scroll. The
+computed font resolves to Inter and the text node reads exactly `aerocomms`.
+
+**Not verified.** A real phone, again — headless Firefox will not go below a 500px
+viewport. And whether Inter is actually installed on the device: the app declares it as
+a family with no @font-face anywhere, so in practice most devices are rendering the
+fallback, which is what the rest of the interface does too.
+
+
 ### The loading screen waits for the page, not for the decision to show it
 
 **Plan.** Two things asked for after seeing it live: the aerocomms logo bottom-right,

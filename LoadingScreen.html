@@ -68,35 +68,71 @@
   .aero-ls-label { font-size: 34px; letter-spacing: 0.42em; text-indent: 0.42em; }
   .aero-ls-pct   { font-size: 22px; letter-spacing: 0.30em; text-indent: 0.30em; }
 
-  /* El logo va en el HOST, no en el escenario.
-     El escenario es una caja de 1920x1080 escalada para CUBRIR la ventana, asi
-     que sus esquinas estan recortadas fuera de pantalla casi siempre- una
-     esquina inferior derecha ahi no es una esquina, es un sitio que no se ve.
-     En el host, que es fixed inset 0, la esquina es la de la ventana. */
-  .aero-ls-logo {
+  /* La marca, sobre el globo.
+     Vive en el ESCENARIO y no en el host, al reves que la version anterior de
+     la esquina- aqui la posicion importa respecto al globo, no respecto a la
+     ventana, y el globo esta dibujado en coordenadas del escenario.
+     El bloque ocupa y=56..222 y el globo empieza en y=244 (CY-R), asi que
+     quedan 22 px de aire entre la palabra y el borde de arriba del globo. */
+  .aero-ls-marca {
     position: absolute;
-    right: 26px;
-    bottom: 22px;
-    height: 34px;
+    left: 0;
+    right: 0;
+    top: 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* El PNG de marca trae la palabra "aero comms" incrustada debajo del
+     emblema, y ahi se pide en la fuente de la app, asi que el PNG entra
+     RECORTADO- solo el emblema.
+     El corte no esta puesto a ojo- decodificando el PNG (680x395) las filas
+     321 a 327 son alfa CERO de lado a lado, una banda limpia entre el emblema
+     y la palabra. La ventana de 120 px sobre una imagen de 147 corta al 81,6 %,
+     que cae dentro de esa banda- no se parte ningun halo. Las dos alturas van
+     juntas- cambiar una sin la otra mueve el corte. Y si algun dia cambia el
+     logotipo hay que volver a MEDIR esa banda vacia en el PNG nuevo- suponerla
+     es como se parte la palabra por la mitad. */
+  .aero-ls-emblema {
+    overflow: hidden;
+    height: 120px;
+    line-height: 0;
+  }
+  .aero-ls-emblema img {
+    height: 147px;
     width: auto;
-    opacity: 0.5;
-    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.18));
+    display: block;
   }
-  @media (max-width: 600px) {
-    .aero-ls-logo { height: 26px; right: 16px; bottom: 16px; }
+
+  .aero-ls-nombre {
+    font-family: var(--font-ui, Inter, 'Segoe UI', Roboto, Arial, sans-serif);
+    font-size: 34px;
+    font-weight: 600;
+    line-height: 40px;
+    letter-spacing: 0.06em;
+    text-transform: lowercase;
+    color: #fff;
   }
+
 </style>
 
 <div class="aero-ls" id="aeroLoadingScreen" aria-hidden="true" role="presentation">
-  <div class="aero-ls-stage" id="aeroLsStage"></div>
-  <img class="aero-ls-logo" src="<?!= getLogoUrl() ?>" alt="" aria-hidden="true">
+  <div class="aero-ls-stage" id="aeroLsStage">
+    <div class="aero-ls-marca" id="aeroLsMarca">
+      <span class="aero-ls-emblema"><img src="<?!= getLogoUrl() ?>" alt=""></span>
+      <span class="aero-ls-nombre">aerocomms</span>
+    </div>
+  </div>
 </div>
 
 <script>
 (function () {
   var host = document.getElementById('aeroLoadingScreen');
   var stage = document.getElementById('aeroLsStage');
-  if (!host || !stage) return;
+  var elMarca = document.getElementById('aeroLsMarca');
+  if (!host || !stage || !elMarca) return;
 
   /* ── lo que el original recibía por atributos de <x-import> ────────────── */
   var GLOW = '#ffffff';
@@ -386,7 +422,16 @@
      espacio, no del viewBox: sin el escalado, en un móvil el globo mide 42 px
      de radio y el texto se queda donde estaba. */
   function fit() {
-    var s = Math.max(window.innerWidth / W, window.innerHeight / H);
+    var cubrir = Math.max(window.innerWidth / W, window.innerHeight / H);
+    /* Cubrir del todo tiene un tope, y lo pone la marca.
+       En una pantalla muy apaisada -- 21:9 y mas -- cubrir a lo ancho recorta
+       por arriba y por abajo, y lo primero que se pierde es el emblema, que es
+       lo mas alto que hay dibujado (y=56). El tope garantiza que la banda
+       y=40..1040 se ve entera. Pasado el tope el escenario deja de llegar a los
+       bordes laterales, y no se nota- lo que falta es cielo negro sobre un
+       fondo que ya es negro. */
+    var tope = window.innerHeight / 1000;
+    var s = Math.min(cubrir, tope);
     stage.style.transform = 'translate(-50%, -50%) scale(' + s + ')';
   }
   fit();
@@ -470,6 +515,9 @@
     }
     pctText.nodeValue = String(Math.round(pct)).padStart(3, '0') + '%';
 
+    // La marca se va con el texto, no con el fondo- si se quedase opaca mientras
+    // el globo se acerca, seria lo unico quieto de la escena.
+    elMarca.style.opacity = 1 - MOTION.ramp(u, 0.10, 0.50, Ease.easeInOutSine);
     elLabel.style.opacity = (0.72 + 0.28 * pulse) * (1 - MOTION.ramp(u, 0.10, 0.50, Ease.easeInOutSine));
     elPct.style.opacity   = (0.55 + 0.20 * pulse) * (1 - MOTION.ramp(u, 0.30, 0.70, Ease.easeInOutSine));
   }
