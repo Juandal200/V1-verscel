@@ -459,3 +459,75 @@ function diagnoseChallenges(emailToCheck) {
                ((isTarget && isAwait && fresh) ? 'WOULD BE DELIVERED' : 'filtered out'));
   });
 }
+
+/* ── Why did the duel not start? ─────────────────────────────────────────────
+ *
+ * The screen said "Could not start the challenge" three times, which is the
+ * fallback sentence and not a reason. This runs the same steps the server runs
+ * and reports where they stop, with the real exception rather than a caught and
+ * flattened one.
+ *
+ * Read-only: it draws a paper and throws it away. Nothing is written.
+ */
+function diagnoseDuelDraw() {
+  Logger.log('1. Can the bank be read?');
+  var bank;
+  try {
+    bank = dbReadAll_(CHALLENGE_QUESTIONS_SHEET_);
+    Logger.log('   dbReadAll_ returned ' + bank.length + ' row(s).');
+  } catch (e) {
+    Logger.log('   THREW: ' + e.message);
+    Logger.log('   -> ' + CHALLENGE_QUESTIONS_SHEET_ + ' is probably not in DB_SCHEMA in the ' +
+               'DEPLOYED version, or the sheet does not exist.');
+    return;
+  }
+  if (!bank.length) { Logger.log('   The sheet is empty. Run setupChallengeQuestions(true).'); return; }
+
+  Logger.log('2. First row, as read:');
+  var f = bank[0];
+  Object.keys(f).forEach(function (k) {
+    Logger.log('   ' + k + ' = "' + f[k] + '"  (' + typeof f[k] + ')');
+  });
+
+  Logger.log('3. How many count as active?');
+  var active = bank.filter(function (r) {
+    var flag = String(r.active).toUpperCase();
+    return r.questionId && flag !== 'FALSE' && flag !== 'NO' && flag !== '0';
+  });
+  Logger.log('   ' + active.length + ' of ' + bank.length + ' active; ' +
+             CHALLENGE_QUESTION_COUNT + ' are needed.');
+  if (active.length < CHALLENGE_QUESTION_COUNT) {
+    Logger.log('   -> this is why the draw returns nothing. Check the active column.');
+    return;
+  }
+
+  Logger.log('4. Does the draw produce a paper?');
+  var paper;
+  try {
+    paper = _gamDrawPaper_();
+    Logger.log('   ' + paper.length + ' question(s) drawn: ' +
+               paper.map(function (p) { return p.id; }).join(', '));
+  } catch (e) { Logger.log('   THREW: ' + e.message); return; }
+  if (!paper.length) { Logger.log('   -> empty paper.'); return; }
+
+  Logger.log('5. Can it be served without the answers?');
+  try {
+    var served = _gamPaperForPlay_(paper);
+    Logger.log('   ' + served.length + ' served. First: "' +
+               String(served[0].question).slice(0, 60) + '" with ' +
+               served[0].options.length + ' options.');
+    Logger.log('   carries correctIndex? ' + ('correctIndex' in served[0]));
+  } catch (e) { Logger.log('   THREW: ' + e.message); return; }
+
+  Logger.log('6. Is the Challenges sheet writable with the current header?');
+  try {
+    _gamEnsureSheet_(CHALLENGES_SHEET_, GAM_CHALLENGE_HEADERS);
+    Logger.log('   header matches — an append would work.');
+  } catch (e) {
+    Logger.log('   REFUSED: ' + e.message);
+    return;
+  }
+
+  Logger.log('\nEverything the draw needs is in place. If the screen still fails, the ' +
+             'message it shows now carries the server code — read that.');
+}

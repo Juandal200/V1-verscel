@@ -25175,7 +25175,7 @@ var LEVEL_THEMES = {
       .withSuccessHandler(function (res) {
         if (res.status !== 'success') {
           _duelClose();
-          _gToast(res.message || 'Could not submit your answers.', 'err');
+          _gToast(_duelWhy(res, 'Could not submit your answers.'), 'err');
           return;
         }
         _duelResult(res.data);
@@ -25240,6 +25240,17 @@ var LEVEL_THEMES = {
     } catch (e) {}
   }
 
+  /* Whatever the server actually said, plus its code. An empty message is itself
+   * a finding — it means the failure came from somewhere that did not go through
+   * _gamErr_, and saying so is more use than repeating the fallback. */
+  function _duelWhy(res, fallback) {
+    if (!res) return fallback + ' (no response)';
+    var msg  = String(res.message || '').trim();
+    var code = String(res.code || '').trim();
+    if (!msg)  return fallback + (code ? ' [' + code + ']' : ' [no message, no code]');
+    return msg + (code ? ' [' + code + ']' : '');
+  }
+
   function _duelSecs(ms) {
     return (Math.round(Number(ms) / 100) / 10).toFixed(1) + 's';
   }
@@ -25259,7 +25270,10 @@ var LEVEL_THEMES = {
       .withSuccessHandler(function (res) {
         btn.disabled = false;
         if (res.status !== 'success') {
-          _gToast(res.message || 'Could not start the challenge.', 'err');
+          /* The reason, not a shrug. The generic sentence was shown three times
+           * in a row while the actual message sat unread in res, which turned a
+           * one-line answer into three rounds of guessing. */
+          _gToast(_duelWhy(res, 'Could not start the challenge.'), 'err');
           return;
         }
         var t = _gEl('gamDuelTitle');
@@ -25287,7 +25301,7 @@ var LEVEL_THEMES = {
         btn.disabled = false;
         btn.textContent = 'Accept';
         if (res.status !== 'success') {
-          _gToast(res.message || 'Could not open the challenge.', 'err');
+          _gToast(_duelWhy(res, 'Could not open the challenge.'), 'err');
           return;
         }
         _gamFadeRemove(_gEl('gam-chal-' + chalId));
