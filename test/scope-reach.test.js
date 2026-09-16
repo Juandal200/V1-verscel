@@ -77,6 +77,39 @@ if (unreachable.length) {
 ok(`${[...new Set(unreachable)].length} calls that would throw at runtime`,
    unreachable.length === 0);
 
+/* ── A name that exists nowhere at all ──────────────────────────────────────
+ *
+ * The check above skips a call whose name it has never seen declared — `if
+ * (!homes) continue` — because most of those are setTimeout, parseInt and
+ * method calls its regex could not tell apart. That skip is also a hole, and an
+ * invented function falls straight through it: `_gamRefresh()` shipped, reached
+ * production and crashed the Crew tab with "_gamRefresh is not defined", while
+ * this suite reported all green.
+ *
+ * Underscore-prefixed names close it without the wolf-crying. Nothing in the
+ * browser or in any library here starts with one, so a leading underscore means
+ * "ours" — and if it is ours and declared nowhere, it is a typo or an
+ * invention. Declarations are gathered loosely on purpose: a plain function, a
+ * var holding one, an object property. Over-collecting risks missing a real
+ * fault; under-collecting reports a false one, and a check that cries wolf gets
+ * switched off. */
+const declLoose = new Set();
+for (const m of S.matchAll(/function ([A-Za-z_$][\w$]*)\s*\(/g))            declLoose.add(m[1]);
+for (const m of S.matchAll(/(?:var|let|const)\s+([A-Za-z_$][\w$]*)\s*=/g))  declLoose.add(m[1]);
+for (const m of S.matchAll(/([A-Za-z_$][\w$]*)\s*[:=]\s*function/g))        declLoose.add(m[1]);
+const onWindow = new Set([...S.matchAll(/window\.([A-Za-z_$][\w$]*)/g)].map(m => m[1]));
+
+const srcNoComments = S.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/[^\n]*/g, '$1');
+const invented = new Set();
+for (const m of srcNoComments.matchAll(/(?<![.\w$])(_[A-Za-z_$][\w$]*)\s*\(/g)) {
+  if (!declLoose.has(m[1]) && !onWindow.has(m[1])) invented.add(m[1]);
+}
+
+console.log('--- our own names all exist ---');
+if (invented.size) [...invented].forEach(n => console.log('        ' + n + ' is called and declared nowhere'));
+ok(`${invented.size} underscore-prefixed calls with no declaration anywhere`,
+   invented.size === 0);
+
 console.log('--- nothing is declared twice in one scope ---');
 /* Two function declarations of the same name in the same scope is not a duplicate.
  * It is a decision the parser makes silently: the last one wins and the first

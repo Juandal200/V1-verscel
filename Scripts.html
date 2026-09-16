@@ -25220,7 +25220,15 @@ var LEVEL_THEMES = {
       '</div>';
 
     var done = _gEl('gamDuelDone');
-    if (done) done.addEventListener('click', function () { _duelClose(); _gamRefresh(); });
+    /* Two lists changed while the duel was open: the challenge that was just
+     * played leaves the incoming list, and the XP just earned moves the board.
+     * Named individually because there is no _gamRefresh — this called one, and
+     * an invented name is a crash, not a no-op. */
+    if (done) done.addEventListener('click', function () {
+      _duelClose();
+      _gamLoadIncomingChallenges();
+      _gamRefreshLb();
+    });
 
     /* The chips fire after the panel is up, and the bonus uses the bonus style —
      * that is what the second argument of _showXpFloat is for. */
