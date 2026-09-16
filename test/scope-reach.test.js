@@ -110,6 +110,42 @@ if (invented.size) [...invented].forEach(n => console.log('        ' + n + ' is 
 ok(`${invented.size} underscore-prefixed calls with no declaration anywhere`,
    invented.size === 0);
 
+/* ── An export that never runs ───────────────────────────────────────────────
+ *
+ * window.X = X only happens when the line is reached. Both halves of the quiz
+ * music were assigned inside _renderModuleDetail, which runs when somebody opens
+ * an LMS module — so anywhere else in the app window._lmsStartQuizMusic was
+ * undefined, the Squadron duel's typeof guard returned quietly, and the music
+ * was never asked to play. Three attempts went into why it was silent before
+ * anyone asked whether it was being called.
+ *
+ * An assignment to window belongs where it runs unconditionally: at the top
+ * level of its IIFE, not nested inside a function somebody has to visit first.
+ * Indentation is the test because that is what the rest of this suite uses to
+ * find top-level scope, and it is what actually distinguishes the two cases. */
+console.log('--- every window export is reachable at load ---');
+/* Function DECLARATIONS only, not declLoose. That set also holds every var, so
+ * `window._lmsQuizAudioCtx = ctx` matched through its right-hand side and the
+ * report filled with state assignments — seventeen findings, one of them real.
+ * A check that buries its one true finding in sixteen false ones has not
+ * reported anything. */
+const declFn = new Set([...S.matchAll(/function ([A-Za-z_$][\w$]*)\s*\(/g)].map(m => m[1]));
+const nested = [];
+S.split('\n').forEach((line, i) => {
+  const m = /^(\s*)window\.([A-Za-z_$][\w$]*)\s*=\s*([A-Za-z_$][\w$]*)\s*;/.exec(line);
+  if (!m) return;
+  /* Only FUNCTIONS. `window._bootstrapLoaded = true` is a state flag set from
+   * wherever the state changes, and being nested is the whole point of it —
+   * flagging those made this report six faults and no real ones, which is how a
+   * check gets switched off. The right-hand side has to name a function this
+   * file declares. */
+  if (!declFn.has(m[3])) return;
+  /* Two spaces is the IIFE's own level. Deeper means it sits inside something. */
+  if (m[1].length > 2) nested.push(m[2] + ' at line ' + (i + 1) + ' (indent ' + m[1].length + ')');
+});
+if (nested.length) nested.forEach(n => console.log('        ' + n));
+ok(`${nested.length} window exports nested inside a function`, nested.length === 0);
+
 console.log('--- nothing is declared twice in one scope ---');
 /* Two function declarations of the same name in the same scope is not a duplicate.
  * It is a decision the parser makes silently: the last one wins and the first

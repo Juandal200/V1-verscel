@@ -16442,6 +16442,96 @@ var LEVEL_THEMES = {
       .apiModuleGetDetail(AppState.sessionToken, moduleId);
   }
 
+  /* ── The quiz loop, at the top level ────────────────────────────────────────
+   *
+   * These lived inside _renderModuleDetail, and so did the two lines that put
+   * them on window. That function runs when somebody opens an LMS module — so in
+   * the Crew tab it had never run, window._lmsStartQuizMusic was undefined, and
+   * the duel's guard returned quietly every time. The music was not failing to
+   * play; it was never being asked to.
+   *
+   * Defined here they exist from load, which is what an export has to mean. The
+   * module screen still reaches them the same way — same IIFE, same closure.
+   */
+  function _lmsStartQuizMusic() {
+    try {
+      /* Borrow the engine's context rather than build one.
+       *
+       * A fresh AudioContext made outside a user gesture starts suspended, and
+       * a suspended context has a frozen currentTime — so the eight notes below
+       * were scheduled at instant zero on a clock that never moved and the loop
+       * never advanced. Resuming afterwards does not rescue them, and starting
+       * again just builds another suspended context: the Squadron duel went
+       * round that loop twice before this was understood.
+       *
+       * SimAudio's context is the one the rest of the app has already unlocked,
+       * and it is unlocked here too. Borrowed, which _lmsStopQuizMusic has to
+       * know about — closing a context somebody else is using would take the
+       * cockpit's audio down with the quiz. */
+      var borrowed = false;
+      var ctx = null;
+      try {
+        if (window.SimAudio && typeof SimAudio.context === 'function') {
+          ctx = SimAudio.context();
+          borrowed = !!ctx;
+          if (typeof SimAudio.unlock === 'function') SimAudio.unlock();
+        }
+      } catch (eCtx) {}
+      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended' && ctx.resume) { try { ctx.resume(); } catch (eR) {} }
+      window._lmsQuizAudioCtx   = ctx;
+      window._lmsQuizCtxBorrowed = borrowed;
+      var drone = ctx.createOscillator(), dg = ctx.createGain();
+      drone.type = 'sine'; drone.frequency.value = 55; dg.gain.value = 0.053;
+      drone.connect(dg); dg.connect(ctx.destination); drone.start();
+      window._lmsQuizDrone = drone;
+      var melody = [
+        {f:220,t:0.00},{f:246,t:0.25},{f:261,t:0.50},{f:246,t:0.75},
+        {f:220,t:1.00},{f:196,t:1.25},{f:207,t:1.50},{f:196,t:1.75}
+      ];
+      var loopLen = 2.0;
+      function scheduleMelody(startTime) {
+        if (!window._lmsQuizAudioCtx) return;
+        melody.forEach(function(n) {
+          var osc = ctx.createOscillator(), g = ctx.createGain();
+          osc.frequency.value = n.f; osc.type = 'triangle';
+          var t = startTime + n.t;
+          g.gain.setValueAtTime(0, t);
+          g.gain.linearRampToValueAtTime(0.135, t + 0.04);
+          g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+          osc.connect(g); g.connect(ctx.destination);
+          osc.start(t); osc.stop(t + 0.25);
+        });
+        window._lmsQuizMusicTimer = setTimeout(function() {
+          scheduleMelody(ctx.currentTime + 0.05);
+        }, (loopLen - 0.1) * 1000);
+      }
+      scheduleMelody(ctx.currentTime);
+    } catch(e) {}
+  }
+
+  function _lmsStopQuizMusic() {
+    try {
+      clearTimeout(window._lmsQuizMusicTimer);
+      window._lmsQuizMusicTimer = null;
+      if (window._lmsQuizDrone) { try { window._lmsQuizDrone.stop(); } catch(e) {} window._lmsQuizDrone = null; }
+      /* Only close what we made. Closing SimAudio's context would silence the
+       * cockpit for the rest of the session, and a closed context cannot be
+       * reopened. */
+      if (window._lmsQuizAudioCtx) {
+        if (!window._lmsQuizCtxBorrowed) { try { window._lmsQuizAudioCtx.close(); } catch (eC) {} }
+        window._lmsQuizAudioCtx = null;
+        window._lmsQuizCtxBorrowed = false;
+      }
+    } catch(e) {}
+  }
+
+  /* The Squadron duel runs the same loop from another top-level scope, so both
+   * halves are exposed together — starting the music from one place and
+   * stopping it from a copy is how a drone outlives its quiz. */
+  window._lmsStartQuizMusic = _lmsStartQuizMusic;
+  window._lmsStopQuizMusic  = _lmsStopQuizMusic;
+
   function _renderModuleDetail(data) {
     var m              = data.module         || {};
     var prog           = data.progress       || {};
@@ -16591,84 +16681,6 @@ var LEVEL_THEMES = {
     }
 
     // Quiz overlay shown when a timestamp is hit
-    function _lmsStartQuizMusic() {
-      try {
-        /* Borrow the engine's context rather than build one.
-         *
-         * A fresh AudioContext made outside a user gesture starts suspended, and
-         * a suspended context has a frozen currentTime — so the eight notes below
-         * were scheduled at instant zero on a clock that never moved and the loop
-         * never advanced. Resuming afterwards does not rescue them, and starting
-         * again just builds another suspended context: the Squadron duel went
-         * round that loop twice before this was understood.
-         *
-         * SimAudio's context is the one the rest of the app has already unlocked,
-         * and it is unlocked here too. Borrowed, which _lmsStopQuizMusic has to
-         * know about — closing a context somebody else is using would take the
-         * cockpit's audio down with the quiz. */
-        var borrowed = false;
-        var ctx = null;
-        try {
-          if (window.SimAudio && typeof SimAudio.context === 'function') {
-            ctx = SimAudio.context();
-            borrowed = !!ctx;
-            if (typeof SimAudio.unlock === 'function') SimAudio.unlock();
-          }
-        } catch (eCtx) {}
-        if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-        if (ctx.state === 'suspended' && ctx.resume) { try { ctx.resume(); } catch (eR) {} }
-        window._lmsQuizAudioCtx   = ctx;
-        window._lmsQuizCtxBorrowed = borrowed;
-        var drone = ctx.createOscillator(), dg = ctx.createGain();
-        drone.type = 'sine'; drone.frequency.value = 55; dg.gain.value = 0.053;
-        drone.connect(dg); dg.connect(ctx.destination); drone.start();
-        window._lmsQuizDrone = drone;
-        var melody = [
-          {f:220,t:0.00},{f:246,t:0.25},{f:261,t:0.50},{f:246,t:0.75},
-          {f:220,t:1.00},{f:196,t:1.25},{f:207,t:1.50},{f:196,t:1.75}
-        ];
-        var loopLen = 2.0;
-        function scheduleMelody(startTime) {
-          if (!window._lmsQuizAudioCtx) return;
-          melody.forEach(function(n) {
-            var osc = ctx.createOscillator(), g = ctx.createGain();
-            osc.frequency.value = n.f; osc.type = 'triangle';
-            var t = startTime + n.t;
-            g.gain.setValueAtTime(0, t);
-            g.gain.linearRampToValueAtTime(0.135, t + 0.04);
-            g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-            osc.connect(g); g.connect(ctx.destination);
-            osc.start(t); osc.stop(t + 0.25);
-          });
-          window._lmsQuizMusicTimer = setTimeout(function() {
-            scheduleMelody(ctx.currentTime + 0.05);
-          }, (loopLen - 0.1) * 1000);
-        }
-        scheduleMelody(ctx.currentTime);
-      } catch(e) {}
-    }
-
-    function _lmsStopQuizMusic() {
-      try {
-        clearTimeout(window._lmsQuizMusicTimer);
-        window._lmsQuizMusicTimer = null;
-        if (window._lmsQuizDrone) { try { window._lmsQuizDrone.stop(); } catch(e) {} window._lmsQuizDrone = null; }
-        /* Only close what we made. Closing SimAudio's context would silence the
-         * cockpit for the rest of the session, and a closed context cannot be
-         * reopened. */
-        if (window._lmsQuizAudioCtx) {
-          if (!window._lmsQuizCtxBorrowed) { try { window._lmsQuizAudioCtx.close(); } catch (eC) {} }
-          window._lmsQuizAudioCtx = null;
-          window._lmsQuizCtxBorrowed = false;
-        }
-      } catch(e) {}
-    }
-
-    /* The Squadron duel runs the same loop from another top-level scope, so both
-     * halves are exposed together — starting the music from one place and
-     * stopping it from a copy is how a drone outlives its quiz. */
-    window._lmsStartQuizMusic = _lmsStartQuizMusic;
-    window._lmsStopQuizMusic  = _lmsStopQuizMusic;
 
     function _lmsShowVideoQuiz(player, quiz, moduleId, fired) {
       _lmsStartQuizMusic();
