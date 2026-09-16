@@ -67,10 +67,29 @@
   }
   .aero-ls-label { font-size: 34px; letter-spacing: 0.42em; text-indent: 0.42em; }
   .aero-ls-pct   { font-size: 22px; letter-spacing: 0.30em; text-indent: 0.30em; }
+
+  /* El logo va en el HOST, no en el escenario.
+     El escenario es una caja de 1920x1080 escalada para CUBRIR la ventana, asi
+     que sus esquinas estan recortadas fuera de pantalla casi siempre- una
+     esquina inferior derecha ahi no es una esquina, es un sitio que no se ve.
+     En el host, que es fixed inset 0, la esquina es la de la ventana. */
+  .aero-ls-logo {
+    position: absolute;
+    right: 26px;
+    bottom: 22px;
+    height: 34px;
+    width: auto;
+    opacity: 0.5;
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.18));
+  }
+  @media (max-width: 600px) {
+    .aero-ls-logo { height: 26px; right: 16px; bottom: 16px; }
+  }
 </style>
 
 <div class="aero-ls" id="aeroLoadingScreen" aria-hidden="true" role="presentation">
   <div class="aero-ls-stage" id="aeroLsStage"></div>
+  <img class="aero-ls-logo" src="<?!= getLogoUrl() ?>" alt="" aria-hidden="true">
 </div>
 
 <script>
@@ -497,10 +516,84 @@
     if (!raf) raf = requestAnimationFrame(frame);
   }
 
-  function done() {
-    if (gone || exitAt !== null || pending) return;
-    pending = true;
+  /* Que la app haya ELEGIDO pantalla no es que la pantalla este LISTA.
+     Es la primera version de esto y estaba mal- showScreen('appScreen') se llama
+     en cuanto la sesion se restaura de cache, y renderHome pinta entonces un
+     armazon con tres huecos -- el mapa, el reto del dia y los modulos -- que
+     tardan lo suyo en llegar. El globo se iba en ese instante y dejaba al
+     estudiante delante de un avioncito girando y un "Loading your levels...",
+     que es exactamente la espera que venia a tapar, solo que mas fea.
+
+     Asi que el destino decide que se espera-
+
+       - login o pending son definitivos- esa pantalla ya esta entera.
+       - appScreen no lo es- ahi se espera a que el area de contenido deje de
+         estar cargando.
+
+     La lista de clases se ENUMERA, y hay que saber lo que eso cuesta- si algun
+     dia aparece un cuarto tipo de hueco de carga y no se anade aqui, este codigo
+     lo leera como contenido y el globo volvera a irse antes de tiempo. El techo
+     de CEIL_MS es lo que acota el otro lado- si un hueco no se rellena nunca, la
+     pantalla de carga se va igual en vez de quedarse para siempre.
+
+     OJO- _isMidActivity(), en Scripts.html, mantiene una lista parecida para
+     decidir otra cosa (si el estudiante esta a mitad de algo). NO es la misma
+     pregunta, pero hoy le falta .pl-wrap, que se anadio despues. No se toca
+     desde aqui- va como ticket aparte. */
+  var HUECOS_DE_CARGA = '.pl-wrap, .app-spinner-wrap, .skeleton-card, ' +
+                        '.completion-loading-shell, .boot-placeholder';
+  var espera = null;
+
+  function contenidoListo() {
+    var area = document.getElementById('contentArea');
+    if (!area) return true;                 // no hay nada que esperar
+
+    /* Si el area no se VE, no se puede concluir que este lista.
+       El enganche corre dentro de showScreen ANTES de que reparta la clase
+       `active`, asi que en ese instante #appScreen sigue oculto y todo lo de
+       dentro mide cero. Preguntar ahi devolvia "no hay ningun hueco visible" --
+       cierto, y sin ningun significado -- y el globo se iba a los 1,6 s dejando
+       detras las tres secciones cargando. La respuesta correcta cuando no se
+       puede mirar es "todavia no", no "ya esta". */
+    if (!area.getClientRects().length) return false;
+    if (!area.children.length) return false; // aun sin pintar
+    var huecos = area.querySelectorAll(HUECOS_DE_CARGA);
+    for (var i = 0; i < huecos.length; i++) {
+      /* Un hueco que no se VE ya no hace esperar a nadie.
+         Las dos secciones que pueden fallar -- el reto del dia y los modulos --
+         se esconden con display:none y dejan su .pl-wrap dentro del DOM. Mirar
+         solo si el nodo existe dejaba el globo puesto hasta el techo de 15 s
+         justo el dia que el servidor no contesta, que es cuando menos falta
+         hace. getClientRects() sale vacio con display:none, propio o heredado. */
+      if (huecos[i].getClientRects().length) return false;
+    }
+    return true;
+  }
+
+  function salir() {
     setTimeout(beginExit, Math.max(0, MIN_MS - (now() - t0)));
+  }
+
+  function done(pantalla) {
+    if (gone || exitAt !== null) return;
+
+    if (pantalla === 'appScreen') {
+      if (espera) return;                   // ya se esta esperando
+      pending = true;
+      if (contenidoListo()) { salir(); return; }
+      espera = setInterval(function () {
+        if (gone || exitAt !== null || contenidoListo()) {
+          clearInterval(espera); espera = null;
+          if (!gone && exitAt === null) salir();
+        }
+      }, 120);
+      return;
+    }
+
+    // login, pending, o el techo- la decision ya no va a cambiar
+    if (espera) { clearInterval(espera); espera = null; }
+    pending = true;
+    salir();
   }
 
   var raf = null;

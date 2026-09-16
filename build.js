@@ -113,14 +113,21 @@ html = html.replace(
   '/* APP_CONFIG loaded by shim.js */'
 );
 
-// 3. Replace logo and pilot avatar data URL calls
+// 3. Resolve all <?!= include('X') ?> tags
+//
+// Before the brand replacement, not after. The other way round, getLogoUrl()
+// worked in Index.html and nowhere else: a partial that used it was pulled in
+// AFTER the regex had already run, so its call survived into dist as a literal
+// <?!= getLogoUrl() ?> — valid HTML, no build error, a broken image. Apps Script
+// evaluates the template as a whole and never had this asymmetry, so the partial
+// would have worked there and not here, which is the worse half of the bug.
+html = resolveIncludes(html);
+
+// 4. Replace logo and pilot avatar data URL calls, everywhere they appear
 const logoUrl   = brandFile('BRAND_LOGO_FILE_');
 const avatarUrl = brandFile('BRAND_AVATAR_FILE_');
 html = html.replace(/<\?!=\s*getLogoUrl\(\)\s*\?>/g, logoUrl);
 html = html.replace(/<\?!=\s*getPilotAvatarUrl\(\)\s*\?>/g, avatarUrl);
-
-// 4. Resolve all <?!= include('X') ?> tags
-html = resolveIncludes(html);
 
 // 5a. Strip comments from inlined CSS blocks
 html = html.replace(/(<style[^>]*>)([\s\S]*?)(<\/style>)/gi, function(_, open, css, close) {

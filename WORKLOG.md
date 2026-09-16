@@ -15,6 +15,78 @@ Newest day first.
 
 ---
 
+## 2026-09-16
+
+### The loading screen waits for the page, not for the decision to show it
+
+**Plan.** Two things asked for after seeing it live: the aerocomms logo bottom-right,
+and the globe leaving before the page behind it was ready. Both in one change, because
+both are the same file.
+
+**Criterion.** `STATED` — the logo is bottom right on the loading screen, and the globe
+does not leave while the home page is still showing its own loading placeholders.
+
+**What was wrong.** `showScreen('appScreen')` fires the moment a session restores from
+cache, and `renderHome` then paints a shell with three empty sections — the map, the
+daily challenge, the modules — each with a `.pl-wrap` in it. The globe left at that
+instant and handed over to a spinner and "Loading your levels…", which is the wait it
+existed to cover, only uglier. So the destination now decides what is waited for: login
+and pending are final, and `appScreen` waits until `#contentArea` holds no *visible*
+loading placeholder.
+
+**Visible is the load-bearing word, and it cost two rounds.**
+
+- The first version asked whether a placeholder *existed*. The daily-challenge and
+  modules sections hide themselves with `display:none` on failure and leave their
+  `.pl-wrap` in the DOM, so on the day the server does not answer the globe would have
+  stayed until its 15-second ceiling — precisely when it helps least.
+- The second version asked whether `#contentArea` had any visible placeholder, and was
+  called from inside `showScreen` *before* it hands out the `active` class. At that
+  instant `#appScreen` is still hidden and everything inside it measures zero, so the
+  answer was "no visible placeholders" — true, and meaningless. The globe left at 1.6 s
+  with all three sections loading. An invisible content area now answers "not yet"
+  rather than "ready".
+
+**The logo needed build.js reordered.** `getLogoUrl()` was replaced before includes were
+resolved, so it worked in Index.html and nowhere else: a partial using it was pulled in
+after the regex had run and its call survived into dist as a literal template tag — valid
+HTML, no build error, a broken image, and it would have worked under Apps Script, which
+evaluates the template whole. Includes now resolve first. Proved inert on its own: with
+the reorder and nothing else, `dist/index.html` was byte-identical.
+
+**Checklist.**
+
+- [ ] The aerocomms logo sits at the bottom right of the loading screen, discreet
+- [ ] It fades out with the globe rather than disappearing on its own
+- [ ] Returning to the app, the globe stays until the world map has drawn — no handover
+      to "Loading your levels…"
+- [ ] With no session, the globe still leaves promptly onto the sign-in form
+- [ ] The globe never stays more than about 15 seconds, whatever happens
+
+**Verified in Firefox, through geckodriver, against `dist/index.html`.** With `/api/gas`
+made to take six seconds: the app screen becomes active at 28 ms and the globe stays,
+leaving at 7,057 ms with zero visible placeholders behind it — against 1,629 ms and three
+of them before the fix. Both guards were then removed one at a time from the built file
+and watched failing: without the visibility guard the globe was still up at 11 s with
+nothing visible loading.
+
+**Found, not fixed — two tickets' worth.**
+
+1. `_isMidActivity()` lists `.app-spinner-wrap, .skeleton-card, .completion-loading-shell,
+   .boot-placeholder` but not `.pl-wrap`, which was added after it. A home page waiting on
+   `.pl-wrap` therefore reads as "content is painted, the student is reading", so a late
+   failure is downgraded to a toast on a screen that is in fact still loading — the
+   opposite of what that function is for.
+2. On the session-restore path with `role: 'STUDENT'`, `renderHome` does not paint:
+   `#contentArea` keeps its `.boot-placeholder` indefinitely. The same seeded cache with
+   `role: 'ADMIN'` renders in ~7 s. Reproduced three times at 1280px, with full and with
+   minimal cache objects, so it is the role and not the data. This predates the loading
+   screen — it changes what a student saw at 1.6 s into what a student sees at 15 s — but
+   it is a student-facing boot defect and it is the majority of the users.
+
+**Not verified.** Everything above used a backend that only ever answers `ok:false`; the
+normal path, where sections arrive with real data, needs the real server.
+
 ## 2026-09-15
 
 ### A challenge becomes a five-question duel, scored on the server

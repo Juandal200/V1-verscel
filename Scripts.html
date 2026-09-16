@@ -1083,7 +1083,7 @@ window.tierByExam = function (examNum) {
        Con sesion no se toca nada aqui- ahi la decision es mas tarde, cuando el
        servidor confirme o niegue, y esa si pasa por showScreen. */
     if (!AppState.sessionToken) {
-      try { if (window.__aeroLoadingScreen) window.__aeroLoadingScreen.done(); } catch (e) {}
+      try { if (window.__aeroLoadingScreen) window.__aeroLoadingScreen.done('loginScreen'); } catch (e) {}
     }
   });
 
@@ -1129,7 +1129,7 @@ window.tierByExam = function (examNum) {
        que sabe que ya hay algo detras que mirar. done() es idempotente y
        respeta su minimo en pantalla, asi que las demas navegaciones no hacen
        nada. */
-    try { if (window.__aeroLoadingScreen) window.__aeroLoadingScreen.done(); } catch (e) {}
+    try { if (window.__aeroLoadingScreen) window.__aeroLoadingScreen.done(screenId); } catch (e) {}
 
     Array.prototype.slice.call(document.querySelectorAll('.screen')).forEach(function(screen) {
       screen.classList.remove('active');
