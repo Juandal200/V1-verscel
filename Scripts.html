@@ -8704,7 +8704,7 @@ var LEVEL_THEMES = {
     }
 
     return { squelch: squelch, squelchTail: squelchTail, interfere: interfere,
-             stopScheduled: stopScheduled, unlock: unlock,
+             stopScheduled: stopScheduled, unlock: unlock, context: _ctx,
              difficulty: _difficulty,
              chimeUnlock: chimeUnlock, correct: correct, wrong: wrong };
   }());
@@ -16593,8 +16593,32 @@ var LEVEL_THEMES = {
     // Quiz overlay shown when a timestamp is hit
     function _lmsStartQuizMusic() {
       try {
-        var ctx = new (window.AudioContext || window.webkitAudioContext)();
-        window._lmsQuizAudioCtx = ctx;
+        /* Borrow the engine's context rather than build one.
+         *
+         * A fresh AudioContext made outside a user gesture starts suspended, and
+         * a suspended context has a frozen currentTime — so the eight notes below
+         * were scheduled at instant zero on a clock that never moved and the loop
+         * never advanced. Resuming afterwards does not rescue them, and starting
+         * again just builds another suspended context: the Squadron duel went
+         * round that loop twice before this was understood.
+         *
+         * SimAudio's context is the one the rest of the app has already unlocked,
+         * and it is unlocked here too. Borrowed, which _lmsStopQuizMusic has to
+         * know about — closing a context somebody else is using would take the
+         * cockpit's audio down with the quiz. */
+        var borrowed = false;
+        var ctx = null;
+        try {
+          if (window.SimAudio && typeof SimAudio.context === 'function') {
+            ctx = SimAudio.context();
+            borrowed = !!ctx;
+            if (typeof SimAudio.unlock === 'function') SimAudio.unlock();
+          }
+        } catch (eCtx) {}
+        if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (ctx.state === 'suspended' && ctx.resume) { try { ctx.resume(); } catch (eR) {} }
+        window._lmsQuizAudioCtx   = ctx;
+        window._lmsQuizCtxBorrowed = borrowed;
         var drone = ctx.createOscillator(), dg = ctx.createGain();
         drone.type = 'sine'; drone.frequency.value = 55; dg.gain.value = 0.053;
         drone.connect(dg); dg.connect(ctx.destination); drone.start();
@@ -16629,7 +16653,14 @@ var LEVEL_THEMES = {
         clearTimeout(window._lmsQuizMusicTimer);
         window._lmsQuizMusicTimer = null;
         if (window._lmsQuizDrone) { try { window._lmsQuizDrone.stop(); } catch(e) {} window._lmsQuizDrone = null; }
-        if (window._lmsQuizAudioCtx) { window._lmsQuizAudioCtx.close(); window._lmsQuizAudioCtx = null; }
+        /* Only close what we made. Closing SimAudio's context would silence the
+         * cockpit for the rest of the session, and a closed context cannot be
+         * reopened. */
+        if (window._lmsQuizAudioCtx) {
+          if (!window._lmsQuizCtxBorrowed) { try { window._lmsQuizAudioCtx.close(); } catch (eC) {} }
+          window._lmsQuizAudioCtx = null;
+          window._lmsQuizCtxBorrowed = false;
+        }
       } catch(e) {}
     }
 
@@ -25101,26 +25132,13 @@ var LEVEL_THEMES = {
     try {
       if (window._lmsQuizDrone) return;                 // already playing
       if (typeof window._lmsStartQuizMusic !== 'function') return;
+      /* Unlock first, because the music now borrows SimAudio's context and a
+       * suspended one schedules into a frozen clock. There is no restart dance
+       * here any more: restarting built a second suspended context and went round
+       * the same loop, which is what kept the duel silent while every other sound
+       * worked. */
+      _duelWake();
       window._lmsStartQuizMusic();
-
-      /* Resuming BEFORE this would have resumed nothing — the context does not
-       * exist until the line above builds it. And a context that starts
-       * suspended has a frozen currentTime, so the eight notes just scheduled
-       * went in at instant zero on a clock that never moved; resuming does not
-       * rescue them. So it is resumed and then started again, once, on a clock
-       * that is running. */
-      var c = window._lmsQuizAudioCtx;
-      if (c && c.state === 'suspended' && c.resume) {
-        var p = c.resume();
-        if (p && p.then) {
-          p.then(function () {
-            try {
-              if (typeof window._lmsStopQuizMusic === 'function') window._lmsStopQuizMusic();
-              window._lmsStartQuizMusic();
-            } catch (e2) {}
-          })['catch'](function () {});
-        }
-      }
     } catch (e) {}
   }
 

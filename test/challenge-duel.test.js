@@ -102,5 +102,31 @@ const missing = wanted.filter(n => !simNames.has(n));
 if (missing.length) missing.forEach(n => console.log('        SimAudio has no ' + n));
 ok(`${missing.length} sounds named that SimAudio does not have`, missing.length === 0);
 
+console.log('--- the quiz music plays on a context that is awake ---');
+/* The duel was silent on the music alone while every SimAudio sound worked, and
+ * the reason was two contexts: SimAudio's, unlocked by the rest of the app, and
+ * a brand new one built by _lmsStartQuizMusic. A context created outside a user
+ * gesture starts suspended and its currentTime is frozen, so the melody was
+ * scheduled at instant zero on a clock that never moved. Restarting it made a
+ * second suspended context and the loop went round again.
+ *
+ * It borrows SimAudio's now. Which makes closing it somebody else's business —
+ * a closed context cannot be reopened, and taking the cockpit's audio down with
+ * a quiz would be a worse bug than the silence this replaces. */
+ok('SimAudio exposes its context', /context:\s*_ctx/.test(S));
+/* Checked inside the function, not anywhere in the file. The first version of
+ * this assertion only looked for the string SimAudio.context() somewhere in
+ * Scripts.html, so deleting the fallback guard and going back to building a
+ * context unconditionally left it green — a check that passes through the defect
+ * it exists for. */
+const music = (S.match(/function _lmsStartQuizMusic\(\)[\s\S]*?\n    \}/) || [''])[0];
+ok('_lmsStartQuizMusic was found', music !== '', String(music.length));
+ok('it asks SimAudio for the context', music !== '' && /SimAudio\.context\(\)/.test(music));
+ok('and only builds its own when there is none to borrow',
+   music !== '' && /if \(!ctx\) ctx = new \(window\.AudioContext/.test(music));
+ok('and unlocks it before scheduling', /_lmsQuizCtxBorrowed/.test(S));
+ok('a borrowed context is never closed',
+   /if \(!window\._lmsQuizCtxBorrowed\) \{ try \{ window\._lmsQuizAudioCtx\.close\(\)/.test(S));
+
 console.log(fails ? '\n' + fails + ' FAILING' : '\nAll challenge-duel assertions passed.');
 process.exit(fails ? 1 : 0);
