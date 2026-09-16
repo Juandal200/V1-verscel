@@ -25247,8 +25247,22 @@ var LEVEL_THEMES = {
     if (!res) return fallback + ' (no response)';
     var msg  = String(res.message || '').trim();
     var code = String(res.code || '').trim();
-    if (!msg)  return fallback + (code ? ' [' + code + ']' : ' [no message, no code]');
-    return msg + (code ? ' [' + code + ']' : '');
+    if (msg) return msg + (code ? ' [' + code + ']' : '');
+
+    /* No message and no code means this did not come from _gamErr_, and every
+     * failing path in the server goes through _gamErr_ — so whatever answered is
+     * not the function being called. Guessing at that took three rounds; showing
+     * the response ends it. Printed, logged, and reported, because a phone has no
+     * console anybody is going to open. */
+    var dump;
+    try { dump = JSON.stringify(res); } catch (e) { dump = String(res); }
+    try { console.error('[duel] unexpected response:', res); } catch (e) {}
+    try {
+      if (typeof apiLogClientEvent === 'function') {
+        apiLogClientEvent('duel_unexpected_response', String(dump).slice(0, 500));
+      }
+    } catch (e) {}
+    return fallback + ' — server said: ' + String(dump).slice(0, 220);
   }
 
   function _duelSecs(ms) {
