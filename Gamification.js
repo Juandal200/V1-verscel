@@ -13,14 +13,40 @@ var GAM_SHEETS = {
 };
 
 var GAM_NETWORK_HEADERS    = ['Request_ID',   'From_Email',       'To_Email',    'Status'];
-var GAM_CHALLENGE_HEADERS  = ['Challenge_ID', 'Challenger_Email', 'Target_Email','Scenario_Name', 'Challenger_Score', 'Status'];
 
+/* A duel, not a scenario name and a self-reported score.
+ *
+ * PaperJson is the frozen paper — which questions, and in what order their
+ * options were shuffled — so both pilots answer the identical thing however long
+ * apart they play. The two _Started_At stamps are the server's clock, because
+ * the tie-break is time and a time the browser reports is a time it can choose.
+ *
+ * The old columns (Scenario_Name, Challenger_Score) are gone rather than kept:
+ * they named eight scenarios that exist nowhere in the product and a number
+ * nobody verified. Nothing converts, so nothing was migrated. */
+var GAM_CHALLENGE_HEADERS = [
+  'Challenge_ID', 'Challenger_Email', 'Target_Email', 'PaperJson',
+  'Challenger_Correct', 'Challenger_Ms', 'Challenger_Started_At',
+  'Target_Correct', 'Target_Ms', 'Target_Started_At',
+  'Winner_Email', 'Status', 'Created_At', 'Completed_At'
+];
+
+/* Enumerated, and a duel is only ever in one of them. There is no Declined:
+ * an invitation nobody plays simply stays where it is, and adding a decline is
+ * adding a screen for it, not adding a string here. */
 var GAM_STATUS = {
-  PENDING:     'Pending',
-  ACCEPTED:    'Accepted',
-  DECLINED:    'Declined',
-  IN_PROGRESS: 'Accepted_In_Progress'
+  PENDING:              'Pending',              // requests only — see Network
+  ACCEPTED:             'Accepted',             // requests only
+  AWAITING_CHALLENGER:  'Awaiting_Challenger',  // drawn, the challenger has not finished
+  AWAITING_TARGET:      'Awaiting_Target',      // challenger done, waiting on the target
+  COMPLETE:             'Complete'
 };
+
+/* Ten a correct answer, fifty more for taking the duel. Named here because the
+ * server pays them and the screen animates them, and a number in two places
+ * drifts. */
+var CHALLENGE_XP_PER_CORRECT = 10;
+var CHALLENGE_XP_WIN_BONUS   = 50;
 
 // ── Response helpers ─────────────────────────────────────────────────────────
 
@@ -340,105 +366,262 @@ function getSquadron(sessionToken) {
 //  CHALLENGE LOGIC
 // =============================================================================
 
-// 6. sendChallenge(sessionToken, targetEmail, scenarioName, myScore)
-//    Insert a Pending row into Challenges.
+/* ── How a duel works ────────────────────────────────────────────────────────
+ *
+ * Five questions, the same five for both pilots, in the same order, with the
+ * options in the same order. That is what PaperJson holds: the ids drawn, and
+ * for each one the shuffled positions of its options. It is written once when
+ * the challenge is created and never touched again — "the same paper" has to
+ * survive the target opening it days later, after the bank has been edited.
+ *
+ * Storing the shuffle rather than re-deriving it is the point. The bank's answer
+ * is A eighteen times out of forty-six, so serving the options as authored would
+ * let anyone score by always picking A; shuffling per challenge puts it anywhere
+ * without asking the specialist to think about distribution.
+ *
+ * WHY THE CLOCK IS THE SERVER'S
+ *
+ * The duel is decided on correct answers first and elapsed time second, so the
+ * time decides real matches. A number the browser reports is a number the
+ * browser can choose, and "I finished in 3 ms" would win every tie. So the
+ * server stamps when it hands the paper over and measures at submit. The cost is
+ * that a pilot who walks away mid-paper burns their own clock — which is the
+ * same thing that happens in the room, and is why it is capped rather than left
+ * to run: 30 seconds a question, five questions, so 150 seconds is both the cap
+ * and the worst score a finished paper can carry.
+ *
+ * WHEN THE XP LANDS
+ *
+ * Ten per correct answer is paid when that pilot finishes their own five, not
+ * when the duel resolves. The challenger would otherwise see nothing until the
+ * other side plays, which may be days, and an XP animation that fires for
+ * something you did on Tuesday is not a reward.
+ *
+ * The fifty for winning is paid when the second pilot submits, because that is
+ * the first moment anyone knows. An exact tie — same correct, same millisecond —
+ * pays it to nobody.
+ */
+
+// 6. createChallenge(sessionToken, targetEmail)
+//    Draw five active questions, freeze the paper, open the row, and hand the
+//    challenger their copy. The row exists before a single answer, so an
+//    abandoned attempt is visible as Awaiting_Challenger rather than absent.
 // -----------------------------------------------------------------------------
-function sendChallenge(sessionToken, targetEmail, scenarioName, myScore) {
+function createChallenge(sessionToken, targetEmail) {
   try {
-    var user = AuthService.requireSession(sessionToken);
+    var user    = AuthService.requireSession(sessionToken);
     var myEmail = user.email;
 
-    if (!targetEmail || !scenarioName) {
-      return _gamErr_('targetEmail and scenarioName are required.', 'MISSING_PARAMS');
+    if (!targetEmail) return _gamErr_('targetEmail is required.', 'MISSING_PARAMS');
+    if (String(myEmail).toLowerCase() === String(targetEmail).toLowerCase()) {
+      return _gamErr_('You cannot challenge yourself.', 'SELF_CHALLENGE');
     }
 
-    var challenger = String(myEmail).toLowerCase();
-    var target     = String(targetEmail).toLowerCase();
-    if (challenger === target) return _gamErr_('You cannot challenge yourself.', 'SELF_CHALLENGE');
+    var paper = _gamDrawPaper_();
+    if (!paper.length) {
+      return _gamErr_('The question bank does not have ' + CHALLENGE_QUESTION_COUNT +
+                      ' active questions yet.', 'EMPTY_BANK');
+    }
 
-    var scoreValue = (myScore !== undefined && myScore !== null && myScore !== '')
-      ? Number(myScore)
-      : '';
+    var id    = String(Date.now());
+    var stamp = new Date().toISOString();
 
     _gamAppendRow_(GAM_SHEETS.CHALLENGES, GAM_CHALLENGE_HEADERS, {
-      Challenge_ID:     String(Date.now()),
-      Challenger_Email: myEmail,
-      Target_Email:     targetEmail,
-      Scenario_Name:    scenarioName,
-      Challenger_Score: scoreValue,
-      Status:           GAM_STATUS.PENDING
+      Challenge_ID:          id,
+      Challenger_Email:      myEmail,
+      Target_Email:          targetEmail,
+      PaperJson:             JSON.stringify(paper),
+      Challenger_Correct:    '',
+      Challenger_Ms:         '',
+      Challenger_Started_At: stamp,
+      Target_Correct:        '',
+      Target_Ms:             '',
+      Target_Started_At:     '',
+      Winner_Email:          '',
+      Status:                GAM_STATUS.AWAITING_CHALLENGER,
+      Created_At:            stamp,
+      Completed_At:          ''
     });
 
-    try {
-      var users       = _gamReadAll_(GAM_SHEETS.USERS);
-      var userIdx     = _gamUserIndex_(users);
-      var chalName    = userIdx[challenger] || myEmail;
-      var scoreText   = (scoreValue !== '') ? ' Their score to beat: <strong>' + scoreValue + '</strong>.' : '';
-      MailApp.sendEmail({
-        to:      targetEmail,
-        subject: 'aerocomms — ' + chalName + ' has challenged you!',
-        htmlBody: _emailWrap_(
-          '<table width="100%" cellpadding="0" cellspacing="0" style="text-align:center;margin-bottom:24px;">' +
-            '<tr><td>' +
-              '<img src="' + getLogoUrl() + '" alt="aerocomms" style="width:64px;height:64px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(245,158,11,0.4);">' +
-            '</td></tr>' +
-            '<tr><td style="padding-top:12px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:' + EC_.amber + ';">aerocomms</td></tr>' +
-            '<tr><td style="padding-top:3px;font-size:12px;color:' + EC_.faint + ';">Aviation English Interactive Campus</td></tr>' +
-          '</table>' +
-          '<div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.22);border-radius:12px;padding:18px 20px;margin:0 0 20px;text-align:center;">' +
-            '<div style="font-size:22px;margin-bottom:6px;">&#127942;</div>' +
-            '<div style="font-size:15px;font-weight:700;color:' + EC_.amber + ';">Flight Duel Challenge</div>' +
-          '</div>' +
-          '<p style="margin:0 0 12px;font-size:14px;color:' + EC_.text + ';line-height:1.6;">' +
-            '<strong style="color:' + EC_.text + ';">' + chalName + '</strong> has challenged you to the <strong style="color:' + EC_.text + ';">' + scenarioName + '</strong> scenario.' +
-            (scoreValue !== '' ? ' Their score to beat: <strong style="color:' + EC_.amber + ';">' + scoreValue + '</strong>.' : '') +
-          '</p>' +
-          '<p style="margin:0 0 20px;font-size:13px;color:' + EC_.muted + ';line-height:1.6;">Open the <strong style="color:' + EC_.text + ';">Squadron</strong> tab to accept or decline the challenge.</p>' +
-          '<div style="text-align:center;margin-bottom:20px;">' +
-            '<a href="' + ScriptApp.getService().getUrl() + '" style="display:inline-block;background:' + EC_.amber + ';color:' + EC_.ink + ';font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;padding:14px 36px;border-radius:10px;text-decoration:none;">Accept Challenge →</a>' +
-          '</div>' +
-          '<p style="margin:0;font-size:12px;color:' + EC_.faint + ';">Sent from ' + myEmail + '</p>'
-        )
-      });
-    } catch (mailErr) {
-      // Email failure is non-fatal — challenge is already saved
-    }
-
-    return _gamOk_(null, 'Challenge sent to ' + targetEmail + ' on scenario "' + scenarioName + '".');
+    return _gamOk_({
+      challengeId:       id,
+      questions:         _gamPaperForPlay_(paper),
+      secondsPerQuestion: CHALLENGE_SECONDS_PER_QUESTION
+    }, 'Challenge ready.');
   } catch (e) {
-    return _gamErr_('sendChallenge failed: ' + e.message, 'CHALLENGE_ERROR');
+    return _gamErr_('createChallenge failed: ' + e.message, 'CHALLENGE_ERROR');
   }
 }
 
-// 7. getIncomingChallenges(sessionToken)
-//    Return all Pending challenges where Target_Email == authenticated user.
-//    Cross-references Users for the challenger's display name.
+// 7. getChallengePaper(sessionToken, challengeId)
+//    The frozen paper, without the answers, for whichever side is asking. The
+//    target's clock starts the first time they ask and never restarts, so
+//    closing the tab and coming back does not buy a fresh run.
+// -----------------------------------------------------------------------------
+function getChallengePaper(sessionToken, challengeId) {
+  try {
+    var user  = AuthService.requireSession(sessionToken);
+    var mine  = String(user.email).toLowerCase();
+    var row   = _gamFindChallenge_(challengeId);
+    if (!row) return _gamErr_('Challenge ID not found.', 'NOT_FOUND');
+
+    var side = _gamSideOf_(row, mine);
+    if (!side) return _gamErr_('Not your challenge.', 'FORBIDDEN');
+    if (row[side + '_Correct'] !== '' && row[side + '_Correct'] !== null) {
+      return _gamErr_('You have already played this challenge.', 'ALREADY_PLAYED');
+    }
+
+    /* Stamped on first sight, not on every fetch — a refresh is not a restart. */
+    if (!row[side + '_Started_At']) {
+      var patch = {};
+      patch[side + '_Started_At'] = new Date().toISOString();
+      _gamUpdateRow_(GAM_SHEETS.CHALLENGES, 'Challenge_ID', String(challengeId), patch);
+    }
+
+    var paper = [];
+    try { paper = JSON.parse(row.PaperJson || '[]'); } catch (e) {}
+    if (!paper.length) return _gamErr_('This challenge has no paper.', 'NO_PAPER');
+
+    return _gamOk_({
+      challengeId:        String(challengeId),
+      questions:          _gamPaperForPlay_(paper),
+      secondsPerQuestion: CHALLENGE_SECONDS_PER_QUESTION
+    }, 'Paper ready.');
+  } catch (e) {
+    return _gamErr_('getChallengePaper failed: ' + e.message, 'FETCH_ERROR');
+  }
+}
+
+// 8. submitChallengeResult(sessionToken, challengeId, answers)
+//    Score on the server from the frozen paper. `answers` is an array of the
+//    DISPLAYED option index per question, or null for one left unanswered.
+// -----------------------------------------------------------------------------
+function submitChallengeResult(sessionToken, challengeId, answers) {
+  try {
+    var user = AuthService.requireSession(sessionToken);
+    var mine = String(user.email).toLowerCase();
+    var row  = _gamFindChallenge_(challengeId);
+    if (!row) return _gamErr_('Challenge ID not found.', 'NOT_FOUND');
+
+    var side = _gamSideOf_(row, mine);
+    if (!side) return _gamErr_('Not your challenge.', 'FORBIDDEN');
+    if (row[side + '_Correct'] !== '' && row[side + '_Correct'] !== null) {
+      return _gamErr_('You have already played this challenge.', 'ALREADY_PLAYED');
+    }
+
+    var paper = [];
+    try { paper = JSON.parse(row.PaperJson || '[]'); } catch (e) {}
+    if (!paper.length) return _gamErr_('This challenge has no paper.', 'NO_PAPER');
+
+    var given   = Array.isArray(answers) ? answers : [];
+    var correct = _gamScorePaper_(paper, given);
+
+    /* The clock the server started, capped at the paper's own limit. An unset
+     * stamp means the paper was answered without ever being fetched, which the
+     * screen cannot do — it scores as the full cap rather than as instant. */
+    var startedAt = row[side + '_Started_At'];
+    var capMs     = CHALLENGE_QUESTION_COUNT * CHALLENGE_SECONDS_PER_QUESTION * 1000;
+    var elapsed   = startedAt ? (Date.now() - new Date(startedAt).getTime()) : capMs;
+    var ms        = Math.max(0, Math.min(capMs, elapsed));
+
+    var xpEarned = correct * CHALLENGE_XP_PER_CORRECT;
+    if (xpEarned) lmsAddXp_(user.userId, xpEarned);
+
+    var patch = {};
+    patch[side + '_Correct'] = correct;
+    patch[side + '_Ms']      = ms;
+
+    var otherSide = (side === 'Challenger') ? 'Target' : 'Challenger';
+    var otherDone = row[otherSide + '_Correct'] !== '' && row[otherSide + '_Correct'] !== null;
+
+    var result = {
+      correct:        correct,
+      total:          paper.length,
+      ms:             ms,
+      xpEarned:       xpEarned,
+      bonusXp:        0,
+      youWon:         false,
+      complete:       false,
+      opponentName:   '',
+      opponentCorrect: null,
+      opponentMs:      null
+    };
+
+    if (!otherDone) {
+      patch.Status = (side === 'Challenger') ? GAM_STATUS.AWAITING_TARGET
+                                             : GAM_STATUS.AWAITING_CHALLENGER;
+      _gamUpdateRow_(GAM_SHEETS.CHALLENGES, 'Challenge_ID', String(challengeId), patch);
+      if (side === 'Challenger') _gamMailChallenge_(row, user, correct);
+      return _gamOk_(result, 'Result recorded. Waiting for your opponent.');
+    }
+
+    /* Both in. More correct wins; level on correct, the faster clock wins; level
+     * on both, nobody does and the bonus goes unpaid. */
+    var otherCorrect = Number(row[otherSide + '_Correct']);
+    var otherMs      = Number(row[otherSide + '_Ms']);
+    var winnerSide   = null;
+    if (correct > otherCorrect)      winnerSide = side;
+    else if (correct < otherCorrect) winnerSide = otherSide;
+    else if (ms < otherMs)           winnerSide = side;
+    else if (ms > otherMs)           winnerSide = otherSide;
+
+    var winnerEmail = winnerSide ? String(row[winnerSide + '_Email'] || '') : '';
+    patch.Status       = GAM_STATUS.COMPLETE;
+    patch.Winner_Email = winnerEmail;
+    patch.Completed_At = new Date().toISOString();
+    _gamUpdateRow_(GAM_SHEETS.CHALLENGES, 'Challenge_ID', String(challengeId), patch);
+
+    if (winnerSide === side) {
+      lmsAddXp_(user.userId, CHALLENGE_XP_WIN_BONUS);
+      result.bonusXp = CHALLENGE_XP_WIN_BONUS;
+      result.youWon  = true;
+    } else if (winnerEmail) {
+      /* The other pilot won while away from the screen, so their bonus is paid
+       * here. They have no session in this call — the id comes off the sheet. */
+      var users   = _gamReadAll_(GAM_SHEETS.USERS);
+      var winnerR = users.filter(function (u) {
+        return String(u.email || '').toLowerCase() === winnerEmail.toLowerCase();
+      })[0];
+      if (winnerR && winnerR.userId) lmsAddXp_(winnerR.userId, CHALLENGE_XP_WIN_BONUS);
+    }
+
+    var idx = _gamUserIndex_(_gamReadAll_(GAM_SHEETS.USERS));
+    var otherEmail = String(row[otherSide + '_Email'] || '');
+    result.complete        = true;
+    result.opponentName    = idx[otherEmail.toLowerCase()] || otherEmail;
+    result.opponentCorrect = otherCorrect;
+    result.opponentMs      = otherMs;
+
+    return _gamOk_(result, 'Challenge complete.');
+  } catch (e) {
+    return _gamErr_('submitChallengeResult failed: ' + e.message, 'SUBMIT_ERROR');
+  }
+}
+
+// 9. getIncomingChallenges(sessionToken)
+//    Challenges waiting on ME to play. A row the challenger has not finished is
+//    not incoming to anybody — it is their own unfinished attempt.
 // -----------------------------------------------------------------------------
 function getIncomingChallenges(sessionToken) {
   try {
-    var user = AuthService.requireSession(sessionToken);
-    var myEmail = user.email;
+    var user    = AuthService.requireSession(sessionToken);
+    var myLower = String(user.email).toLowerCase();
+    var idx     = _gamUserIndex_(_gamReadAll_(GAM_SHEETS.USERS));
 
-    var myLower    = String(myEmail).toLowerCase();
-    var challenges = _gamReadAll_(GAM_SHEETS.CHALLENGES);
-    var users      = _gamReadAll_(GAM_SHEETS.USERS);
-    var userIdx    = _gamUserIndex_(users);
-
-    var incoming = challenges
-      .filter(function(row) {
-        return String(row['Target_Email'] || '').toLowerCase() === myLower &&
-               String(row['Status']      || '') === GAM_STATUS.PENDING;
+    var incoming = _gamReadAll_(GAM_SHEETS.CHALLENGES)
+      .filter(function (row) {
+        return String(row.Target_Email || '').toLowerCase() === myLower &&
+               String(row.Status || '') === GAM_STATUS.AWAITING_TARGET;
       })
-      .map(function(row) {
-        var challengerEmail = String(row['Challenger_Email'] || '');
-        var rawScore        = row['Challenger_Score'];
+      .map(function (row) {
+        var who = String(row.Challenger_Email || '');
         return {
-          challengeId:     String(row['Challenge_ID']    || ''),
-          challengerEmail: challengerEmail,
-          challengerName:  userIdx[challengerEmail.toLowerCase()] || challengerEmail,
-          scenarioName:    String(row['Scenario_Name']   || ''),
-          challengerScore: (rawScore !== '' && rawScore !== null) ? Number(rawScore) : null,
-          status:          String(row['Status'] || '')
+          challengeId:      String(row.Challenge_ID || ''),
+          challengerEmail:  who,
+          challengerName:   idx[who.toLowerCase()] || who,
+          challengerCorrect: Number(row.Challenger_Correct),
+          questionCount:    CHALLENGE_QUESTION_COUNT,
+          status:           String(row.Status || '')
         };
       });
 
@@ -448,32 +631,126 @@ function getIncomingChallenges(sessionToken) {
   }
 }
 
-// 8. acceptChallenge(sessionToken, challengeId)
-//    Update the matching Challenges row status to Accepted_In_Progress.
-//    Verifies the authenticated user is the challenge target.
-// -----------------------------------------------------------------------------
-function acceptChallenge(sessionToken, challengeId) {
+/* ── Challenge helpers ───────────────────────────────────────────────────────*/
+
+function _gamFindChallenge_(challengeId) {
+  if (!challengeId) return null;
+  return _gamReadAll_(GAM_SHEETS.CHALLENGES).filter(function (r) {
+    return String(r.Challenge_ID || '') === String(challengeId);
+  })[0] || null;
+}
+
+/* Which end of this duel is this email? Returns the column prefix, or null for
+ * somebody who is neither — which is the authorisation check. */
+function _gamSideOf_(row, emailLower) {
+  if (String(row.Challenger_Email || '').toLowerCase() === emailLower) return 'Challenger';
+  if (String(row.Target_Email     || '').toLowerCase() === emailLower) return 'Target';
+  return null;
+}
+
+function _gamShuffle_(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
+/* Five active questions, each with its options shuffled. `order` maps a
+ * displayed position to the option index as the specialist wrote it, so the
+ * answer can be checked later without storing it anywhere the client can see. */
+function _gamDrawPaper_() {
+  var bank = dbReadAll_(CHALLENGE_QUESTIONS_SHEET_).filter(function (r) {
+    var flag = String(r.active).toUpperCase();
+    return r.questionId && flag !== 'FALSE' && flag !== 'NO' && flag !== '0';
+  });
+  if (bank.length < CHALLENGE_QUESTION_COUNT) return [];
+
+  return _gamShuffle_(bank).slice(0, CHALLENGE_QUESTION_COUNT).map(function (q) {
+    var opts = [];
+    try { opts = JSON.parse(q.optionsJson || '[]'); } catch (e) {}
+    var positions = _gamShuffle_(opts.map(function (_, i) { return i; }));
+    return { id: String(q.questionId), order: positions };
+  });
+}
+
+/* The paper as the pilot sees it: text, image and options in the frozen order,
+ * and NO correct index. The answer never leaves the server — reading it out of
+ * the page source would be the whole game. */
+function _gamPaperForPlay_(paper) {
+  var bank = dbReadAll_(CHALLENGE_QUESTIONS_SHEET_);
+  var byId = {};
+  bank.forEach(function (r) { byId[String(r.questionId)] = r; });
+
+  return paper.map(function (p) {
+    var q = byId[p.id];
+    if (!q) return { questionId: p.id, question: '(question withdrawn)', imageUrl: '', options: [] };
+    var opts = [];
+    try { opts = JSON.parse(q.optionsJson || '[]'); } catch (e) {}
+    return {
+      questionId: p.id,
+      question:   String(q.question || ''),
+      imageUrl:   String(q.imageUrl || ''),
+      options:    p.order.map(function (orig) { return String(opts[orig] || ''); })
+    };
+  });
+}
+
+/* Scored against the frozen order: the displayed position the pilot picked is
+ * mapped back through `order` and compared with the authored correctIndex. */
+function _gamScorePaper_(paper, given) {
+  var bank = dbReadAll_(CHALLENGE_QUESTIONS_SHEET_);
+  var byId = {};
+  bank.forEach(function (r) { byId[String(r.questionId)] = r; });
+
+  var correct = 0;
+  paper.forEach(function (p, i) {
+    var q = byId[p.id];
+    if (!q) return;
+    var picked = given[i];
+    if (picked === null || picked === undefined || picked === '') return;
+    var original = p.order[Number(picked)];
+    if (original === undefined) return;
+    if (Number(original) === Number(q.correctIndex)) correct++;
+  });
+  return correct;
+}
+
+/* The invitation. A send that fails must not lose the challenge — it is already
+ * on the sheet and reachable from the Squadron tab, so the mail is a courtesy
+ * and its failure is swallowed on purpose. */
+function _gamMailChallenge_(row, challenger, challengerCorrect) {
   try {
-    var user = AuthService.requireSession(sessionToken);
-    if (!challengeId) return _gamErr_('challengeId is required.', 'MISSING_PARAMS');
-
-    var myLower    = String(user.email).toLowerCase();
-    var challenges = _gamReadAll_(GAM_SHEETS.CHALLENGES);
-    var row = challenges.find(function(r) { return String(r['Challenge_ID'] || '') === String(challengeId); });
-    if (!row) return _gamErr_('Challenge ID not found.', 'NOT_FOUND');
-    if (String(row['Target_Email'] || '').toLowerCase() !== myLower) {
-      return _gamErr_('Not authorized to accept this challenge.', 'FORBIDDEN');
-    }
-
-    var updated = _gamUpdateRow_(
-      GAM_SHEETS.CHALLENGES, 'Challenge_ID', String(challengeId),
-      { Status: GAM_STATUS.IN_PROGRESS }
-    );
-
-    if (!updated) return _gamErr_('Challenge ID not found.', 'NOT_FOUND');
-    return _gamOk_(null, 'Challenge accepted. Good luck, pilot.');
-  } catch (e) {
-    return _gamErr_('acceptChallenge failed: ' + e.message, 'ACCEPT_ERROR');
+    var idx      = _gamUserIndex_(_gamReadAll_(GAM_SHEETS.USERS));
+    var chalName = idx[String(challenger.email).toLowerCase()] || challenger.email;
+    MailApp.sendEmail({
+      to:      String(row.Target_Email || ''),
+      subject: 'aerocomms — ' + chalName + ' has challenged you!',
+      htmlBody: _emailWrap_(
+        '<table width="100%" cellpadding="0" cellspacing="0" style="text-align:center;margin-bottom:24px;">' +
+          '<tr><td><img src="' + getLogoUrl() + '" alt="aerocomms" style="width:64px;height:64px;border-radius:8px;object-fit:contain;background:#000;border:2px solid rgba(245,158,11,0.4);"></td></tr>' +
+          '<tr><td style="padding-top:12px;font-size:10px;font-weight:800;letter-spacing:2.5px;color:' + EC_.amber + ';">aerocomms</td></tr>' +
+        '</table>' +
+        '<div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.22);border-radius:12px;padding:18px 20px;margin:0 0 20px;text-align:center;">' +
+          '<div style="font-size:22px;margin-bottom:6px;">&#127942;</div>' +
+          '<div style="font-size:15px;font-weight:700;color:' + EC_.amber + ';">Flight Duel Challenge</div>' +
+        '</div>' +
+        '<p style="margin:0 0 12px;font-size:14px;color:' + EC_.text + ';line-height:1.6;">' +
+          '<strong style="color:' + EC_.text + ';">' + chalName + '</strong> has challenged you to ' +
+          CHALLENGE_QUESTION_COUNT + ' questions, and scored <strong style="color:' + EC_.amber + ';">' +
+          challengerCorrect + ' of ' + CHALLENGE_QUESTION_COUNT + '</strong>.' +
+        '</p>' +
+        '<p style="margin:0 0 20px;font-size:13px;color:' + EC_.muted + ';line-height:1.6;">You get the same ' +
+          CHALLENGE_QUESTION_COUNT + ' questions. Most correct wins; if you tie, the faster clock takes it.</p>' +
+        '<div style="text-align:center;margin-bottom:20px;">' +
+          '<a href="' + ScriptApp.getService().getUrl() + '" style="display:inline-block;background:' + EC_.amber + ';color:' + EC_.ink + ';font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;padding:14px 36px;border-radius:10px;text-decoration:none;">Accept Challenge →</a>' +
+        '</div>' +
+        '<p style="margin:0;font-size:12px;color:' + EC_.faint + ';">Sent from ' + challenger.email + '</p>'
+      )
+    });
+  } catch (mailErr) {
+    // Non-fatal: the challenge is already saved and visible in the Squadron tab.
   }
 }
 

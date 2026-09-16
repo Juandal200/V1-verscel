@@ -16253,6 +16253,10 @@ var LEVEL_THEMES = {
       setTimeout(function() { if (chip.parentNode) chip.parentNode.removeChild(chip); }, 2700);
     } catch(e) {}
   }
+  /* Exposed because the Squadron duel pops the same chip, and it lives in a
+   * different top-level scope. scope-reach.test.js is what catches the version
+   * of this where the call is written and simply throws. */
+  window._showXpFloat = _showXpFloat;
 
   function _renderModuleRoadmap(modules, returnHtml) {
     if (!modules.length) {
@@ -16611,6 +16615,12 @@ var LEVEL_THEMES = {
         if (window._lmsQuizAudioCtx) { window._lmsQuizAudioCtx.close(); window._lmsQuizAudioCtx = null; }
       } catch(e) {}
     }
+
+    /* The Squadron duel runs the same loop from another top-level scope, so both
+     * halves are exposed together — starting the music from one place and
+     * stopping it from a copy is how a drone outlives its quiz. */
+    window._lmsStartQuizMusic = _lmsStartQuizMusic;
+    window._lmsStopQuizMusic  = _lmsStopQuizMusic;
 
     function _lmsShowVideoQuiz(player, quiz, moduleId, fired) {
       _lmsStartQuizMusic();
@@ -24743,7 +24753,7 @@ var LEVEL_THEMES = {
     if (roster) roster.innerHTML = '<div class="gam-empty-state">Loading squadron...</div>';
 
     _gamBindSearch();
-    _gamBindModal();
+    _gamBindDuel();
     _gamBindBellFooter();
 
     _gamLoadSquadron();
@@ -25026,33 +25036,6 @@ var LEVEL_THEMES = {
     });
   }
 
-  function _gamAcceptChallenge(btn) {
-    var chalId = btn.getAttribute('data-chalid');
-    if (!chalId) return;
-    btn.disabled = true;
-    btn.textContent = '...';
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (res.status !== 'success') {
-          btn.disabled = false;
-          btn.textContent = 'Accept';
-          _gToast(res.message || 'Could not accept challenge.', 'err');
-          return;
-        }
-        _gamFadeRemove(_gEl('gam-chal-' + chalId));
-        _gam.chalCount = Math.max(0, _gam.chalCount - 1);
-        _gamSyncBadge(_gEl('gamTrophyBadge'), _gam.chalCount);
-        _gamSyncChalCount(_gEl('gamChalCount'), _gam.chalCount);
-        _gToast('Challenge accepted — good luck, pilot!', 'ok');
-      })
-      .withFailureHandler(function () {
-        btn.disabled = false;
-        btn.textContent = 'Accept';
-        _gToast('Connection error. Try again.', 'err');
-      })
-      .acceptChallenge(AppState.sessionToken, chalId);
-  }
-
   function _gamDismissChallenge(btn) {
     var chalId = btn.getAttribute('data-chalid');
     _gamFadeRemove(_gEl('gam-chal-' + chalId));
@@ -25062,68 +25045,255 @@ var LEVEL_THEMES = {
   }
 
   // ── Challenge modal ──────────────────────────────────────────────────────────
-  function _gamBindModal() {
-    var sendBtn = _gEl('gamSendChallengeBtn');
-    if (sendBtn) sendBtn.addEventListener('click', _gamSendChallenge);
-    var overlay = document.querySelector('#gamification-module .gam-modal-overlay');
-    if (overlay) {
-      overlay.addEventListener('click', function (e) {
-        if (e.target === overlay) _gamCloseModal();
-      });
+  /* ── The duel screen ───────────────────────────────────────────────────────
+   *
+   * Five questions, thirty seconds each, the same paper for both pilots. The
+   * server draws it, scores it and keeps the clock; this draws it and collects
+   * taps. Nothing here knows which option is right — the paper arrives without
+   * the answers, so reading the page source tells you nothing.
+   *
+   * The music is _lmsStartQuizMusic, the same loop the module quizzes run, and
+   * the XP chip is _showXpFloat, the same one the simulator pops. Both are
+   * reused rather than reimplemented: a second quiz theme and a second XP
+   * animation would be two more things to keep in step.
+   */
+  var _duel = { id: null, qs: [], i: 0, answers: [], timer: null, left: 0, secs: 30 };
+
+  /* There is no tap-outside-to-close and no ✕, on purpose. A duel is timed on
+   * the server the moment the paper is handed over, so a pilot who dismisses it
+   * has not escaped the clock — they have only stopped seeing it. The only way
+   * out is answering the five, and the countdown answers for you. */
+  function _gamBindDuel() {
+    var ov = _gEl('gamDuel');
+    if (ov) ov.hidden = true;
+  }
+
+  /* The module quiz's own stop, not a copy of it. Starting the loop from one
+   * place and stopping it from a reimplementation is how a drone outlives the
+   * quiz that opened it — and the two would drift the first time either changed. */
+  function _duelStopMusic() {
+    try {
+      if (typeof window._lmsStopQuizMusic === 'function') window._lmsStopQuizMusic();
+    } catch (e) {}
+  }
+
+  function _duelClearTimer() {
+    if (_duel.timer) { clearInterval(_duel.timer); _duel.timer = null; }
+  }
+
+  function _duelClose() {
+    _duelClearTimer();
+    _duelStopMusic();
+    var ov = _gEl('gamDuel');
+    if (ov) ov.hidden = true;
+  }
+
+  /* Opening is the same for both sides — the only difference is which call
+   * produced the paper, and by here it already has. */
+  function _duelStart(challengeId, questions, secondsPerQuestion) {
+    _duel.id      = challengeId;
+    _duel.qs      = questions || [];
+    _duel.i       = 0;
+    _duel.answers = _duel.qs.map(function () { return null; });
+    _duel.secs    = Number(secondsPerQuestion) || 30;
+
+    var ov = _gEl('gamDuel');
+    if (ov) ov.hidden = false;
+    try { if (typeof window._lmsStartQuizMusic === 'function') window._lmsStartQuizMusic(); } catch (e) {}
+    _duelRender();
+  }
+
+  function _duelRender() {
+    var q   = _duel.qs[_duel.i];
+    var box = _gEl('gamDuelBody');
+    if (!q || !box) return;
+
+    var step = _gEl('gamDuelStep');
+    if (step) step.textContent = 'Question ' + (_duel.i + 1) + ' of ' + _duel.qs.length;
+
+    var img = q.imageUrl
+      ? '<img src="' + q.imageUrl + '" alt="" class="gam-duel-img" ' +
+        'onerror="this.style.display=\'none\'">'
+      : '';
+
+    box.innerHTML =
+      img +
+      '<div class="gam-duel-q">' + q.question + '</div>' +
+      '<div class="gam-duel-opts">' +
+        q.options.map(function (o, i) {
+          return '<button type="button" class="gam-duel-opt" data-i="' + i + '">' +
+                 '<span class="gam-duel-letter">' + 'ABCD'.charAt(i) + '</span>' + o + '</button>';
+        }).join('') +
+      '</div>';
+
+    Array.prototype.forEach.call(box.querySelectorAll('.gam-duel-opt'), function (b) {
+      b.addEventListener('click', function () { _duelAnswer(Number(b.getAttribute('data-i'))); });
+    });
+
+    _duelStartCountdown();
+  }
+
+  /* Thirty seconds, and running out is an unanswered question rather than a
+   * wrong one — the server counts null as no mark, not as a miss. */
+  function _duelStartCountdown() {
+    _duelClearTimer();
+    _duel.left = _duel.secs;
+    var bar = _gEl('gamDuelBar');
+    var num = _gEl('gamDuelClock');
+    function paint() {
+      if (num) num.textContent = _duel.left + 's';
+      if (bar) bar.style.width = Math.max(0, (_duel.left / _duel.secs) * 100) + '%';
     }
+    paint();
+    _duel.timer = setInterval(function () {
+      _duel.left--;
+      paint();
+      if (_duel.left <= 0) _duelAnswer(null);
+    }, 1000);
   }
 
-  function _gamOpenModal(btn) {
-    _gam.targetEmail = btn.getAttribute('data-email');
-    _gam.targetName  = btn.getAttribute('data-name') || _gam.targetEmail;
-    var title = document.querySelector('#gamification-module .gam-modal-title');
-    if (title) title.textContent = 'Challenge ' + _gam.targetName;
-    var cb = _gEl('gam-chal-open');
-    if (cb) cb.checked = true;
+  function _duelAnswer(choice) {
+    _duelClearTimer();
+    _duel.answers[_duel.i] = choice;
+    _duel.i++;
+    if (_duel.i < _duel.qs.length) _duelRender();
+    else _duelSubmit();
   }
 
-  function _gamCloseModal() {
-    var cb = _gEl('gam-chal-open');
-    if (cb) cb.checked = false;
-    _gam.targetEmail = null;
-    _gam.targetName  = null;
-    var title = document.querySelector('#gamification-module .gam-modal-title');
-    if (title) title.textContent = 'Send a Challenge';
-  }
+  function _duelSubmit() {
+    _duelStopMusic();
+    var box = _gEl('gamDuelBody');
+    if (box) box.innerHTML = '<div class="gam-duel-wait">Scoring…</div>';
+    var step = _gEl('gamDuelStep');
+    if (step) step.textContent = '';
 
-  function _gamSendChallenge() {
-    if (!_gam.targetEmail) { _gToast('No target pilot selected.', 'err'); return; }
-    var scEl    = _gEl('gamChalScenario');
-    var scoreEl = _gEl('gamChalScore');
-    var sendBtn = _gEl('gamSendChallengeBtn');
-    var scenario = scEl ? scEl.value : '';
-    var score    = (scoreEl && scoreEl.value !== '') ? Number(scoreEl.value) : null;
-    if (!scenario) { _gToast('Please select a scenario.', 'err'); return; }
-    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending...'; }
     google.script.run
       .withSuccessHandler(function (res) {
-        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send Challenge'; }
         if (res.status !== 'success') {
-          _gToast(res.message || 'Could not send challenge.', 'err');
+          _duelClose();
+          _gToast(res.message || 'Could not submit your answers.', 'err');
           return;
         }
-        // Read before the close, because the close is what clears it: _gamCloseModal
-        // sets targetName and targetEmail to null, and the toast three lines down used
-        // to read them afterwards and announce "Challenge sent to null!" (F-0028).
-        var sentTo = _gam.targetName || _gam.targetEmail;
-        _gamCloseModal();
-        if (scEl)    scEl.selectedIndex = 0;
-        if (scoreEl) scoreEl.value = '';
-        _gToast('Challenge sent to ' + sentTo + '!', 'ok');
+        _duelResult(res.data);
       })
       .withFailureHandler(function () {
-        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send Challenge'; }
-        _gToast('Connection error. Try again.', 'err');
+        _duelClose();
+        _gToast('Connection error — your answers were not recorded.', 'err');
       })
-      .sendChallenge(AppState.sessionToken, _gam.targetEmail, scenario, score);
+      .submitChallengeResult(AppState.sessionToken, _duel.id, _duel.answers);
   }
 
-  // ── Sync helpers ─────────────────────────────────────────────────────────────
+  function _duelResult(r) {
+    var box = _gEl('gamDuelBody');
+    if (!box) return;
+
+    var head, sub;
+    if (!r.complete) {
+      head = 'Challenge sent';
+      sub  = 'You scored ' + r.correct + ' of ' + r.total +
+             '. Waiting for your opponent to play the same five.';
+    } else if (r.youWon) {
+      head = 'You win';
+      sub  = 'You ' + r.correct + ' of ' + r.total + ' in ' + _duelSecs(r.ms) +
+             ' · ' + r.opponentName + ' ' + r.opponentCorrect + ' in ' + _duelSecs(r.opponentMs);
+    } else if (r.opponentCorrect === r.correct && r.opponentMs === r.ms) {
+      head = 'Dead heat';
+      sub  = 'Both ' + r.correct + ' of ' + r.total + ' in ' + _duelSecs(r.ms) + '. Nobody takes the bonus.';
+    } else {
+      head = r.opponentName + ' wins';
+      sub  = 'You ' + r.correct + ' of ' + r.total + ' in ' + _duelSecs(r.ms) +
+             ' · ' + r.opponentName + ' ' + r.opponentCorrect + ' in ' + _duelSecs(r.opponentMs);
+    }
+
+    box.innerHTML =
+      '<div class="gam-duel-result">' +
+        '<div class="gam-duel-head">' + head + '</div>' +
+        '<div class="gam-duel-sub">' + sub + '</div>' +
+        '<div class="gam-duel-xp">+' + r.xpEarned + ' XP' +
+          (r.bonusXp ? ' <span class="gam-duel-bonus">+' + r.bonusXp + ' bonus</span>' : '') +
+        '</div>' +
+        '<button type="button" id="gamDuelDone" class="gam-send-btn">Done</button>' +
+      '</div>';
+
+    var done = _gEl('gamDuelDone');
+    if (done) done.addEventListener('click', function () { _duelClose(); _gamRefresh(); });
+
+    /* The chips fire after the panel is up, and the bonus uses the bonus style —
+     * that is what the second argument of _showXpFloat is for. */
+    try {
+      if (r.xpEarned && typeof window._showXpFloat === 'function') window._showXpFloat(r.xpEarned);
+      if (r.bonusXp && typeof window._showXpFloat === 'function') {
+        setTimeout(function () { window._showXpFloat(r.bonusXp, true); }, 650);
+      }
+    } catch (e) {}
+  }
+
+  function _duelSecs(ms) {
+    return (Math.round(Number(ms) / 100) / 10).toFixed(1) + 's';
+  }
+
+  /* ── Entry points ──────────────────────────────────────────────────────────*/
+
+  /* Challenging somebody draws the paper and plays it immediately: the duel is
+   * decided on score and time, so the challenger's run has to be measured the
+   * same way the target's will be. There is nothing to type. */
+  function _gamOpenModal(btn) {
+    var email = btn.getAttribute('data-email');
+    var name  = btn.getAttribute('data-name') || email;
+    if (!email) { _gToast('No target pilot selected.', 'err'); return; }
+
+    btn.disabled = true;
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.disabled = false;
+        if (res.status !== 'success') {
+          _gToast(res.message || 'Could not start the challenge.', 'err');
+          return;
+        }
+        var t = _gEl('gamDuelTitle');
+        if (t) t.textContent = 'Challenging ' + name;
+        _duelStart(res.data.challengeId, res.data.questions, res.data.secondsPerQuestion);
+      })
+      .withFailureHandler(function () {
+        btn.disabled = false;
+        _gToast('Connection error. Try again.', 'err');
+      })
+      .createChallenge(AppState.sessionToken, email);
+  }
+
+  /* Accepting fetches the frozen paper. The server starts the target's clock on
+   * this call and does not restart it, so closing the tab does not buy a retry. */
+  function _gamAcceptChallenge(btn) {
+    var chalId = btn.getAttribute('data-chalid');
+    var who    = btn.getAttribute('data-name') || 'your challenger';
+    if (!chalId) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Loading…';
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.disabled = false;
+        btn.textContent = 'Accept';
+        if (res.status !== 'success') {
+          _gToast(res.message || 'Could not open the challenge.', 'err');
+          return;
+        }
+        _gamFadeRemove(_gEl('gam-chal-' + chalId));
+        _gam.chalCount = Math.max(0, _gam.chalCount - 1);
+        _gamSyncBadge(_gEl('gamTrophyBadge'), _gam.chalCount);
+        _gamSyncChalCount(_gEl('gamChalCount'), _gam.chalCount);
+        var t = _gEl('gamDuelTitle');
+        if (t) t.textContent = 'Against ' + who;
+        _duelStart(res.data.challengeId, res.data.questions, res.data.secondsPerQuestion);
+      })
+      .withFailureHandler(function () {
+        btn.disabled = false;
+        btn.textContent = 'Accept';
+        _gToast('Connection error. Try again.', 'err');
+      })
+      .getChallengePaper(AppState.sessionToken, chalId);
+  }
+
   function _gamSyncBadge(badge, n) {
     if (!badge) return;
     badge.textContent = n;

@@ -17,6 +17,77 @@ Newest day first.
 
 ## 2026-09-15
 
+### A challenge becomes a five-question duel, scored on the server
+
+**Plan.** Second and third of three, together. They were meant to be separate — the
+engine and the screen — and they are not separable: the client calls `sendChallenge` and
+`acceptChallenge`, and the moment those become `createChallenge` / `getChallengePaper` /
+`submitChallengeResult` the old screen is calling functions that do not exist. Splitting
+them would leave one commit with a broken Crew tab, which is worse than a larger diff.
+
+`Gamification.js` loses the three challenge functions and gains five plus helpers;
+`Scripts.html` loses the scenario modal and gains the duel; `GamificationUI.html` swaps
+the modal markup and its CSS for the duel screen.
+
+**Criterion.** Stated: five ABCD questions drawn at random, the same five for both
+pilots, asynchronous, ten XP a correct answer and fifty more for the win, thirty seconds
+a question and the duel decided on the total, using the module quiz's own music.
+
+`DERIVED`: the challenger plays at the moment of challenging. Nothing said when, but the
+duel is decided on score AND time, so their run has to be measured the same way the
+target's will be — there is nothing left to type.
+
+`DERIVED`: an exact tie — same correct, same millisecond — pays the bonus to nobody.
+
+`DERIVED`: the ten XP a correct answer is paid when that pilot finishes their own five,
+not when the duel resolves. The challenger would otherwise see nothing for days.
+
+**Why, in one line.** The old challenge named one of eight scenarios that exist nowhere
+in the product, carried a score the challenger typed himself, and had no function that
+could ever finish it.
+
+**Checklist.**
+
+- [ ] Challenging a pilot opens five questions with the module quiz music
+- [ ] Each question shows a thirty-second countdown, and running out moves on
+- [ ] A correct answer pops +10 XP
+- [ ] Finishing says the challenge was sent, and the opponent gets the email
+- [ ] The opponent opens it and sees the SAME five, in the same order, options in the same order
+- [ ] Both then see who won, with each side's correct count and time
+- [ ] The winner sees +50 XP in the bonus colour
+- [ ] Two challenges in a row do not draw the same five questions
+- [ ] A question with an imageUrl shows the image; one without still reads well
+- [ ] Setting active = FALSE takes a question out of the draw
+- [ ] The XP lands in the top counter and the ranking
+
+**The suite caught four defects of mine, and one would have killed it on first use.**
+`scope-reach` found three calls that throw: `_showXpFloat` and `_lmsStartQuizMusic` are
+declared in a different top-level scope, so the duel would have failed the first time
+anybody played it. Both are exposed on `window` now and called through it. Finding that
+also turned up `_lmsStopQuizMusic`, which already existed — the duel uses it instead of
+the copy this change had written, because starting a loop in one place and stopping it
+from a reimplementation is how a drone outlives its quiz.
+
+The other three were the design system: hex and rgba literals instead of tokens
+(`ranking`), four font sizes off the app's scale and radii over the ceiling
+(`form-system`), and a countdown bar that introduced a fourth sub-second speed. The bar
+steps once a second with no transition now, which is the same information without a new
+rule.
+
+**challenge-toast.test.js is gone and challenge-duel.test.js replaces it.** The old suite
+guarded the F-0028 ordering bug in `_gamSendChallenge` and `_gamCloseModal`; both
+functions were deleted here, and a test for an absent code path reports on nothing. The
+new one guards what this feature actually rests on: that `correctIndex` never reaches the
+browser, that the score and the clock are the server's, and that the paper is frozen once.
+Seen red first — adding `correctIndex` to the served payload failed it on the right line.
+
+**Not verifiable from the repo.** Whether thirty seconds is the right length, whether the
+music helps or irritates on a phone, and how the duel reads at 400px. Nobody has played
+one.
+
+**Left alone on purpose.** The old modal's CSS — `gam-modal-*`, `gam-chal-cb` — is now
+dead. Rule 4 says no drive-by refactoring, so it stays and is recorded here instead.
+
 ### Challenges get a question bank a specialist can edit
 
 **Plan.** First of three. A challenge is going to be five multiple-choice questions
