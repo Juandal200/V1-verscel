@@ -89,10 +89,14 @@ function doPost(e) {
                   action === 'getNotificationCounts' ||
                   action === 'getSquadron' ||
                   action === 'sendRequest' ||
-                  action === 'sendChallenge' ||
                   action === 'acceptRequest' ||
-                  action === 'acceptChallenge' ||
-                  action === 'searchPilot';
+                  action === 'searchPilot' ||
+                  // The duel. sendChallenge and acceptChallenge were removed when the
+                  // five-question duel replaced the scenario picker; their names are
+                  // gone from Gamification.js and are not kept here as aliases.
+                  action === 'createChallenge' ||
+                  action === 'getChallengePaper' ||
+                  action === 'submitChallengeResult';
 
     var output = ContentService.createTextOutput();
     output.setMimeType(ContentService.MimeType.JSON);
