@@ -1320,6 +1320,33 @@ window.tierByExam = function (examNum) {
   }
   window._spinnerHtml = _spinnerHtml;
 
+  /* ── The loader, on approach ─────────────────────────────────────────────────
+   *
+   * Three sections of the home page each sat behind a line of grey text on an
+   * otherwise empty screen — "Loading your levels…", "Loading today's
+   * challenge…", "Loading modules…" — which reads as three things that might be
+   * broken rather than one page arriving.
+   *
+   * One mark instead: an aircraft on final, with the approach lights running
+   * toward it. It uses the plane already in UI_ICONS rather than a new drawing,
+   * and it is one function so the three call sites cannot drift into three
+   * loaders.
+   *
+   * Motion lives in a keyframe, not a transition: the design system caps
+   * sub-second transition speeds at four named values, and a two-second approach
+   * is neither a transition nor one of them.
+   */
+  function _planeLoaderHtml(label) {
+    return '<div class="pl-wrap" role="status" aria-live="polite">' +
+      '<div class="pl-scene">' +
+        '<div class="pl-lights"></div>' +
+        '<div class="pl-plane">' + uiIcon('plane', 30) + '</div>' +
+      '</div>' +
+      (label ? '<p class="pl-label">' + label + '</p>' : '') +
+    '</div>';
+  }
+  window._planeLoaderHtml = _planeLoaderHtml;
+
   function _skeletonCards(count, wide) {
     var out = '<div style="display:flex;flex-direction:column;gap:14px;">';
     for (var i = 0; i < (count || 3); i++) {
@@ -2625,13 +2652,14 @@ window.tierByExam = function (examNum) {
       // ── Daily challenge banner placeholder ──
       var dcBannerHtml =
         '<div id="dcBanner" style="margin-bottom:16px;">' +
-          '<div class="dc-home-card dc-home-card--loading">Loading today\'s challenge…</div>' +
+          '<div class="dc-home-card dc-home-card--loading">' +
+            _planeLoaderHtml('Loading today\'s challenge…') + '</div>' +
         '</div>';
 
       // ── Modules section ──
       var modulesSection =
         '<div id="homeModulesSection" style="margin-bottom:8px;">' +
-          '<div id="homeModulesArea"><div style="text-align:center;padding:32px;color:var(--muted);">Loading modules…</div></div>' +
+          '<div id="homeModulesArea">' + _planeLoaderHtml('Loading modules…') + '</div>' +
         '</div>';
 
       // ── The world map ─────────────────────────────────────────
@@ -2643,7 +2671,7 @@ window.tierByExam = function (examNum) {
       // stage is nine pins in one corner, and this app is a phone app first.
       var mapSection = _lmWideEnough()
         ? '<div id="homeMapArea" style="margin-bottom:16px;">' +
-            '<div style="text-align:center;padding:32px;color:var(--muted);">Loading your levels…</div>' +
+            _planeLoaderHtml('Loading your levels…') +
           '</div>'
         : '';
 

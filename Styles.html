@@ -13766,4 +13766,66 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 .home-exam-name { display: block; margin-top: 4px; font-size: var(--t-body); font-weight: 700; }
 .home-exam-go   { display: block; margin-top: 6px; font-size: var(--t-label); color: var(--muted); }
 @media (max-width: 1100px) { .home-exam-overlay { display: none; } }
+
+
+/* ── Loading: an aircraft on final ─────────────────────────────────────────────
+   Replaces a line of grey text on an empty page. The approach lights run toward
+   the aircraft rather than the aircraft moving across, which is what it looks
+   like from the flight deck — and it means the mark stays put and readable
+   instead of sliding off to one side.
+
+   Both animations are keyframes and both are over a second: the design system
+   caps sub-second TRANSITION speeds at four named values, and a loader that
+   finishes in 0.4s is a flicker, not a loader. */
+.pl-wrap { text-align: center; padding: 32px 16px; }
+
+.pl-scene {
+  position: relative;
+  width: 100%; max-width: 220px; height: 54px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+/* The lights: a dashed line that scrolls. One dash width per cycle, linear, so
+   it reads as steady motion and never appears to stall or jump. */
+.pl-lights {
+  position: absolute; left: 0; right: 0; bottom: 14px; height: 2px;
+  background: repeating-linear-gradient(
+    to right,
+    var(--line) 0 14px,
+    transparent 14px 28px
+  );
+  animation: plApproach 1.4s linear infinite;
+}
+
+.pl-plane {
+  position: absolute; left: 50%; bottom: 18px;
+  color: var(--accent, var(--text));
+  animation: plSink 2.4s ease-in-out infinite;
+}
+
+/* Shifted by exactly one dash pair, so the loop has no seam. */
+@keyframes plApproach {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-28px); }
+}
+
+/* A shallow descent and a touch of bank — the aircraft is on approach, not
+   landing, because a loader that lands has finished and this one has not. */
+@keyframes plSink {
+  0%   { transform: translate(-50%, -8px) rotate(-3deg); }
+  50%  { transform: translate(-50%,  0)   rotate(0deg); }
+  100% { transform: translate(-50%, -8px) rotate(-3deg); }
+}
+
+.pl-label {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+/* Anyone who has asked for less motion gets the mark and the words, still. */
+@media (prefers-reduced-motion: reduce) {
+  .pl-lights, .pl-plane { animation: none; }
+}
 </style>
