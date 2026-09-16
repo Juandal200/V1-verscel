@@ -71,9 +71,32 @@ function _gamSS_() {
   return dbGetSpreadsheet_();
 }
 
+/* Creates the sheet, and refuses to write into one whose header has drifted.
+ *
+ * Without the refusal this fails in the worst way available. The row is built
+ * positionally from `headers`, and _gamReadAll_ reads whatever the sheet's first
+ * row actually says — so appending fourteen values to a six-column header writes
+ * every field into the wrong name and then reads them back under the old ones.
+ * Nothing throws. The challenge is stored, the caller is told it worked, and it
+ * is invisible to everyone for ever.
+ *
+ * That is exactly what happened when Challenges kept its old columns after the
+ * duel replaced the engine: challenges were sent and nobody ever received one.
+ * The message names the repair rather than describing the problem. */
 function _gamEnsureSheet_(sheetName, headers) {
   var ss    = _gamSS_();
   var sheet = ss.getSheetByName(sheetName);
+  if (sheet && sheet.getLastColumn() > 0) {
+    var actual = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0]
+                      .map(function (h) { return String(h).trim(); });
+    var want = headers.join('|');
+    var have = actual.slice(0, headers.length).join('|');
+    if (have !== want) {
+      throw new Error('Sheet "' + sheetName + '" has an out-of-date header. ' +
+        'Run resetChallengesSheetDESTRUCTIVE() from the Apps Script editor. ' +
+        'Expected: ' + want + ' — found: ' + actual.join('|'));
+    }
+  }
   if (!sheet) {
     sheet = ss.insertSheet(sheetName);
     sheet.appendRow(headers);

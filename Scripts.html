@@ -25311,8 +25311,9 @@ var LEVEL_THEMES = {
   function _gamLbChallengeBtn(p, isMe) {
     if (isMe || p.orphan || !p.email) return '';
     return '<button class="gam-lb-chal gam-challenge-btn" data-email="' + _gEsc(p.email) +
-           '" data-name="' + _gEsc(p.name) + '" title="Challenge">' +
-           window.uiIconInline('target') + '</button>';
+           '" data-name="' + _gEsc(p.name) + '" title="Challenge ' + _gEsc(p.name) + '"' +
+           ' aria-label="Challenge ' + _gEsc(p.name) + '">' +
+           window.uiIconInline('target') + 'Duel</button>';
   }
 
   function _gamSyncBadge(badge, n) {

@@ -653,14 +653,22 @@
   /* Challenge, from the ranking. Icon only — the row is already dense, and on a
      phone a worded button would push the XP off the edge. */
   #gamification-module .gam-lb-chal {
-    flex: 0 0 auto; width: 32px; height: 32px; margin-left: 8px;
-    display: inline-flex; align-items: center; justify-content: center;
-    color: var(--gam-orange);
-    background: rgba(var(--yellow-rgb), 0.12);
+    flex: 0 0 auto; height: 32px; margin-left: 8px; padding: 0 12px;
+    display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+    font-size: 0.62rem; font-weight: 800; letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gam-text);
+    background: rgba(var(--yellow-rgb), 0.18);
     border: 1px solid var(--gam-border);
     border-radius: 8px; cursor: pointer;
     transition: background 0.15s var(--ease), border-color 0.15s var(--ease);
   }
+  /* The word carries it, not the mark. An icon alone rendered as an empty amber
+     square on the ranking: the glyph is drawn in currentColor, and amber on an
+     amber tint is a shape nobody can see. A control nobody recognises as a
+     control is not a control, so it says what it does. */
+  #gamification-module .gam-lb-chal svg { width: 14px; height: 14px; }
+  #gamification-module .gam-lb-chal > span { margin-right: 0; }
   #gamification-module .gam-lb-chal:hover {
     background: rgba(var(--yellow-rgb), 0.22);
     border-color: rgba(var(--yellow-rgb), 0.4);
