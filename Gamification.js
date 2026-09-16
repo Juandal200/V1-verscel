@@ -586,7 +586,16 @@ function submitChallengeResult(sessionToken, challengeId, answers) {
     if (!otherDone) {
       patch.Status = (side === 'Challenger') ? GAM_STATUS.AWAITING_TARGET
                                              : GAM_STATUS.AWAITING_CHALLENGER;
-      _gamUpdateRow_(GAM_SHEETS.CHALLENGES, 'Challenge_ID', String(challengeId), patch);
+      /* Checked, because it can fail and say nothing. _gamUpdateRow_ returns
+       * false when the sheet, the key column or the row is not there, and this
+       * ignored it — so a write that never happened read as a challenge sent.
+       * The pilot had already played by then; telling them it worked when the
+       * opponent will never see it is the one outcome worth refusing. */
+      if (!_gamUpdateRow_(GAM_SHEETS.CHALLENGES, 'Challenge_ID', String(challengeId), patch)) {
+        return _gamErr_('Your answers could not be saved — the challenge row was not found. ' +
+                        'Nothing was lost on your side, but your opponent will not see this one.',
+                        'WRITE_FAILED');
+      }
       if (side === 'Challenger') _gamMailChallenge_(row, user, correct);
       return _gamOk_(result, 'Result recorded. Waiting for your opponent.');
     }
@@ -605,7 +614,10 @@ function submitChallengeResult(sessionToken, challengeId, answers) {
     patch.Status       = GAM_STATUS.COMPLETE;
     patch.Winner_Email = winnerEmail;
     patch.Completed_At = new Date().toISOString();
-    _gamUpdateRow_(GAM_SHEETS.CHALLENGES, 'Challenge_ID', String(challengeId), patch);
+    if (!_gamUpdateRow_(GAM_SHEETS.CHALLENGES, 'Challenge_ID', String(challengeId), patch)) {
+      return _gamErr_('Your answers could not be saved — the challenge row was not found.',
+                      'WRITE_FAILED');
+    }
 
     if (winnerSide === side) {
       lmsAddXp_(user.userId, CHALLENGE_XP_WIN_BONUS);

@@ -397,3 +397,65 @@ function setupChallengesFromScratch() {
              ' old challenges, validation ' + (c.ok ? 'clean' : 'FOUND PROBLEMS'));
   return { questions: a, challenges: b, check: c };
 }
+
+/* ── Why did that challenge not arrive? ──────────────────────────────────────
+ *
+ * Written because the question kept being answered with guesses. Everything it
+ * prints comes off the live sheet: what the header actually says, what each row
+ * actually holds, and — for one email — exactly which of the three conditions in
+ * getIncomingChallenges rejects it.
+ *
+ * Read-only. Run it from the editor and read the log.
+ */
+function diagnoseChallenges(emailToCheck) {
+  var ss    = dbGetSpreadsheet_();
+  var sheet = ss.getSheetByName(CHALLENGES_SHEET_);
+  if (!sheet) { Logger.log('There is no "' + CHALLENGES_SHEET_ + '" sheet at all.'); return; }
+
+  var data = sheet.getDataRange().getValues();
+  Logger.log('Sheet "' + CHALLENGES_SHEET_ + '": ' + (data.length - 1) + ' row(s), ' +
+             sheet.getLastColumn() + ' column(s)');
+
+  var header = data.length ? data[0].map(function (h) { return String(h).trim(); }) : [];
+  Logger.log('HEADER FOUND   : ' + header.join(' | '));
+  Logger.log('HEADER EXPECTED: ' + GAM_CHALLENGE_HEADERS.join(' | '));
+  var headerOk = header.slice(0, GAM_CHALLENGE_HEADERS.length).join('|') ===
+                 GAM_CHALLENGE_HEADERS.join('|');
+  Logger.log(headerOk ? '-> header matches.'
+                      : '-> HEADER DOES NOT MATCH. Run resetChallengesSheetDESTRUCTIVE().');
+
+  if (data.length < 2) { Logger.log('No rows to inspect.'); return; }
+
+  var rows = _gamReadAll_(CHALLENGES_SHEET_);
+  rows.forEach(function (r, i) {
+    Logger.log('--- row ' + (i + 2) + ' ---');
+    Logger.log('  Challenge_ID    : "' + r.Challenge_ID + '"  (' + typeof r.Challenge_ID + ')');
+    Logger.log('  Challenger_Email: "' + r.Challenger_Email + '"');
+    Logger.log('  Target_Email    : "' + r.Target_Email + '"');
+    Logger.log('  Status          : "' + r.Status + '"   (expected for a sent one: ' +
+               GAM_STATUS.AWAITING_TARGET + ')');
+    Logger.log('  Challenger_Correct: "' + r.Challenger_Correct + '"   Target_Correct: "' +
+               r.Target_Correct + '"');
+    Logger.log('  Created_At      : "' + r.Created_At + '"   expired: ' + _gamChallengeExpired_(r));
+    Logger.log('  PaperJson length: ' + String(r.PaperJson || '').length);
+  });
+
+  if (!emailToCheck) {
+    Logger.log('\nPass an email to see which rows it would receive, e.g. ' +
+               'diagnoseChallenges("someone@icaoaerocomms.com")');
+    return;
+  }
+
+  /* The three conditions, reported separately. A single true/false would say
+   * "no challenges" again, which is the answer we already had. */
+  var me = String(emailToCheck).toLowerCase();
+  Logger.log('\nFor ' + me + ':');
+  rows.forEach(function (r, i) {
+    var isTarget = String(r.Target_Email || '').toLowerCase() === me;
+    var isAwait  = String(r.Status || '') === GAM_STATUS.AWAITING_TARGET;
+    var fresh    = !_gamChallengeExpired_(r);
+    Logger.log('  row ' + (i + 2) + ': target=' + isTarget + '  awaiting_target=' + isAwait +
+               '  not_expired=' + fresh + '  => ' +
+               ((isTarget && isAwait && fresh) ? 'WOULD BE DELIVERED' : 'filtered out'));
+  });
+}
