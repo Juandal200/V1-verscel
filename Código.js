@@ -96,6 +96,7 @@ function doPost(e) {
                   // gone from Gamification.js and are not kept here as aliases.
                   action === 'createChallenge' ||
                   action === 'getChallengePaper' ||
+                  action === 'getChallengeHistory' ||
                   action === 'submitChallengeResult';
 
     var output = ContentService.createTextOutput();

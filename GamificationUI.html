@@ -674,6 +674,45 @@
     border-color: rgba(var(--yellow-rgb), 0.4);
   }
 
+  /* ── Duel history rows ────────────────────────────────────────
+     Won and lost carry colour because the outcome is the thing being scanned;
+     waiting and expired stay muted so the eye goes to what happened rather than
+     to what has not. "Your turn" is amber because it is the only row that asks
+     for something. */
+  #gamification-module .gam-duel-hist { gap: 10px; align-items: center; }
+  #gamification-module .gam-duel-hist-sub {
+    font-size: 0.72rem; color: var(--gam-muted); margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #gamification-module .gam-duel-won  { color: var(--gam-green); font-weight: 700; }
+  #gamification-module .gam-duel-lost { color: var(--gam-muted); }
+  #gamification-module .gam-duel-turn { color: var(--gam-orange); font-weight: 700; }
+
+  /* ── The ranking row on a phone ───────────────────────────────
+     There is no other media query in this module: the board was laid out for a
+     desktop and got away with it until a control was added to the row. At 390px
+     the name was already truncating to "JUA..." before the Duel button existed,
+     and the button pushed it past readable.
+
+     The word goes and the mark stays, which is why the mark had to become legible
+     first — an icon-only control is fine when it can be seen, and was not before.
+     The name gets the space back: min-width 0 lets a flex child shrink at all,
+     without it the text refuses to truncate and shoves everything to the right. */
+  @media (max-width: 480px) {
+    #gamification-module .gam-lb-row { gap: 8px; padding: 10px 10px; }
+    #gamification-module .gam-lb-info { min-width: 0; }
+    #gamification-module .gam-lb-name {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    #gamification-module .gam-lb-chal {
+      padding: 0; width: 36px; margin-left: 4px;
+      font-size: 0; letter-spacing: 0;
+    }
+    #gamification-module .gam-lb-chal svg { width: 16px; height: 16px; }
+    /* The avatar is decoration next to a name you cannot read. */
+    #gamification-module .gam-lb-avatar { flex: 0 0 32px; width: 32px; height: 32px; }
+  }
+
   /* ── The duel screen ──────────────────────────────────────────
      Every colour is a token and every size is on the app's scale — the module
      is inside the design system now and ranking.test.js keeps it there. The
@@ -1270,6 +1309,30 @@
           </div>
           <div class="gam-notif-item" style="justify-content:center;border-top:1px solid var(--gam-border);">
             <span id="gamChalCount" style="font-size: 0.72rem;color:var(--gam-muted);">0 challenges pending</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Duel history ──────────────────────────────────────────
+           Beside the trophy, because it is the same subject seen from the other
+           end: that one is what is waiting on you, this is what has already
+           happened. The result screen shows once and is gone, so without this a
+           pilot never learns the outcome of a duel their opponent finished while
+           they were away — which is most of them. -->
+      <div class="gam-icon-wrap">
+        <input type="checkbox" id="gam-history-open" class="gam-icon-cb">
+        <label for="gam-history-open" class="gam-icon-btn" title="Your duels">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="display:block;"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M12 8v4l3 2"/></svg>
+        </label>
+        <div class="gam-dropdown">
+          <div class="gam-dropdown-head">Your Duels</div>
+          <div id="gamDuelHistory">
+            <div class="gam-notif-item" style="justify-content:center;">
+              <span style="color:var(--gam-muted);font-size: 0.82rem;">Loading…</span>
+            </div>
+          </div>
+          <div class="gam-notif-item" style="justify-content:center;border-top:1px solid var(--gam-border);">
+            <span id="gamDuelRecord" style="font-size: 0.72rem;color:var(--gam-muted);">No duels yet</span>
           </div>
         </div>
       </div>

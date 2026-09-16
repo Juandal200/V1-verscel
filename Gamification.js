@@ -646,6 +646,70 @@ function submitChallengeResult(sessionToken, challengeId, answers) {
   }
 }
 
+// 9b. getChallengeHistory(sessionToken)
+//     Every duel this pilot has been in, newest first, from either side. The
+//     result screen is shown once and then gone; without this a pilot has no way
+//     to see what happened in a duel their opponent finished while they were
+//     away, which is most of them.
+// -----------------------------------------------------------------------------
+function getChallengeHistory(sessionToken) {
+  try {
+    var user    = AuthService.requireSession(sessionToken);
+    var me      = String(user.email).toLowerCase();
+    var idx     = _gamUserIndex_(_gamReadAll_(GAM_SHEETS.USERS));
+    var total   = CHALLENGE_QUESTION_COUNT;
+
+    var mine = _gamReadAll_(GAM_SHEETS.CHALLENGES)
+      .filter(function (row) {
+        return String(row.Challenger_Email || '').toLowerCase() === me ||
+               String(row.Target_Email     || '').toLowerCase() === me;
+      })
+      .map(function (row) {
+        var side  = _gamSideOf_(row, me);
+        var other = (side === 'Challenger') ? 'Target' : 'Challenger';
+        var oEmail = String(row[other + '_Email'] || '');
+        var mineScore  = row[side  + '_Correct'];
+        var theirScore = row[other + '_Correct'];
+        var done = String(row.Status || '') === GAM_STATUS.COMPLETE;
+        var winner = String(row.Winner_Email || '').toLowerCase();
+
+        /* Four states a pilot can be in, named rather than derived from a pair
+         * of booleans at the other end. "waiting" and "your_turn" look the same
+         * in the data and are opposite things to the person reading them. */
+        var state;
+        if (done)                                   state = winner ? (winner === me ? 'won' : 'lost') : 'draw';
+        else if (mineScore === '' || mineScore === null) state = 'your_turn';
+        else                                        state = 'waiting';
+
+        return {
+          challengeId:   String(row.Challenge_ID || ''),
+          opponentName:  idx[oEmail.toLowerCase()] || oEmail,
+          iChallenged:   side === 'Challenger',
+          state:         state,
+          yourCorrect:   (mineScore  === '' || mineScore  === null) ? null : Number(mineScore),
+          theirCorrect:  (theirScore === '' || theirScore === null) ? null : Number(theirScore),
+          yourMs:        Number(row[side  + '_Ms']) || null,
+          theirMs:       Number(row[other + '_Ms']) || null,
+          total:         total,
+          expired:       _gamChallengeExpired_(row) && !done,
+          createdAt:     String(row.Created_At || '')
+        };
+      });
+
+    /* Newest first. Created_At is an ISO stamp, so a string sort is a date sort —
+     * and where it is missing the row sorts last rather than crashing the sort. */
+    mine.sort(function (a, b) { return String(b.createdAt).localeCompare(String(a.createdAt)); });
+
+    var won = mine.filter(function (c) { return c.state === 'won'; }).length;
+    var lost = mine.filter(function (c) { return c.state === 'lost'; }).length;
+
+    return _gamOk_({ duels: mine.slice(0, 40), won: won, lost: lost, played: won + lost },
+                   mine.length + ' duel(s).');
+  } catch (e) {
+    return _gamErr_('getChallengeHistory failed: ' + e.message, 'FETCH_ERROR');
+  }
+}
+
 // 9. getIncomingChallenges(sessionToken)
 //    Challenges waiting on ME to play. A row the challenger has not finished is
 //    not incoming to anybody — it is their own unfinished attempt.

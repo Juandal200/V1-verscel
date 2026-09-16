@@ -24758,6 +24758,7 @@ var LEVEL_THEMES = {
 
     _gamLoadSquadron();
     _gamLoadPendingRequests();
+    _gamLoadDuelHistory();
     _gamLoadIncomingChallenges();
     _gamLoadLeaderboard();
     _gamLoadCareerStats();
@@ -25081,6 +25082,37 @@ var LEVEL_THEMES = {
     } catch (e) {}
   }
 
+  /* Why nothing was audible.
+   *
+   * _lmsStartQuizMusic builds an AudioContext and never resumes it. A context
+   * created outside a user gesture starts suspended, and the duel's music starts
+   * in the success handler of a server call — the tap that opened it is long
+   * over by then, so the browser had already refused. Nothing threw; it just
+   * played silence. Elsewhere in this file contexts are resumed on use, and this
+   * one was the exception.
+   *
+   * Called again on every tap because a refusal early on is not permanent: the
+   * next real gesture can lift it, and resume on an already-running context
+   * costs nothing. */
+  function _duelWake() {
+    try {
+      var c = window._lmsQuizAudioCtx;
+      if (c && c.state === 'suspended' && c.resume) c.resume();
+    } catch (e) {}
+    try {
+      if (window.SimAudio && SimAudio.ctx && SimAudio.ctx.state === 'suspended') SimAudio.ctx.resume();
+    } catch (e) {}
+  }
+
+  /* One sound per event, from the engine the rest of the app uses. No new
+   * samples and no second audio system to keep in step. */
+  function _duelSound(which) {
+    try {
+      if (!window.SimAudio || typeof SimAudio[which] !== 'function') return;
+      SimAudio[which]();
+    } catch (e) {}
+  }
+
   function _duelClearTimer() {
     if (_duel.timer) { clearInterval(_duel.timer); _duel.timer = null; }
   }
@@ -25104,6 +25136,7 @@ var LEVEL_THEMES = {
     var ov = _gEl('gamDuel');
     if (ov) ov.hidden = false;
     try { if (typeof window._lmsStartQuizMusic === 'function') window._lmsStartQuizMusic(); } catch (e) {}
+    _duelWake();
     _duelRender();
   }
 
@@ -25152,12 +25185,21 @@ var LEVEL_THEMES = {
     _duel.timer = setInterval(function () {
       _duel.left--;
       paint();
+      /* The last five seconds tick. Before that it would be a metronome for two
+       * and a half minutes, which is noise rather than pressure. */
+      if (_duel.left > 0 && _duel.left <= 5) _duelSound('click');
       if (_duel.left <= 0) _duelAnswer(null);
     }, 1000);
   }
 
   function _duelAnswer(choice) {
     _duelClearTimer();
+    _duelWake();
+    /* A tap is acknowledged, not judged. Whether it was right is the server's to
+     * say, and saying it here would mean sending the answer key to the browser —
+     * which is the one thing the duel cannot do. The verdict lands on the result
+     * screen, where it is already known. */
+    _duelSound(choice === null ? 'wrong' : 'click');
     _duel.answers[_duel.i] = choice;
     _duel.i++;
     if (_duel.i < _duel.qs.length) _duelRender();
@@ -25227,11 +25269,17 @@ var LEVEL_THEMES = {
     if (done) done.addEventListener('click', function () {
       _duelClose();
       _gamLoadIncomingChallenges();
+      _gamLoadDuelHistory();
       _gamRefreshLb();
     });
 
     /* The chips fire after the panel is up, and the bonus uses the bonus style —
      * that is what the second argument of _showXpFloat is for. */
+    /* The verdict, once, on the screen that carries it. A duel still waiting on
+     * the opponent has no verdict yet, so it gets neither sound. */
+    _duelWake();
+    if (r.complete) _duelSound(r.youWon ? 'correct' : 'wrong');
+
     try {
       if (r.xpEarned && typeof window._showXpFloat === 'function') window._showXpFloat(r.xpEarned);
       if (r.bonusXp && typeof window._showXpFloat === 'function') {
@@ -25350,6 +25398,71 @@ var LEVEL_THEMES = {
            '" data-name="' + _gEsc(p.name) + '" title="Challenge ' + _gEsc(p.name) + '"' +
            ' aria-label="Challenge ' + _gEsc(p.name) + '">' +
            window.uiIconInline('target') + 'Duel</button>';
+  }
+
+  /* ── Your duels ────────────────────────────────────────────────────────────
+   *
+   * Four states, named on the server rather than derived from a pair of nulls
+   * here: won, lost, draw, waiting (you are done, they are not) and your_turn
+   * (they are done, you are not). The last two look identical in the data and
+   * are opposite things to the person reading them, which is exactly why they
+   * are not computed at the point of drawing. */
+  function _gamLoadDuelHistory() {
+    var list = _gEl('gamDuelHistory');
+    var rec  = _gEl('gamDuelRecord');
+    if (!list) return;
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || res.status !== 'success') {
+          list.innerHTML = '<div class="gam-notif-item" style="justify-content:center;">' +
+            '<span style="color:var(--gam-muted);font-size: 0.82rem;">Could not load your duels.</span></div>';
+          return;
+        }
+        var d = res.data || {};
+        var duels = d.duels || [];
+        if (rec) {
+          rec.textContent = duels.length
+            ? (d.won + ' won · ' + d.lost + ' lost of ' + d.played + ' finished')
+            : 'No duels yet';
+        }
+        if (!duels.length) {
+          list.innerHTML = '<div class="gam-notif-item" style="justify-content:center;">' +
+            '<span style="color:var(--gam-muted);font-size: 0.82rem;">No duels yet. ' +
+            'Challenge someone from the rankings.</span></div>';
+          return;
+        }
+        list.innerHTML = duels.map(function (c) {
+          var who = _gEsc(c.opponentName);
+          var line, cls;
+          if (c.state === 'won')        { line = 'You won';        cls = 'gam-duel-won'; }
+          else if (c.state === 'lost')  { line = who + ' won';     cls = 'gam-duel-lost'; }
+          else if (c.state === 'draw')  { line = 'Dead heat';      cls = ''; }
+          else if (c.state === 'your_turn') { line = 'Your turn';  cls = 'gam-duel-turn'; }
+          else                          { line = 'Waiting for ' + who; cls = ''; }
+          /* An expired duel says so instead of pretending somebody might still
+           * play it — 24 hours is the window, and after that nobody can. */
+          if (c.expired) { line = 'Expired'; cls = ''; }
+
+          var score = (c.yourCorrect === null)
+            ? '—'
+            : c.yourCorrect + ' / ' + c.total +
+              (c.theirCorrect === null ? '' : '  vs  ' + c.theirCorrect + ' / ' + c.total);
+
+          return '<div class="gam-notif-item gam-duel-hist">' +
+            '<div style="flex:1;min-width:0;">' +
+              '<div class="gam-chal-from">' + who + '</div>' +
+              '<div class="gam-duel-hist-sub ' + cls + '">' + line + '</div>' +
+            '</div>' +
+            '<span class="gam-score-badge">' + score + '</span>' +
+          '</div>';
+        }).join('');
+      })
+      .withFailureHandler(function () {
+        list.innerHTML = '<div class="gam-notif-item" style="justify-content:center;">' +
+          '<span style="color:var(--gam-muted);font-size: 0.82rem;">Connection error.</span></div>';
+      })
+      .getChallengeHistory(AppState.sessionToken);
   }
 
   function _gamSyncBadge(badge, n) {

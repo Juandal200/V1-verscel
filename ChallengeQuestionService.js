@@ -531,3 +531,34 @@ function diagnoseDuelDraw() {
   Logger.log('\nEverything the draw needs is in place. If the screen still fails, the ' +
              'message it shows now carries the server code — read that.');
 }
+
+/* ── Proving the 24-hour expiry without waiting a day ────────────────────────
+ *
+ * The expiry is computed from Created_At, so the only way to see it work is to
+ * have a row older than the window. Waiting is not a test anybody runs twice.
+ *
+ * This backdates ONE named challenge and reports what the rule then says about
+ * it. It writes, and only to the row you name — there is no "expire everything"
+ * here on purpose.
+ */
+function expireChallengeForTesting(challengeId, hoursAgo) {
+  if (!challengeId) { Logger.log('Pass a Challenge_ID. Get one from diagnoseChallenges().'); return; }
+  var hours = Number(hoursAgo) || (CHALLENGE_EXPIRY_HOURS + 1);
+
+  var row = _gamFindChallenge_(challengeId);
+  if (!row) { Logger.log('No challenge with id ' + challengeId); return; }
+
+  Logger.log('Before: Created_At = "' + row.Created_At + '"  expired = ' + _gamChallengeExpired_(row));
+
+  var backdated = new Date(Date.now() - hours * 3600 * 1000).toISOString();
+  var ok = _gamUpdateRow_(GAM_SHEETS.CHALLENGES, 'Challenge_ID', String(challengeId),
+                          { Created_At: backdated });
+  if (!ok) { Logger.log('The row was not updated — Challenge_ID did not match.'); return; }
+
+  var after = _gamFindChallenge_(challengeId);
+  Logger.log('After : Created_At = "' + after.Created_At + '"  expired = ' +
+             _gamChallengeExpired_(after));
+  Logger.log('Window is ' + CHALLENGE_EXPIRY_HOURS + ' h; this row is now ' + hours + ' h old.');
+  Logger.log('Now check the app: it should be gone from Incoming Challenges, and opening it ' +
+             'from the email link should refuse with EXPIRED.');
+}
