@@ -13768,22 +13768,20 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 @media (max-width: 1100px) { .home-exam-overlay { display: none; } }
 
 
-/* ── Loading: station-keeping over the world ───────────────────────────────────
-   Three grey sentences on an empty page became one mark, and the mark is built
-   from the world map's own vocabulary rather than invented beside it: the same
-   radial ground, land as a FILLED shape at #171d21 read by its silhouette, and
-   hairline strokes at the map's two weights.
+/* ── Loading: the radar, from the briefing ────────────────────────────────────
+   Three grey sentences on an empty page became one mark, and the mark is the
+   radar the First Flight briefing already draws. Same class, .ff-radar-bg, not a
+   copy of it — two pulsing rings is this app's existing way of saying "scanning",
+   and a second implementation of one idea is how two screens come to mean the
+   same thing differently.
 
-   No stroke-dasharray. The map says in its own comment that there is none on that
-   screen and there should not be one, and a loader that wants to look like the map
-   does not get to break its first rule.
+   Only the opacity is raised, and only here. The briefing uses it as a backdrop
+   behind a card of text, where 0.07 is right; as the whole of a loader it would be
+   a blank box. Scoped to .pl-stage so the briefing is untouched.
 
-   The rings are the app's existing idea for waiting — ff-radar-bg pulses two of
-   them — rather than a second visual language for the same thing.
-
-   All motion is keyframes and all of it runs over a second. The design system caps
-   sub-second TRANSITION speeds at four named values; a loader finishing in 0.4s is
-   a flicker. */
+   Motion is keyframes, not transitions: the design system caps sub-second
+   transition speeds at four named values and a loader finishing in 0.4s is a
+   flicker. */
 .pl-wrap { text-align: center; padding: 28px 16px; }
 
 .pl-stage {
@@ -13791,69 +13789,36 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   width: 100%; max-width: 340px; height: 190px;
   margin: 0 auto;
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: radial-gradient(115% 85% at 50% 22%, #0e1316 0%, #080a0c 62%, #060809 100%);
 }
 
-.pl-geo { position: absolute; inset: 0; width: 100%; height: 100%; }
-
-.pl-earth {
-  fill: #171d21;
-  stroke: rgba(255, 255, 255, 0.095); stroke-width: 0.8;
-  vector-effect: non-scaling-stroke;
-}
-.pl-parallel {
-  fill: none;
-  stroke: rgba(255, 255, 255, 0.042); stroke-width: 0.7;
-  vector-effect: non-scaling-stroke;
-}
-
-/* Two rings leaving the aircraft, the second a beat behind. Centred on the plane
-   and not on the box, so the aircraft is plainly the source. */
-.pl-ring {
-  position: absolute; left: 50%; top: 42%;
-  width: 46px; height: 46px; margin: -23px 0 0 -23px;
-  border: 1px solid var(--accent);
-  border-radius: 50%;
-  opacity: 0;
-  animation: plPing 3s ease-out infinite;
-}
-.pl-ring--2 { animation-delay: 1.5s; }
+/* The briefing's own value is 0.07, behind a card. Alone it needs to be seen. */
+.pl-stage .ff-radar-bg { opacity: 0.4; }
 
 .pl-plane {
-  position: absolute; left: 50%; top: 42%;
+  position: absolute; left: 50%; top: 50%;
   color: var(--accent);
   animation: plHold 4s ease-in-out infinite;
-}
-
-/* Out and gone. It fades well before the edge so the ring never collides with the
-   frame, which would read as a box rather than as open sky. */
-@keyframes plPing {
-  0%   { transform: scale(0.6); opacity: 0; }
-  15%  { opacity: 0.55; }
-  100% { transform: scale(3.4); opacity: 0; }
 }
 
 /* Station-keeping: a shallow rise and a touch of bank. It holds rather than
    travels, because a loader that arrives somewhere has finished and this one has
    not. */
 @keyframes plHold {
-  0%   { transform: translate(-50%, -46%) rotate(-3deg); }
-  50%  { transform: translate(-50%, -58%) rotate(3deg); }
-  100% { transform: translate(-50%, -46%) rotate(-3deg); }
+  0%   { transform: translate(-50%, -54%) rotate(-3deg); }
+  50%  { transform: translate(-50%, -66%) rotate(3deg); }
+  100% { transform: translate(-50%, -54%) rotate(-3deg); }
 }
 
 .pl-label {
-  margin: 14px 0 0;
+  margin: 10px 0 0;
   font-size: 0.82rem;
   color: var(--muted);
   letter-spacing: 0.06em;
 }
 
-/* Anyone who asked for less motion keeps the scene, the aircraft and the words. */
 @media (prefers-reduced-motion: reduce) {
-  .pl-ring { display: none; }
-  .pl-plane { animation: none; transform: translate(-50%, -50%); }
+  .pl-stage .ff-radar-bg::before,
+  .pl-stage .ff-radar-bg::after { animation: none; }
+  .pl-plane { animation: none; transform: translate(-50%, -60%); }
 }
 </style>

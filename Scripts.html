@@ -1337,21 +1337,13 @@ window.tierByExam = function (examNum) {
    * is neither a transition nor one of them.
    */
   function _planeLoaderHtml(label) {
+    /* The radar is .ff-radar-bg, the one the First Flight briefing already uses —
+     * the same class, not a copy of it. Two pulsing rings is this app's existing
+     * way of saying "scanning", and inventing a second one for the same state is
+     * how two screens end up meaning the same thing differently. */
     return '<div class="pl-wrap" role="status" aria-live="polite">' +
       '<div class="pl-stage">' +
-        '<svg class="pl-geo" viewBox="0 0 340 190" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
-          /* The limb of the earth, drawn the way .lm-land is: a FILLED shape read
-           * by its silhouette, with the stroke only as its edge. Centre well below
-           * the frame so what shows is a shallow curve, not a ball. */
-          '<circle class="pl-earth" cx="170" cy="640" r="520"/>' +
-          /* Two parallels at the map's border weight. No dashes: the map says in
-           * its own comment that there is no stroke-dasharray on that screen and
-           * there should not be one, and this is meant to look like it. */
-          '<path class="pl-parallel" d="M-40 152 Q170 108 380 152"/>' +
-          '<path class="pl-parallel" d="M-10 178 Q170 134 350 178"/>' +
-        '</svg>' +
-        '<span class="pl-ring"></span>' +
-        '<span class="pl-ring pl-ring--2"></span>' +
+        '<div class="ff-radar-bg"></div>' +
         '<div class="pl-plane">' + uiIcon('plane', 34) + '</div>' +
       '</div>' +
       (label ? '<p class="pl-label">' + label + '</p>' : '') +
