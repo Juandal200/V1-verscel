@@ -1070,6 +1070,21 @@ window.tierByExam = function (examNum) {
         _bootstrapAttempt();
       }
     }
+
+    /* La otra mitad de la decision, y el otro sitio donde se sabe.
+
+       Sin token no hay nada que restaurar, asi que la pantalla que toca es el
+       formulario -- y ya esta puesta desde el marcado, con `active` escrito en
+       el HTML. showScreen NO llega a correr en ese caso, de modo que el
+       desmontaje que cuelga de el no se dispara y la pantalla de carga se
+       quedaria encima de un formulario listo hasta agotar su techo de 15 s.
+       Se vio asi- la app entera cargada y en verde, detras de un globo.
+
+       Con sesion no se toca nada aqui- ahi la decision es mas tarde, cuando el
+       servidor confirme o niegue, y esa si pasa por showScreen. */
+    if (!AppState.sessionToken) {
+      try { if (window.__aeroLoadingScreen) window.__aeroLoadingScreen.done(); } catch (e) {}
+    }
   });
 
   function byId(id) {
@@ -1108,6 +1123,13 @@ window.tierByExam = function (examNum) {
      * server says the session is finished — that decision is the real one and
      * the hint must stop overriding it. */
     try { document.documentElement.removeAttribute('data-booting-session'); } catch (e) {}
+
+    /* Y la pantalla de carga tambien. Este es el unico punto donde la app
+       decide que ensena -- app, pending o login -- asi que es el unico sitio
+       que sabe que ya hay algo detras que mirar. done() es idempotente y
+       respeta su minimo en pantalla, asi que las demas navegaciones no hacen
+       nada. */
+    try { if (window.__aeroLoadingScreen) window.__aeroLoadingScreen.done(); } catch (e) {}
 
     Array.prototype.slice.call(document.querySelectorAll('.screen')).forEach(function(screen) {
       screen.classList.remove('active');

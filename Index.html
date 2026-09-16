@@ -30,6 +30,10 @@
 </head>
 
 <body>
+  <!-- First thing in the body so it paints before anything else has to be
+       decided. It is removed by showScreen(), and has its own ceiling. -->
+  <?!= include('LoadingScreen'); ?>
+
   <!-- Which screen a signed-in student sees first.
        loginScreen carried `active` in the markup, so EVERY load painted a sign-in
        form — and only swapped to the app once two megabytes of script had parsed,

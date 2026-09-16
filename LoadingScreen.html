@@ -1,0 +1,529 @@
+<!-- ─────────────────────────────────────────────────────────────────────────
+     Pantalla de carga — globo de aviación.
+
+     Origen: gobernanza/ideas/mapamundi/loading-screen-aviacion.html, un bundle
+     autoextraíble del editor de canvas. Ese fichero pesa 1 MB porque lleva
+     dentro React 18.3.1, ReactDOM y @babel/standalone (3,06 MB en crudo) para
+     compilar JSX en el navegador, más 54 KB del runtime del editor. La
+     animación de verdad son 294 líneas: matemática pura y un solo <svg>.
+     Nada de eso es dato — no hay coordenadas de mapa externas, ni imágenes
+     base64, ni fuentes. La costa son 12 polilíneas escritas a mano, aquí abajo.
+
+     Así que esto es el port a JS plano de esas 294 líneas: mismas constantes,
+     misma geometría, mismos easings. Sin React, sin Babel, sin el engine.
+
+     Tres diferencias deliberadas con el original, y el motivo de cada una:
+
+     1. El original reproduce una línea de tiempo fija de 9,5 s en bucle. Aquí
+        el bucle es de 7,0 s — las dos vueltas del avión, exactamente dos
+        periodos de `lap`, que es donde el original puso la costura — y la
+        escena de «Zoom final» NO forma parte del bucle: la dispara done(),
+        cuando la app ya sabe qué pantalla enseñar. Una carga que dura lo que
+        dura la carga, no lo que dura la animación.
+     2. Por lo mismo, la variable `u` del original (`ramp(T, zStart, tot)`, el
+        empujón final) no sale de T sino del reloj de salida. Todo lo que
+        colgaba de ella — el zoom, el frenado del globo, el desvanecido del
+        texto — cuelga ahora de la salida.
+     3. El porcentaje del original se recalcula contra T, así que en bucle
+        volvería a 000% cada 7 s. Aquí va contra el tiempo total transcurrido,
+        tope 99 mientras se espera, y sube a 100 en la salida. Sigue siendo
+        decorativo: no mide nada. Si algún día tiene que medir, los hitos son
+        _shimConfigReady, apiGetAppBootstrap y el primer render.
+
+     Se desmonta desde showScreen() en Scripts.html, que es el único punto donde
+     la app decide qué pantalla enseña — app, pending o login. Y lleva techo
+     propio por si ese punto no llega nunca: si los scripts no parsean, nadie
+     llamará a nadie, y un globo girando para siempre es peor que un formulario.
+────────────────────────────────────────────────────────────────────────── -->
+<style>
+  .aero-ls {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    background: #0a0a0f;
+    overflow: hidden;
+    pointer-events: none;
+    contain: strict;
+  }
+  .aero-ls-stage {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 1920px;
+    height: 1080px;
+    transform-origin: 50% 50%;
+    transform: translate(-50%, -50%);
+  }
+  .aero-ls-stage > svg { display: block; }
+  .aero-ls-txt {
+    position: absolute;
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: #fff;
+    white-space: pre;
+    font-weight: 300;
+    font-family: ui-monospace, SFMono-Regular, Menlo, "DejaVu Sans Mono", monospace;
+  }
+  .aero-ls-label { font-size: 34px; letter-spacing: 0.42em; text-indent: 0.42em; }
+  .aero-ls-pct   { font-size: 22px; letter-spacing: 0.30em; text-indent: 0.30em; }
+</style>
+
+<div class="aero-ls" id="aeroLoadingScreen" aria-hidden="true" role="presentation">
+  <div class="aero-ls-stage" id="aeroLsStage"></div>
+</div>
+
+<script>
+(function () {
+  var host = document.getElementById('aeroLoadingScreen');
+  var stage = document.getElementById('aeroLsStage');
+  if (!host || !stage) return;
+
+  /* ── lo que el original recibía por atributos de <x-import> ────────────── */
+  var GLOW = '#ffffff';
+  var GS = 0.35;            // glow-strength
+  var NSTARS = 150;         // starCount por defecto
+  var LABEL = 'Loading';
+
+  /* ── el reloj de salida ───────────────────────────────────────────────── */
+  var MIN_MS = 800;     // mínimo en pantalla: por debajo, un fogonazo
+  var EXIT_MS = 900;    // el zoom final
+  var CEIL_MS = 15000;  // techo. Ver la nota de arriba.
+
+  var TAU = Math.PI * 2;
+  var W = 1920, H = 1080;
+  var CX = 960, CY = 452, R = 208;
+  var TILT = 24 * Math.PI / 180, CT = Math.cos(TILT), ST = Math.sin(TILT);
+  var ORB = 1.55, INC = 22 * Math.PI / 180, CI = Math.cos(INC), SI = Math.sin(INC);
+
+  // Las cues del original: escenas de 3,5 / 3,5 / 2,5 s.
+  var LAP = 3.5, ZSTART = 7.0, ZDUR = 2.5;
+
+  var SVGNS = 'http://www.w3.org/2000/svg';
+
+  /* ---------- easings (los cuatro que usa la pieza) ---------- */
+  var Ease = {
+    easeInQuad:    function (t) { return t * t; },
+    easeOutQuad:   function (t) { return t * (2 - t); },
+    easeOutCubic:  function (t) { return 1 - Math.pow(1 - t, 3); },
+    easeInOutSine: function (t) { return -(Math.cos(Math.PI * t) - 1) / 2; }
+  };
+
+  /* ---------- three motion helpers (nothing else eases or transforms) ---------- */
+  var MOTION = {
+    cycle:  function (T, period) { var v = (T / period) % 1; return v < 0 ? v + 1 : v; },
+    breath: function (T, period, amt) { return 1 - amt * (1 - Math.cos(TAU * T / period)) / 2; },
+    ramp:   function (v, a, b, ease) {
+      var t = Math.max(0, Math.min(1, (v - a) / (b - a)));
+      return ease ? ease(t) : t;
+    }
+  };
+
+  /* ---------- geometry ---------- */
+  function sp(lon, lat) {
+    var la = lat * Math.PI / 180, lo = lon * Math.PI / 180;
+    return { x: Math.cos(la) * Math.sin(lo), y: Math.sin(la), z: Math.cos(la) * Math.cos(lo) };
+  }
+  // Chaikin corner cutting — turns the hand-placed coast vertices into a
+  // smooth continuous coastline instead of a chain of straight facets.
+  function chaikin(pts, iters) {
+    var p = pts;
+    for (var it = 0; it < iters; it++) {
+      var out = [];
+      for (var i = 0; i < p.length; i++) {
+        var a = p[i], b = p[(i + 1) % p.length];
+        out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
+        out.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+      }
+      p = out;
+    }
+    return p;
+  }
+  function sample(pts, closed, stepDeg) {
+    var list = closed ? pts.concat([pts[0]]) : pts, out = [];
+    for (var i = 0; i < list.length - 1; i++) {
+      var a = list[i], b = list[i + 1];
+      var n = Math.max(1, Math.ceil(Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])) / stepDeg));
+      for (var k = 0; k < n; k++) {
+        var t = k / n;
+        out.push(sp(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t));
+      }
+    }
+    var e = list[list.length - 1];
+    out.push(sp(e[0], e[1]));
+    return out;
+  }
+
+  var GRID = [];
+  for (var lon = 0; lon < 360; lon += 30) GRID.push(sample([[lon, -87], [lon, 87]], false, 3));
+  [-60, -30, 0, 30, 60].forEach(function (lat) {
+    GRID.push(sample([[0, lat], [120, lat], [240, lat], [360, lat]], false, 4));
+  });
+
+  var LAND = [
+    /* South America */[[-77, 8], [-75, 11], [-71, 12], [-64, 11], [-60, 8], [-52, 5], [-50, 1], [-44, -2], [-41, -3], [-38, -6], [-35, -8], [-37, -12], [-39, -17], [-41, -22], [-48, -25], [-51, -30], [-57, -34], [-62, -39], [-64, -43], [-68, -47], [-69, -52], [-72, -54], [-75, -51], [-74, -45], [-73, -41], [-73, -37], [-71, -33], [-71, -28], [-70, -23], [-70, -18], [-76, -14], [-79, -7], [-81, -4], [-80, -2], [-81, 1], [-78, 6]],
+    /* North America */[[-168, 66], [-164, 60], [-158, 57], [-152, 59], [-147, 60], [-140, 60], [-135, 57], [-130, 53], [-125, 49], [-124, 43], [-122, 37], [-118, 34], [-114, 31], [-110, 24], [-106, 23], [-105, 20], [-100, 17], [-95, 16], [-92, 14], [-88, 16], [-84, 10], [-80, 9], [-83, 12], [-84, 16], [-88, 21], [-94, 18], [-97, 22], [-94, 29], [-89, 29], [-84, 30], [-81, 25], [-80, 27], [-81, 31], [-76, 35], [-74, 39], [-70, 42], [-67, 45], [-64, 46], [-60, 47], [-55, 51], [-56, 54], [-64, 58], [-68, 58], [-78, 62], [-85, 66], [-95, 68], [-105, 69], [-115, 70], [-125, 70], [-133, 69], [-142, 70], [-150, 71], [-156, 71], [-163, 68]],
+    /* Africa */[[-17, 15], [-16, 12], [-13, 9], [-9, 6], [-4, 5], [1, 6], [6, 4], [9, 4], [9, 2], [11, -1], [12, -5], [12, -9], [13, -13], [12, -17], [15, -22], [17, -28], [18, -32], [20, -34], [25, -34], [28, -32], [32, -29], [33, -26], [35, -24], [37, -18], [40, -15], [40, -11], [40, -6], [41, -2], [43, 2], [48, 5], [51, 10], [51, 12], [47, 12], [43, 11], [40, 15], [37, 19], [35, 23], [34, 28], [32, 31], [25, 32], [19, 30], [13, 33], [10, 37], [3, 37], [-2, 35], [-6, 36], [-9, 33], [-11, 28], [-13, 24], [-16, 20]],
+    /* Eurasia */[[-9, 39], [-9, 43], [-2, 43], [-1, 46], [-4, 48], [0, 49], [4, 52], [7, 53], [8, 57], [5, 58], [7, 63], [11, 64], [14, 67], [18, 69], [21, 70], [26, 71], [30, 70], [33, 68], [40, 66], [44, 68], [50, 69], [58, 70], [62, 71], [70, 73], [76, 73], [80, 74], [86, 74], [92, 76], [100, 77], [106, 77], [112, 74], [120, 74], [128, 73], [136, 72], [142, 72], [150, 71], [158, 70], [165, 69], [170, 66], [166, 62], [163, 60], [160, 57], [157, 54], [156, 51], [152, 50], [145, 48], [141, 46], [138, 45], [135, 43], [130, 43], [128, 40], [122, 40], [120, 36], [122, 31], [118, 25], [110, 21], [108, 17], [106, 11], [104, 9], [101, 7], [99, 10], [98, 15], [95, 18], [90, 22], [87, 21], [83, 18], [80, 14], [78, 9], [76, 9], [73, 16], [71, 21], [68, 24], [66, 26], [62, 25], [58, 24], [57, 22], [55, 24], [52, 25], [50, 27], [48, 30], [44, 29], [42, 15], [43, 12], [40, 17], [37, 22], [35, 28], [34, 31], [36, 36], [30, 36], [26, 38], [23, 38], [19, 40], [16, 41], [18, 40], [16, 38], [13, 38], [12, 41], [14, 43], [12, 44], [9, 44], [5, 43], [3, 42], [0, 40], [-1, 37], [-5, 36], [-7, 37]],
+    /* Australia */[[113, -22], [114, -26], [115, -31], [118, -34], [123, -34], [129, -32], [132, -32], [135, -35], [138, -35], [140, -38], [144, -38], [147, -38], [150, -37], [152, -33], [153, -29], [153, -25], [149, -21], [146, -19], [143, -15], [142, -11], [140, -17], [137, -16], [136, -12], [132, -11], [130, -13], [128, -15], [125, -14], [122, -17], [119, -20], [116, -21]],
+    /* Greenland */[[-44, 60], [-42, 64], [-37, 66], [-30, 68], [-22, 70], [-20, 73], [-22, 77], [-26, 80], [-35, 83], [-48, 82], [-58, 80], [-65, 78], [-70, 76], [-62, 70], [-55, 67], [-50, 63]],
+    /* Madagascar */[[44, -12], [48, -13], [50, -16], [49, -20], [47, -25], [45, -25], [43, -21], [43, -16]],
+    /* British Isles */[[-5, 50], [-1, 51], [1, 52], [0, 54], [-2, 56], [-3, 58], [-5, 58], [-6, 56], [-5, 54], [-4, 53], [-5, 51]],
+    /* Ireland */[[-10, 52], [-6, 53], [-6, 55], [-10, 54]],
+    /* Sumatra */[[95, 5], [100, 1], [104, -2], [106, -6], [103, -5], [99, -1], [96, 3]],
+    /* Borneo */[[109, 2], [113, 4], [117, 4], [119, 0], [117, -3], [111, -3], [109, -1]],
+    /* New Guinea */[[131, -1], [138, -2], [144, -4], [150, -9], [146, -8], [140, -8], [134, -4]]
+  ].map(function (c) { return sample(chaikin(c, 2), true, 3); });
+
+  function r1(n) { return Math.round(n * 10) / 10; }
+
+  // Projects a sampled point list under globe rotation and emits only the
+  // runs on the requested hemisphere — this is what hides the back side.
+  function runs(pts, cr, sr, front) {
+    var out = [], cur = '';
+    for (var i = 0; i < pts.length; i++) {
+      var p = pts[i];
+      var x = p.x * cr + p.z * sr, z = p.z * cr - p.x * sr, y = p.y;
+      if ((y * ST + z * CT >= 0) === !!front) {
+        cur += (cur ? 'L' : 'M') + r1(CX + R * x) + ' ' + r1(CY - R * (y * CT - z * ST));
+      } else if (cur) { out.push(cur); cur = ''; }
+    }
+    if (cur) out.push(cur);
+    return out.join(' ');
+  }
+
+  function orbitAt(th) {
+    var ct = Math.cos(th), st = Math.sin(th);
+    var x = ORB * ct * CI, y = ORB * ct * SI, z = ORB * st;
+    var yv = y * CT - z * ST;
+    return { sx: CX + R * x, sy: CY - R * yv, d: y * ST + z * CT, rad: Math.hypot(x, yv) };
+  }
+
+  var ORBIT = [];
+  for (var i = 0; i <= 260; i++) ORBIT.push(orbitAt(TAU * i / 260));
+
+  function orbitRuns(front) {
+    var out = [], cur = '';
+    for (var i = 0; i < ORBIT.length; i++) {
+      var p = ORBIT[i];
+      var vis = front ? p.d >= 0 : (p.d < 0 && p.rad > 1.02);
+      if (vis) cur += (cur ? 'L' : 'M') + r1(p.sx) + ' ' + r1(p.sy);
+      else if (cur) { out.push(cur); cur = ''; }
+    }
+    if (cur) out.push(cur);
+    return out.join(' ');
+  }
+  var ORBIT_FRONT = orbitRuns(true), ORBIT_BACK = orbitRuns(false);
+
+  // visibility of an orbital point: 1 in front, ~0 when eclipsed by the globe
+  function seen(p) {
+    if (p.d >= 0) return 1;
+    return 0.06 + 0.94 * MOTION.ramp(p.rad, 0.94, 1.16);
+  }
+
+  var PLANE = 'M19 0 L7 -2.4 L-1 -2.9 L-8 -14 L-11.6 -14 L-6.6 -2.9 L-12.4 -2.7 L-16.4 -8.4 L-19 -8.4 L-17.4 -2.2 L-20.4 0 L-17.4 2.2 L-19 8.4 L-16.4 8.4 L-12.4 2.7 L-6.6 2.9 L-11.6 14 L-8 14 L-1 2.9 L7 2.4 Z';
+
+  function stars(n) {
+    var s = 20260915, out = [];
+    function rnd() { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; }
+    var guard = 0;
+    while (out.length < n && guard++ < n * 20) {
+      var x = 40 + rnd() * (W - 80), y = 30 + rnd() * (H - 60);
+      if (Math.hypot(x - CX, y - CY) < R * 1.12) continue;
+      out.push({ x: r1(x), y: r1(y), r: 0.7 + rnd() * 1.1, k: 1 + Math.floor(rnd() * 3), ph: rnd(), b: 0.3 + rnd() * 0.7 });
+    }
+    return out;
+  }
+  var STARS = stars(300).slice(0, NSTARS);
+
+  var PCT = [[0, 0], [0.12, 17], [0.22, 24], [0.35, 46], [0.43, 52], [0.60, 74], [0.70, 81], [0.90, 99], [0.97, 100]];
+
+  /* ---------- el árbol, montado una vez ----------
+     El original dibuja `art` tres veces: dos copias desenfocadas que hacen el
+     halo y una nítida encima. Aquí se monta una sola y las otras dos son
+     <use>, así que cada fotograma escribe un juego de atributos en lugar de
+     tres. Es idéntico mientras el halo sea blanco, que es como está autorada
+     la pieza — un halo de otro color necesitaría las tres copias de verdad,
+     porque el stroke explícito de cada path gana al heredado. */
+  function el(tag, attrs) {
+    var n = document.createElementNS(SVGNS, tag);
+    if (attrs) for (var k in attrs) n.setAttribute(k, attrs[k]);
+    return n;
+  }
+
+  var svg = el('svg', { viewBox: '0 0 ' + W + ' ' + H, width: W, height: H });
+
+  var defs = el('defs');
+  var grad = el('radialGradient', { id: 'aeroLsAtmo', cx: '50%', cy: '50%', r: '50%' });
+  grad.appendChild(el('stop', { offset: '0%',   'stop-color': GLOW, 'stop-opacity': '0.1' }));
+  grad.appendChild(el('stop', { offset: '62%',  'stop-color': GLOW, 'stop-opacity': '0.045' }));
+  grad.appendChild(el('stop', { offset: '100%', 'stop-color': GLOW, 'stop-opacity': '0' }));
+  defs.appendChild(grad);
+  svg.appendChild(defs);
+
+  svg.appendChild(el('rect', { x: 0, y: 0, width: W, height: H, fill: '#0a0a0f' }));
+
+  // estrellas
+  var gStars = el('g');
+  var starEls = STARS.map(function (s) {
+    var c = el('circle', { cx: s.x, cy: s.y, r: s.r, fill: '#fff' });
+    gStars.appendChild(c);
+    return c;
+  });
+  svg.appendChild(gStars);
+
+  // la escena (deriva + zoom)
+  var gScene = el('g');
+  var atmo = el('circle', { cx: CX, cy: CY, r: R * 2.1, fill: 'url(#aeroLsAtmo)' });
+  gScene.appendChild(atmo);
+
+  var gArt = el('g', { id: 'aeroLsArt' });
+
+  gArt.appendChild(el('path', { d: ORBIT_BACK, fill: 'none', stroke: '#fff', 'stroke-width': '1.1', 'stroke-dasharray': '2 13', opacity: 0.14 }));
+
+  var gGridB = el('g', { opacity: 0.5 });
+  var gridBEls = GRID.map(function () {
+    var p = el('path', { fill: 'none', stroke: '#fff', 'stroke-width': '1', opacity: 0.26 });
+    gGridB.appendChild(p);
+    return p;
+  });
+  gArt.appendChild(gGridB);
+
+  gArt.appendChild(el('circle', { cx: CX, cy: CY, r: R, fill: 'none', stroke: '#fff', 'stroke-width': '1.2', opacity: 0.3 }));
+
+  var gridFEls = GRID.map(function () {
+    var p = el('path', { fill: 'none', stroke: '#fff', 'stroke-width': '1.3', opacity: 0.5 });
+    gArt.appendChild(p);
+    return p;
+  });
+
+  var landEls = LAND.map(function () {
+    var p = el('path', { fill: 'none', stroke: '#fff', 'stroke-width': '2', opacity: 1, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+    gArt.appendChild(p);
+    return p;
+  });
+
+  gArt.appendChild(el('path', { d: ORBIT_FRONT, fill: 'none', stroke: '#fff', 'stroke-width': '1.3', 'stroke-dasharray': '2 13', opacity: 0.42 }));
+
+  var TRAIL = 26;
+  var gTrail = el('g', { fill: 'none', stroke: '#fff', 'stroke-linecap': 'round' });
+  var trailEls = [];
+  for (var k = 0; k < TRAIL; k++) {
+    var tp = el('path');
+    gTrail.appendChild(tp);
+    trailEls.push(tp);
+  }
+  gArt.appendChild(gTrail);
+
+  var gPlane = el('g');
+  var planePath = el('path', { d: PLANE, fill: '#0a0a0f', stroke: '#fff', 'stroke-width': '1.6', 'stroke-linejoin': 'round' });
+  gPlane.appendChild(planePath);
+  gArt.appendChild(gPlane);
+
+  function glowLayer(blurPx) {
+    var g = el('g', { color: GLOW });
+    g.style.filter = 'blur(' + blurPx + 'px)';
+    var u = el('use');
+    u.setAttribute('href', '#aeroLsArt');
+    u.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#aeroLsArt');
+    g.appendChild(u);
+    return g;
+  }
+  var glow10 = glowLayer(10);
+  var glow3  = glowLayer(3);
+  gScene.appendChild(glow10);
+  gScene.appendChild(glow3);
+  gScene.appendChild(gArt);
+  svg.appendChild(gScene);
+
+  stage.appendChild(svg);
+
+  // los dos textos
+  var elLabel = document.createElement('div');
+  elLabel.className = 'aero-ls-txt aero-ls-label';
+  elLabel.style.top = r1(CY + R * 1.62) + 'px';
+  elLabel.style.textShadow = '0 0 ' + r1(6 * GS) + 'px ' + GLOW + ', 0 0 ' + r1(18 * GS) + 'px ' + GLOW + ', 0 0 ' + r1(42 * GS) + 'px ' + GLOW;
+  var labelText = document.createTextNode(LABEL);
+  elLabel.appendChild(labelText);
+  var dotEls = [0, 1, 2].map(function () {
+    var s = document.createElement('span');
+    s.appendChild(document.createTextNode('.'));
+    elLabel.appendChild(s);
+    return s;
+  });
+  stage.appendChild(elLabel);
+
+  var elPct = document.createElement('div');
+  elPct.className = 'aero-ls-txt aero-ls-pct';
+  elPct.style.top = r1(CY + R * 1.62 + 74) + 'px';
+  elPct.style.textShadow = '0 0 ' + r1(12 * GS) + 'px ' + GLOW;
+  var pctText = document.createTextNode('000%');
+  elPct.appendChild(pctText);
+  stage.appendChild(elPct);
+
+  /* ---------- encaje en la ventana ----------
+     El original vive dentro de un Stage de 1920x1080 que el editor escala. Hay
+     que reproducirlo porque los dos textos se posicionan en píxeles de ESE
+     espacio, no del viewBox: sin el escalado, en un móvil el globo mide 42 px
+     de radio y el texto se queda donde estaba. */
+  function fit() {
+    var s = Math.max(window.innerWidth / W, window.innerHeight / H);
+    stage.style.transform = 'translate(-50%, -50%) scale(' + s + ')';
+  }
+  fit();
+  window.addEventListener('resize', fit);
+
+  /* ---------- el fotograma ---------- */
+  function draw(elapsed, u) {
+    var T = elapsed % ZSTART;
+
+    var pulse = MOTION.breath(T, LAP, 0.22);
+    var zoom = (1.004 + 0.018 * (1 - MOTION.breath(T, ZSTART, 2)) / 2) * (1 + 2.3 * Ease.easeInQuad(u));
+    var driftX = 6 * Math.sin(TAU * T / ZSTART), driftY = 4 * Math.sin(TAU * T / ZSTART + 1);
+    var fade = Math.min(MOTION.ramp(elapsed, 0, 0.35, Ease.easeOutQuad),
+                        1 - MOTION.ramp(u, 0.55, 1, Ease.easeInQuad));
+
+    // globe: one slow turn per loading loop, easing to a stop on the final
+    // push so it settles facing the Atlantic — where the map screen opens
+    var rotT = (u > 0 ? rotFrozen : T) + 0.34 * Ease.easeOutCubic(u);
+    var rot = TAU * rotT / (LAP * 2), cr = Math.cos(rot), sr = Math.sin(rot);
+
+    for (var i = 0; i < GRID.length; i++) {
+      gridFEls[i].setAttribute('d', runs(GRID[i], cr, sr, true));
+      gridBEls[i].setAttribute('d', runs(GRID[i], cr, sr, false));
+    }
+    for (var j = 0; j < LAND.length; j++) {
+      landEls[j].setAttribute('d', runs(LAND[j], cr, sr, true));
+    }
+
+    // plane + trail
+    var th = TAU * T / LAP - Math.PI * 0.85;
+    var p0 = orbitAt(th), p1 = orbitAt(th + 0.012);
+    var head = Math.atan2(p1.sy - p0.sy, p1.sx - p0.sx) * 180 / Math.PI;
+    var pv = seen(p0);
+    var pScale = 1.35 * (0.9 + 0.2 * MOTION.ramp(p0.d, -ORB, ORB));
+
+    var span = TAU * 0.22, prev = p0;
+    for (var t = 1; t <= TRAIL; t++) {
+      var q = orbitAt(th - span * t / TRAIL);
+      var f = Math.pow(1 - t / TRAIL, 1.5);
+      var mid = orbitAt(th - span * (t - 0.5) / TRAIL);
+      var seg = trailEls[t - 1];
+      seg.setAttribute('d', 'M' + r1(prev.sx) + ' ' + r1(prev.sy) + 'L' + r1(q.sx) + ' ' + r1(q.sy));
+      seg.setAttribute('stroke-width', 0.8 + 3.4 * f);
+      seg.setAttribute('opacity', f * 0.95 * seen(mid));
+      prev = q;
+    }
+
+    gPlane.setAttribute('transform', 'translate(' + r1(p0.sx) + ' ' + r1(p0.sy) + ') rotate(' + r1(head) + ') scale(' + r1(pScale * 100) / 100 + ')');
+    gPlane.setAttribute('opacity', pv);
+    planePath.setAttribute('fill-opacity', p0.d >= 0 ? 0.6 : 0);
+
+    // estrellas
+    for (var n = 0; n < starEls.length; n++) {
+      var s = STARS[n];
+      var tw = 0.25 + 0.75 * (0.5 + 0.5 * Math.sin(TAU * (s.k * T / (LAP * 2) + s.ph)));
+      starEls[n].setAttribute('opacity', r1(s.b * tw * 100) / 100);
+    }
+    gStars.setAttribute('opacity', pulse);
+    gStars.setAttribute('transform', 'translate(' + CX + ' ' + CY + ') scale(' + r1((1 + 0.35 * (zoom - 1)) * 1000) / 1000 + ') translate(' + -CX + ' ' + -CY + ')');
+
+    gScene.setAttribute('transform', 'translate(' + r1(driftX) + ' ' + r1(driftY) + ') translate(' + CX + ' ' + CY + ') scale(' + r1(zoom * 1000) / 1000 + ') translate(' + -CX + ' ' + -CY + ')');
+    atmo.setAttribute('opacity', pulse * GS);
+    glow10.setAttribute('opacity', Math.min(1, 0.88 * GS * pulse));
+    glow3.setAttribute('opacity', Math.min(1, 0.5 * GS * pulse));
+
+    host.style.opacity = fade;
+
+    // los puntos suspensivos
+    var dotV = MOTION.cycle(T, 1.4) * 4;
+    for (var d = 0; d < 3; d++) {
+      dotEls[d].style.opacity = 0.16 + 0.84 * Math.max(0, Math.min(1, Math.min(dotV - d, 3.9 - dotV)));
+    }
+
+    // el porcentaje: monótono contra el tiempo total, tope 99 hasta la salida
+    var pct;
+    if (u > 0) {
+      pct = pctFrozen + (100 - pctFrozen) * Ease.easeOutQuad(Math.min(1, u / 0.6));
+    } else {
+      pct = pctAt(elapsed);
+      pctFrozen = pct;
+    }
+    pctText.nodeValue = String(Math.round(pct)).padStart(3, '0') + '%';
+
+    elLabel.style.opacity = (0.72 + 0.28 * pulse) * (1 - MOTION.ramp(u, 0.10, 0.50, Ease.easeInOutSine));
+    elPct.style.opacity   = (0.55 + 0.20 * pulse) * (1 - MOTION.ramp(u, 0.30, 0.70, Ease.easeInOutSine));
+  }
+
+  function pctAt(elapsed) {
+    var pf = elapsed / (ZSTART + 0.16 * ZDUR), v = 0;
+    for (var m = 0; m < PCT.length - 1; m++) {
+      if (pf >= PCT[m][0] && pf <= PCT[m + 1][0]) {
+        v = PCT[m][1] + (PCT[m + 1][1] - PCT[m][1]) * Ease.easeInOutSine(MOTION.ramp(pf, PCT[m][0], PCT[m + 1][0]));
+        return Math.min(99, v);
+      }
+    }
+    return 99;
+  }
+
+  /* ---------- el reloj ---------- */
+  var now = (window.performance && performance.now) ? function () { return performance.now(); } : function () { return Date.now(); };
+  var t0 = now();
+  var exitAt = null, rotFrozen = 0, pctFrozen = 0;
+  var gone = false, pending = false;
+  var reduced = false;
+  try { reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+
+  function remove() {
+    if (gone) return;
+    gone = true;
+    try { window.removeEventListener('resize', fit); } catch (e) {}
+    if (host.parentNode) host.parentNode.removeChild(host);
+  }
+
+  function beginExit() {
+    if (gone || exitAt !== null) return;
+    exitAt = now();
+    rotFrozen = ((exitAt - t0) / 1000) % ZSTART;
+    // Un rAF parado — pestaña en segundo plano — no llega nunca al final del
+    // fundido, y la pantalla de carga se quedaría puesta al volver. El reloj
+    // de pared la quita pase lo que pase.
+    setTimeout(remove, EXIT_MS + 400);
+    if (reduced) {
+      host.style.transition = 'opacity 350ms ease';
+      host.style.opacity = '0';
+      return;
+    }
+    if (!raf) raf = requestAnimationFrame(frame);
+  }
+
+  function done() {
+    if (gone || exitAt !== null || pending) return;
+    pending = true;
+    setTimeout(beginExit, Math.max(0, MIN_MS - (now() - t0)));
+  }
+
+  var raf = null;
+  function frame() {
+    raf = null;
+    if (gone) return;
+    var elapsed = (now() - t0) / 1000;
+    var u = exitAt === null ? 0 : Math.min(1, (now() - exitAt) / EXIT_MS);
+    draw(elapsed, u);
+    if (u >= 1) { remove(); return; }
+    raf = requestAnimationFrame(frame);
+  }
+
+  if (reduced) {
+    // Un globo girando a pantalla completa es mucho movimiento. Con la
+    // preferencia puesta se dibuja un fotograma y se queda quieto.
+    draw(1.2, 0);
+  } else {
+    raf = requestAnimationFrame(frame);
+  }
+
+  setTimeout(done, CEIL_MS);
+
+  window.__aeroLoadingScreen = { done: done, remove: remove };
+}());
+</script>

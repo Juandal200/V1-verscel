@@ -178,6 +178,60 @@ screenshot, not filed here.
 
 ---
 
+### An aviation loading screen, without the three megabytes it arrived in
+
+**Plan.** The artwork came as `loading-screen-aviacion.html` (renamed from a name with
+spaces), a self-extracting bundle from the canvas editor. It is 1 MB because it carries
+React 18.3.1, ReactDOM and `@babel/standalone` — 3.06 MB uncompressed — to compile JSX in
+the browser, plus 54 KB of editor runtime. The animation itself is 294 lines of
+arithmetic and one `<svg>`: no map data, no base64, no webfonts, twelve hand-placed
+coastlines. So the plan was to port those 294 lines to plain JS as `LoadingScreen.html`,
+include it first in the body, and dismiss it where the app decides what to show. One
+change, three files.
+
+**Criterion.** `DERIVED` — I inferred this; what was asked for was "a loading screen that
+fades when the app finishes loading". The globe paints before anything else, leaves with a
+fade once the app knows which screen to show, and `dist/index.html` grows by less than
+20 KB. It grew by 17 KB (1,455,099 → 1,472,553 bytes).
+
+**Two hooks, not one, and the second one was found by the browser.** `showScreen()` is
+the choke point for every screen *transition*, so that is where the dismissal went. But a
+visitor with no session never transitions: `#loginScreen` carries `active` in the markup
+and the `load` handler returns without calling `showScreen` at all. Verified against the
+built file, the loading screen sat on top of a fully loaded sign-in form until its own
+15-second ceiling fired. So the no-session branch of the `load` handler dismisses it too.
+That is the whole reason this was driven through a real browser rather than read.
+
+**Three deliberate differences from the authored piece**, all documented in the file: the
+loop is 7.0 s (two laps, where the original put its seam) instead of 9.5, because the
+"Zoom final" scene is the exit rather than part of the loop; the `u` ramp that drives the
+zoom comes from the exit clock instead of from `T`; and the percentage runs against total
+elapsed time capped at 99 rather than against `T`, which would reset to 000% every seven
+seconds. The percentage still measures nothing. If it ever should, the milestones are
+`_shimConfigReady`, `apiGetAppBootstrap` and the first render.
+
+**Checklist.**
+
+- [ ] Opening the app cold shows the globe immediately — no white flash, no logo first
+- [ ] With a session saved, the globe fades out and the app is behind it
+- [ ] With no session, the globe fades out and the sign-in form is behind it
+- [ ] With the server slow or down, the globe still leaves rather than spinning forever
+- [ ] The plane completes its orbit with no jump where the loop restarts
+- [ ] On a phone the globe is centred, "Loading" fits, and the page does not scroll sideways
+- [ ] With "reduce motion" on, the globe is drawn once and does not animate
+
+**Verified in Firefox, through geckodriver, against `dist/index.html`** — 24 assertions
+across six groups: it draws and animates, it stays while nobody dismisses it, `done()`
+removes it in ~980 ms, an immediate `done()` still honours the 800 ms floor, the real app
+dismisses it in 1,633 ms and leaves the sign-in form behind, a seeded session cache
+reaches the app screen instead, and against a `/api/gas` that takes six seconds it is
+still up at 4 s with the form hidden underneath. The dismissal was then removed from the
+built file and the screen was watched failing to leave — the assertion can fail.
+
+**Not verifiable here.** A real phone: headless Firefox would not go below a 500 px
+viewport, so portrait was checked at 500×814 and not at 390. And `prefers-reduced-motion`
+is in the code and was not exercised.
+
 ## 2026-09-10
 
 ### The verdict stops covering the clearance on a phone
