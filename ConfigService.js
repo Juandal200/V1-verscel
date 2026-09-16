@@ -463,6 +463,24 @@ var DB_SCHEMA = {
     'createdAt'
   ],
 
+  /* The bank behind Squadron challenges. Shaped after ModuleQuiz on purpose —
+   * options as JSON in one cell, the right one as a zero-based index — so a
+   * specialist who has filled in one sheet already knows how to fill in this one.
+   *
+   * `imageUrl` is optional: empty means a text-only question. `active` retires a
+   * question without deleting it, which keeps the id stable in challenges that
+   * have already been played with it. */
+  ChallengeQuestions: [
+    'questionId',
+    'question',
+    'optionsJson',
+    'correctIndex',
+    'imageUrl',
+    'explanation',
+    'active',
+    'createdAt'
+  ],
+
   ModuleQuiz: [
     'questionId',
     'moduleId',

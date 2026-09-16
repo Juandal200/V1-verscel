@@ -17,6 +17,53 @@ Newest day first.
 
 ## 2026-09-15
 
+### Challenges get a question bank a specialist can edit
+
+**Plan.** First of three. A challenge is going to be five multiple-choice questions
+drawn at random, the same five for both pilots, so the questions have to be a table
+somebody edits rather than an array somebody deploys. New `ChallengeQuestions` sheet
+declared in `DB_SCHEMA`, shaped after `ModuleQuiz` so a specialist who has filled in one
+already knows this one, plus a seeded bank and a validator.
+
+The engine and the screen are the other two, and they are separate commits: this one
+changes nothing about how a challenge behaves today.
+
+**Criterion.** Stated: a sheet the specialist can add questions to, five questions per
+challenge, four options, text or image.
+
+`DERIVED`: `imageUrl` empty means a text-only question rather than a missing one — the
+column is optional because the request said questions *may* carry an image.
+
+`DERIVED`: the 46 seeded questions are placeholder content to make the feature runnable,
+not reviewed material. Stated by you as "invéntalas por ahora".
+
+**Why, in one line.** The eight scenarios in the old challenge modal exist nowhere else
+in the product, so there was nothing to draw from.
+
+**Checklist.**
+
+- [x] `setupChallengesFromScratch()` runs from the editor and seeds the sheet
+- [x] The 46 questions are visible in `ChallengeQuestions`
+- [ ] Adding a row makes that question available to challenges (needs the engine)
+- [ ] A row with an `imageUrl` renders the image (needs the screen)
+- [ ] `active = FALSE` takes a question out of the draw (needs the engine)
+
+**The answer is not spread evenly, and it is not fixed in the bank.** Correct is A
+eighteen times, B twenty-five, C three, D never — "always answer A or B" scores 43/46.
+Balancing these forty-six by hand fixes these forty-six: the specialist writing the next
+hundred has no reason to think about it and the bias grows back. The options get shuffled
+when the challenge is drawn and the shuffled order is frozen with the question ids, which
+keeps both pilots on one paper and puts the answer anywhere. It belongs in the draw.
+
+**The reset empties the old challenges and leaves the columns alone.** `sendChallenge`
+still writes the old shape until the engine replaces it, and a sheet whose header
+disagrees with its only writer is worse than a stale row. The columns change in the same
+commit as the code that writes them.
+
+**Not verifiable from the repo.** What the sheet looks like once populated, and whether
+the seeded questions are good enough to put in front of a student — they are placeholders
+and the specialist replaces them.
+
 ### F-0028 — the challenge confirmation names the pilot, not null
 
 **Plan.** One change, one file. `_gamSendChallenge`'s success handler called
