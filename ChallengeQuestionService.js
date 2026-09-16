@@ -50,7 +50,205 @@ var CHALLENGE_SECONDS_PER_QUESTION = 30;
  * true/false; four is a multiple choice; anything else the validator rejects.
  */
 var CHALLENGE_SEED_ = [
-  { q: 'Gas turbine engines have 4 strokes like reciprocating engines',
+  // ── Placeholder set, CQ-001 to CQ-046 ─────────────────────────────────────
+  // Written to make the feature runnable before there was a bank. Kept rather
+  // than removed: they are live questions now, and deleting a question that has
+  // already been played breaks the papers that were frozen with its id.
+// ── Standard phraseology ───────────────────────────────────────────────────
+  { q: 'ATC instructs "LINE UP AND WAIT". What are you cleared to do?',
+    o: ['Enter the runway and hold position', 'Take off immediately', 'Hold short of the runway', 'Backtrack the runway'],
+    c: 0, e: 'Line up and wait means enter the runway and hold. It is not a take-off clearance.' },
+
+  { q: 'Which readback is correct for "CLIMB FLIGHT LEVEL TWO ZERO ZERO"?',
+    o: ['Climbing two hundred', 'Climb flight level two zero zero', 'Up to FL200', 'Roger, climbing'],
+    c: 1, e: 'Level instructions are read back in full, using the same words ATC used.' },
+
+  { q: 'What does "SAY AGAIN" request?',
+    o: ['Repeat the last transmission', 'Confirm you understood', 'Change frequency', 'Repeat your callsign only'],
+    c: 0, e: 'Say again asks for a repetition. "Confirm" asks for verification.' },
+
+  { q: 'You are told "STANDBY". What should you do?',
+    o: ['Wait — ATC will call you', 'Repeat your request', 'Change to the next frequency', 'Continue as previously cleared and report'],
+    c: 0, e: 'Standby means wait, I will call you. It is not an approval or a refusal.' },
+
+  { q: 'What does "WILCO" mean?',
+    o: ['I will comply with your instruction', 'I have received your message', 'I do not understand', 'Wait one moment'],
+    c: 0, e: 'Wilco is will comply. Roger only acknowledges receipt.' },
+
+  { q: 'Which word means "permission granted to proceed under the conditions specified"?',
+    o: ['Approved', 'Cleared', 'Affirm', 'Acknowledge'],
+    c: 1, e: 'Cleared is used for the conditions of flight. Approved is for a request.' },
+
+  { q: 'ATC says "REPORT FIELD IN SIGHT". You should reply when you:',
+    o: ['See the aerodrome visually', 'Are established on final', 'Are at the reporting point', 'Are cleared to land'],
+    c: 0, e: 'The report is about visual acquisition of the aerodrome, nothing else.' },
+
+  { q: 'What is the correct phrase to indicate a message has been received and understood?',
+    o: ['Copy that', 'Roger', 'Ten-four', 'Understood'],
+    c: 1, e: 'Roger is the ICAO standard. "Copy that" and "ten-four" are not.' },
+
+  { q: 'Which is the correct pronunciation of the number 9 in radiotelephony?',
+    o: ['Nine', 'Niner', 'Nina', 'Nine-er-o'],
+    c: 1, e: 'Niner avoids confusion with the German "nein" and with "five".' },
+
+  { q: 'How is the altitude 10,500 ft transmitted?',
+    o: ['One zero thousand five hundred', 'Ten thousand five hundred', 'One zero five zero zero', 'Ten point five'],
+    c: 0, e: 'Thousands are spoken digit by digit followed by "thousand".' },
+
+  // ── Emergencies and urgency ────────────────────────────────────────────────
+  { q: 'MAYDAY is used to declare:',
+    o: ['An urgency condition', 'A distress condition', 'A radio failure', 'A fuel check'],
+    c: 1, e: 'Mayday is distress — grave and imminent danger. Pan-pan is urgency.' },
+
+  { q: 'PAN-PAN indicates:',
+    o: ['Grave and imminent danger', 'An urgent situation without immediate danger', 'A medical emergency only', 'A request for priority landing'],
+    c: 1, e: 'Pan-pan is urgency: the situation is serious but no one is in immediate danger.' },
+
+  { q: 'How many times is MAYDAY spoken at the start of a distress call?',
+    o: ['Once', 'Twice', 'Three times', 'Until acknowledged'],
+    c: 2, e: 'Mayday is repeated three times to make the call unmistakable.' },
+
+  { q: 'The transponder code for a general emergency is:',
+    o: ['7500', '7600', '7700', '7000'],
+    c: 2, e: '7700 general emergency, 7600 radio failure, 7500 unlawful interference.' },
+
+  { q: 'Squawk 7600 tells ATC that you have:',
+    o: ['Lost radio communication', 'An engine failure', 'A hijacking on board', 'A medical emergency'],
+    c: 0, e: '7600 is communication failure.' },
+
+  { q: '"MINIMUM FUEL" tells ATC that:',
+    o: ['You are declaring an emergency', 'You can accept little or no delay', 'You need to divert now', 'You want priority landing'],
+    c: 1, e: 'Minimum fuel is an advisory that little delay can be accepted. It is not a distress call.' },
+
+  { q: 'After an engine failure after take-off, the first priority is to:',
+    o: ['Declare an emergency on the radio', 'Fly the aircraft', 'Run the checklist', 'Notify the cabin'],
+    c: 1, e: 'Aviate, navigate, communicate — in that order.' },
+
+  { q: 'A rapid depressurisation at cruise requires the crew to first:',
+    o: ['Don oxygen masks', 'Begin an emergency descent', 'Declare a Mayday', 'Notify the cabin crew'],
+    c: 0, e: 'Oxygen first — the descent is useless if the crew is incapacitated.' },
+
+  { q: '"REQUEST PRIORITY LANDING" is an appropriate call when:',
+    o: ['You have a distress condition', 'You need to land ahead of other traffic for an urgent reason', 'You are low on fuel and declaring an emergency', 'You have lost radio contact'],
+    c: 1, e: 'It is an urgency request; distress uses Mayday.' },
+
+  { q: 'Who may cancel a distress condition on the frequency?',
+    o: ['The controller', 'The aircraft that declared it', 'Any station on frequency', 'The airline operations centre'],
+    c: 1, e: 'Only the station that declared the distress may cancel it.' },
+
+  // ── Weather ────────────────────────────────────────────────────────────────
+  { q: 'In a METAR, "BKN" means the cloud layer is:',
+    o: ['Broken — 5 to 7 oktas', 'Blocked by terrain', 'Below minimums', 'Breaking up'],
+    c: 0, e: 'FEW 1-2, SCT 3-4, BKN 5-7, OVC 8 oktas.' },
+
+  { q: 'METAR "CAVOK" requires visibility of at least:',
+    o: ['5 km', '8 km', '10 km', '15 km'],
+    c: 2, e: 'CAVOK: visibility 10 km or more, no significant cloud below 5000 ft, no significant weather.' },
+
+  { q: '"RVR" stands for:',
+    o: ['Runway Visual Range', 'Relative Vertical Reference', 'Required Visibility Rating', 'Runway Vector Radial'],
+    c: 0, e: 'RVR is the distance along the runway a pilot can see its markings or lights.' },
+
+  { q: 'Wind shear is best described as:',
+    o: ['A steady crosswind', 'A sudden change in wind speed or direction', 'Turbulence caused by terrain', 'A shift in barometric pressure'],
+    c: 1, e: 'It is a change over a short distance, and it is dangerous close to the ground.' },
+
+  { q: 'METAR reports "+TSRA". This means:',
+    o: ['Light thunderstorm with rain', 'Heavy thunderstorm with rain', 'Thunderstorm in the vicinity', 'Rain showers ending'],
+    c: 1, e: 'The plus sign is heavy; TS thunderstorm, RA rain.' },
+
+  { q: 'A microburst is most dangerous because it produces:',
+    o: ['Severe icing', 'A strong downdraught with rapidly changing headwind', 'Sustained crosswind', 'Loss of radio contact'],
+    c: 1, e: 'The headwind-to-tailwind shift can exceed the aircraft performance on approach.' },
+
+  { q: '"QNH" is the altimeter setting that makes the altimeter read:',
+    o: ['Height above the aerodrome', 'Altitude above mean sea level', 'Flight level', 'Height above the highest obstacle'],
+    c: 1, e: 'QNH gives altitude above MSL. QFE gives height above the aerodrome.' },
+
+  { q: 'Freezing rain is reported in a METAR as:',
+    o: ['FZRA', 'FZDZ', 'RAFZ', 'SNRA'],
+    c: 0, e: 'FZ freezing, RA rain. FZDZ is freezing drizzle.' },
+
+  { q: 'A TAF differs from a METAR because a TAF is:',
+    o: ['An observation', 'A forecast', 'A pilot report', 'A runway condition report'],
+    c: 1, e: 'METAR reports what is; TAF forecasts what is expected.' },
+
+  { q: 'Severe turbulence is defined by:',
+    o: ['Occupants feel a slight strain against seat belts', 'Large abrupt changes in altitude and attitude, aircraft may be momentarily out of control', 'Unsecured objects dislodge', 'Walking is difficult'],
+    c: 1, e: 'Severe includes momentary loss of control; extreme is where the aircraft is violently tossed.' },
+
+  // ── ATC and operations ─────────────────────────────────────────────────────
+  { q: '"HOLD SHORT OF RUNWAY 27" means:',
+    o: ['Stop before the runway holding position', 'Cross the runway quickly', 'Line up on runway 27', 'Hold on the runway'],
+    c: 0, e: 'You must stop before the holding position marking and not enter the runway.' },
+
+  { q: 'A "GO-AROUND" is:',
+    o: ['A discontinued approach followed by a climb-out', 'A circuit of the aerodrome before landing', 'A taxi route around the apron', 'A turn to avoid weather'],
+    c: 0, e: 'It is an aborted approach; the missed approach procedure follows.' },
+
+  { q: '"EXPEDITE CLIMB" asks you to:',
+    o: ['Climb at your best rate', 'Climb when able', 'Climb at a reduced rate', 'Level off immediately'],
+    c: 0, e: 'Expedite asks for the maximum practicable rate.' },
+
+  { q: 'If you cannot comply with an ATC instruction you should say:',
+    o: ['Negative', 'Unable', 'Standby', 'Disregard'],
+    c: 1, e: 'Unable states you cannot comply, and should be followed by the reason.' },
+
+  { q: '"DISREGARD" means:',
+    o: ['Ignore the last transmission', 'Repeat the instruction', 'Continue as cleared', 'Acknowledge and comply'],
+    c: 0, e: 'The last message should be treated as not sent.' },
+
+  { q: 'A "runway incursion" is:',
+    o: ['An aircraft landing without clearance', 'Any incorrect presence of an aircraft, vehicle or person on a runway', 'A deviation from the taxi route', 'A go-around after touchdown'],
+    c: 1, e: 'It covers vehicles and people, not only aircraft.' },
+
+  { q: 'You are instructed to "TAXI VIA ALPHA, HOLD SHORT OF BRAVO". You may:',
+    o: ['Cross Bravo without further clearance', 'Taxi on Alpha and stop before Bravo', 'Taxi on Bravo to the runway', 'Hold on Alpha immediately'],
+    c: 1, e: 'You taxi the named route and stop at the named holding point.' },
+
+  { q: '"CLEARED FOR THE OPTION" permits:',
+    o: ['Only a full-stop landing', 'A touch-and-go, low approach, stop-and-go or full stop', 'A go-around only', 'A landing on any runway'],
+    c: 1, e: 'It leaves the choice to the pilot, and is normally given for training.' },
+
+  { q: 'What does "TRAFFIC IN SIGHT" tell the controller?',
+    o: ['You are visual with the traffic and can maintain separation', 'You have the traffic on TCAS', 'You are looking for the traffic', 'You have lost sight of the traffic'],
+    c: 0, e: 'It is a visual acquisition report, and separation may be passed to you.' },
+
+  { q: 'Reporting "NEGATIVE CONTACT" means:',
+    o: ['You do not see the traffic', 'Your radio has failed', 'You refuse the instruction', 'You lost contact with the controller'],
+    c: 0, e: 'Negative contact reports failure to see the traffic called.' },
+
+  // ── Human factors and comms ────────────────────────────────────────────────
+  { q: 'The most common cause of a readback error going undetected is:',
+    o: ['Poor radio quality', 'Expectation bias — hearing what you expected to hear', 'Speaking too slowly', 'Using standard phraseology'],
+    c: 1, e: 'Expectation bias makes both the pilot and controller hear the expected value.' },
+
+  { q: 'A "sterile flight deck" means:',
+    o: ['No non-essential conversation below a defined altitude', 'The cockpit is cleaned before flight', 'Only the captain may speak', 'The radio is muted during climb'],
+    c: 0, e: 'It restricts non-essential activity in the critical phases of flight.' },
+
+  { q: 'Why is standard phraseology preferred over plain language?',
+    o: ['It is faster to say', 'It reduces ambiguity between speakers of different first languages', 'It is required by the aircraft manufacturer', 'It shortens the frequency occupancy only'],
+    c: 1, e: 'The purpose is unambiguous meaning across languages and accents.' },
+
+  { q: 'When plain language is necessary, ICAO recommends you:',
+    o: ['Speak faster to save frequency time', 'Use clear, simple and concise language', 'Use technical jargon for precision', 'Switch to your own language'],
+    c: 1, e: 'Plain language should still be clear, concise and unambiguous.' },
+
+  { q: 'ICAO Level 4 (Operational) is the minimum required for:',
+    o: ['Private flying only', 'International operations', 'All flying everywhere', 'Instructors only'],
+    c: 1, e: 'Level 4 is the minimum for international radiotelephony.' },
+
+  { q: 'A controller says "CONFIRM FLIGHT LEVEL". This asks you to:',
+    o: ['Climb to the assigned level', 'Verify and state your current level', 'Acknowledge the level change', 'Report reaching the level'],
+    c: 1, e: 'Confirm asks for verification of a value you have already been given or reported.' },
+
+  // ── The specialist's set, CQ-047 to CQ-092 ────────────────────────────────
+  // From their sheet: 15 gas turbine, 19 electrical, 12 reciprocating parts.
+  // Their Correct column is 1-based and this schema is 0-based, so every index
+  // is shifted by one. Twenty-two arrive inactive because they refer to a
+  // picture that is not here yet.
+{ q: 'Gas turbine engines have 4 strokes like reciprocating engines',
     o: ['True', 'False'],
     c: 1, e: '' },
 
@@ -243,6 +441,73 @@ var CHALLENGE_SEED_ = [
  * else's writing lives in it, and a helper that silently replaces it once would
  * be enough to stop anyone trusting it.
  */
+/* One row, built the same way whoever is writing it. Extracted because two
+ * functions need it and a second copy of the mapping is how an added row ends up
+ * shaped differently from a seeded one. */
+function _challengeSeedRow_(it, i, headers, stamp) {
+  var row = {
+    questionId:   'CQ-' + ('000' + (i + 1)).slice(-3),
+    question:     it.q,
+    optionsJson:  JSON.stringify(it.o),
+    correctIndex: it.c,
+    imageUrl:     '',
+    explanation:  it.e || '',
+    /* A row that needs a picture arrives switched off. It is in the sheet, with
+     * its options and its answer, waiting for one cell — a better place for it
+     * than a list somebody has to remember to type in later. */
+    active:       !it.img,
+    createdAt:    stamp
+  };
+  return headers.map(function (h) { return row[h] !== undefined ? row[h] : ''; });
+}
+
+/* ── Adding without replacing ────────────────────────────────────────────────
+ *
+ * The one to run. setupChallengeQuestions(true) wipes the sheet and reseeds, and
+ * the sheet is where somebody else's writing lives — a specialist's questions,
+ * the image links they pasted, the rows they switched off. This appends the ids
+ * that are not there and touches nothing else.
+ *
+ * Presence is keyed on questionId alone, the same way addMissingIcaoTestItems
+ * does it: a row that exists has been placed, possibly edited, possibly
+ * retired, and none of that is this function's business.
+ */
+function addMissingChallengeQuestions() {
+  var ss      = dbGetSpreadsheet_();
+  var headers = DB_SCHEMA[CHALLENGE_QUESTIONS_SHEET_];
+  var sheet   = ss.getSheetByName(CHALLENGE_QUESTIONS_SHEET_);
+  if (!sheet) return setupChallengeQuestions();
+
+  var last = sheet.getLastRow();
+  var have = {};
+  if (last > 1) {
+    var idCol = headers.indexOf('questionId') + 1;
+    var ids   = sheet.getRange(2, idCol, last - 1, 1).getValues();
+    for (var i = 0; i < ids.length; i++) {
+      var id = String(ids[i][0] || '').trim();
+      if (id) have[id] = true;
+    }
+  }
+
+  var stamp = (typeof now_ === 'function') ? now_() : new Date().toISOString();
+  var rows  = [];
+  CHALLENGE_SEED_.forEach(function (it, i) {
+    var id = 'CQ-' + ('000' + (i + 1)).slice(-3);
+    if (!have[id]) rows.push(_challengeSeedRow_(it, i, headers, stamp));
+  });
+
+  if (!rows.length) {
+    Logger.log('Nothing to add — every seeded question is already in ' +
+               CHALLENGE_QUESTIONS_SHEET_ + '.');
+    return { ok: true, added: 0, existing: Math.max(0, last - 1) };
+  }
+
+  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, headers.length).setValues(rows);
+  Logger.log('Added ' + rows.length + ' question(s) to ' + CHALLENGE_QUESTIONS_SHEET_ +
+             '. ' + Math.max(0, last - 1) + ' were already there and were left alone.');
+  return { ok: true, added: rows.length, existing: Math.max(0, last - 1) };
+}
+
 function setupChallengeQuestions(force) {
   var ss      = dbGetSpreadsheet_();
   var headers = DB_SCHEMA[CHALLENGE_QUESTIONS_SHEET_];
@@ -266,21 +531,8 @@ function setupChallengeQuestions(force) {
   if (existing > 0) sheet.getRange(2, 1, existing, headers.length).clearContent();
 
   var stamp = (typeof now_ === 'function') ? now_() : new Date().toISOString();
-  var rows  = CHALLENGE_SEED_.map(function (it, i) {
-    var row = {
-      questionId:   'CQ-' + ('000' + (i + 1)).slice(-3),
-      question:     it.q,
-      optionsJson:  JSON.stringify(it.o),
-      correctIndex: it.c,
-      imageUrl:     '',
-      explanation:  it.e || '',
-      /* A row that needs a picture arrives switched off. It is in the sheet, with
-       * its options and its answer, waiting for one cell — which is a better
-       * place for it than a list somebody has to remember to type in later. */
-      active:       !it.img,
-      createdAt:    stamp
-    };
-    return headers.map(function (h) { return row[h] !== undefined ? row[h] : ''; });
+  var rows = CHALLENGE_SEED_.map(function (it, i) {
+    return _challengeSeedRow_(it, i, headers, stamp);
   });
 
   sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
@@ -395,6 +647,9 @@ function resetChallengesSheetDESTRUCTIVE() {
 
 /* Convenience: the two setup steps in the order they have to happen, so the
  * whole thing is one run from the editor rather than three things to remember. */
+/* The destructive path, kept for a first run on an empty spreadsheet. If there
+ * is already a bank in the sheet, addMissingChallengeQuestions() is the one you
+ * want — this one throws away whatever the specialist has written. */
 function setupChallengesFromScratch() {
   var a = setupChallengeQuestions(true);
   var b = resetChallengesSheetDESTRUCTIVE();
