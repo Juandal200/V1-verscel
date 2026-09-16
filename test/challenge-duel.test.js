@@ -128,5 +128,20 @@ ok('and unlocks it before scheduling', /_lmsQuizCtxBorrowed/.test(S));
 ok('a borrowed context is never closed',
    /if \(!window\._lmsQuizCtxBorrowed\) \{ try \{ window\._lmsQuizAudioCtx\.close\(\)/.test(S));
 
+console.log('--- finishing a duel counts as a day ---');
+/* The streak was never simulator-only: attempts, the daily challenge and two LMS
+ * surfaces all bank it. The duel was new and claimed nothing, so an evening
+ * spent duelling lost a streak that had been earned.
+ *
+ * Banked on the scored paper and not on the draw: createChallenge hands out
+ * questions, and a day that counts for opening a screen is not a streak. */
+ok('submitChallengeResult banks the day',
+   submit !== '' && /lmsUpdateStreak_\(user\.userId\)/.test(submit));
+ok('and takes the event, so a freeze can say what it paid for',
+   submit !== '' && /lmsTakeStreakEvent_\(\)/.test(submit));
+ok('createChallenge does not bank it — drawing a paper is not activity',
+   !/function createChallenge[\s\S]*?lmsUpdateStreak_/.test(G.slice(G.indexOf('function createChallenge'),
+                                                                     G.indexOf('function getChallengePaper'))));
+
 console.log(fails ? '\n' + fails + ' FAILING' : '\nAll challenge-duel assertions passed.');
 process.exit(fails ? 1 : 0);

@@ -25360,6 +25360,25 @@ var LEVEL_THEMES = {
              ' · ' + r.opponentName + ' ' + r.opponentCorrect + ' in ' + _duelSecs(r.opponentMs);
     }
 
+    /* The streak line, and only when there is something to say.
+     *
+     * A duel banks the day like any other activity, but a pilot who already
+     * practised this morning has banked it already — saying "1 day streak" again
+     * at 9pm reads as if it reset. streakEvent carries what the update DID, so a
+     * freeze spent covering a missed day gets its own sentence. */
+    var streakLine = '';
+    if (r.streakEvent && r.streakEvent.saved) {
+      streakLine = '<div class="gam-duel-streak">A freeze covered ' +
+        Number(r.streakEvent.daysMissed) + ' missed day' +
+        (Number(r.streakEvent.daysMissed) === 1 ? '' : 's') +
+        ' — your ' + Number(r.streakEvent.streakDays) + '-day streak is safe</div>';
+    } else if (r.streakEvent && r.streakEvent.lost) {
+      streakLine = '<div class="gam-duel-streak">Your streak restarts today</div>';
+    } else if (r.streakDays) {
+      streakLine = '<div class="gam-duel-streak">' + Number(r.streakDays) +
+        '-day streak</div>';
+    }
+
     box.innerHTML =
       '<div class="gam-duel-result">' +
         '<div class="gam-duel-head">' + head + '</div>' +
@@ -25367,6 +25386,7 @@ var LEVEL_THEMES = {
         '<div class="gam-duel-xp">+' + r.xpEarned + ' XP' +
           (r.bonusXp ? ' <span class="gam-duel-bonus">+' + r.bonusXp + ' bonus</span>' : '') +
         '</div>' +
+        streakLine +
         '<button type="button" id="gamDuelDone" class="gam-send-btn">Done</button>' +
       '</div>';
 

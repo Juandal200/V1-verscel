@@ -563,6 +563,26 @@ function submitChallengeResult(sessionToken, challengeId, answers) {
     var xpEarned = correct * CHALLENGE_XP_PER_CORRECT;
     if (xpEarned) lmsAddXp_(user.userId, xpEarned);
 
+    /* Finishing five questions is a day's activity.
+     *
+     * The streak was never simulator-only — attempts, the daily challenge and two
+     * LMS surfaces all bank it — but the duel was new and nothing claimed it. A
+     * pilot who spent their evening duelling lost a streak they had earned.
+     *
+     * Scored papers count whatever the score. apiSubmitAttempt banks the day only
+     * on a correct answer, which is right for one question and wrong for five:
+     * zero out of five is a paper someone sat and read, and telling them it was
+     * worth nothing is the opposite of what a streak is for.
+     *
+     * lmsUpdateStreak_ is idempotent within a calendar day, so a second duel the
+     * same evening moves nothing. The event is taken rather than the number read,
+     * because a freeze paying for a missed day is news the number cannot carry. */
+    var streakDays = null, streakEvent = null;
+    try {
+      streakDays = lmsUpdateStreak_(user.userId);
+      try { streakEvent = lmsTakeStreakEvent_(); } catch (eEv) {}
+    } catch (eSt) {}
+
     var patch = {};
     patch[side + '_Correct'] = correct;
     patch[side + '_Ms']      = ms;
@@ -575,6 +595,8 @@ function submitChallengeResult(sessionToken, challengeId, answers) {
       total:          paper.length,
       ms:             ms,
       xpEarned:       xpEarned,
+      streakDays:     streakDays,
+      streakEvent:    streakEvent,
       bonusXp:        0,
       youWon:         false,
       complete:       false,
