@@ -784,6 +784,11 @@
   }
 
   #gamification-module .gam-duel-opts { display: grid; gap: 10px; }
+  /* A pair is centred and taller. With no letter to align to, left-aligned text
+     on a two-word button looks like a list that lost its bullets. */
+  #gamification-module .gam-duel-opts--pair .gam-duel-opt {
+    justify-content: center; min-height: 60px; font-weight: 700;
+  }
 
   /* Tall enough to hit with a thumb without aiming — this is played on a phone
      against a thirty-second clock. */

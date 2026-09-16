@@ -313,7 +313,13 @@ function checkChallengeQuestions() {
     try { opts = JSON.parse(r.optionsJson || '[]'); } catch (e) {
       problems.push(where + ': optionsJson does not parse');
     }
-    if (opts.length !== 4) problems.push(where + ': ' + opts.length + ' options, expected 4');
+    /* Two or four. A true/false question is not a four-option question with two
+     * blanks in it — padding it would draw two empty buttons and give the answer
+     * away by elimination. Anything else is a typo: three options means one was
+     * lost, five means one too many. */
+    if (opts.length !== 4 && opts.length !== 2) {
+      problems.push(where + ': ' + opts.length + ' options, expected 2 (true/false) or 4');
+    }
     if (opts.some(function (o) { return !String(o || '').trim(); })) {
       problems.push(where + ': an option is blank');
     }

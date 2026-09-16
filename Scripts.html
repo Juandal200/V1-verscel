@@ -25076,6 +25076,17 @@ var LEVEL_THEMES = {
   /* The module quiz's own stop, not a copy of it. Starting the loop from one
    * place and stopping it from a reimplementation is how a drone outlives the
    * quiz that opened it — and the two would drift the first time either changed. */
+  /* Started here rather than inline so the first real tap can retry it.
+   * Opening the duel happens in a server callback, far from the gesture that
+   * caused it, and a browser may refuse that first attempt outright — the tap on
+   * question one is a gesture it will not refuse. */
+  function _duelMusic() {
+    try {
+      if (window._lmsQuizDrone) return;                 // already playing
+      if (typeof window._lmsStartQuizMusic === 'function') window._lmsStartQuizMusic();
+    } catch (e) {}
+  }
+
   function _duelStopMusic() {
     try {
       if (typeof window._lmsStopQuizMusic === 'function') window._lmsStopQuizMusic();
@@ -25108,7 +25119,17 @@ var LEVEL_THEMES = {
    * samples and no second audio system to keep in step. */
   function _duelSound(which) {
     try {
-      if (!window.SimAudio || typeof SimAudio[which] !== 'function') return;
+      if (!window.SimAudio) return;
+      if (typeof SimAudio[which] !== 'function') {
+        /* Loud, because silent was the bug. 'click' was passed here for a week and
+         * SimAudio has no such method — the guard below returned and every tap and
+         * every tick played nothing, while the one real name, 'wrong', worked and
+         * made it look like the audio was fine. A missing sound is invisible; a
+         * console error is not, and challenge-duel.test.js now checks the names
+         * against what SimAudio actually returns. */
+        try { console.error('[duel] SimAudio has no "' + which + '"'); } catch (e2) {}
+        return;
+      }
       SimAudio[which]();
     } catch (e) {}
   }
@@ -25135,8 +25156,12 @@ var LEVEL_THEMES = {
 
     var ov = _gEl('gamDuel');
     if (ov) ov.hidden = false;
-    try { if (typeof window._lmsStartQuizMusic === 'function') window._lmsStartQuizMusic(); } catch (e) {}
+    /* Woken before the music, not after. A suspended context has a frozen
+     * currentTime, so scheduling the melody against it queues every note at zero
+     * and the loop never advances — resuming afterwards does not rescue notes
+     * that were scheduled into a stopped clock. */
     _duelWake();
+    _duelMusic();
     _duelRender();
   }
 
@@ -25156,10 +25181,17 @@ var LEVEL_THEMES = {
     box.innerHTML =
       img +
       '<div class="gam-duel-q">' + q.question + '</div>' +
-      '<div class="gam-duel-opts">' +
+      /* Two options is a true/false, and it is drawn as one: no A/B lettering,
+       * because lettering a pair reads as a multiple choice with half of it
+       * missing, and the buttons take the full width so the target is bigger on
+       * the screen where this is played. */
+      '<div class="gam-duel-opts' + (q.options.length === 2 ? ' gam-duel-opts--pair' : '') + '">' +
         q.options.map(function (o, i) {
+          var letter = q.options.length === 2
+            ? ''
+            : '<span class="gam-duel-letter">' + 'ABCD'.charAt(i) + '</span>';
           return '<button type="button" class="gam-duel-opt" data-i="' + i + '">' +
-                 '<span class="gam-duel-letter">' + 'ABCD'.charAt(i) + '</span>' + o + '</button>';
+                 letter + o + '</button>';
         }).join('') +
       '</div>';
 
@@ -25187,7 +25219,7 @@ var LEVEL_THEMES = {
       paint();
       /* The last five seconds tick. Before that it would be a metronome for two
        * and a half minutes, which is noise rather than pressure. */
-      if (_duel.left > 0 && _duel.left <= 5) _duelSound('click');
+      if (_duel.left > 0 && _duel.left <= 5) _duelSound('squelch');
       if (_duel.left <= 0) _duelAnswer(null);
     }, 1000);
   }
@@ -25195,11 +25227,12 @@ var LEVEL_THEMES = {
   function _duelAnswer(choice) {
     _duelClearTimer();
     _duelWake();
+    _duelMusic();
     /* A tap is acknowledged, not judged. Whether it was right is the server's to
      * say, and saying it here would mean sending the answer key to the browser —
      * which is the one thing the duel cannot do. The verdict lands on the result
      * screen, where it is already known. */
-    _duelSound(choice === null ? 'wrong' : 'click');
+    _duelSound(choice === null ? 'wrong' : 'squelch');
     _duel.answers[_duel.i] = choice;
     _duel.i++;
     if (_duel.i < _duel.qs.length) _duelRender();

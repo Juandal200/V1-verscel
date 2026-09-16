@@ -84,5 +84,23 @@ ok('_duelResult exists', result !== '');
 ok('and interpolates no bare null or undefined',
    result !== '' && !/\+\s*(null|undefined)\b/.test(result));
 
+console.log('--- every sound the duel asks for exists ---');
+/* 'click' was passed to _duelSound for a week. SimAudio does not return a click,
+ * the guard inside _duelSound returned quietly, and every tap and countdown tick
+ * played nothing — while the one real name in the set, 'wrong', worked and made
+ * the audio look fine. A sound that does not play is invisible from the code and
+ * from the screen, so the names are compared against what SimAudio returns. */
+const simReturn = (S.match(/return \{ squelch[\s\S]*?\};/) || [''])[0];
+const simNames = new Set([...simReturn.matchAll(/([a-zA-Z_$][\w$]*)\s*:/g)].map(m => m[1]));
+ok('SimAudio\'s export was found', simNames.size > 0, [...simNames].join(' '));
+const asked = [...S.matchAll(/_duelSound\(\s*'([a-zA-Z_$][\w$]*)'/g)].map(m => m[1]);
+const ternary = [...S.matchAll(/_duelSound\([^)]*\?\s*'([a-zA-Z_$]+)'\s*:\s*'([a-zA-Z_$]+)'/g)]
+  .flatMap(m => [m[1], m[2]]);
+const wanted = [...new Set(asked.concat(ternary))];
+console.log('    asks for: ' + wanted.join(' '));
+const missing = wanted.filter(n => !simNames.has(n));
+if (missing.length) missing.forEach(n => console.log('        SimAudio has no ' + n));
+ok(`${missing.length} sounds named that SimAudio does not have`, missing.length === 0);
+
 console.log(fails ? '\n' + fails + ' FAILING' : '\nAll challenge-duel assertions passed.');
 process.exit(fails ? 1 : 0);
