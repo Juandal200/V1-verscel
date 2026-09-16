@@ -13768,64 +13768,92 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
 @media (max-width: 1100px) { .home-exam-overlay { display: none; } }
 
 
-/* ── Loading: an aircraft on final ─────────────────────────────────────────────
-   Replaces a line of grey text on an empty page. The approach lights run toward
-   the aircraft rather than the aircraft moving across, which is what it looks
-   like from the flight deck — and it means the mark stays put and readable
-   instead of sliding off to one side.
+/* ── Loading: station-keeping over the world ───────────────────────────────────
+   Three grey sentences on an empty page became one mark, and the mark is built
+   from the world map's own vocabulary rather than invented beside it: the same
+   radial ground, land as a FILLED shape at #171d21 read by its silhouette, and
+   hairline strokes at the map's two weights.
 
-   Both animations are keyframes and both are over a second: the design system
-   caps sub-second TRANSITION speeds at four named values, and a loader that
-   finishes in 0.4s is a flicker, not a loader. */
-.pl-wrap { text-align: center; padding: 32px 16px; }
+   No stroke-dasharray. The map says in its own comment that there is none on that
+   screen and there should not be one, and a loader that wants to look like the map
+   does not get to break its first rule.
 
-.pl-scene {
+   The rings are the app's existing idea for waiting — ff-radar-bg pulses two of
+   them — rather than a second visual language for the same thing.
+
+   All motion is keyframes and all of it runs over a second. The design system caps
+   sub-second TRANSITION speeds at four named values; a loader finishing in 0.4s is
+   a flicker. */
+.pl-wrap { text-align: center; padding: 28px 16px; }
+
+.pl-stage {
   position: relative;
-  width: 100%; max-width: 220px; height: 54px;
+  width: 100%; max-width: 340px; height: 190px;
   margin: 0 auto;
   overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: radial-gradient(115% 85% at 50% 22%, #0e1316 0%, #080a0c 62%, #060809 100%);
 }
 
-/* The lights: a dashed line that scrolls. One dash width per cycle, linear, so
-   it reads as steady motion and never appears to stall or jump. */
-.pl-lights {
-  position: absolute; left: 0; right: 0; bottom: 14px; height: 2px;
-  background: repeating-linear-gradient(
-    to right,
-    var(--line) 0 14px,
-    transparent 14px 28px
-  );
-  animation: plApproach 1.4s linear infinite;
+.pl-geo { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.pl-earth {
+  fill: #171d21;
+  stroke: rgba(255, 255, 255, 0.095); stroke-width: 0.8;
+  vector-effect: non-scaling-stroke;
 }
+.pl-parallel {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.042); stroke-width: 0.7;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Two rings leaving the aircraft, the second a beat behind. Centred on the plane
+   and not on the box, so the aircraft is plainly the source. */
+.pl-ring {
+  position: absolute; left: 50%; top: 42%;
+  width: 46px; height: 46px; margin: -23px 0 0 -23px;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  opacity: 0;
+  animation: plPing 3s ease-out infinite;
+}
+.pl-ring--2 { animation-delay: 1.5s; }
 
 .pl-plane {
-  position: absolute; left: 50%; bottom: 18px;
-  color: var(--accent, var(--text));
-  animation: plSink 2.4s ease-in-out infinite;
+  position: absolute; left: 50%; top: 42%;
+  color: var(--accent);
+  animation: plHold 4s ease-in-out infinite;
 }
 
-/* Shifted by exactly one dash pair, so the loop has no seam. */
-@keyframes plApproach {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-28px); }
+/* Out and gone. It fades well before the edge so the ring never collides with the
+   frame, which would read as a box rather than as open sky. */
+@keyframes plPing {
+  0%   { transform: scale(0.6); opacity: 0; }
+  15%  { opacity: 0.55; }
+  100% { transform: scale(3.4); opacity: 0; }
 }
 
-/* A shallow descent and a touch of bank — the aircraft is on approach, not
-   landing, because a loader that lands has finished and this one has not. */
-@keyframes plSink {
-  0%   { transform: translate(-50%, -8px) rotate(-3deg); }
-  50%  { transform: translate(-50%,  0)   rotate(0deg); }
-  100% { transform: translate(-50%, -8px) rotate(-3deg); }
+/* Station-keeping: a shallow rise and a touch of bank. It holds rather than
+   travels, because a loader that arrives somewhere has finished and this one has
+   not. */
+@keyframes plHold {
+  0%   { transform: translate(-50%, -46%) rotate(-3deg); }
+  50%  { transform: translate(-50%, -58%) rotate(3deg); }
+  100% { transform: translate(-50%, -46%) rotate(-3deg); }
 }
 
 .pl-label {
-  margin: 10px 0 0;
+  margin: 14px 0 0;
   font-size: 0.82rem;
   color: var(--muted);
+  letter-spacing: 0.06em;
 }
 
-/* Anyone who has asked for less motion gets the mark and the words, still. */
+/* Anyone who asked for less motion keeps the scene, the aircraft and the words. */
 @media (prefers-reduced-motion: reduce) {
-  .pl-lights, .pl-plane { animation: none; }
+  .pl-ring { display: none; }
+  .pl-plane { animation: none; transform: translate(-50%, -50%); }
 }
 </style>

@@ -1338,9 +1338,21 @@ window.tierByExam = function (examNum) {
    */
   function _planeLoaderHtml(label) {
     return '<div class="pl-wrap" role="status" aria-live="polite">' +
-      '<div class="pl-scene">' +
-        '<div class="pl-lights"></div>' +
-        '<div class="pl-plane">' + uiIcon('plane', 30) + '</div>' +
+      '<div class="pl-stage">' +
+        '<svg class="pl-geo" viewBox="0 0 340 190" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
+          /* The limb of the earth, drawn the way .lm-land is: a FILLED shape read
+           * by its silhouette, with the stroke only as its edge. Centre well below
+           * the frame so what shows is a shallow curve, not a ball. */
+          '<circle class="pl-earth" cx="170" cy="640" r="520"/>' +
+          /* Two parallels at the map's border weight. No dashes: the map says in
+           * its own comment that there is no stroke-dasharray on that screen and
+           * there should not be one, and this is meant to look like it. */
+          '<path class="pl-parallel" d="M-40 152 Q170 108 380 152"/>' +
+          '<path class="pl-parallel" d="M-10 178 Q170 134 350 178"/>' +
+        '</svg>' +
+        '<span class="pl-ring"></span>' +
+        '<span class="pl-ring pl-ring--2"></span>' +
+        '<div class="pl-plane">' + uiIcon('plane', 34) + '</div>' +
       '</div>' +
       (label ? '<p class="pl-label">' + label + '</p>' : '') +
     '</div>';
