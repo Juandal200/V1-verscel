@@ -25,217 +25,214 @@ var CHALLENGE_QUESTION_COUNT = 5;
  * without letting one stall end it. */
 var CHALLENGE_SECONDS_PER_QUESTION = 30;
 
-/* ── The seed ────────────────────────────────────────────────────────────────
+/* ── The bank ────────────────────────────────────────────────────────────────
  *
- * `imageUrl` is left empty on every row ON PURPOSE. The column exists and the
- * renderer honours it, but inventing image links would put broken pictures in
- * front of students on the first run. The specialist fills them in, and a row
- * with no image is a perfectly good question — that is why it is optional.
+ * The specialist's forty-six, converted from their sheet. Their Correct column
+ * is 1-based and this schema is 0-based, so every index is shifted by one — the
+ * single most likely thing to have gone wrong in the conversion, and the reason
+ * checkChallengeQuestions refuses an index outside the options.
  *
- * `correct` is the index into `options`, zero-based.
+ * TWENTY-TWO OF THEM ARRIVE INACTIVE, and that is not a mistake.
  *
- * THE ANSWER IS NOT SPREAD EVENLY ACROSS A B C D, AND THAT IS NOT FIXED HERE.
- * As written the correct option is A eighteen times, B twenty-five, C three and D
- * never — answer "A or B" and you score 43 out of 46 without reading anything.
- * Balancing the seed by hand would fix these forty-six and nothing else: the
- * specialist writing the next hundred has no reason to think about it, and the
- * bias would grow back.
+ * "What is this?" with four part names under it is not a question without the
+ * picture it refers to — it is a guess between four nouns. The twelve
+ * Reciprocating Engine Parts rows are literally identical in text, all "What is
+ * it?" over the same options, so without images they are not even distinct from
+ * each other. Loading them active would have put unanswerable questions in front
+ * of students on the first draw.
  *
- * So the options are shuffled when the challenge is built and the shuffled order
- * is frozen alongside the question ids, which keeps both pilots on an identical
- * paper while putting the answer anywhere. It belongs in the draw and not in the
- * bank; it is noted here because this is where somebody would otherwise try to
- * fix it.
+ * So they are here with active FALSE and an explanation saying what they need.
+ * The specialist pastes a link into imageUrl, flips active to TRUE, and the
+ * question joins the draw — no deploy, which is the whole reason the bank is a
+ * sheet.
+ *
+ * `correct` is the index into `options`, zero-based. Two options is a
+ * true/false; four is a multiple choice; anything else the validator rejects.
  */
 var CHALLENGE_SEED_ = [
-  // ── Standard phraseology ───────────────────────────────────────────────────
-  { q: 'ATC instructs "LINE UP AND WAIT". What are you cleared to do?',
-    o: ['Enter the runway and hold position', 'Take off immediately', 'Hold short of the runway', 'Backtrack the runway'],
-    c: 0, e: 'Line up and wait means enter the runway and hold. It is not a take-off clearance.' },
+  { q: 'Gas turbine engines have 4 strokes like reciprocating engines',
+    o: ['True', 'False'],
+    c: 1, e: '' },
 
-  { q: 'Which readback is correct for "CLIMB FLIGHT LEVEL TWO ZERO ZERO"?',
-    o: ['Climbing two hundred', 'Climb flight level two zero zero', 'Up to FL200', 'Roger, climbing'],
-    c: 1, e: 'Level instructions are read back in full, using the same words ATC used.' },
+  { q: 'What is this?',
+    o: ['Flanges', 'Bearings', 'Seals', 'Compressor blades'],
+    c: 0, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: 'What does "SAY AGAIN" request?',
-    o: ['Repeat the last transmission', 'Confirm you understood', 'Change frequency', 'Repeat your callsign only'],
-    c: 0, e: 'Say again asks for a repetition. "Confirm" asks for verification.' },
+  { q: 'Which engine is mostly used in airliners?',
+    o: ['Turbofan', 'Turbojet', 'Turboprop', 'Turboshaft'],
+    c: 0, e: '' },
 
-  { q: 'You are told "STANDBY". What should you do?',
-    o: ['Wait — ATC will call you', 'Repeat your request', 'Change to the next frequency', 'Continue as previously cleared and report'],
-    c: 0, e: 'Standby means wait, I will call you. It is not an approval or a refusal.' },
+  { q: 'Can air flow at a very very high speed destroy the engine?',
+    o: ['Yes, the inlet must slow the air down before it reaches the compressor', 'No, faster air always produces more thrust', 'No, the compressor can handle air at any speed', 'Only when the engine is shut down'],
+    c: 0, e: '' },
 
-  { q: 'What does "WILCO" mean?',
-    o: ['I will comply with your instruction', 'I have received your message', 'I do not understand', 'Wait one moment'],
-    c: 0, e: 'Wilco is will comply. Roger only acknowledges receipt.' },
+  { q: 'Is this a fan blade?',
+    o: ['True', 'False'],
+    c: 1, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: 'Which word means "permission granted to proceed under the conditions specified"?',
-    o: ['Approved', 'Cleared', 'Affirm', 'Acknowledge'],
-    c: 1, e: 'Cleared is used for the conditions of flight. Approved is for a request.' },
+  { q: 'What do vanes do?',
+    o: ['Direct the airflow at the correct angle to the next row of blades', 'Rotate to compress the air', 'Mix the fuel with the air', 'Ignite the fuel-air mixture'],
+    c: 0, e: '' },
 
-  { q: 'ATC says "REPORT FIELD IN SIGHT". You should reply when you:',
-    o: ['See the aerodrome visually', 'Are established on final', 'Are at the reporting point', 'Are cleared to land'],
-    c: 0, e: 'The report is about visual acquisition of the aerodrome, nothing else.' },
+  { q: 'Do airliners have low bypass or high bypass engines?',
+    o: ['Low bypass', 'High bypass'],
+    c: 1, e: '' },
 
-  { q: 'What is the correct phrase to indicate a message has been received and understood?',
-    o: ['Copy that', 'Roger', 'Ten-four', 'Understood'],
-    c: 1, e: 'Roger is the ICAO standard. "Copy that" and "ten-four" are not.' },
+  { q: 'What is this?',
+    o: ['Fuel nozzle', 'Igniter plug', 'Temperature probe', 'Bleed air valve'],
+    c: 0, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: 'Which is the correct pronunciation of the number 9 in radiotelephony?',
-    o: ['Nine', 'Niner', 'Nina', 'Nine-er-o'],
-    c: 1, e: 'Niner avoids confusion with the German "nein" and with "five".' },
+  { q: 'The airflow first contacts the ______ of a fan blade.',
+    o: ['Leading edge', 'Trailing edge', 'Root', 'Tip'],
+    c: 0, e: '' },
 
-  { q: 'How is the altitude 10,500 ft transmitted?',
-    o: ['One zero thousand five hundred', 'Ten thousand five hundred', 'One zero five zero zero', 'Ten point five'],
-    c: 0, e: 'Thousands are spoken digit by digit followed by "thousand".' },
+  { q: 'What is this?',
+    o: ['Spinner', 'Exhaust cone', 'Fuel nozzle', 'Igniter plug'],
+    c: 0, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  // ── Emergencies and urgency ────────────────────────────────────────────────
-  { q: 'MAYDAY is used to declare:',
-    o: ['An urgency condition', 'A distress condition', 'A radio failure', 'A fuel check'],
-    c: 1, e: 'Mayday is distress — grave and imminent danger. Pan-pan is urgency.' },
+  { q: 'Is bled-air used for cabin pressurization?',
+    o: ['True', 'False'],
+    c: 0, e: '' },
 
-  { q: 'PAN-PAN indicates:',
-    o: ['Grave and imminent danger', 'An urgent situation without immediate danger', 'A medical emergency only', 'A request for priority landing'],
-    c: 1, e: 'Pan-pan is urgency: the situation is serious but no one is in immediate danger.' },
+  { q: 'How is bled-air sent to the cabin?',
+    o: ['Through ducts from the compressor', 'Through the fuel lines', 'Through the exhaust nozzle', 'Through the oil system'],
+    c: 0, e: '' },
 
-  { q: 'How many times is MAYDAY spoken at the start of a distress call?',
-    o: ['Once', 'Twice', 'Three times', 'Until acknowledged'],
-    c: 2, e: 'Mayday is repeated three times to make the call unmistakable.' },
+  { q: 'What is this?',
+    o: ['Turbine section', 'Fan', 'Inlet', 'Accessory gearbox'],
+    c: 0, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: 'The transponder code for a general emergency is:',
-    o: ['7500', '7600', '7700', '7000'],
-    c: 2, e: '7700 general emergency, 7600 radio failure, 7500 unlawful interference.' },
+  { q: 'The amount of air passing through the engine depends on:',
+    o: ['Fan diameter', 'Fuel type', 'Oil pressure', 'Engine weight'],
+    c: 0, e: '' },
 
-  { q: 'Squawk 7600 tells ATC that you have:',
-    o: ['Lost radio communication', 'An engine failure', 'A hijacking on board', 'A medical emergency'],
-    c: 0, e: '7600 is communication failure.' },
+  { q: 'How many main stages are there in a gas turbine engine from intake to exhaust?',
+    o: ['3', '4', '5', '6'],
+    c: 2, e: '' },
 
-  { q: '"MINIMUM FUEL" tells ATC that:',
-    o: ['You are declaring an emergency', 'You can accept little or no delay', 'You need to divert now', 'You want priority landing'],
-    c: 1, e: 'Minimum fuel is an advisory that little delay can be accepted. It is not a distress call.' },
+  { q: 'What is it?',
+    o: ['Alternator', 'Starter motor', 'Magneto', 'Voltage regulator'],
+    c: 0, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: 'After an engine failure after take-off, the first priority is to:',
-    o: ['Declare an emergency on the radio', 'Fly the aircraft', 'Run the checklist', 'Notify the cabin'],
-    c: 1, e: 'Aviate, navigate, communicate — in that order.' },
+  { q: 'What unit is used to measure electrical pressure?',
+    o: ['Volts', 'Amperes', 'Ohms', 'Watts'],
+    c: 0, e: '' },
 
-  { q: 'A rapid depressurisation at cruise requires the crew to first:',
-    o: ['Don oxygen masks', 'Begin an emergency descent', 'Declare a Mayday', 'Notify the cabin crew'],
-    c: 0, e: 'Oxygen first — the descent is useless if the crew is incapacitated.' },
+  { q: 'What is it?',
+    o: ['Ammeter', 'Voltmeter', 'Tachometer', 'Oil pressure gauge'],
+    c: 0, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: '"REQUEST PRIORITY LANDING" is an appropriate call when:',
-    o: ['You have a distress condition', 'You need to land ahead of other traffic for an urgent reason', 'You are low on fuel and declaring an emergency', 'You have lost radio contact'],
-    c: 1, e: 'It is an urgency request; distress uses Mayday.' },
+  { q: 'Most small aircraft use DC electrical power for their systems.',
+    o: ['True', 'False'],
+    c: 0, e: '' },
 
-  { q: 'Who may cancel a distress condition on the frequency?',
-    o: ['The controller', 'The aircraft that declared it', 'Any station on frequency', 'The airline operations centre'],
-    c: 1, e: 'Only the station that declared the distress may cancel it.' },
+  { q: 'What is it?',
+    o: ['Master switch', 'Avionics master switch', 'Circuit breaker', 'Fuel selector'],
+    c: 0, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  // ── Weather ────────────────────────────────────────────────────────────────
-  { q: 'In a METAR, "BKN" means the cloud layer is:',
-    o: ['Broken — 5 to 7 oktas', 'Blocked by terrain', 'Below minimums', 'Breaking up'],
-    c: 0, e: 'FEW 1-2, SCT 3-4, BKN 5-7, OVC 8 oktas.' },
+  { q: 'What produces electrical power during normal flight in most light aircraft?',
+    o: ['Alternator', 'Battery', 'Voltage regulator', 'Starter motor'],
+    c: 0, e: '' },
 
-  { q: 'METAR "CAVOK" requires visibility of at least:',
-    o: ['5 km', '8 km', '10 km', '15 km'],
-    c: 2, e: 'CAVOK: visibility 10 km or more, no significant cloud below 5000 ft, no significant weather.' },
+  { q: 'What does a negative ammeter reading usually mean?',
+    o: ['The battery is discharging', 'The battery is being charged', 'The alternator output is higher than the load', 'The system is fully charged and normal'],
+    c: 0, e: '' },
 
-  { q: '"RVR" stands for:',
-    o: ['Runway Visual Range', 'Relative Vertical Reference', 'Required Visibility Rating', 'Runway Vector Radial'],
-    c: 0, e: 'RVR is the distance along the runway a pilot can see its markings or lights.' },
+  { q: 'Why does a circuit breaker pop?',
+    o: ['Too much current flows through the circuit', 'The voltage is too low', 'The battery is fully charged', 'The circuit is not being used'],
+    c: 0, e: '' },
 
-  { q: 'Wind shear is best described as:',
-    o: ['A steady crosswind', 'A sudden change in wind speed or direction', 'Turbulence caused by terrain', 'A shift in barometric pressure'],
-    c: 1, e: 'It is a change over a short distance, and it is dangerous close to the ground.' },
+  { q: 'What is it?',
+    o: ['Loadmeter', 'Voltmeter', 'Tachometer', 'Fuel quantity gauge'],
+    c: 0, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: 'METAR reports "+TSRA". This means:',
-    o: ['Light thunderstorm with rain', 'Heavy thunderstorm with rain', 'Thunderstorm in the vicinity', 'Rain showers ending'],
-    c: 1, e: 'The plus sign is heavy; TS thunderstorm, RA rain.' },
+  { q: 'Is amps the contraction of amperes?',
+    o: ['True', 'False'],
+    c: 0, e: '' },
 
-  { q: 'A microburst is most dangerous because it produces:',
-    o: ['Severe icing', 'A strong downdraught with rapidly changing headwind', 'Sustained crosswind', 'Loss of radio contact'],
-    c: 1, e: 'The headwind-to-tailwind shift can exceed the aircraft performance on approach.' },
+  { q: 'A positive ammeter reading means the battery is being drained.',
+    o: ['True', 'False'],
+    c: 1, e: '' },
 
-  { q: '"QNH" is the altimeter setting that makes the altimeter read:',
-    o: ['Height above the aerodrome', 'Altitude above mean sea level', 'Flight level', 'Height above the highest obstacle'],
-    c: 1, e: 'QNH gives altitude above MSL. QFE gives height above the aerodrome.' },
+  { q: 'The bus bar in an aircraft distributes electrical power to different equipment.',
+    o: ['True', 'False'],
+    c: 0, e: '' },
 
-  { q: 'Freezing rain is reported in a METAR as:',
-    o: ['FZRA', 'FZDZ', 'RAFZ', 'SNRA'],
-    c: 0, e: 'FZ freezing, RA rain. FZDZ is freezing drizzle.' },
+  { q: 'A short circuit is best described as:',
+    o: ['An unintended low-resistance path that allows excessive current flow', 'A break in the circuit that stops current flow', 'A circuit with very high resistance', 'A circuit protected by a fuse'],
+    c: 0, e: '' },
 
-  { q: 'A TAF differs from a METAR because a TAF is:',
-    o: ['An observation', 'A forecast', 'A pilot report', 'A runway condition report'],
-    c: 1, e: 'METAR reports what is; TAF forecasts what is expected.' },
+  { q: 'If all electrical power is lost, the engine is lost',
+    o: ['True', 'False'],
+    c: 1, e: '' },
 
-  { q: 'Severe turbulence is defined by:',
-    o: ['Occupants feel a slight strain against seat belts', 'Large abrupt changes in altitude and attitude, aircraft may be momentarily out of control', 'Unsecured objects dislodge', 'Walking is difficult'],
-    c: 1, e: 'Severe includes momentary loss of control; extreme is where the aircraft is violently tossed.' },
+  { q: 'What is a bus bar used for in an aircraft?',
+    o: ['Distributing power to the electrical circuits', 'Storing electrical energy', 'Generating electrical power', 'Converting AC to DC'],
+    c: 0, e: '' },
 
-  // ── ATC and operations ─────────────────────────────────────────────────────
-  { q: '"HOLD SHORT OF RUNWAY 27" means:',
-    o: ['Stop before the runway holding position', 'Cross the runway quickly', 'Line up on runway 27', 'Hold on the runway'],
-    c: 0, e: 'You must stop before the holding position marking and not enter the runway.' },
+  { q: 'If the alternator fails in flight, what powers the electrical system?',
+    o: ['Battery', 'Magnetos', 'Starter motor', 'Voltage regulator'],
+    c: 0, e: '' },
 
-  { q: 'A "GO-AROUND" is:',
-    o: ['A discontinued approach followed by a climb-out', 'A circuit of the aerodrome before landing', 'A taxi route around the apron', 'A turn to avoid weather'],
-    c: 0, e: 'It is an aborted approach; the missed approach procedure follows.' },
+  { q: 'Is this a circuit breaker?',
+    o: ['True', 'False'],
+    c: 1, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: '"EXPEDITE CLIMB" asks you to:',
-    o: ['Climb at your best rate', 'Climb when able', 'Climb at a reduced rate', 'Level off immediately'],
-    c: 0, e: 'Expedite asks for the maximum practicable rate.' },
+  { q: 'What is the main purpose of the aircraft battery?',
+    o: ['To start the engine and provide backup power', 'To power the magnetos', 'To generate power during flight', 'To regulate system voltage'],
+    c: 0, e: '' },
 
-  { q: 'If you cannot comply with an ATC instruction you should say:',
-    o: ['Negative', 'Unable', 'Standby', 'Disregard'],
-    c: 1, e: 'Unable states you cannot comply, and should be followed by the reason.' },
+  { q: 'Are the magnetos part of the electric system?',
+    o: ['True', 'False'],
+    c: 1, e: '' },
 
-  { q: '"DISREGARD" means:',
-    o: ['Ignore the last transmission', 'Repeat the instruction', 'Continue as cleared', 'Acknowledge and comply'],
-    c: 0, e: 'The last message should be treated as not sent.' },
+  { q: 'What is it?',
+    o: ['Valve', 'Pushrod', 'Rocker arm', 'Connecting rod'],
+    c: 0, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: 'A "runway incursion" is:',
-    o: ['An aircraft landing without clearance', 'Any incorrect presence of an aircraft, vehicle or person on a runway', 'A deviation from the taxi route', 'A go-around after touchdown'],
-    c: 1, e: 'It covers vehicles and people, not only aircraft.' },
+  { q: 'What is it?',
+    o: ['Piston', 'Cylinder', 'Valve lifter', 'Bearing'],
+    c: 0, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: 'You are instructed to "TAXI VIA ALPHA, HOLD SHORT OF BRAVO". You may:',
-    o: ['Cross Bravo without further clearance', 'Taxi on Alpha and stop before Bravo', 'Taxi on Bravo to the runway', 'Hold on Alpha immediately'],
-    c: 1, e: 'You taxi the named route and stop at the named holding point.' },
+  { q: 'What is it?',
+    o: ['Connecting rod', 'Crankshaft', 'Camshaft', 'Pushrod'],
+    c: 0, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: '"CLEARED FOR THE OPTION" permits:',
-    o: ['Only a full-stop landing', 'A touch-and-go, low approach, stop-and-go or full stop', 'A go-around only', 'A landing on any runway'],
-    c: 1, e: 'It leaves the choice to the pilot, and is normally given for training.' },
+  { q: 'What is it?',
+    o: ['Spark plug', 'Fuel injector', 'Magneto', 'Primer nozzle'],
+    c: 0, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: 'What does "TRAFFIC IN SIGHT" tell the controller?',
-    o: ['You are visual with the traffic and can maintain separation', 'You have the traffic on TCAS', 'You are looking for the traffic', 'You have lost sight of the traffic'],
-    c: 0, e: 'It is a visual acquisition report, and separation may be passed to you.' },
+  { q: 'What is it?',
+    o: ['Camshaft', 'Crankshaft', 'Propeller shaft', 'Connecting rod'],
+    c: 0, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: 'Reporting "NEGATIVE CONTACT" means:',
-    o: ['You do not see the traffic', 'Your radio has failed', 'You refuse the instruction', 'You lost contact with the controller'],
-    c: 0, e: 'Negative contact reports failure to see the traffic called.' },
+  { q: 'What is it?',
+    o: ['Engine block', 'Carburetor', 'Magneto', 'Oil filter'],
+    c: 0, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  // ── Human factors and comms ────────────────────────────────────────────────
-  { q: 'The most common cause of a readback error going undetected is:',
-    o: ['Poor radio quality', 'Expectation bias — hearing what you expected to hear', 'Speaking too slowly', 'Using standard phraseology'],
-    c: 1, e: 'Expectation bias makes both the pilot and controller hear the expected value.' },
+  { q: 'What is it?',
+    o: ['Crankshaft', 'Camshaft', 'Connecting rod', 'Propeller shaft'],
+    c: 0, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: 'A "sterile flight deck" means:',
-    o: ['No non-essential conversation below a defined altitude', 'The cockpit is cleaned before flight', 'Only the captain may speak', 'The radio is muted during climb'],
-    c: 0, e: 'It restricts non-essential activity in the critical phases of flight.' },
+  { q: 'What is it?',
+    o: ['Timing belt', 'Drive chain', 'Fuel hose', 'Gasket'],
+    c: 0, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: 'Why is standard phraseology preferred over plain language?',
-    o: ['It is faster to say', 'It reduces ambiguity between speakers of different first languages', 'It is required by the aircraft manufacturer', 'It shortens the frequency occupancy only'],
-    c: 1, e: 'The purpose is unambiguous meaning across languages and accents.' },
+  { q: 'What is it?',
+    o: ['Intake stroke', 'Compression stroke', 'Power stroke', 'Exhaust stroke'],
+    c: 0, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: 'When plain language is necessary, ICAO recommends you:',
-    o: ['Speak faster to save frequency time', 'Use clear, simple and concise language', 'Use technical jargon for precision', 'Switch to your own language'],
-    c: 1, e: 'Plain language should still be clear, concise and unambiguous.' },
+  { q: 'What is it?',
+    o: ['Intake stroke', 'Compression stroke', 'Power stroke', 'Exhaust stroke'],
+    c: 3, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: 'ICAO Level 4 (Operational) is the minimum required for:',
-    o: ['Private flying only', 'International operations', 'All flying everywhere', 'Instructors only'],
-    c: 1, e: 'Level 4 is the minimum for international radiotelephony.' },
+  { q: 'What is it?',
+    o: ['Intake stroke', 'Compression stroke', 'Power stroke', 'Exhaust stroke'],
+    c: 2, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' },
 
-  { q: 'A controller says "CONFIRM FLIGHT LEVEL". This asks you to:',
-    o: ['Climb to the assigned level', 'Verify and state your current level', 'Acknowledge the level change', 'Report reaching the level'],
-    c: 1, e: 'Confirm asks for verification of a value you have already been given or reported.' }
+  { q: 'What is it?',
+    o: ['Intake stroke', 'Compression stroke', 'Power stroke', 'Exhaust stroke'],
+    c: 1, img: true, e: 'NEEDS AN IMAGE. Paste the picture link into imageUrl and set active to TRUE.' }
 ];
 
 /* ── Sheet setup ─────────────────────────────────────────────────────────────
@@ -277,7 +274,10 @@ function setupChallengeQuestions(force) {
       correctIndex: it.c,
       imageUrl:     '',
       explanation:  it.e || '',
-      active:       true,
+      /* A row that needs a picture arrives switched off. It is in the sheet, with
+       * its options and its answer, waiting for one cell — which is a better
+       * place for it than a list somebody has to remember to type in later. */
+      active:       !it.img,
       createdAt:    stamp
     };
     return headers.map(function (h) { return row[h] !== undefined ? row[h] : ''; });
