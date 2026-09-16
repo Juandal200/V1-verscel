@@ -15,6 +15,51 @@ Newest day first.
 
 ---
 
+## 2026-09-15
+
+### F-0028 — the challenge confirmation names the pilot, not null
+
+**Plan.** One change, one file. `_gamSendChallenge`'s success handler called
+`_gamCloseModal()` — which sets `_gam.targetName` and `_gam.targetEmail` to null — and
+then built its toast out of those two fields three lines later. Read the name into a
+local before the close and use that.
+
+Checked first that it was one site and not several: of the eight reads of
+`_gam.target*`, the one on the modal title follows the assignment, the guard runs with
+the modal open, and the `.sendChallenge(...)` argument is evaluated at call time, before
+any handler. Only the toast reads cleared state.
+
+**Criterion.** Stated: the confirmation shows the pilot's name instead of `null`.
+
+`DERIVED`, on which name: the display name, falling back to the email. That is what the
+code already attempted and what the modal title does. If the email or the scenario was
+wanted, the fix is a different one.
+
+**Why, in one line.** It was wrong on every single send, on desktop and on phone, and it
+is the kind of thing a person reads as the product not knowing who they just challenged.
+
+**Checklist.**
+
+- [ ] Open Crew, pick a pilot, send them a challenge
+- [ ] The confirmation reads "Challenge sent to \<the pilot's name\>!"
+- [ ] Neither `null` nor `undefined` appears anywhere in the message
+- [ ] With a pilot who has no name, the confirmation shows their email
+- [ ] The modal still closes, and the scenario and score are cleared
+- [ ] Sending a second challenge straight after names that pilot correctly
+- [ ] A failed send still shows its own error, not the success message
+
+**The suite was seen red first, and it was wrong once before it was right.** Bounded at
+the next sibling function, it swept in the trailing `.sendChallenge(..., _gam.targetEmail,
+...)` and reported three violations. That argument is read before the close in time and
+below it in the file; acting on the third would have broken the send. The window is the
+success handler now, and it reports the two that are real.
+
+**Not verifiable from the repo.** How the toast reads on a phone, and whether it still
+covers the pilot's email in the card underneath — a separate defect, seen in the
+screenshot, not filed here.
+
+---
+
 ## 2026-09-10
 
 ### The verdict stops covering the clearance on a phone

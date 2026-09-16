@@ -31,6 +31,18 @@ ticket list, not in a "de aquí salen" line. It is recorded here as absent rathe
 than left as a gap in the numbering — whether it was withdrawn, never filed, or
 lost in the export is not answerable from what was sent.
 
+**R-0014 onwards are assigned here, not by the export.** R-0008 to R-0013 came from the
+Telegram export this file was built from. Reports after it have no number of their own —
+the bot records a meeting, not a report id — so they are numbered here as they are used
+and mapped to the row they came from, which is what makes the provenance checkable:
+
+| report | meeting | in the database |
+|---|---|---|
+| R-0014 | 2026-09-13 · «Revisión de usabilidad, errores de interfaz y métricas» | `equipo.reuniones` id 16 |
+
+This is the repo's own numbering being continued, not a bot id being guessed at — rule 8
+forbids the second, not the first.
+
 `D-1` to `D-9` are **not defect reports**. They are the decisions taken at the end
 of R-0009 and R-0013, given ticket form so they can be tracked and closed. Their
 `Done when` comes from the decision itself. The mapping of a D-number to a
@@ -402,6 +414,40 @@ Whether it was withdrawn, merged into another ticket, never filed, or lost in th
 export is not answerable from what was sent. It is recorded here so the gap in
 the sequence is a known absence rather than something an auditor has to
 rediscover.
+
+---
+
+## F-0028 — The challenge confirmation says "null" instead of the pilot's name
+**Source** R-0014 · reported 2026-09-13 by Angélica Álvarez
+**Severity** 🟠 Molesta
+**Area** Crew — challenges
+**Observed** *El mensaje de confirmación al proponer un reto muestra 'Challenge sent to
+null' en lugar del nombre del destinatario.*
+> Proposing a challenge confirms with "Challenge sent to null" instead of the
+> recipient's name.
+**Expected** The confirmation names the pilot the challenge went to.
+**Done when** `DERIVED` The toast reads the pilot's display name, falling back to their
+email — which is what the code already tried to do, and what the modal title on the line
+above it does. If the email or the scenario was wanted instead, this is the wrong fix.
+**Status** Fixed — `_gamSendChallenge` called `_gamCloseModal()`, which sets
+`_gam.targetName` and `_gam.targetEmail` to null, and built the toast out of those two
+fields three lines later. The name is now read before the close. Covered by
+`test/challenge-toast.test.js`, which checks the ORDER rather than the text, so either
+repair satisfies it.
+
+**The fallback is what proves it was ordering and not missing data.** With `data-name`
+absent the toast would have shown the email; with `data-email` absent the guard at the
+top of the send would have refused to send at all. Reaching the toast *and* printing the
+word `null` needs both fields cleared between the send and the message, and only the
+close does that. Two screenshots confirmed it: the pilot's name renders correctly in the
+card while the toast says `null`.
+
+**A second implementation exists and was left alone.** `Gamification.js:407` already
+returns `'Challenge sent to ' + targetEmail + ' on scenario "…"'`, and the client
+discards it on the success path — it only reads `res.message` when the send fails. Using
+it would have fixed this too, but it changes what the message says (email instead of
+name, plus the scenario), and that is scope this ticket did not ask for. Recorded here
+rather than fixed.
 
 ---
 

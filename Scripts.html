@@ -25107,10 +25107,14 @@ var LEVEL_THEMES = {
           _gToast(res.message || 'Could not send challenge.', 'err');
           return;
         }
+        // Read before the close, because the close is what clears it: _gamCloseModal
+        // sets targetName and targetEmail to null, and the toast three lines down used
+        // to read them afterwards and announce "Challenge sent to null!" (F-0028).
+        var sentTo = _gam.targetName || _gam.targetEmail;
         _gamCloseModal();
         if (scEl)    scEl.selectedIndex = 0;
         if (scoreEl) scoreEl.value = '';
-        _gToast('Challenge sent to ' + (_gam.targetName || _gam.targetEmail) + '!', 'ok');
+        _gToast('Challenge sent to ' + sentTo + '!', 'ok');
       })
       .withFailureHandler(function () {
         if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = 'Send Challenge'; }
