@@ -8686,8 +8686,25 @@ var LEVEL_THEMES = {
       });
     }
 
+    /* Wake the context this engine is actually using.
+     *
+     * _ctx() hands back SimMedia.bgCtx when the simulator has one and otherwise
+     * builds _ownCtx, which is private — so a caller outside the cockpit had no
+     * way to resume it. A context built without a user gesture starts suspended
+     * and every sound after that schedules into a stopped clock: no error, no
+     * noise. The Squadron duel hit exactly that, and tried SimAudio.ctx, which
+     * this object has never had.
+     *
+     * Returns nothing and is safe to call on every tap. */
+    function unlock() {
+      try {
+        var c = _ctx();
+        if (c && c.state === 'suspended' && c.resume) c.resume();
+      } catch (e) {}
+    }
+
     return { squelch: squelch, squelchTail: squelchTail, interfere: interfere,
-             stopScheduled: stopScheduled,
+             stopScheduled: stopScheduled, unlock: unlock,
              difficulty: _difficulty,
              chimeUnlock: chimeUnlock, correct: correct, wrong: wrong };
   }());
@@ -25083,7 +25100,27 @@ var LEVEL_THEMES = {
   function _duelMusic() {
     try {
       if (window._lmsQuizDrone) return;                 // already playing
-      if (typeof window._lmsStartQuizMusic === 'function') window._lmsStartQuizMusic();
+      if (typeof window._lmsStartQuizMusic !== 'function') return;
+      window._lmsStartQuizMusic();
+
+      /* Resuming BEFORE this would have resumed nothing — the context does not
+       * exist until the line above builds it. And a context that starts
+       * suspended has a frozen currentTime, so the eight notes just scheduled
+       * went in at instant zero on a clock that never moved; resuming does not
+       * rescue them. So it is resumed and then started again, once, on a clock
+       * that is running. */
+      var c = window._lmsQuizAudioCtx;
+      if (c && c.state === 'suspended' && c.resume) {
+        var p = c.resume();
+        if (p && p.then) {
+          p.then(function () {
+            try {
+              if (typeof window._lmsStopQuizMusic === 'function') window._lmsStopQuizMusic();
+              window._lmsStartQuizMusic();
+            } catch (e2) {}
+          })['catch'](function () {});
+        }
+      }
     } catch (e) {}
   }
 
@@ -25111,7 +25148,7 @@ var LEVEL_THEMES = {
       if (c && c.state === 'suspended' && c.resume) c.resume();
     } catch (e) {}
     try {
-      if (window.SimAudio && SimAudio.ctx && SimAudio.ctx.state === 'suspended') SimAudio.ctx.resume();
+      if (window.SimAudio && typeof SimAudio.unlock === 'function') SimAudio.unlock();
     } catch (e) {}
   }
 
@@ -25228,11 +25265,20 @@ var LEVEL_THEMES = {
     _duelClearTimer();
     _duelWake();
     _duelMusic();
-    /* A tap is acknowledged, not judged. Whether it was right is the server's to
+    /* Three sounds, each doing a different job, and each audibly different.
+     *
+     * The tap was squelch — the same 25 ms noise burst the countdown ticks use.
+     * The ticks were heard and the tap was not, which is not a bug in the engine:
+     * a PTT click lands in a quiet second on its own, and vanishes under a finger
+     * on glass while the next question paints. chimeUnlock is two notes and
+     * carries; it is also nothing like the tick, so a pilot can tell "registered"
+     * from "hurry up" without looking.
+     *
+     * A tap is acknowledged, not judged. Whether it was right is the server's to
      * say, and saying it here would mean sending the answer key to the browser —
-     * which is the one thing the duel cannot do. The verdict lands on the result
-     * screen, where it is already known. */
-    _duelSound(choice === null ? 'wrong' : 'squelch');
+     * the one thing the duel cannot do. The verdict lands on the result screen,
+     * where it is already known. */
+    _duelSound(choice === null ? 'wrong' : 'chimeUnlock');
     _duel.answers[_duel.i] = choice;
     _duel.i++;
     if (_duel.i < _duel.qs.length) _duelRender();
