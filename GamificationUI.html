@@ -657,6 +657,13 @@
      allows under a second are 0.15, 0.25 and 0.4, and a bar that fills over a
      one-second tick would need a fourth. It steps once a second instead, which
      is the same information. */
+  /* [hidden] has to be spelled out because `display: flex` below outranks it.
+     The browser hides a hidden element with `display: none` from its own base
+     stylesheet, and any author rule that sets display wins — so the panel
+     rendered, empty and titleless, the moment anyone opened Crew. Setting the
+     attribute in script was doing exactly nothing. */
+  #gamification-module .gam-duel-overlay[hidden] { display: none; }
+
   #gamification-module .gam-duel-overlay {
     position: fixed;
     inset: 0;

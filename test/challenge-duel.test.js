@@ -64,6 +64,19 @@ const forPlay = pfp;
 ok('serving it reuses the stored order rather than reshuffling',
    forPlay !== '' && /p\.order\.map/.test(forPlay) && !/_gamShuffle_/.test(forPlay));
 
+console.log('--- the duel stays hidden until somebody starts one ---');
+/* It did not. `display: flex` on the overlay outranks the browser's own
+ * `[hidden] { display: none }`, so the panel rendered empty on every visit to
+ * Crew while the script dutifully set an attribute that changed nothing. Any
+ * rule that gives this overlay a display needs the attribute spelled out
+ * alongside it. */
+const UI = fs.readFileSync(__dirname + '/../GamificationUI.html', 'utf8');
+ok('the overlay sets a display, which is why this matters',
+   /\.gam-duel-overlay \{[^}]*display:\s*flex/.test(UI));
+ok('and [hidden] is spelled out so it still wins',
+   /\.gam-duel-overlay\[hidden\]\s*\{[^}]*display:\s*none/.test(UI));
+ok('the markup ships hidden', /id="gamDuel"[^>]*\shidden/.test(UI));
+
 console.log('--- nothing shows a raw null to a pilot ---');
 /* F-0028 was a null reaching the screen. The shape is gone, the lesson is not. */
 const result = (S.match(/function _duelResult[\s\S]*?\n  \}\n/) || [''])[0];
