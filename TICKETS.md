@@ -546,7 +546,7 @@ line saying the opponent was not emailed, and `ScriptApp.getService().getUrl()` 
 one call in the function that can throw — is guarded with `appBaseUrl_()` behind it.
 
 **2026-09-18: the email arrived, and NO `clasp push` had happened.** Corrected on
-2026-09-19 — this entry first said "after the `clasp push`", which was an assumption
+2026-09-18 — this entry first said "after the `clasp push`", which was an assumption
 about what somebody else had done, not a fact. The reporter confirms he never ran it, so
 nothing in this repository has ever reached the Apps Script project and **production is
 still running the original sender**.
@@ -582,7 +582,7 @@ still record nothing.
 
 **The link is the canary, and it has already read negative once.** Both the original
 sender and the first repair produced an `/exec` link, so nothing observable distinguished
-them; this one does not. A duel on 2026-09-19 still opened `script.google.com`, which is
+them; this one does not. A duel on 2026-09-18 still opened `script.google.com`, which is
 consistent with the code never having been deployed rather than with the fix being wrong.
 When the button points at `aerocomms.vercel.app`, the backend is live and the deploy path
 works.
@@ -1116,12 +1116,12 @@ reachable escape against a row that was already reachable another way.
 
 ## An email link cannot open the installed app on iOS, and the criterion has to change
 
-**No bot ID.** Reported 2026-09-19 by Juan Camilo Martinez Correa while confirming
+**No bot ID.** Reported 2026-09-18 by Juan Camilo Martinez Correa while confirming
 F-0043b: the Accept Challenge button now goes to the right origin, but on an iPhone with
 the app installed it opens in the browser. The same link on Android opens the installed
 app directly.
 
-**Source** Found during other work · 2026-09-19
+**Source** Found during other work · 2026-09-18
 **Severity** Medium — it is not the link, it is what the browser cannot carry
 **Area** The manifest in build.js, the emails in Gamification.js and Userservice.js
 
