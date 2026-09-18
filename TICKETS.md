@@ -563,6 +563,19 @@ can make MailApp deliver: hoisting a call that does not throw is a no-op, and th
 early return refuses to send rather than sending. **The change did not fix the
 delivery.**
 
+**And there is a second reason the arrival proves nothing about the code: it may not
+have been running.** Production calls the deployment pinned in `api/gas.mjs`, which was
+on version `@667`; `clasp push` updates the project and `@HEAD` but leaves a pinned
+deployment serving what it already served. So unless that deployment was repointed, the
+instrumentation was never live — which also means a failure today would still record
+nothing.
+
+**The link is the canary.** Both the old code and yesterday's produced an `/exec` link,
+so nothing observable distinguished them. This commit's does not: if the next challenge
+email's button points at `aerocomms.vercel.app`, the new backend is live and the deploy
+path works. If it still points at `script.google.com`, the deploy is what needs fixing,
+not the mail.
+
 **The leading explanation is now the daily MailApp quota**, and it is the only one that
 accounts for every piece of evidence at once: it is shared across every send in the
 project, which is why the duel mail and the squadron invitation failed together while
