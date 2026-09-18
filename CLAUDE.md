@@ -78,13 +78,21 @@ app misreporting a student's own progress is worse than the app being slow.
 - **`clasp push` does NOT change what production runs.** Production calls the deployment
   whose id is in `api/gas.mjs`, and that deployment is pinned to a version (`@667` when
   last listed). A push updates the project and `@HEAD`; the pinned deployment keeps
-  serving its version until it is repointed:
-  `clasp deploy -i <the AKfycb… id from api/gas.mjs> -d "<why>"`. **Never create a new
-  deployment instead** — a new one gets a new `/exec` URL, and all four `api/*.mjs`
-  carry the old one as a literal, so the app talks to a backend nobody is updating.
-  This cost a round trip on F-0043b: a change was pushed, the behaviour did not appear,
-  and the absence looked like the fix not working rather than the fix not being live.
-  See KNOWN_ISSUES, "three stale Apps Script deployments are live and callable".
+  serving its version until it is repointed. **Never create a new deployment instead**
+  — a new one gets a new `/exec` URL, and all four `api/*.mjs` carry the old one as a
+  literal, so the app would talk to a backend nobody is updating. This cost a round trip
+  on F-0043b: the behaviour did not appear, and its absence looked like the fix not
+  working rather than the fix not being live. See KNOWN_ISSUES, "three stale Apps Script
+  deployments are live and callable".
+
+  **Use `tools/gas-deploy.sh`.** With no arguments it pulls the live project into a
+  scratch copy and diffs it against the repo, and writes nothing — because `clasp push`
+  overwrites the project with this repo's root files, so an edit somebody made in the
+  Apps Script editor disappears with no warning and no record. `--deploy "<why>"` then
+  does both steps, and the deployment id is derived from `api/*.mjs` with all four
+  required to agree. It needs a clasp credential, which is a Google browser consent and
+  therefore cannot be scripted; the command to create it is in the script's header and
+  in its error message.
 - doPost always returns HTTP 200. Refusals are {ok:false, code:'FORBIDDEN', status:403}
   in the body. Body-level codes are the real authorization, not a workaround.
 - executeAs: USER_DEPLOYING means getUserLock() resolves to one identity — per-user
