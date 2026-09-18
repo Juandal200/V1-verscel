@@ -545,8 +545,18 @@ silent: it returns an outcome, the reason reaches `ClientEvents` through
 line saying the opponent was not emailed, and `ScriptApp.getService().getUrl()` — the
 one call in the function that can throw — is guarded with `appBaseUrl_()` behind it.
 
-**2026-09-18, after the `clasp push`: the email arrived.** And it settled less than it
-looks like it did, so both halves are written down.
+**2026-09-18: the email arrived, and NO `clasp push` had happened.** Corrected on
+2026-09-19 — this entry first said "after the `clasp push`", which was an assumption
+about what somebody else had done, not a fact. The reporter confirms he never ran it, so
+nothing in this repository has ever reached the Apps Script project and **production is
+still running the original sender**.
+
+That makes the evidence much simpler than the paragraphs below it first suggested. The
+original code delivered a mail yesterday, so nothing in it prevents delivery; whatever
+stopped the two Gamification emails earlier was transient, and the daily `MailApp` quota
+is the only shared, self-resetting explanation on the table. The instrumentation has
+never run. The `/exec` link the reporter sees is the original `getService().getUrl()`,
+behaving exactly as it always did.
 
 What it settled: **the button linked to the wrong place.** Accept Challenge was built
 from `ScriptApp.getService().getUrl()`, which is Apps Script's `/exec` — whatever `clasp`
@@ -563,18 +573,19 @@ can make MailApp deliver: hoisting a call that does not throw is a no-op, and th
 early return refuses to send rather than sending. **The change did not fix the
 delivery.**
 
-**And there is a second reason the arrival proves nothing about the code: it may not
-have been running.** Production calls the deployment pinned in `api/gas.mjs`, which was
-on version `@667`; `clasp push` updates the project and `@HEAD` but leaves a pinned
-deployment serving what it already served. So unless that deployment was repointed, the
-instrumentation was never live — which also means a failure today would still record
-nothing.
+**So the arrival proves nothing about the code, because the code was not running.**
+Two gates stand between this repository and production and neither has been passed: a
+`clasp push`, which nobody has run, and then a `clasp deploy -i` onto the deployment
+pinned in `api/gas.mjs` — version `@667` — because a push moves the project and `@HEAD`
+and leaves a pinned deployment serving what it already served. A failure today would
+still record nothing.
 
-**The link is the canary.** Both the old code and yesterday's produced an `/exec` link,
-so nothing observable distinguished them. This commit's does not: if the next challenge
-email's button points at `aerocomms.vercel.app`, the new backend is live and the deploy
-path works. If it still points at `script.google.com`, the deploy is what needs fixing,
-not the mail.
+**The link is the canary, and it has already read negative once.** Both the original
+sender and the first repair produced an `/exec` link, so nothing observable distinguished
+them; this one does not. A duel on 2026-09-19 still opened `script.google.com`, which is
+consistent with the code never having been deployed rather than with the fix being wrong.
+When the button points at `aerocomms.vercel.app`, the backend is live and the deploy path
+works.
 
 **The leading explanation is now the daily MailApp quota**, and it is the only one that
 accounts for every piece of evidence at once: it is shared across every send in the
