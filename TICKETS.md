@@ -1111,3 +1111,59 @@ same frozen five — so "do not write the row yet" is not free either.
 **Notes** Cancel was added because the overlay is modal: without it, a call that never
 answers traps the pilot behind a turning globe. The trade was taken knowingly — a
 reachable escape against a row that was already reachable another way.
+
+---
+
+## An email link cannot open the installed app on iOS, and the criterion has to change
+
+**No bot ID.** Reported 2026-09-19 by Juan Camilo Martinez Correa while confirming
+F-0043b: the Accept Challenge button now goes to the right origin, but on an iPhone with
+the app installed it opens in the browser. The same link on Android opens the installed
+app directly.
+
+**Source** Found during other work · 2026-09-19
+**Severity** Medium — it is not the link, it is what the browser cannot carry
+**Area** The manifest in build.js, the emails in Gamification.js and Userservice.js
+
+**Observed** Android and iOS differ, and both are behaving as designed.
+
+Installing on Android builds a WebAPK, which registers intent filters for the manifest's
+scope, so a link inside that scope is handed to the installed app. Ours is already shaped
+for it — `id`, `start_url` and `scope` are all `/` — which is exactly why Android works.
+
+iOS has no equivalent. A home-screen web app cannot register as a link handler at all;
+the only mechanism Apple offers is a Universal Link, which requires a native App Store
+app with an associated-domains entitlement and an `apple-app-site-association` file on
+the domain. **Nothing in the manifest, the meta tags or the link can change this.** It is
+not a defect in the email and it is not fixable on the web side.
+
+**So the achievable criterion is a different one.** On iOS a home-screen web app keeps
+its own storage container, separate from Safari's, and this app's session lives in
+`localStorage` under `icao_session_token` (`Scripts.html` 859, 1690). So the iPhone user
+who taps the button does not merely land in the wrong shell — they land **signed out**,
+and are asked for a login code they did not expect. That is the part that can be fixed,
+and it is the part that actually costs the user something.
+
+**Done when** `DERIVED` An iPhone user with the app installed who taps Accept Challenge
+reaches the duel without being asked to sign in again. **Not** "the link opens the
+installed app", which iOS does not permit and which no amount of work here will achieve.
+
+**Options, cheapest first.**
+
+1. One line in the email: *Already have aerocomms installed? Open it and go to Crew.*
+   Costs nothing and offers the better path to the people who have the app.
+2. A one-time sign-in link, so the browser landing does not ask for a code. The machinery
+   exists — `LoginCodes` already issues single-use codes with a hash and an expiry — but
+   putting one in a URL is a security decision with its own blast radius and belongs in
+   its own ticket, not in a bullet here.
+3. A native wrapper plus Universal Links. The only thing that makes the link open the
+   installed app on iOS, and an App Store project rather than a change.
+
+**Status** Open — recorded, not fixed. F-0043b is not held open by it: that ticket asked
+for the challenged pilot to be emailed and for the link to reach the app rather than
+Apps Script's `/exec`, and both now hold on both platforms.
+
+**Notes** **Unverified on a device.** The storage-container claim follows from documented
+iOS behaviour and from where the token is written, not from a measurement — nobody has
+watched an iPhone land on that page and be asked to sign in. That is one tap to check and
+it decides whether option 2 is worth building.
