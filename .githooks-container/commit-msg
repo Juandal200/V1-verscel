@@ -1,0 +1,48 @@
+#!/bin/sh
+# Runs .githooks/commit-msg where node exists, for a machine where it does not.
+#
+# The real hook is a node script. On a host with no node — this project has been
+# worked on from one — `git config core.hooksPath .githooks` installs a hook that
+# cannot run, so git reports it and the commit goes through unchecked. That is
+# worse than not installing it: it looks installed.
+#
+# The cost of not having it is measured, not hypothetical. Three commit bodies in
+# two days claimed a number the command did not print (59 for 54, 1 for 3, 3 for
+# 4), which is the exact failure the hook was written for, and the third slipped
+# through with the correct output on screen one line above the commit.
+#
+# Install per clone:  git config core.hooksPath .githooks-container
+# The image, once:    printf 'FROM node:22-alpine\nRUN apk add --no-cache git\n' \
+#                       | docker build -t aerocomms-hooks -
+# git is in the image because bodies quote `git log` output; without it those
+# lines fail as "git: not found" and the hook rejects a claim that was correct.
+set -e
+
+if command -v node >/dev/null 2>&1; then
+  exec node "$(dirname "$0")/../.githooks/commit-msg" "$@"
+fi
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "commit-msg: no node and no docker — claims in this body were NOT checked." >&2
+  exit 0
+fi
+
+REPO=$(git rev-parse --show-toplevel)
+MSG=$(cd "$(dirname "$1")" && pwd)/$(basename "$1")
+
+# The message file lives under .git/, which is inside the repo mount, so the
+# path is rewritten rather than mounted twice.
+case "$MSG" in
+  "$REPO"/*) IN=/app${MSG#"$REPO"} ;;
+  *) echo "commit-msg: message file outside the repo, not checked." >&2; exit 0 ;;
+esac
+
+# safe.directory is passed in rather than written to a config: the repo is owned by
+# the host user and git in the container runs as root, so a `$ git log` claim would
+# otherwise fail as dubious ownership and reject a body that was correct.
+exec docker run --rm \
+  -v "$REPO":/app -w /app \
+  -e GIT_CONFIG_COUNT=1 \
+  -e GIT_CONFIG_KEY_0=safe.directory \
+  -e GIT_CONFIG_VALUE_0=/app \
+  aerocomms-hooks node .githooks/commit-msg "$IN"

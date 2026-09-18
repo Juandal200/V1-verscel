@@ -119,7 +119,14 @@ Commit bodies carry commands and their output in this shape:
 
 `.githooks/commit-msg` re-runs every `$ ` line from the repo root and rejects the
 commit if the output beneath it does not match. Install it once per clone:
-`git config core.hooksPath .githooks`. Use `$! ` for anything that cannot be
+`git config core.hooksPath .githooks`.
+
+**On a host with no node, install `.githooks-container` instead** — same hook, run
+inside a container. `core.hooksPath .githooks` on such a host installs a hook that
+cannot run, and git lets the commit through unchecked, which is worse than not
+installing it because it looks installed. The cost is measured: three bodies in two
+days claimed a number the command did not print — 59 for 54, 1 for 3, 3 for 4 — and the
+last slipped through with the right number on screen one line above the commit. Use `$! ` for anything that cannot be
 replayed — network calls, deploys, live probes, timings — which is skipped and
 listed so nobody mistakes it for checked. It closes one hole, not the class: a
 claim that was never a command is still yours to get right.
