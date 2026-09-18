@@ -25262,13 +25262,414 @@ var LEVEL_THEMES = {
   function _duelClose() {
     _duelClearTimer();
     _duelStopMusic();
+    _duelGlobe.stop();
     var ov = _gEl('gamDuel');
     if (ov) ov.hidden = true;
+  }
+
+
+  /* ── The world map, in the duel's own space ────────────────────────────────
+   *
+   * A second copy of the boot screen's globe, by decision rather than by
+   * accident. Parameterising the original would have put the one screen every
+   * session starts with at risk in order to fill a two-second wait inside a
+   * modal, and that screen shipped three days ago.
+   *
+   * What keeps the copy honest is that none of the geometry is re-derived. The
+   * region between the AERO-GEO-SHARED markers is lifted verbatim from
+   * LoadingScreen.html — same constants, same coastlines, same projection, same
+   * plane — and test/duel-globe-parity.test.js compares the two with comments
+   * and whitespace stripped. Edit a coastline in one file and the suite goes
+   * red, rather than leaving two globes that slowly stop being the same globe.
+   *
+   * Adapting it to the space IS the viewBox and nothing else. The stage is still
+   * 1920x1080 in its own coordinates; this shows an 840x472 window around the
+   * globe and the card scales it. There is no second set of numbers to keep in
+   * step, and no resize listener, because an SVG fits itself.
+   *
+   * Dropped, with the reason: the star field and the atmosphere gradient (both
+   * are drawn far outside this window — the gradient's radius is 2.1 R, so the
+   * crop turned it into a faintly lighter rectangle behind the globe, which is
+   * what a cropped radial fill looks like), the brand mark and the
+   * percentage (this is a two-second wait, not a boot), the exit zoom (the paper
+   * arriving is the exit) and the 15-second ceiling (this call's own handlers
+   * end it).
+   *
+   * The ids carry a prefix. The boot loader owns aeroLsArt and aeroLsAtmo and
+   * its halo reaches its art through <use href="#aeroLsArt">, so two elements
+   * sharing one id would mean the second <use> silently drawing the first
+   * globe — FLAG_SVG's bug, already in TICKETS.md, in a new place.
+   */
+  var _duelGlobe = (function () {
+    /* AERO-GEO-SHARED-START */
+    var TAU = Math.PI * 2;
+    var W = 1920, H = 1080;
+    var CX = 960, CY = 452, R = 208;
+    var TILT = 24 * Math.PI / 180, CT = Math.cos(TILT), ST = Math.sin(TILT);
+    var ORB = 1.55, INC = 22 * Math.PI / 180, CI = Math.cos(INC), SI = Math.sin(INC);
+
+    // The original's cues: scenes of 3.5 / 3.5 / 2.5 s.
+    var LAP = 3.5, ZSTART = 7.0, ZDUR = 2.5;
+
+    var SVGNS = 'http://www.w3.org/2000/svg';
+
+    /* ---------- easings (the four the piece uses) ---------- */
+    var Ease = {
+      easeInQuad:    function (t) { return t * t; },
+      easeOutQuad:   function (t) { return t * (2 - t); },
+      easeOutCubic:  function (t) { return 1 - Math.pow(1 - t, 3); },
+      easeInOutSine: function (t) { return -(Math.cos(Math.PI * t) - 1) / 2; }
+    };
+
+    /* ---------- three motion helpers (nothing else eases or transforms) ---------- */
+    var MOTION = {
+      cycle:  function (T, period) { var v = (T / period) % 1; return v < 0 ? v + 1 : v; },
+      breath: function (T, period, amt) { return 1 - amt * (1 - Math.cos(TAU * T / period)) / 2; },
+      ramp:   function (v, a, b, ease) {
+        var t = Math.max(0, Math.min(1, (v - a) / (b - a)));
+        return ease ? ease(t) : t;
+      }
+    };
+
+    /* ---------- geometry ---------- */
+    function sp(lon, lat) {
+      var la = lat * Math.PI / 180, lo = lon * Math.PI / 180;
+      return { x: Math.cos(la) * Math.sin(lo), y: Math.sin(la), z: Math.cos(la) * Math.cos(lo) };
+    }
+    // Chaikin corner cutting — turns the hand-placed coast vertices into a
+    // smooth continuous coastline instead of a chain of straight facets.
+    function chaikin(pts, iters) {
+      var p = pts;
+      for (var it = 0; it < iters; it++) {
+        var out = [];
+        for (var i = 0; i < p.length; i++) {
+          var a = p[i], b = p[(i + 1) % p.length];
+          out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
+          out.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+        }
+        p = out;
+      }
+      return p;
+    }
+    function sample(pts, closed, stepDeg) {
+      var list = closed ? pts.concat([pts[0]]) : pts, out = [];
+      for (var i = 0; i < list.length - 1; i++) {
+        var a = list[i], b = list[i + 1];
+        var n = Math.max(1, Math.ceil(Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])) / stepDeg));
+        for (var k = 0; k < n; k++) {
+          var t = k / n;
+          out.push(sp(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t));
+        }
+      }
+      var e = list[list.length - 1];
+      out.push(sp(e[0], e[1]));
+      return out;
+    }
+
+    var GRID = [];
+    for (var lon = 0; lon < 360; lon += 30) GRID.push(sample([[lon, -87], [lon, 87]], false, 3));
+    [-60, -30, 0, 30, 60].forEach(function (lat) {
+      GRID.push(sample([[0, lat], [120, lat], [240, lat], [360, lat]], false, 4));
+    });
+
+    var LAND = [
+      /* South America */[[-77, 8], [-75, 11], [-71, 12], [-64, 11], [-60, 8], [-52, 5], [-50, 1], [-44, -2], [-41, -3], [-38, -6], [-35, -8], [-37, -12], [-39, -17], [-41, -22], [-48, -25], [-51, -30], [-57, -34], [-62, -39], [-64, -43], [-68, -47], [-69, -52], [-72, -54], [-75, -51], [-74, -45], [-73, -41], [-73, -37], [-71, -33], [-71, -28], [-70, -23], [-70, -18], [-76, -14], [-79, -7], [-81, -4], [-80, -2], [-81, 1], [-78, 6]],
+      /* North America */[[-168, 66], [-164, 60], [-158, 57], [-152, 59], [-147, 60], [-140, 60], [-135, 57], [-130, 53], [-125, 49], [-124, 43], [-122, 37], [-118, 34], [-114, 31], [-110, 24], [-106, 23], [-105, 20], [-100, 17], [-95, 16], [-92, 14], [-88, 16], [-84, 10], [-80, 9], [-83, 12], [-84, 16], [-88, 21], [-94, 18], [-97, 22], [-94, 29], [-89, 29], [-84, 30], [-81, 25], [-80, 27], [-81, 31], [-76, 35], [-74, 39], [-70, 42], [-67, 45], [-64, 46], [-60, 47], [-55, 51], [-56, 54], [-64, 58], [-68, 58], [-78, 62], [-85, 66], [-95, 68], [-105, 69], [-115, 70], [-125, 70], [-133, 69], [-142, 70], [-150, 71], [-156, 71], [-163, 68]],
+      /* Africa */[[-17, 15], [-16, 12], [-13, 9], [-9, 6], [-4, 5], [1, 6], [6, 4], [9, 4], [9, 2], [11, -1], [12, -5], [12, -9], [13, -13], [12, -17], [15, -22], [17, -28], [18, -32], [20, -34], [25, -34], [28, -32], [32, -29], [33, -26], [35, -24], [37, -18], [40, -15], [40, -11], [40, -6], [41, -2], [43, 2], [48, 5], [51, 10], [51, 12], [47, 12], [43, 11], [40, 15], [37, 19], [35, 23], [34, 28], [32, 31], [25, 32], [19, 30], [13, 33], [10, 37], [3, 37], [-2, 35], [-6, 36], [-9, 33], [-11, 28], [-13, 24], [-16, 20]],
+      /* Eurasia */[[-9, 39], [-9, 43], [-2, 43], [-1, 46], [-4, 48], [0, 49], [4, 52], [7, 53], [8, 57], [5, 58], [7, 63], [11, 64], [14, 67], [18, 69], [21, 70], [26, 71], [30, 70], [33, 68], [40, 66], [44, 68], [50, 69], [58, 70], [62, 71], [70, 73], [76, 73], [80, 74], [86, 74], [92, 76], [100, 77], [106, 77], [112, 74], [120, 74], [128, 73], [136, 72], [142, 72], [150, 71], [158, 70], [165, 69], [170, 66], [166, 62], [163, 60], [160, 57], [157, 54], [156, 51], [152, 50], [145, 48], [141, 46], [138, 45], [135, 43], [130, 43], [128, 40], [122, 40], [120, 36], [122, 31], [118, 25], [110, 21], [108, 17], [106, 11], [104, 9], [101, 7], [99, 10], [98, 15], [95, 18], [90, 22], [87, 21], [83, 18], [80, 14], [78, 9], [76, 9], [73, 16], [71, 21], [68, 24], [66, 26], [62, 25], [58, 24], [57, 22], [55, 24], [52, 25], [50, 27], [48, 30], [44, 29], [42, 15], [43, 12], [40, 17], [37, 22], [35, 28], [34, 31], [36, 36], [30, 36], [26, 38], [23, 38], [19, 40], [16, 41], [18, 40], [16, 38], [13, 38], [12, 41], [14, 43], [12, 44], [9, 44], [5, 43], [3, 42], [0, 40], [-1, 37], [-5, 36], [-7, 37]],
+      /* Australia */[[113, -22], [114, -26], [115, -31], [118, -34], [123, -34], [129, -32], [132, -32], [135, -35], [138, -35], [140, -38], [144, -38], [147, -38], [150, -37], [152, -33], [153, -29], [153, -25], [149, -21], [146, -19], [143, -15], [142, -11], [140, -17], [137, -16], [136, -12], [132, -11], [130, -13], [128, -15], [125, -14], [122, -17], [119, -20], [116, -21]],
+      /* Greenland */[[-44, 60], [-42, 64], [-37, 66], [-30, 68], [-22, 70], [-20, 73], [-22, 77], [-26, 80], [-35, 83], [-48, 82], [-58, 80], [-65, 78], [-70, 76], [-62, 70], [-55, 67], [-50, 63]],
+      /* Madagascar */[[44, -12], [48, -13], [50, -16], [49, -20], [47, -25], [45, -25], [43, -21], [43, -16]],
+      /* British Isles */[[-5, 50], [-1, 51], [1, 52], [0, 54], [-2, 56], [-3, 58], [-5, 58], [-6, 56], [-5, 54], [-4, 53], [-5, 51]],
+      /* Ireland */[[-10, 52], [-6, 53], [-6, 55], [-10, 54]],
+      /* Sumatra */[[95, 5], [100, 1], [104, -2], [106, -6], [103, -5], [99, -1], [96, 3]],
+      /* Borneo */[[109, 2], [113, 4], [117, 4], [119, 0], [117, -3], [111, -3], [109, -1]],
+      /* New Guinea */[[131, -1], [138, -2], [144, -4], [150, -9], [146, -8], [140, -8], [134, -4]]
+    ].map(function (c) { return sample(chaikin(c, 2), true, 3); });
+
+    function r1(n) { return Math.round(n * 10) / 10; }
+
+    // Projects a sampled point list under globe rotation and emits only the
+    // runs on the requested hemisphere — this is what hides the back side.
+    function runs(pts, cr, sr, front) {
+      var out = [], cur = '';
+      for (var i = 0; i < pts.length; i++) {
+        var p = pts[i];
+        var x = p.x * cr + p.z * sr, z = p.z * cr - p.x * sr, y = p.y;
+        if ((y * ST + z * CT >= 0) === !!front) {
+          cur += (cur ? 'L' : 'M') + r1(CX + R * x) + ' ' + r1(CY - R * (y * CT - z * ST));
+        } else if (cur) { out.push(cur); cur = ''; }
+      }
+      if (cur) out.push(cur);
+      return out.join(' ');
+    }
+
+    function orbitAt(th) {
+      var ct = Math.cos(th), st = Math.sin(th);
+      var x = ORB * ct * CI, y = ORB * ct * SI, z = ORB * st;
+      var yv = y * CT - z * ST;
+      return { sx: CX + R * x, sy: CY - R * yv, d: y * ST + z * CT, rad: Math.hypot(x, yv) };
+    }
+
+    var ORBIT = [];
+    for (var i = 0; i <= 260; i++) ORBIT.push(orbitAt(TAU * i / 260));
+
+    function orbitRuns(front) {
+      var out = [], cur = '';
+      for (var i = 0; i < ORBIT.length; i++) {
+        var p = ORBIT[i];
+        var vis = front ? p.d >= 0 : (p.d < 0 && p.rad > 1.02);
+        if (vis) cur += (cur ? 'L' : 'M') + r1(p.sx) + ' ' + r1(p.sy);
+        else if (cur) { out.push(cur); cur = ''; }
+      }
+      if (cur) out.push(cur);
+      return out.join(' ');
+    }
+    var ORBIT_FRONT = orbitRuns(true), ORBIT_BACK = orbitRuns(false);
+
+    // visibility of an orbital point: 1 in front, ~0 when eclipsed by the globe
+    function seen(p) {
+      if (p.d >= 0) return 1;
+      return 0.06 + 0.94 * MOTION.ramp(p.rad, 0.94, 1.16);
+    }
+
+    var PLANE = 'M19 0 L7 -2.4 L-1 -2.9 L-8 -14 L-11.6 -14 L-6.6 -2.9 L-12.4 -2.7 L-16.4 -8.4 L-19 -8.4 L-17.4 -2.2 L-20.4 0 L-17.4 2.2 L-19 8.4 L-16.4 8.4 L-12.4 2.7 L-6.6 2.9 L-11.6 14 L-8 14 L-1 2.9 L7 2.4 Z';
+    /* AERO-GEO-SHARED-END */
+
+    var ART_ID = 'gamDuelGlobeArt';
+    var GLOW   = '#ffffff';
+    var GS      = 0.35;
+
+    /* The window on the stage: wide enough for the orbit, which reaches 1.55 R
+       from the centre, and 16:9-ish so a phone card is not mostly sky. */
+    var VIEW = { x: CX - 420, y: CY - 236, w: 840, h: 472 };
+
+    var TRAIL = 26;
+
+    function el(tag, attrs) {
+      var n = document.createElementNS(SVGNS, tag);
+      if (attrs) for (var k in attrs) n.setAttribute(k, attrs[k]);
+      return n;
+    }
+
+    var nowMs = (window.performance && performance.now)
+      ? function () { return performance.now(); }
+      : function () { return Date.now(); };
+
+    var parts = null, raf = 0, t0 = 0;
+
+    var reduced = false;
+    try { reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+
+    function build() {
+      var svg = el('svg', {
+        viewBox: VIEW.x + ' ' + VIEW.y + ' ' + VIEW.w + ' ' + VIEW.h,
+        'aria-hidden': 'true',
+        focusable: 'false'
+      });
+      svg.setAttribute('class', 'gam-duel-globe');
+
+      var gScene = el('g');
+      var gArt = el('g', { id: ART_ID });
+
+      gArt.appendChild(el('path', { d: ORBIT_BACK, fill: 'none', stroke: '#fff', 'stroke-width': '1.1', 'stroke-dasharray': '2 13', opacity: 0.14 }));
+
+      var gGridB = el('g', { opacity: 0.5 });
+      var gridBEls = GRID.map(function () {
+        var p = el('path', { fill: 'none', stroke: '#fff', 'stroke-width': '1', opacity: 0.26 });
+        gGridB.appendChild(p);
+        return p;
+      });
+      gArt.appendChild(gGridB);
+
+      gArt.appendChild(el('circle', { cx: CX, cy: CY, r: R, fill: 'none', stroke: '#fff', 'stroke-width': '1.2', opacity: 0.3 }));
+
+      var gridFEls = GRID.map(function () {
+        var p = el('path', { fill: 'none', stroke: '#fff', 'stroke-width': '1.3', opacity: 0.5 });
+        gArt.appendChild(p);
+        return p;
+      });
+
+      var landEls = LAND.map(function () {
+        var p = el('path', { fill: 'none', stroke: '#fff', 'stroke-width': '2', opacity: 1, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+        gArt.appendChild(p);
+        return p;
+      });
+
+      gArt.appendChild(el('path', { d: ORBIT_FRONT, fill: 'none', stroke: '#fff', 'stroke-width': '1.3', 'stroke-dasharray': '2 13', opacity: 0.42 }));
+
+      var gTrail = el('g', { fill: 'none', stroke: '#fff', 'stroke-linecap': 'round' });
+      var trailEls = [];
+      for (var k = 0; k < TRAIL; k++) {
+        var tp = el('path');
+        gTrail.appendChild(tp);
+        trailEls.push(tp);
+      }
+      gArt.appendChild(gTrail);
+
+      var gPlane = el('g');
+      var planePath = el('path', { d: PLANE, fill: '#0a0a0f', stroke: '#fff', 'stroke-width': '1.6', 'stroke-linejoin': 'round' });
+      gPlane.appendChild(planePath);
+      gArt.appendChild(gPlane);
+
+      /* One blurred copy, not the original's two. At this size the second layer
+         is a second full-art filter pass for a halo nobody can tell apart. */
+      var glow = el('g', { color: GLOW });
+      glow.style.filter = 'blur(6px)';
+      var use = el('use');
+      use.setAttribute('href', '#' + ART_ID);
+      use.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#' + ART_ID);
+      glow.appendChild(use);
+
+      gScene.appendChild(glow);
+      gScene.appendChild(gArt);
+      svg.appendChild(gScene);
+
+      return {
+        svg: svg, glow: glow,
+        gridF: gridFEls, gridB: gridBEls, land: landEls,
+        trail: trailEls, gPlane: gPlane, planePath: planePath
+      };
+    }
+
+    /* The boot loader's frame, with the drift, the zoom, the stars, the dots and
+       the percentage taken out. The rotation is TAU * T / (LAP * 2) exactly as
+       there, so the globe turns at the same rate as on the way in. */
+    function draw(T) {
+      if (!parts) return;
+
+      var pulse = MOTION.breath(T, LAP, 0.22);
+      var rot = TAU * T / (LAP * 2), cr = Math.cos(rot), sr = Math.sin(rot);
+
+      for (var i = 0; i < GRID.length; i++) {
+        parts.gridF[i].setAttribute('d', runs(GRID[i], cr, sr, true));
+        parts.gridB[i].setAttribute('d', runs(GRID[i], cr, sr, false));
+      }
+      for (var j = 0; j < LAND.length; j++) {
+        parts.land[j].setAttribute('d', runs(LAND[j], cr, sr, true));
+      }
+
+      var th = TAU * T / LAP - Math.PI * 0.85;
+      var p0 = orbitAt(th), p1 = orbitAt(th + 0.012);
+      var head = Math.atan2(p1.sy - p0.sy, p1.sx - p0.sx) * 180 / Math.PI;
+      var pv = seen(p0);
+      var pScale = 1.35 * (0.9 + 0.2 * MOTION.ramp(p0.d, -ORB, ORB));
+
+      var span = TAU * 0.22, prev = p0;
+      for (var t = 1; t <= TRAIL; t++) {
+        var q = orbitAt(th - span * t / TRAIL);
+        var f = Math.pow(1 - t / TRAIL, 1.5);
+        var mid = orbitAt(th - span * (t - 0.5) / TRAIL);
+        var seg = parts.trail[t - 1];
+        seg.setAttribute('d', 'M' + r1(prev.sx) + ' ' + r1(prev.sy) + 'L' + r1(q.sx) + ' ' + r1(q.sy));
+        seg.setAttribute('stroke-width', 0.8 + 3.4 * f);
+        seg.setAttribute('opacity', f * 0.95 * seen(mid));
+        prev = q;
+      }
+
+      parts.gPlane.setAttribute('transform', 'translate(' + r1(p0.sx) + ' ' + r1(p0.sy) + ') rotate(' + r1(head) + ') scale(' + r1(pScale * 100) / 100 + ')');
+      parts.gPlane.setAttribute('opacity', pv);
+      parts.planePath.setAttribute('fill-opacity', p0.d >= 0 ? 0.6 : 0);
+
+      parts.glow.setAttribute('opacity', Math.min(1, 0.88 * GS * pulse));
+    }
+
+    function frame() {
+      raf = 0;
+      draw((nowMs() - t0) / 1000);
+      if (parts && !reduced) raf = requestAnimationFrame(frame);
+    }
+
+    /* Idempotent on purpose: stop() first, so a second tap cannot leave a first
+       globe drawing into a node that is no longer on the page. */
+    function start(container) {
+      stop();
+      if (!container) return;
+      parts = build();
+      container.appendChild(parts.svg);
+      t0 = nowMs();
+      draw(0);
+      if (!reduced) raf = requestAnimationFrame(frame);
+    }
+
+    function stop() {
+      if (raf) { try { cancelAnimationFrame(raf); } catch (e) {} raf = 0; }
+      if (parts && parts.svg && parts.svg.parentNode) {
+        parts.svg.parentNode.removeChild(parts.svg);
+      }
+      parts = null;
+    }
+
+    return { start: start, stop: stop };
+  }());
+
+  /* The wait the globe covers, and why there was nothing there before.
+   *
+   * createChallenge draws the paper on the server. Apps Script's floor is
+   * 1.7-5.9 s for a call that does no I/O at all, and this one reads two sheets,
+   * so the tap is never answered at once. Until now the overlay was not shown
+   * until the paper came back, so the only sign that anything was happening was
+   * a button going grey — which is the 1-2 seconds nobody could read, reported as
+   * F-0043.
+   *
+   * The sound goes here, on the tap, and not in _duelStart. That is not a
+   * preference: a context created or resumed outside a user gesture starts
+   * suspended, which is exactly why the duel's music was silent for a week. The
+   * tap is the one moment the browser will allow audio, and it is also the moment
+   * the pilot is asking for feedback.
+   *
+   * Cancel exists because this overlay is modal. A disabled button left the rest
+   * of the app reachable; a full-screen scrim does not, so a call that never
+   * answers would trap the pilot behind a turning globe. The launch counter is
+   * what makes cancelling stick — a handler that arrives afterwards belongs to a
+   * duel nobody is waiting for any more, and it must not open a paper on top of
+   * whatever the pilot went on to do.
+   */
+  var _duelLaunch = 0;
+
+  function _duelLoading(name) {
+    var ov = _gEl('gamDuel');
+    if (!ov) return;
+
+    var title = _gEl('gamDuelTitle');
+    if (title) title.textContent = 'Challenging ' + name;
+
+    /* Blanked rather than left with the last duel's numbers: the panel is reused
+       and a stale clock reads as a countdown that is already running. */
+    var step = _gEl('gamDuelStep');   if (step)  step.textContent  = '';
+    var clock = _gEl('gamDuelClock'); if (clock) clock.textContent = '';
+    var bar = _gEl('gamDuelBar');     if (bar)   bar.style.width   = '100%';
+
+    var box = _gEl('gamDuelBody');
+    if (box) {
+      box.innerHTML =
+        '<div class="gam-duel-load">' +
+          '<div class="gam-duel-load-stage"></div>' +
+          '<div class="gam-duel-load-label">Drawing your five questions</div>' +
+          '<button type="button" id="gamDuelLoadCancel" class="gam-duel-load-cancel">Cancel</button>' +
+        '</div>';
+      _duelGlobe.start(box.querySelector('.gam-duel-load-stage'));
+      var cancel = _gEl('gamDuelLoadCancel');
+      if (cancel) {
+        cancel.addEventListener('click', function () {
+          _duelLaunch++;
+          _duelClose();
+        });
+      }
+    }
+
+    ov.hidden = false;
+    _duelWake();
+    _duelSound('squelch');
   }
 
   /* Opening is the same for both sides — the only difference is which call
    * produced the paper, and by here it already has. */
   function _duelStart(challengeId, questions, secondsPerQuestion) {
+    /* Before _duelRender writes over the body: the SVG would go with the
+       innerHTML but its frame loop would keep drawing into a detached tree. */
+    _duelGlobe.stop();
+
     _duel.id      = challengeId;
     _duel.qs      = questions || [];
     _duel.i       = 0;
@@ -25511,13 +25912,17 @@ var LEVEL_THEMES = {
     if (!email) { _gToast('No target pilot selected.', 'err'); return; }
 
     btn.disabled = true;
+    var launch = ++_duelLaunch;
+    _duelLoading(name);
     google.script.run
       .withSuccessHandler(function (res) {
         btn.disabled = false;
+        if (launch !== _duelLaunch) return;
         if (res.status !== 'success') {
           /* The reason, not a shrug. The generic sentence was shown three times
            * in a row while the actual message sat unread in res, which turned a
            * one-line answer into three rounds of guessing. */
+          _duelClose();
           _gToast(_duelWhy(res, 'Could not start the challenge.'), 'err');
           return;
         }
@@ -25527,6 +25932,8 @@ var LEVEL_THEMES = {
       })
       .withFailureHandler(function () {
         btn.disabled = false;
+        if (launch !== _duelLaunch) return;
+        _duelClose();
         _gToast('Connection error. Try again.', 'err');
       })
       .createChallenge(AppState.sessionToken, email);
