@@ -25834,10 +25834,36 @@ var LEVEL_THEMES = {
         '-day streak</div>';
     }
 
+    /* A courtesy that failed is still told. Saying nothing is what made F-0043
+     * take three days to even describe: the sender read "Challenge sent", the
+     * mail had not gone, and the first sign of it was an opponent who never
+     * turned up. The sentence also says the duel is not lost, because it is not
+     * — the row is Awaiting_Target by the time the mail is attempted, so it is
+     * sitting in the opponent's Crew tab either way.
+     *
+     * notified is three-valued on purpose: null for a submission no notification
+     * belonged to, false for one that was owed and did not go. Testing for false
+     * rather than falsiness is the difference. */
+    var notifyLine = '';
+    if (r.notified === false) {
+      notifyLine = '<div class="gam-duel-warn">We could not email your opponent. ' +
+        'The duel is still waiting for them in their Crew tab.</div>';
+      /* The reason goes where a developer looks, not onto a pilot's screen: the
+         console and, through apiLogClientEvent, a sheet. The server records it
+         too, but LogService.error needs an ErrorLogs sheet and swallows its own
+         failure, so this is the path that has actually been working. */
+      try {
+        if (window._reportClientError) {
+          window._reportClientError('duel-notify', new Error(String(r.notifyWhy || 'unknown')));
+        }
+      } catch (e) {}
+    }
+
     box.innerHTML =
       '<div class="gam-duel-result">' +
         '<div class="gam-duel-head">' + head + '</div>' +
         '<div class="gam-duel-sub">' + sub + '</div>' +
+        notifyLine +
         '<div class="gam-duel-xp">+' + r.xpEarned + ' XP' +
           (r.bonusXp ? ' <span class="gam-duel-bonus">+' + r.bonusXp + ' bonus</span>' : '') +
         '</div>' +

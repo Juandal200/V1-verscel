@@ -43,6 +43,11 @@ and mapped to the row they came from, which is what makes the provenance checkab
 This is the repo's own numbering being continued, not a bot id being guessed at — rule 8
 forbids the second, not the first.
 
+**R-0000 means the ticket came from no meeting report.** F-0018 carries it because it
+appears in no report at all; F-0043a and F-0043b carry it because they were reported
+straight through the bot rather than in a meeting, and their provenance is the
+`equipo.fallas` row itself. A meeting is not invented to give a ticket a number.
+
 `D-1` to `D-9` are **not defect reports**. They are the decisions taken at the end
 of R-0009 and R-0013, given ticket form so they can be tracked and closed. Their
 `Done when` comes from the decision itself. The mapping of a D-number to a
@@ -451,6 +456,119 @@ rather than fixed.
 
 ---
 
+## F-0043a — Nothing happens between the Duel button and the first question
+
+**Source** R-0000 · no meeting report — reported straight through the bot on
+2026-09-17 by Juan David Ladino (`equipo.fallas` F-0043, `origen` botones).
+**Severity** 🟠 Molesta
+**Area** Crew — challenges
+**Observed** *adicionalmente seria importante poner algun front o algun sonido que
+conecte desde que se le da click al duel hasta que carga el quiz ya que se demora 1,2
+segundo que quizas el usuario no entienda que debe esperar.*
+> Something visual or audible is needed between clicking Duel and the quiz loading —
+> it takes a second or two and the user may not understand that they should wait.
+
+**Expected** The tap is answered at once, even though the paper is not ready yet.
+
+**Done when** `STATED` Pressing Duel produces something on screen and something
+audible before the first question appears.
+
+**Status** Fixed `6b01f47`. The overlay now opens on the tap with the boot screen's
+globe turning inside the card and a radio squelch, and the first question replaces the
+globe when the paper arrives. Covered by `test/duel-globe-parity.test.js`, which guards
+the second copy of the geometry against drifting from the original rather than the
+behaviour itself.
+
+**Checklist** — walk it in the app, not in the code.
+
+- [ ] Pressing Duel opens the panel immediately, with the globe turning inside it
+- [ ] A squelch is heard on the press, once
+- [ ] The panel names the pilot while it waits — "Challenging ‹name›"
+- [ ] The first question replaces the globe, and the card does not jump in height
+- [ ] On a phone the globe does not overflow the card and the page does not scroll sideways
+- [ ] Cancel closes the panel, and a paper that arrives afterwards does not reopen it
+- [ ] If the connection drops, the panel closes and says why
+- [ ] The loading screen at app start is unchanged
+
+**Notes** **Same bot ID as F-0043b.** One report carried two asks — this one and the
+email — so they are split here the way F-0017 was, and the bot ID for both is F-0043.
+
+The globe is a **second copy** of the one in `LoadingScreen.html`, chosen deliberately
+over parameterising the original: that screen had shipped three days earlier and every
+session starts with it. The geometry is not re-derived, though — the region between the
+`AERO-GEO-SHARED` markers is lifted verbatim and the parity test compares the two with
+comments and whitespace stripped.
+
+---
+
+## F-0043b — The challenged pilot is not emailed
+
+**Source** R-0000 · no meeting report — reported straight through the bot on
+2026-09-17 by Juan David Ladino (`equipo.fallas` F-0043, `origen` botones).
+**Severity** 🟠 Molesta
+**Area** Crew — challenges · `_gamMailChallenge_`
+**Observed** *En los retos, el correo al retado no esta llegando, en la base de datos
+"challenge" si esta siendo registrado pero no llega al correo.*
+> The email to the challenged pilot is not arriving. The row is recorded in the
+> Challenges sheet, but no email comes.
+
+**Expected** When somebody is challenged, they are told by email.
+
+**Done when** `STATED` The challenged pilot receives the notification when the
+challenger finishes their run — confirmed by a real duel, not by reading the code — and
+when it cannot be sent, the reason is recorded and the challenger is told it did not go.
+
+**Status** Open — **instrumented, cause not established.** The send is no longer
+silent: it returns an outcome, the reason reaches `ClientEvents` through
+`_reportClientError` and `ErrorLogs` through `LogService.error`, the challenger sees a
+line saying the opponent was not emailed, and `ScriptApp.getService().getUrl()` — the
+one call in the function that can throw — is guarded with `appBaseUrl_()` behind it.
+
+**It cannot be closed from this side of the wire.** `Gamification.js` is Apps Script, so
+this needs a `clasp push` and then one real duel. Which of the five explanations it was
+will be in the line on screen and in the two sheets.
+
+**What was eliminated, and how.** Each of these was read, not pattern-matched.
+KNOWN_ISSUES retracted a list of swallowed failures because it was "produced by a
+pattern match" rather than by reading the sites, and this is not a revival of that
+list: this catch was read, and the reporter's own evidence says the path was taken
+— the row was written and the screen said Challenge sent.
+
+
+| candidate | why it is not the cause |
+|---|---|
+| a missing plain-text `body` | the login-code email omits it too, and that one arrives |
+| `_emailWrap_` or the `EC_` palette | the login-code email uses both |
+| `EC_.amber` / `EC_.ink` undefined | both keys exist in `EMAIL_PALETTE_`; a missing key is an empty string, not a throw |
+| `getLogoUrl()` throwing | every I/O inside it is wrapped and falls back to a literal |
+| the wrong row reader — `dbReadAll_` lowercases keys and would leave `Target_Email` undefined | `_gamFindChallenge_` uses `_gamReadAll_`, which keys by the sheet's own headers |
+| `_gamSS_()` failing | the Challenges row is written through it, which is the reporter's own evidence |
+
+**What is left.** `ScriptApp.getService().getUrl()` throwing (guarded now, and the
+strongest candidate until the squadron invitation turned out to fail too, which that
+call cannot explain), the day's `MailApp` quota, an address the platform refuses, or a
+message accepted and filtered as spam. The quota is read either side of the send
+precisely because it tells those apart: it drops if MailApp accepted the message.
+
+**The duel is not lost when the mail is not sent.** By the time the send is attempted
+the row has been patched to `Awaiting_Target`, so the challenge is in the target's Crew
+tab either way. The email is a courtesy; the defect was that its failure was invisible.
+
+**Checklist**
+
+- [ ] A real duel: the challenged pilot receives "‹name› has challenged you!"
+- [ ] The link in that email opens the app
+- [ ] With the send broken on purpose, the challenger sees the line saying the opponent
+      was not emailed
+- [ ] And the reason is readable afterwards in `ClientEvents`, without opening an execution
+- [ ] A duel the target submits does not claim a notification was owed — no line either way
+
+**Notes** **Same bot ID as F-0043a.** The squadron invitation in `sendRequest` has the
+same swallowing shape and is reported to be failing as well; it is recorded below rather
+than fixed here, because it is a different function and this ticket did not ask for it.
+
+---
+
 ## Simulator read-back card — layout restructure
 
 **No bot ID.** QA-originated, delivered as three mockups plus a screenshot of the
@@ -784,3 +902,89 @@ and touched no gating. Related to the entitlement gap already filed against
 **Notes** This is the two-gates shape rather than the fix-by-hiding one — the
 catalog is a real server-side decision, not a UI trick. But a rule enforced in one
 of two places is a rule that depends on which door someone knocks at.
+
+
+---
+
+## The squadron invitation swallows its failure the same way
+
+**No bot ID.** Found 2026-09-18 while instrumenting F-0043b. Reported by Juan David
+Ladino in the same conversation: the "Squadron invitation from ‹name›" emails are not
+arriving either.
+
+**Source** Found during other work · 2026-09-18
+**Severity** Medium — a pilot invites somebody who is never told
+**Area** `sendRequest` in Gamification.js, the `catch (mailErr)` at 285
+
+**Observed** The invitation is sent inside a `try` whose `catch` body is a comment and
+nothing else, so a throw leaves no error, no log and no line anywhere. It is the same
+shape F-0043b had, in a different function, and the reporter says it fails too.
+
+**Expected** The same treatment F-0043b got: an outcome rather than a swallow, the
+reason recorded, and the sender told when the invitation did not go out.
+
+**Done when** `DERIVED` A failed invitation is visible to the pilot who sent it and
+readable afterwards without opening an execution.
+
+**Status** Open. Not fixed alongside F-0043b: rule 1 is one ticket, one commit, and this
+is a different function with no ID of its own. **That both fail is the useful part** —
+it rules out `ScriptApp.getService().getUrl()`, which only the duel mail calls, and
+points at something the two share or at `MailApp` itself.
+
+---
+
+## LogService.info is called and does not exist
+
+**No bot ID.** Found 2026-09-18 while looking for somewhere to record a mail failure.
+
+**Source** Found during other work · 2026-09-18
+**Severity** Medium — a diagnostic that has never recorded anything
+**Area** `LogService.js` 50
+
+**Observed** `apiLogGraderDisagreement` calls `LogService.info('graderDisagreement', …)`.
+`LogService` defines `admin` and `error`. There is no `info`, in that object or anywhere
+else in the project:
+
+    $ grep -rn "LogService\.info\|info: *function" --include=*.js . | grep -v node_modules
+    LogService.js:50:    LogService.info('graderDisagreement', JSON.stringify({
+
+So every call throws a TypeError, and the function's own `catch` returns `{ ok: false }`
+with the comment *"A diagnostic must never be the thing that breaks an exercise"* —
+which is right, and is also why nobody noticed. `checkGraderAgreement()` reads the rows
+this was supposed to write and reports "No disagreements recorded. Either the two graders
+agree, or nobody has trained since this shipped." Neither is true: nothing was ever
+written.
+
+**Expected** Either `LogService.info` exists, or the caller uses `LogService.error` with
+a level, and `checkGraderAgreement` can distinguish "no disagreements" from "no data".
+
+**Done when** `DERIVED` One grader disagreement, deliberately provoked, appears in
+`ErrorLogs`, and `checkGraderAgreement()` reports it.
+
+**Status** Open. It is the same shape as F-0043b — a silent diagnostic — and it was found
+the same afternoon, which is the argument for fixing the class rather than the instance.
+
+**Notes** This is a read call site, not a pattern match: the method is absent from the
+object literal three lines above the call.
+
+---
+
+## The duel result panel keeps the last question's countdown
+
+**No bot ID.** Seen 2026-09-18 in a screenshot the reporter sent to confirm F-0028.
+
+**Source** Found during other work · 2026-09-18
+**Severity** Low — cosmetic, on a screen every duel ends on
+**Area** `_duelResult` / `_duelStartCountdown` in Scripts.html
+
+**Observed** The result panel — "Challenge sent · You scored 5 of 5" — still shows the
+clock reading `26s` and the countdown bar most of the way full, left over from the last
+question. `_duelResult` replaces the body but not the header, and `_duelClearTimer` stops
+the interval without clearing what it painted.
+
+**Expected** Nothing is counting down on a screen where nothing is being timed.
+
+**Done when** `DERIVED` The result panel shows no clock and no countdown bar.
+
+**Status** Open. Not fixed in F-0043a's commit: rule 4, and it is a different surface
+from the one that ticket is about.

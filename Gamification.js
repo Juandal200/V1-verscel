@@ -602,7 +602,13 @@ function submitChallengeResult(sessionToken, challengeId, answers) {
       complete:       false,
       opponentName:   '',
       opponentCorrect: null,
-      opponentMs:      null
+      opponentMs:      null,
+      /* null means "no notification belonged to this submission" — the target's
+         own submission sends none — and is not the same as false, which means one
+         was owed and did not go out. Declared here rather than appearing only on
+         the branch that sets it, so the screen never reads an absent field. */
+      notified:       null,
+      notifyWhy:      ''
     };
 
     if (!otherDone) {
@@ -618,7 +624,11 @@ function submitChallengeResult(sessionToken, challengeId, answers) {
                         'Nothing was lost on your side, but your opponent will not see this one.',
                         'WRITE_FAILED');
       }
-      if (side === 'Challenger') _gamMailChallenge_(row, user, correct);
+      if (side === 'Challenger') {
+        var mail = _gamMailChallenge_(row, user, correct);
+        result.notified  = mail.sent === true;
+        result.notifyWhy = mail.sent ? '' : String(mail.why || 'unknown');
+      }
       return _gamOk_(result, 'Result recorded. Waiting for your opponent.');
     }
 
@@ -861,15 +871,59 @@ function _gamScorePaper_(paper, given) {
   return correct;
 }
 
-/* The invitation. A send that fails must not lose the challenge — it is already
- * on the sheet and reachable from the Squadron tab, so the mail is a courtesy
- * and its failure is swallowed on purpose. */
+/* What the platform will tell us about the day's allowance, or null when it
+ * will not say. Null is not zero: zero means the day is spent. */
+function _gamMailQuota_() {
+  try { return MailApp.getRemainingDailyQuota(); } catch (e) { return null; }
+}
+
+/* The invitation, and the one thing it must not do quietly.
+ *
+ * A send that fails must not lose the challenge, and it does not: by the time
+ * this runs the row has been patched to Awaiting_Target, so the duel is already
+ * in the target's Crew tab whatever happens here. That is why the failure was
+ * swallowed, and that part was right.
+ *
+ * Being invisible was not, and it cost F-0043. The mail stopped arriving, and
+ * because nothing recorded why there was nothing to read anywhere — no error, no
+ * log, no line in an execution. Five explanations stayed alive at once and not
+ * one of them could be eliminated by reading the repository: the URL call
+ * throwing, the day's quota spent, an address the platform refused, a message
+ * accepted and filtered as spam, and the send never being reached at all.
+ *
+ * So it returns what happened. submitChallengeResult carries that back and the
+ * pilot is told when the notification did not go out, which is the difference
+ * between a courtesy that failed and a courtesy that failed in secret.
+ *
+ * The quota is read either side of the send because it is the one number that
+ * separates three answers that look identical from here. It drops if MailApp
+ * accepted the message — which means the mail left the platform and the question
+ * is filtering, not code. It reads zero if the day's allowance is gone. And the
+ * thrown reason covers the rest.
+ *
+ * ScriptApp.getService().getUrl() is guarded because it is the one call in this
+ * function that can throw, and it sat unprotected inside the message body, where
+ * a throw abandons the whole mail before MailApp ever sees it. Both of the
+ * project's other uses of it wrap it — Userservice 237 and 560 — which is the
+ * evidence that it does throw. The fallback is appBaseUrl_(), which is where the
+ * app is actually served from; Apps Script's own /exec is not. */
 function _gamMailChallenge_(row, challenger, challengerCorrect) {
+  var to          = String(row.Target_Email || '');
+  var quotaBefore = _gamMailQuota_();
+
+  var appUrl = '';
+  try { appUrl = String(ScriptApp.getService().getUrl() || ''); } catch (urlErr) { appUrl = ''; }
+  if (!appUrl) { try { appUrl = appBaseUrl_(); } catch (baseErr) { appUrl = ''; } }
+
+  if (!to) {
+    return { sent: false, why: 'the challenge row carries no target address', quotaBefore: quotaBefore };
+  }
+
   try {
     var idx      = _gamUserIndex_(_gamReadAll_(GAM_SHEETS.USERS));
     var chalName = idx[String(challenger.email).toLowerCase()] || challenger.email;
     MailApp.sendEmail({
-      to:      String(row.Target_Email || ''),
+      to:      to,
       subject: 'aerocomms — ' + chalName + ' has challenged you!',
       htmlBody: _emailWrap_(
         '<table width="100%" cellpadding="0" cellspacing="0" style="text-align:center;margin-bottom:24px;">' +
@@ -888,14 +942,21 @@ function _gamMailChallenge_(row, challenger, challengerCorrect) {
         '<p style="margin:0 0 20px;font-size:13px;color:' + EC_.muted + ';line-height:1.6;">You get the same ' +
           CHALLENGE_QUESTION_COUNT + ' questions. Most correct wins; if you tie, the faster clock takes it.</p>' +
         '<div style="text-align:center;margin-bottom:20px;">' +
-          '<a href="' + ScriptApp.getService().getUrl() + '" style="display:inline-block;background:' + EC_.amber + ';color:' + EC_.ink + ';font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;padding:14px 36px;border-radius:10px;text-decoration:none;">Accept Challenge →</a>' +
+          '<a href="' + appUrl + '" style="display:inline-block;background:' + EC_.amber + ';color:' + EC_.ink + ';font-family:Arial,Helvetica,sans-serif;font-weight:900;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;padding:14px 36px;border-radius:10px;text-decoration:none;">Accept Challenge →</a>' +
         '</div>' +
         '<p style="margin:0;font-size:12px;color:' + EC_.faint + ';">Sent from ' + challenger.email + '</p>'
       )
     });
   } catch (mailErr) {
-    // Non-fatal: the challenge is already saved and visible in the Squadron tab.
+    var why = String((mailErr && mailErr.message) || mailErr);
+    /* Best effort, and deliberately not the only record: LogService.error needs
+       an ErrorLogs sheet and swallows its own failure, so the returned value is
+       the channel that cannot vanish. */
+    try { LogService.error('gamMailChallenge', mailErr, String(challenger.userId || '')); } catch (logErr) {}
+    return { sent: false, why: why, quotaBefore: quotaBefore, quotaAfter: _gamMailQuota_() };
   }
+
+  return { sent: true, to: to, quotaBefore: quotaBefore, quotaAfter: _gamMailQuota_() };
 }
 
 // 9. getNotificationCounts(sessionToken)
