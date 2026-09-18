@@ -37,15 +37,20 @@ ok('there is a guarded reader', /function _gamMailQuota_\(\)[\s\S]*?catch \(e\) 
 ok('and both outcomes carry before and after',
    (mail.match(/quotaBefore/g) || []).length >= 3 && (mail.match(/quotaAfter/g) || []).length >= 2);
 
-console.log('--- the call that could throw is guarded ---');
-/* Userservice wraps this same call in two places. Here it sat unprotected inside
- * the message body, where a throw abandons the mail before MailApp sees it. */
-ok('getService().getUrl() is inside its own try',
-   /try \{ appUrl = String\(ScriptApp\.getService\(\)\.getUrl\(\) \|\| ''\); \} catch/.test(mail));
-ok('it falls back to where the app is actually served from',
-   /if \(!appUrl\) \{ try \{ appUrl = appBaseUrl_\(\)/.test(mail));
-ok('and the message body no longer calls it inline',
-   mail !== '' && !/href="' \+ ScriptApp\.getService/.test(mail));
+console.log('--- the button links to where the app actually is ---');
+/* getService().getUrl() returns Apps Script's /exec, which serves whatever clasp
+ * last pushed rather than what Vercel builds. The first email that arrived proved
+ * it: the Accept Challenge button opened Apps Script. The logo three lines above
+ * it was already coming from appBaseUrl_(), so one message carried two origins. */
+ok('the link is built from appBaseUrl_()',
+   /try \{ appUrl = String\(appBaseUrl_\(\) \|\| ''\); \} catch/.test(mail));
+ok('and the function does not reach for /exec at all any more',
+   mail !== '' && !/getService/.test(mail));
+ok('the body uses the variable, not a call',
+   /'<a href="' \+ appUrl \+ '"/.test(mail));
+/* A literal here would be the sixth place in the project that answers "where is
+ * the app" — the thing TICKETS.md has filed against exactly this function. */
+ok('and no origin is written out inside it', mail !== '' && !/https:\/\//.test(mail));
 
 console.log('--- the result carries it back to the client ---');
 ok('submitChallengeResult declares the field rather than growing it on a branch',

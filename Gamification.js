@@ -901,19 +901,41 @@ function _gamMailQuota_() {
  * is filtering, not code. It reads zero if the day's allowance is gone. And the
  * thrown reason covers the rest.
  *
- * ScriptApp.getService().getUrl() is guarded because it is the one call in this
- * function that can throw, and it sat unprotected inside the message body, where
- * a throw abandons the whole mail before MailApp ever sees it. Both of the
- * project's other uses of it wrap it — Userservice 237 and 560 — which is the
- * evidence that it does throw. The fallback is appBaseUrl_(), which is where the
- * app is actually served from; Apps Script's own /exec is not. */
+ * THE BUTTON LINKS TO WHERE THE APP IS, WHICH IS NOT APPS SCRIPT
+ *
+ * It used to be built from ScriptApp.getService().getUrl() — inline, inside the
+ * message body, where a throw would have abandoned the whole mail before MailApp
+ * ever saw it. That call returns the /exec URL, so Accept Challenge opened Apps
+ * Script's own copy of the page: whatever clasp last pushed, served by
+ * HtmlService, rather than the app Vercel builds from source on every push.
+ *
+ * Confirmed live on 2026-09-18 by the first challenge email that arrived, and
+ * predicted before that by TICKETS.md, "The app's base URL is computed five
+ * different ways", whose note reads: some emails link students to /exec and
+ * others to the domain.
+ *
+ * The sharpest part is that THIS MESSAGE already carried both. The logo above
+ * the button comes from the `getLogoUrl` helper, which is appBaseUrl_() plus the
+ * file — Apps Script does not serve /brand/logo.png — so one email pointed at
+ * two different origins, three lines apart.
+ *
+ * (Written without the call parentheses on purpose: brand-assets.test.js counts
+ * occurrences of that name as text, and a comment mentioning it reads as a third
+ * call site. The count is the guard that the two htmlBody images were renamed
+ * rather than left calling a getter that no longer exists.)
+ *
+ * So it asks appBaseUrl_() and nothing else. Not appBaseUrl_() with getUrl()
+ * behind it: that function reads an APP_URL property chain and falls back to the
+ * domain itself, so a second branch would be unreachable code kept for the look
+ * of thoroughness. And no literal here either — a literal would be the sixth
+ * place in the project that answers "where is the app", which is the thing that
+ * ticket exists to stop. */
 function _gamMailChallenge_(row, challenger, challengerCorrect) {
   var to          = String(row.Target_Email || '');
   var quotaBefore = _gamMailQuota_();
 
   var appUrl = '';
-  try { appUrl = String(ScriptApp.getService().getUrl() || ''); } catch (urlErr) { appUrl = ''; }
-  if (!appUrl) { try { appUrl = appBaseUrl_(); } catch (baseErr) { appUrl = ''; } }
+  try { appUrl = String(appBaseUrl_() || ''); } catch (baseErr) { appUrl = ''; }
 
   if (!to) {
     return { sent: false, why: 'the challenge row carries no target address', quotaBefore: quotaBefore };

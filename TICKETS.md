@@ -545,9 +545,37 @@ silent: it returns an outcome, the reason reaches `ClientEvents` through
 line saying the opponent was not emailed, and `ScriptApp.getService().getUrl()` — the
 one call in the function that can throw — is guarded with `appBaseUrl_()` behind it.
 
-**It cannot be closed from this side of the wire.** `Gamification.js` is Apps Script, so
-this needs a `clasp push` and then one real duel. Which of the five explanations it was
-will be in the line on screen and in the two sheets.
+**2026-09-18, after the `clasp push`: the email arrived.** And it settled less than it
+looks like it did, so both halves are written down.
+
+What it settled: **the button linked to the wrong place.** Accept Challenge was built
+from `ScriptApp.getService().getUrl()`, which is Apps Script's `/exec` — whatever `clasp`
+last pushed, served by HtmlService — and not the app Vercel builds from source. The same
+message already carried the right origin three lines above, in the logo, because
+`getLogoUrl()` goes through `appBaseUrl_()`. Fixed: the button asks `appBaseUrl_()` and
+nothing else. Verified live — `aerocomms.vercel.app` answers 200 and so does
+`/brand/logo.d1689057.png`, while `v1-verscel.vercel.app` 307s to it.
+
+What it did **not** settle: **why the mail was not arriving before.** The arrival proves
+`getService().getUrl()` never threw — it returned the `/exec` URL, which is how the wrong
+link got into the message — so the guard was not the repair. Nothing else in that commit
+can make MailApp deliver: hoisting a call that does not throw is a no-op, and the `!to`
+early return refuses to send rather than sending. **The change did not fix the
+delivery.**
+
+**The leading explanation is now the daily MailApp quota**, and it is the only one that
+accounts for every piece of evidence at once: it is shared across every send in the
+project, which is why the duel mail and the squadron invitation failed together while
+login codes kept working; it needs no code to change; and it resets every 24 hours,
+which is why today it works. Spam filtering is still alive as a second explanation and
+is cheap to check — the older messages would be sitting in a folder.
+
+**One line settles it**, in the Apps Script editor:
+
+    Logger.log(MailApp.getRemainingDailyQuota());
+
+A number near 1,500 means Workspace with room to spare and the quota theory is dead. A
+small one, or zero, means it was the cause and the fix is not code.
 
 **What was eliminated, and how.** Each of these was read, not pattern-matched.
 KNOWN_ISSUES retracted a list of swallowed failures because it
@@ -577,8 +605,9 @@ tab either way. The email is a courtesy; the defect was that its failure was inv
 
 **Checklist**
 
-- [ ] A real duel: the challenged pilot receives "‹name› has challenged you!"
-- [ ] The link in that email opens the app
+- [x] A real duel: the challenged pilot receives "‹name› has challenged you!" — 2026-09-18
+- [ ] The link in that email opens the app served by Vercel, not Apps Script's `/exec`
+      — first attempt opened `/exec`; fixed, needs a second `clasp push` to confirm
 - [ ] With the send broken on purpose, the challenger sees the line saying the opponent
       was not emailed
 - [ ] And the reason is readable afterwards in `ClientEvents`, without opening an execution
@@ -887,9 +916,21 @@ depending on which template sent them.
 **Done when** `DERIVED` One function answers "where is the app", every caller uses
 it, and a test counts the callers so a sixth cannot appear quietly.
 
-**Status** Open. Not consolidated alongside the brand-image work because it
-changes which URL students receive in emails, which is a behaviour change on
-screens that work today.
+**Status** Open — one caller fewer since 2026-09-18, and the consequence is no longer a
+prediction. The challenge email's Accept button was opening `/exec`; it now asks
+`appBaseUrl_()`, and `test/challenge-notify.test.js` holds it there, including an
+assertion that no origin is written out inside that function so a sixth answer cannot
+appear where the fifth was found.
+
+Two corrections to the list above, both found while doing it. **`Gamification.js 398` no
+longer exists** — the duel rewrite moved that code, and the only `getService()` call left
+in the file was the mail's, now gone, so the file has none. And the behaviour change this
+ticket was deferred over **has now happened for one template**: challenge emails send
+students to the Vercel domain from today. That is the argument for finishing it rather
+than against, because the remaining templates now disagree with this one as well as with
+each other.
+
+Still open for Userservice 237, 456, 561, TourService 664, 743 and EnvService 92.
 
 ---
 
