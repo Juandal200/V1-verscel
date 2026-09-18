@@ -434,11 +434,32 @@ null' en lugar del nombre del destinatario.*
 **Done when** `DERIVED` The toast reads the pilot's display name, falling back to their
 email — which is what the code already tried to do, and what the modal title on the line
 above it does. If the email or the scenario was wanted instead, this is the wrong fix.
-**Status** Fixed — `_gamSendChallenge` called `_gamCloseModal()`, which sets
+**Status** Fixed `4aeffaa` — **though not by the code that commit wrote**, and that is
+the part worth knowing. `_gamSendChallenge` called `_gamCloseModal()`, which sets
 `_gam.targetName` and `_gam.targetEmail` to null, and built the toast out of those two
-fields three lines later. The name is now read before the close. Covered by
-`test/challenge-toast.test.js`, which checks the ORDER rather than the text, so either
-repair satisfies it.
+fields three lines later; the fix read the name into a local above the close. One hour
+later `9188e10` replaced that whole flow with the five-question duel and **deleted both
+the function and its test**:
+
+    $ git log --diff-filter=AD --name-status -- test/challenge-toast.test.js
+    9188e10  D  test/challenge-toast.test.js
+    4aeffaa  A  test/challenge-toast.test.js
+    $ grep -c "_gamSendChallenge" Scripts.html
+    0
+
+So this file claimed coverage from a file that has not existed since 15 September.
+
+**What satisfies the Done when today is the panel, not a toast.** `_gamOpenModal` reads
+`data-name` into a local and `_duelLoading` writes "Challenging ‹name›" into
+`gamDuelTitle`, which stays on screen through the confirmation — so the confirmation does
+name the pilot, with the email as the fallback, on a different surface from the one the
+ticket described. Confirmed live on 2026-09-18 from a screenshot of a real duel:
+"CHALLENGING JUAN CAMILO MARTINEZ CORREA" above "Challenge sent · You scored 5 of 5".
+
+**Now guarded again.** `test/challenge-duel.test.js` inherited this subject when it
+replaced the deleted suite, and said so in its header while asserting nothing about the
+name — the behaviour rested on `_duelResult` leaving the title alone, which nothing
+required. Three assertions there now do.
 
 **The fallback is what proves it was ordering and not missing data.** With `data-name`
 absent the toast would have shown the email; with `data-email` absent the guard at the
@@ -529,10 +550,10 @@ this needs a `clasp push` and then one real duel. Which of the five explanations
 will be in the line on screen and in the two sheets.
 
 **What was eliminated, and how.** Each of these was read, not pattern-matched.
-KNOWN_ISSUES retracted a list of swallowed failures because it was "produced by a
-pattern match" rather than by reading the sites, and this is not a revival of that
-list: this catch was read, and the reporter's own evidence says the path was taken
-— the row was written and the screen said Challenge sent.
+KNOWN_ISSUES retracted a list of swallowed failures because it
+was "produced by a pattern match" rather than by reading them, and this is not a
+revival of that list: this catch was read, and the reporter's own evidence says
+the path was taken — the row was written and the screen said Challenge sent.
 
 
 | candidate | why it is not the cause |

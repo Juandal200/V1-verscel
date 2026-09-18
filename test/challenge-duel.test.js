@@ -143,5 +143,32 @@ ok('createChallenge does not bank it — drawing a paper is not activity',
    !/function createChallenge[\s\S]*?lmsUpdateStreak_/.test(G.slice(G.indexOf('function createChallenge'),
                                                                      G.indexOf('function getChallengePaper'))));
 
+/* F-0028's subject, which this file said it had taken over while checking nothing
+ * about it.
+ *
+ * The defect was a toast reading _gam.targetName after _gamCloseModal() had set it
+ * to null. Both of those are gone, and what carries the pilot's name now is the
+ * panel title: _gamOpenModal reads data-name into a local, _duelLoading writes it
+ * into gamDuelTitle, and _duelResult replaces the body but not the header, so the
+ * name is still there under "Challenge sent".
+ *
+ * That last clause is a fact about code nobody asked to stay true. Anyone rewriting
+ * _duelResult to repaint the whole panel would take the name away again and the
+ * suite would not notice, which is how F-0028 lost its guard in the first place. */
+console.log('--- the confirmation names the pilot (F-0028) ---');
+const f28open    = (S.match(/function _gamOpenModal\(btn\)[\s\S]*?\n  \}\n/) || [''])[0];
+const f28loading = (S.match(/function _duelLoading\(name\)[\s\S]*?\n  \}\n/) || [''])[0];
+const f28result  = (S.match(/function _duelResult\(r\)[\s\S]*?\n  \}\n/) || [''])[0];
+ok('the three functions were found', f28open !== '' && f28loading !== '' && f28result !== '');
+ok('the launch reads the name with the email behind it',
+   /var name  = btn\.getAttribute\('data-name'\) \|\| email;/.test(f28open));
+ok('and hands it to the panel before the server is asked',
+   /_duelLoading\(name\);/.test(f28open) &&
+   f28open.indexOf('_duelLoading(name);') < f28open.indexOf('.createChallenge('));
+ok('_duelLoading writes it into the title',
+   /gamDuelTitle[\s\S]{0,120}'Challenging ' \+ name/.test(f28loading));
+ok('and the result leaves the title alone, so it is still there under the head',
+   f28result !== '' && !/gamDuelTitle/.test(f28result));
+
 console.log(fails ? '\n' + fails + ' FAILING' : '\nAll challenge-duel assertions passed.');
 process.exit(fails ? 1 : 0);
