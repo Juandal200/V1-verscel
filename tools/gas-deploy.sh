@@ -92,6 +92,22 @@ clasp() {
 }
 
 # ── what is actually up there ─────────────────────────────────────────────────
+# The pushable set, from .claspignore rather than from memory. rootDir is "" and
+# skipSubdirectories is true, so only root-level files travel and every ignore
+# entry naming a directory is irrelevant here.
+pushable() {
+  for f in *.js *.html *.json; do
+    [ -f "$f" ] || continue
+    skip=0
+    while IFS= read -r pat; do
+      case "$pat" in ''|'#'*|*/*) continue ;; esac
+      # shellcheck disable=SC2254
+      case "$f" in $pat) skip=1 ;; esac
+    done < .claspignore
+    [ "$skip" = 0 ] && echo "$f"
+  done
+}
+
 SCRATCH=$(mktemp -d)
 trap 'rm -rf "$SCRATCH"' EXIT
 printf '{"scriptId":"%s","rootDir":""}\n' "$SCRIPT_ID" > "$SCRATCH/.clasp.json"
@@ -117,6 +133,18 @@ for f in "$SCRATCH"/*; do
     drift=1
   fi
 done
+# Both directions, enumerated. The first version walked only what exists up
+# there, so a file the push would CREATE was invisible: it reported four
+# differing files and said nothing about LoadingScreen.html, which the live
+# Index.html already includes and the live project did not have. A sweep that can
+# see one direction only comes back clean and reads as good news.
+for name in $(pushable); do
+  if [ ! -f "$SCRATCH/$name" ]; then
+    echo "  ONLY HERE   $name   <- a push CREATES it up there"
+    drift=1
+  fi
+done
+
 [ "$drift" = 0 ] && echo "  identical — the live project matches this repo"
 
 if [ "${1:-}" != "--deploy" ]; then

@@ -2,6 +2,7 @@ build.js
 shim.js
 sw.js
 package.json
+package-lock.json
 vercel.json
 dist/**
 api/**
