@@ -1009,3 +1009,40 @@ the interval without clearing what it painted.
 
 **Status** Open. Not fixed in F-0043a's commit: rule 4, and it is a different surface
 from the one that ticket is about.
+
+---
+
+## Cancel on the loading globe can leave a paper nobody will ever play
+
+**No bot ID.** Found 2026-09-18, as a consequence of F-0043a's own change.
+
+**Source** Found during other work · 2026-09-18
+**Severity** Low — a row per cancelled launch, invisible to everyone
+**Area** `createChallenge` in Gamification.js, `_gamOpenModal` in Scripts.html
+
+**Observed** `createChallenge` writes the row and draws the paper before the challenger
+plays, with `Status = Awaiting_Challenger`. `getIncomingChallenges` lists only
+`Awaiting_Target`, so until the challenger finishes their five the row is invisible to
+the target and no mail has been sent — by design, since the mail carries the
+challenger's score.
+
+A challenger who does not finish therefore leaves a drawn paper that nobody will see or
+play. That was always reachable by closing the tab mid-duel; F-0043a's Cancel button
+makes it a deliberate one-tap action, which is why it is being written down now rather
+than left as a thing the code happens to do.
+
+**Expected** Either a cancelled launch does not leave a row, or the rows it leaves are
+visible to somebody — a sweep, an expiry, or the target seeing "‹name› has a duel
+waiting to be played".
+
+**Done when** `DERIVED` A launch that is cancelled before any answer is submitted leaves
+nothing behind that a pilot can neither see nor play.
+
+**Status** Open. Not fixed in F-0043a: the button was asked for, and the choice between
+not writing the row, expiring it, or showing it is a product decision this ticket did not
+carry. The paper has to be drawn before the challenger plays — both pilots answer the
+same frozen five — so "do not write the row yet" is not free either.
+
+**Notes** Cancel was added because the overlay is modal: without it, a call that never
+answers traps the pilot behind a turning globe. The trade was taken knowingly — a
+reachable escape against a row that was already reachable another way.
