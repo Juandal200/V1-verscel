@@ -17,6 +17,43 @@ Newest day first.
 
 ## 2026-09-19
 
+### After the globe shipped: loaders, phone flags, and where a checkpoint closes to
+
+**Plan.** Three reports from a phone, the day the globe went live, plus one decision
+(branch `mapa-ajustes`):
+1. The home page's section loaders drew a plane over `.ff-radar-bg`, the First Flight
+   backdrop, whose rings are made for a full screen; in a section only two diagonal
+   strokes showed. They now draw the app's radar dish (`_radarDishHtml`), which the
+   full-screen loader and the route-complete screen also draw — the dish was written
+   out twice before, identically, and is now written once.
+2. Tapping a flag on the phone globe did nothing, by the handoff's design (nodes, not
+   controls). A tap (under 8px of travel) now picks the nearest visible country: the
+   globe turns to it and holds, and the sheet shows its levels, cut from its own panel,
+   under "← Your current level".
+3. A checkpoint (and the placement test) closed onto the Simulator levels screen
+   whatever it was opened over. Each screen that can open one now registers how it is
+   redrawn; the overlay keeps it and redraws it on close. Unregistered origins fall
+   back to the levels screen as before and are reported.
+4. Decided with the user: the Simulator levels screen honours the same Globe / Flat
+   map choice as home, and the switch redraws the screen it is pressed on.
+
+**Criterion.** `DERIVED` — the home loaders show the radar; a tap on a flag on the phone
+shows that country's levels; closing a checkpoint or the placement test leaves you on
+the screen you opened it from; and the globe, when chosen, is the map on both screens.
+
+**Checklist.**
+
+- [ ] Loading the home page, the map, the daily challenge and the modules show the animated radar
+- [ ] On the phone globe, tapping a flag turns the globe to it and lists its levels below
+- [ ] Tapping one of those levels opens it; "← Your current level" goes back
+- [ ] Dragging across the globe still turns it and does not pick a country
+- [ ] From the home globe: open a checkpoint, close it — you are on the home globe
+- [ ] From Simulator: open a checkpoint, close it — you are on Simulator
+- [ ] Simulator's map shows the globe when Globe is chosen, and the flat map when Flat map is
+- [ ] Switching Globe / Flat map on Simulator stays on Simulator
+
+**Not verifiable from the repo.** Every line above.
+
 ### The level map, phase 2: the globe
 
 **Plan.** As agreed on 2026-09-19, on branch `mapa-fase2` (from `mapa-fase1`). The home

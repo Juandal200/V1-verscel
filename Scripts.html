@@ -1139,6 +1139,26 @@ window.tierByExam = function (examNum) {
     if (target) target.classList.add('active');
   }
 
+  /* Where an overlay goes when it closes.
+   *
+   * The checkpoint and the placement test open as overlays ON the screen you are
+   * on, and both used to close by navigating to the Simulator levels screen —
+   * whatever was underneath. Opened from the home globe, closed onto the flat map
+   * in another tab. Now each screen that can open one says how it is redrawn
+   * (window._redrawScreen: renderHome, renderSimulatorPlaceholder, renderLMSHub),
+   * the overlay keeps that when it opens, and redraws it when it closes, because a
+   * checkpoint can have changed state meanwhile. A screen that never said — the
+   * value is cleared on every tab change — falls back to the levels screen as
+   * before, and is reported, so an unlisted origin is found rather than guessed. */
+  // State, set by each screen as it draws — not an export, so it is a call.
+  window._setRedrawScreen = function (fn) { window._redrawScreen = fn; };
+  window._overlayGoBack = function (back) {
+    if (typeof back === 'function') { back(); return; }
+    try { if (window._reportClientError) window._reportClientError('overlayReturn',
+      new Error('no screen to return to from ' + (window._navLabel || 'nowhere'))); } catch (e) {}
+    if (typeof window.renderSimulatorPlaceholder === 'function') window.renderSimulatorPlaceholder();
+  };
+
   // Incremented only when the user navigates to a DIFFERENT top-level tab.
   // Async callbacks capture this at call time and bail if it has changed by the time they fire.
   var _navToken = 0;
@@ -1148,6 +1168,8 @@ window.tierByExam = function (examNum) {
     if (label !== _navLabel) {
       var _leavingSim = (_navLabel === 'Simulator' && label !== 'Simulator');
       _navToken++; _navLabel = label; window._navToken = _navToken; window._navLabel = label;
+      // A new tab has not yet said how to redraw itself; see window._overlayGoBack.
+      window._redrawScreen = null;
       if (label !== 'Simulator' && typeof window.stopFlightDrift === 'function') window.stopFlightDrift();
 
       // Leaving the simulator has to tear it down, not just stop the drift.
@@ -1358,16 +1380,27 @@ window.tierByExam = function (examNum) {
    * sub-second transition speeds at four named values, and a two-second approach
    * is neither a transition nor one of them.
    */
+  /* The radar dish: rings, sweep and aircraft. One drawing for every wait in the
+   * app — the full-screen loader, the route-complete screen and the in-section
+   * loader below all call this. It was written out twice before, identically. */
+  function _radarDishHtml(extraClass) {
+    return '<div class="completion-loading-radar' + (extraClass ? ' ' + extraClass : '') + '" aria-hidden="true">' +
+      '<span class="completion-radar-ring r1"></span>' +
+      '<span class="completion-radar-ring r2"></span>' +
+      '<span class="completion-radar-ring r3"></span>' +
+      '<span class="completion-radar-sweep"></span>' +
+      '<span class="completion-radar-plane"><svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg></span>' +
+    '</div>';
+  }
+  window._radarDishHtml = _radarDishHtml;
+
+  /* A wait inside a section of a page. It drew a plane over .ff-radar-bg, the
+   * First Flight briefing's background — 620px and 420px rings made for a full
+   * screen, which in a home-page section showed only as two diagonal strokes in
+   * the corners. It is the app's radar now, at a size that fits. */
   function _planeLoaderHtml(label) {
-    /* The radar is .ff-radar-bg, the one the First Flight briefing already uses —
-     * the same class, not a copy of it. Two pulsing rings is this app's existing
-     * way of saying "scanning", and inventing a second one for the same state is
-     * how two screens end up meaning the same thing differently. */
     return '<div class="pl-wrap" role="status" aria-live="polite">' +
-      '<div class="pl-stage">' +
-        '<div class="ff-radar-bg"></div>' +
-        '<div class="pl-plane">' + uiIcon('plane', 34) + '</div>' +
-      '</div>' +
+      _radarDishHtml('pl-radar') +
       (label ? '<p class="pl-label">' + label + '</p>' : '') +
     '</div>';
   }
@@ -2451,6 +2484,7 @@ window.tierByExam = function (examNum) {
   function renderHome() {
     _simStateClear();
     setActiveNav('Home');
+    window._setRedrawScreen(renderHome);
 
     var _tok = _navToken;
     var _freshData = (Date.now() - _homeDataFreshAt) < 30000;
@@ -2729,7 +2763,10 @@ window.tierByExam = function (examNum) {
             var wrap  = el.querySelector('.lm-stage-wrap');
             var sheet = narrow && wrap ? _globeSheetHtml(el) : '';
             if (_globeMount(wrap, { narrow: narrow })) {
-              if (sheet) wrap.insertAdjacentHTML('afterend', sheet);
+              if (sheet) {
+                wrap.insertAdjacentHTML('afterend', sheet);
+                _globeSheetWire(wrap, wrap.nextElementSibling);
+              }
             } else {
               /* No globe (no LM_GLOBE, no canvas): the flat map, and it is reported,
                * because a globe that silently is not there looks like a choice. */
@@ -5717,6 +5754,7 @@ window.tierByExam = function (examNum) {
 
   function renderSimulatorPlaceholder() {
     setActiveNav('Simulator');
+    window._setRedrawScreen(renderSimulatorPlaceholder);
     var _tok = _navToken;
 
     // Four grey bars said nothing about how long this would take or what it was
@@ -6234,10 +6272,13 @@ var LEVEL_THEMES = {
     for (var i = 0; i < cfg.options.length; i++) if (cfg.options[i][0] === v) return v;
     return cfg.dflt;
   }
+  /* The desktop choice is shared by the home page and the Simulator levels
+   * screen: one drawing of the world in the whole app. So the switch redraws the
+   * screen it was pressed on, not always the home page. */
   window._lmSetHomeView = function (v) {
     var cfg = _LM_HOME_VIEWS[_lmWideEnough() ? 'wide' : 'narrow'];
     try { window.localStorage.setItem(cfg.key, v); } catch (e) {}
-    renderHome();
+    if (typeof window._redrawScreen === 'function') window._redrawScreen(); else renderHome();
   };
   function _homeViewSwitch(view) {
     var cfg = _LM_HOME_VIEWS[_lmWideEnough() ? 'wide' : 'narrow'];
@@ -6264,11 +6305,40 @@ var LEVEL_THEMES = {
     tmp.innerHTML = _homeExamSquare();
     var exam = tmp.querySelector('.home-exam-square');
     return '<div class="globo-sheet">' +
-      cleanClone('.lm-row--current') +
+      '<div class="globo-sheet-top">' + cleanClone('.lm-row--current') + '</div>' +
       (cleanClone('.lm-cp--ready') || cleanClone('.lm-cp--failed_once') || cleanClone('.lm-cp--replay_required')) +
       _homeDoorsHtml('row') +
       (exam ? exam.outerHTML : '') +
     '</div>';
+  }
+
+  /* Swap the sheet's top slot when a country is picked on the phone globe: its
+   * level rows, cut from its own panel on the map (the same buttons, the same
+   * actions), under a way back to the level in progress. */
+  function _globeSheetWire(wrap, sheetEl) {
+    var slot = sheetEl && sheetEl.querySelector('.globo-sheet-top');
+    if (!wrap || !slot) return;
+    var home = slot.innerHTML;
+    wrap.addEventListener('globepick', function (e) {
+      var code = e.detail && e.detail.code;
+      var anchor = code ? wrap.querySelector('.lm-anchor[data-country="' + code + '"]') : null;
+      if (!anchor) { slot.innerHTML = home; return; }
+      var label = '';
+      var chip = anchor.querySelector('.lm-pin-chip');
+      if (chip && chip.firstChild) label = String(chip.firstChild.textContent || '').trim();
+      var rows = '';
+      var found = anchor.querySelectorAll('.lm-pop .lm-row, .lm-pop .lm-card-sale');
+      for (var i = 0; i < found.length; i++) {
+        var c = found[i].cloneNode(true);
+        c.removeAttribute('tabindex');
+        rows += c.outerHTML;
+      }
+      slot.innerHTML =
+        '<div class="globo-sheet-head">' +
+          '<button type="button" class="globo-sheet-back" onclick="window._globePick(null)">&larr; Your current level</button>' +
+          '<span class="globo-sheet-country">' + safeText(label) + '</span>' +
+        '</div>' + rows;
+    });
   }
 
   function _homeGridLink() {
@@ -6829,6 +6899,10 @@ var LEVEL_THEMES = {
      * the grid renders exactly as it always has and the toggle is not drawn. */
     if (_lmViewIsMap() && _lmWideEnough()) {
       byId('contentArea').innerHTML = _lmRenderMap(_lmModels, TIERS, heroBar, heroCard, vrSlot);
+      /* The same Globe / Flat map choice as the home page, and the same mount: a
+       * student who chose the globe does not meet the flat map one tab over. */
+      if (_lmHomeView() === 'globe' &&
+          _globeMount(byId('contentArea').querySelector('.lm-stage-wrap'), { narrow: false })) return;
       _lmFitStage();
       return;
     }
@@ -7428,6 +7502,32 @@ var LEVEL_THEMES = {
     }
     goHome();
 
+    /* A country chosen by a tap on the phone. The globe turns to it and holds, and
+     * the page is told (a 'globepick' event on the wrap) so the sheet can show that
+     * country's levels. null goes back to the level in progress. The pins
+     * themselves stay inert on a phone — the tap is hit-tested here, so a drag that
+     * starts on a flag still turns the globe. */
+    var picked = null;
+    function pick(k) {
+      picked = k || null;
+      if (picked) g.lookAt(picked.lon, picked.lat, 0, 0.6, 40); else goHome();
+      g.vel = 0; g.idle = !picked; dirty = true;
+      for (var q = 0; q < marks.length; q++) marks[q].el.classList.toggle('is-picked', marks[q] === picked);
+      var code = picked ? picked.el.getAttribute('data-country') : null;
+      try { wrap.dispatchEvent(new CustomEvent('globepick', { detail: { code: code } })); } catch (e) {}
+    }
+    function pickAt(clientX, clientY) {
+      var r = wrap.getBoundingClientRect(), x = clientX - r.left, y = clientY - r.top;
+      var best = null, bestD = 28;   // a fingertip, not a pixel
+      for (var q = 0; q < countries.length; q++) {
+        var k = countries[q];
+        if (k.el.style.visibility === 'hidden') continue;
+        var d = Math.sqrt(Math.pow(parseFloat(k.el.style.left) - x, 2) + Math.pow(parseFloat(k.el.style.top) - y, 2));
+        if (d < bestD) { best = k; bestD = d; }
+      }
+      if (best) pick(best);
+    }
+
     function place() {
       for (var q = 0; q < marks.length; q++) {
         var k = marks[q], p = g.project(k.v);
@@ -7447,7 +7547,7 @@ var LEVEL_THEMES = {
     }
 
     // Input. Pointer capture is optional: a synthetic or released pointer throws.
-    var pid = null, lastX = 0, lastY = 0, lastV = 0, idleTimer = null, dirty = true;
+    var pid = null, lastX = 0, lastY = 0, lastV = 0, idleTimer = null, dirty = true, travelled = 0;
     var gainLon = narrow ? 0.34 : 0.32, gainLat = narrow ? 0 : 0.26;
     function wake() {
       if (idleTimer) clearTimeout(idleTimer);
@@ -7456,7 +7556,7 @@ var LEVEL_THEMES = {
     function onDown(e) {
       if (e.target && e.target.closest &&
           e.target.closest('.lm-pin, .lm-cp, .lm-pop, .lm-row, .home-exam-square, .home-door')) return;
-      pid = e.pointerId; lastX = e.clientX; lastY = e.clientY; lastV = 0;
+      pid = e.pointerId; lastX = e.clientX; lastY = e.clientY; lastV = 0; travelled = 0;
       g.idle = false; g.vel = 0;
       try { wrap.setPointerCapture(pid); } catch (err) {}
     }
@@ -7464,6 +7564,7 @@ var LEVEL_THEMES = {
       if (e.pointerId !== pid) return;
       var dx = e.clientX - lastX, dy = e.clientY - lastY;
       lastX = e.clientX; lastY = e.clientY;
+      travelled += Math.abs(dx) + Math.abs(dy);
       g.drag(dx, dy, gainLon, gainLat);
       lastV = dx * gainLon;
       dirty = true;
@@ -7472,9 +7573,11 @@ var LEVEL_THEMES = {
       if (e.pointerId !== pid) return;
       try { wrap.releasePointerCapture(pid); } catch (err) {}
       pid = null;
+      // Under 8px of travel it was a tap, not a drag: on a phone, a tap picks a country.
+      if (narrow && travelled < 8 && e.type === 'pointerup') { pickAt(e.clientX, e.clientY); lastV = 0; return; }
       if (!reduce) g.vel = lastV * 12;   // inertia from the last movement
       lastV = 0;
-      wake();
+      if (!picked) wake();
     }
     function onKey(e) {
       if (e.target !== wrap) return;
@@ -7511,7 +7614,7 @@ var LEVEL_THEMES = {
       if (!canvas.isConnected) { stop(); if (_globeActive && _globeActive.canvas === canvas) _globeActive = null; return; }
       var dt = last ? Math.min((t - last) / 1000, 0.05) : 0;
       last = t;
-      g.frozen = !!wrap.querySelector('.lm-anchor.is-open');
+      g.frozen = !!picked || !!wrap.querySelector('.lm-anchor.is-open');
       var moving = !reduce || Math.abs(g.vel) > 0.01;
       if (moving || dirty) {
         if (g.w === 0) g.resize();   // the box can measure zero on the first frame
@@ -7524,9 +7627,18 @@ var LEVEL_THEMES = {
     }
     raf = requestAnimationFrame(frame);
 
-    _globeActive = { stop: stop, canvas: canvas, globe: g };
+    _globeActive = {
+      stop: stop, canvas: canvas, globe: g,
+      pick: function (code) {
+        var k = null;
+        for (var q = 0; q < countries.length; q++) if (countries[q].el.getAttribute('data-country') === code) k = countries[q];
+        pick(k);
+      }
+    };
     return _globeActive;
   }
+  // The sheet's "back to your level" button, and anything else that picks by code.
+  window._globePick = function (code) { if (_globeActive && _globeActive.pick) _globeActive.pick(code || null); };
 
   // A tag worth showing beside the level number: short, and not the name again.
   function _lmShortTag(meta) {
@@ -7900,7 +8012,7 @@ var LEVEL_THEMES = {
    * and not to the map: the tab strip it shares with the modules hub, the way
    * back to the grid, and the Operational group underneath. */
   function _lmRenderMap(models, tiers, heroBar, heroCard, vrSlot) {
-    return _simTabStrip('flight') + heroBar +
+    return _simTabStrip('flight') + heroBar + _homeViewSwitch(_lmHomeView()) +
       '<div class="lm-switch"><button type="button" class="lm-switch-btn" onclick="window._lmSetView(\'grid\')">' +
         uiIconInline('bands') + 'Grid view</button></div>' +
       _lmStageHtml(models, tiers, vrSlot) +
@@ -12492,13 +12604,7 @@ var LEVEL_THEMES = {
 
     host.innerHTML =
       '<div class="completion-loading-shell">' +
-        '<div class="completion-loading-radar">' +
-          '<span class="completion-radar-ring r1"></span>' +
-          '<span class="completion-radar-ring r2"></span>' +
-          '<span class="completion-radar-ring r3"></span>' +
-          '<span class="completion-radar-sweep"></span>' +
-          '<span class="completion-radar-plane"><svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg></span>' +
-        '</div>' +
+        window._radarDishHtml() +
         '<div class="completion-loading-text">' +
           '<p class="eyebrow" style="letter-spacing: 0.12em;">' + safeText(eyebrow || '') + '</p>' +
           '<h2 id="radarLoaderMsg">' + safeText(msgs[0]) + '</h2>' +
@@ -13320,13 +13426,7 @@ var LEVEL_THEMES = {
     if (_navToken !== _finishTok) return;
     byId('contentArea').innerHTML =
       '<div class="completion-loading-shell">' +
-        '<div class="completion-loading-radar">' +
-          '<span class="completion-radar-ring r1"></span>' +
-          '<span class="completion-radar-ring r2"></span>' +
-          '<span class="completion-radar-ring r3"></span>' +
-          '<span class="completion-radar-sweep"></span>' +
-          '<span class="completion-radar-plane"><svg class="aero-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2 L19 20 L12 16.5 L5 20 Z"/></svg></span>' +
-        '</div>' +
+        window._radarDishHtml() +
         '<div class="completion-loading-text">' +
           '<p class="eyebrow" style="letter-spacing: 0.12em;">ROUTE COMPLETE</p>' +
           '<h2 id="completionLoadingMsg">Calculating your score&hellip;</h2>' +
@@ -15664,6 +15764,7 @@ var LEVEL_THEMES = {
     // itself as well as on the way in.
     if (!_lmsVisible()) { renderSimulatorPlaceholder(); return; }
     setActiveNav('Simulator');
+    window._setRedrawScreen(renderLMSHub);
     // Captured after setActiveNav, so it is this navigation's token. The progress
     // call below fills a block inside the hub, and must not fill one on a screen
     // the student has moved to since.
@@ -27719,9 +27820,9 @@ var LEVEL_THEMES = {
     setTimeout(function() { if (o.parentNode) o.remove(); if (then) then(); }, 300);
   }
 
-  function _goHome() {
-    if (typeof window.renderSimulatorPlaceholder === 'function') window.renderSimulatorPlaceholder();
-  }
+  // The screen this overlay was opened over; see window._overlayGoBack.
+  var _back = null;
+  function _goHome() { window._overlayGoBack(_back); }
 
   function _playBase64Ex(b64, onEnd) {
     try {
@@ -27733,6 +27834,7 @@ var LEVEL_THEMES = {
 
   // ── Phase 0: Intro card ───────────────────────────────────────────────────
   function _examOpen(examNum) {
+    _back = window._redrawScreen || null;
     examNum = Number(examNum || 1);
     // Same partition as the level map, worded the way this screen words it.
     var _exTier = window.tierByExam ? window.tierByExam(examNum) : null;
@@ -28110,6 +28212,7 @@ var LEVEL_THEMES = {
 
   // ── View passed result (read-only) ───────────────────────────────────────
   function _examViewResult(examNum) {
+    _back = window._redrawScreen || null;
     var examStatus = AppState.examStatus || [];
     var info = null;
     for (var i = 0; i < examStatus.length; i++) {
@@ -28253,9 +28356,9 @@ var LEVEL_THEMES = {
     setTimeout(function() { if (o.parentNode) o.remove(); if (then) then(); }, 300);
   }
 
-  function _goHome() {
-    if (typeof window.renderSimulatorPlaceholder === 'function') window.renderSimulatorPlaceholder();
-  }
+  // The screen this overlay was opened over; see window._overlayGoBack.
+  var _back = null;
+  function _goHome() { window._overlayGoBack(_back); }
 
   function _playBase64(b64, onEnd) {
     try {
@@ -28266,6 +28369,7 @@ var LEVEL_THEMES = {
   }
 
   function _placementOpen() {
+    _back = window._redrawScreen || null;
     var ps = (window.AppState && AppState.placementStatus) || {};
     if (ps.status === 'taken') return;
     var o = _mount();

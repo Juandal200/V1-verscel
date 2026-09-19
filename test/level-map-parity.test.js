@@ -85,6 +85,8 @@ function lift(extra) {
     uiIcon: () => '<svg></svg>',
     safeText: v => String(v == null ? '' : v).replace(/[<>&]/g, ''),
     _simTabStrip: () => '<nav></nav>',
+    // The Globe / Flat map switch the levels screen shares with home (2026-09-19).
+    _homeViewSwitch: () => '', _lmHomeView: () => 'flat',
     _tierOf: n => TIERS.filter(t => t.levels.indexOf(n) >= 0)[0] || null,
     AppState: { training: {} },
     localStorage: { getItem: () => null, setItem() {} },
