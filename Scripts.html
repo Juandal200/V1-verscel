@@ -2668,7 +2668,9 @@ window.tierByExam = function (examNum) {
        * And the row is not drawn at all when it is empty. The streak card only
        * appears after a two-day streak, so on most days above 1100px this holds
        * nothing, and an empty grid still carries its bottom margin. */
-      var rowCards = _lmWideEnough() ? streakCard : (simCard + teaCard + streakCard);
+      var homeView = _lmHomeView();
+      var mapShown = homeView === 'globe' || homeView === 'flat';   // enumerated: 'cards' draws no map
+      var rowCards = mapShown ? streakCard : (simCard + teaCard + streakCard);
       var cardsRow = rowCards
         ? '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:16px;">' +
             rowCards +
@@ -2695,20 +2697,21 @@ window.tierByExam = function (examNum) {
       //
       // Above 1100px only — the same breakpoint the map itself uses. Below it the
       // stage is nine pins in one corner, and this app is a phone app first.
-      var mapSection = _lmWideEnough()
+      var mapSection = mapShown
         ? '<div id="homeMapArea" style="margin-bottom:16px;">' +
             _planeLoaderHtml('Loading your levels…') +
           '</div>'
         : '';
 
       byId('contentArea').innerHTML =
-        _staleNoticeHtml() + heroBar + mapSection + (_lmWideEnough() ? '' : _homeDoorsHtml('row')) +
+        _staleNoticeHtml() + heroBar + mapSection +
+        (mapShown ? '' : _homeViewSwitch(homeView) + _homeDoorsHtml('row')) +
         dcBannerHtml + cardsRow + modulesSection;
 
       var _HOME_SECTION_TTL = 10 * 60 * 1000; // 10 minutes
 
       // Load the world map — serve from the session's catalogue if it is fresh
-      if (_lmWideEnough()) (function() {
+      if (mapShown) (function() {
         function _paint(catalog) {
           if (_navToken !== _tok) return;
           var el = byId('homeMapArea');
@@ -2718,8 +2721,24 @@ window.tierByExam = function (examNum) {
            * Operational card takes its name from the Levels sheet, and drawing
            * before that arrives publishes a card with no name on it. */
           if (_levelMeta === null) { _loadLevelMeta(function() { _paint(catalog); }); return; }
-          el.innerHTML = _homeGridLink() + _lmHomeMapHtml(catalog, _homeExamSquare() + _homeDoorsHtml('rail'));
-          _lmFitStage();
+          var narrow = !_lmWideEnough();
+          el.classList.toggle('lm-home--narrow-globe', narrow);
+          el.innerHTML = _homeViewSwitch(homeView) + (narrow ? '' : _homeGridLink()) +
+            _lmHomeMapHtml(catalog, narrow ? '' : _homeExamSquare() + _homeDoorsHtml('rail'));
+          if (homeView === 'globe') {
+            var wrap  = el.querySelector('.lm-stage-wrap');
+            var sheet = narrow && wrap ? _globeSheetHtml(el) : '';
+            if (_globeMount(wrap, { narrow: narrow })) {
+              if (sheet) wrap.insertAdjacentHTML('afterend', sheet);
+            } else {
+              /* No globe (no LM_GLOBE, no canvas): the flat map, and it is reported,
+               * because a globe that silently is not there looks like a choice. */
+              try { if (window._reportClientError) window._reportClientError('globe', new Error('globe did not mount')); } catch (e) {}
+              _lmFitStage();
+            }
+          } else {
+            _lmFitStage();
+          }
         }
 
         /* A failure here is visible and reported.
@@ -6197,6 +6216,61 @@ var LEVEL_THEMES = {
    * two-day streak, and the ATC card that used to carry this route is gone. That
    * would also have ended the levelmap_view comparison, since there would be no
    * way left to choose the grid. */
+  /* Which drawing of the map the home page uses, remembered per browser.
+   *
+   * The globe is an exploration, not a decision (Design says so in its handoff),
+   * so the flat map stays one tap away on a desktop and the globe is one tap away
+   * on a phone. Each width keeps its own choice: a student who wants the globe on
+   * the laptop has not thereby asked for it on the phone. Enumerated: a stored
+   * value that is neither choice falls back to the default for that width. */
+  var _LM_HOME_VIEWS = {
+    wide:   { key: 'lmHomeView.wide',   dflt: 'globe', options: [['globe', 'Globe'], ['flat', 'Flat map']] },
+    narrow: { key: 'lmHomeView.narrow', dflt: 'cards', options: [['cards', 'Cards'], ['globe', 'Globe']] }
+  };
+  function _lmHomeView() {
+    var cfg = _LM_HOME_VIEWS[_lmWideEnough() ? 'wide' : 'narrow'];
+    var v = null;
+    try { v = window.localStorage.getItem(cfg.key); } catch (e) {}
+    for (var i = 0; i < cfg.options.length; i++) if (cfg.options[i][0] === v) return v;
+    return cfg.dflt;
+  }
+  window._lmSetHomeView = function (v) {
+    var cfg = _LM_HOME_VIEWS[_lmWideEnough() ? 'wide' : 'narrow'];
+    try { window.localStorage.setItem(cfg.key, v); } catch (e) {}
+    renderHome();
+  };
+  function _homeViewSwitch(view) {
+    var cfg = _LM_HOME_VIEWS[_lmWideEnough() ? 'wide' : 'narrow'];
+    return '<div class="lm-viewpick" role="group" aria-label="How to show your levels">' +
+      cfg.options.map(function (o) {
+        return '<button type="button" aria-pressed="' + (o[0] === view ? 'true' : 'false') + '"' +
+          ' onclick="window._lmSetHomeView(\'' + o[0] + '\')">' + o[1] + '</button>';
+      }).join('') + '</div>';
+  }
+
+  /* The phone's globe acts through this sheet, not through the pins: the level in
+   * progress, the checkpoint that can be sat, the three doors and the mock test.
+   * Cut from the map the generator just drew, before the globe marks it inert, so
+   * each is the same button with the same action — not a second drawing of it. */
+  function _globeSheetHtml(mapEl) {
+    function cleanClone(sel) {
+      var n = mapEl.querySelector(sel);
+      if (!n) return '';
+      var c = n.cloneNode(true);
+      ['style', 'data-lon', 'data-lat', 'data-first-level'].forEach(function (a) { c.removeAttribute(a); });
+      return c.outerHTML;
+    }
+    var tmp = document.createElement('div');
+    tmp.innerHTML = _homeExamSquare();
+    var exam = tmp.querySelector('.home-exam-square');
+    return '<div class="globo-sheet">' +
+      cleanClone('.lm-row--current') +
+      (cleanClone('.lm-cp--ready') || cleanClone('.lm-cp--failed_once') || cleanClone('.lm-cp--replay_required')) +
+      _homeDoorsHtml('row') +
+      (exam ? exam.outerHTML : '') +
+    '</div>';
+  }
+
   function _homeGridLink() {
     return '<div class="lm-switch">' +
       '<button type="button" class="lm-switch-btn" onclick="window._lmGoToView(\'grid\')">' +
@@ -6911,6 +6985,7 @@ var LEVEL_THEMES = {
     var wrap  = document.querySelector('.lm-stage-wrap');
     var stage = document.querySelector('.lm-stage');
     if (!wrap || !stage) return;
+    if (wrap.classList.contains('globo-wrap')) return;   // the globe sizes itself
     var scale = Math.min(1, wrap.clientWidth / _LM_W);
     stage.style.transform = 'scale(' + scale + ')';
     wrap.style.height = (_LM_H * scale) + 'px';
@@ -6918,6 +6993,540 @@ var LEVEL_THEMES = {
   window.addEventListener('resize', function () {
     if (document.querySelector('.lm-stage')) _lmFitStage();
   });
+
+  /* ══ THE GLOBE ════════════════════════════════════════════════════════════════
+   *
+   * The home page's map drawn as a planet you can turn. Ported from Claude
+   * Design's globe.js (handoff 2026-09-19): the orthographic projection, the
+   * back-hemisphere cull, the terminator and the flights are theirs. Four things
+   * are not, and each was a defect in the prototype:
+   *
+   *   1. Geometry comes from LM_GLOBE, in degrees, written by tools/gen-map.mjs
+   *      from the same topology as the flat map. The prototype unprojected the
+   *      flat map's pixels as if they were a plain lon/lat grid; they are Natural
+   *      Earth, and Alaska came out 30 degrees off.
+   *   2. Pins stand on the coordinates the app already has (_LM_PLACE, _LM_CP),
+   *      read from data-lon/data-lat on the flat map's own markup. There is one
+   *      generator for pins; the globe moves them, it does not draw its own.
+   *   3. Dragging moves the planet WITH the finger. With the prototype's sign it
+   *      moved against it once the mirror fix was in.
+   *   4. The ocean is neutral grey. The prototype's was faintly teal, which the
+   *      map redesign removed everywhere else.
+   *
+   * Its paint is literal rgb(): a canvas has no theme, and this room is dark in
+   * both themes, like the cockpit and the exam. */
+  var _GLOBE_DEG = Math.PI / 180;
+
+  function _globeUnit(lon, lat) {
+    var cl = Math.cos(lat * _GLOBE_DEG);
+    return [cl * Math.cos(lon * _GLOBE_DEG), Math.sin(lat * _GLOBE_DEG), cl * Math.sin(lon * _GLOBE_DEG)];
+  }
+
+  /* 'M lon,lat L lon,lat ... Z' into unit vectors, once. Every frame after that is
+   * one rotation and one projection per vertex, no trigonometry. */
+  function _globeParse(d) {
+    var rings = [];
+    String(d || '').split('M').forEach(function (chunk) {
+      if (!chunk.trim()) return;
+      var pts = chunk.replace(/Z/g, '').trim().split('L');
+      var v = new Float32Array(pts.length * 3), n = 0;
+      for (var i = 0; i < pts.length; i++) {
+        var c = pts[i].split(',');
+        if (c.length < 2) continue;
+        var lon = parseFloat(c[0]), lat = parseFloat(c[1]);
+        if (!isFinite(lon) || !isFinite(lat)) continue;
+        var u = _globeUnit(lon, lat);
+        v[n * 3] = u[0]; v[n * 3 + 1] = u[1]; v[n * 3 + 2] = u[2];
+        n++;
+      }
+      if (n > 1) rings.push({ v: v, n: n });
+    });
+    return rings;
+  }
+
+  var _globeWorld = null;
+  function _globeGeo() {
+    if (!_globeWorld && window.LM_GLOBE) {
+      _globeWorld = { land: _globeParse(window.LM_GLOBE.land), borders: _globeParse(window.LM_GLOBE.borders) };
+    }
+    return _globeWorld;
+  }
+
+  // A fixed sky, seeded: the same stars on every load, which is what a sky is.
+  function _globeSky(count) {
+    var s = 20260918, out = [];
+    function rnd() { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; }
+    for (var i = 0; i < count; i++) out.push([rnd(), rnd(), 0.25 + rnd() * 0.75, 0.4 + rnd() * 1.3]);
+    return out;
+  }
+
+  function _Globe(canvas, geo) {
+    this.geo = geo;
+    this.stars = _globeSky(260);
+    this.rot = { lon: -30, lat: 16 };
+    this.vel = 0;
+    this.spin = 1.6;           // idle drift, degrees per second
+    this.idle = true;
+    this.frozen = false;       // a country panel is open: nothing moves under it
+    this.sun = _globeUnit(-28, 12);  // fixed in the world, so the dawn line moves as it turns
+    this.routes = [];
+    this.t = 0;
+    this.setCanvas(canvas);
+  }
+
+  _Globe.prototype.setCanvas = function (cv) {
+    this.cv = cv;
+    this.ctx = cv.getContext('2d');
+    this.resize();
+  };
+
+  _Globe.prototype.resize = function () {
+    /* max(1, …) as well as the cap: below 100% zoom the buffer would be SMALLER
+     * than the box, the browser would scale it up, and the 1px coast would blur. */
+    this.dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+    var r = this.cv.getBoundingClientRect();
+    this.w = r.width; this.h = r.height;
+    this.cv.width = Math.round(r.width * this.dpr);
+    this.cv.height = Math.round(r.height * this.dpr);
+    this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.cx = this.w / 2;
+    this.cy = this.h / 2;
+    this.R = Math.min(this.w, this.h) * 0.405;
+  };
+
+  _Globe.prototype._trig = function () {
+    var a = this.rot.lon * _GLOBE_DEG, b = this.rot.lat * _GLOBE_DEG;
+    this.sa = Math.sin(a); this.ca = Math.cos(a);
+    this.sb = Math.sin(b); this.cb = Math.cos(b);
+  };
+
+  /* [x, y, z]; z > 0 faces the viewer. The centre of the view is rot.lon + 90,
+   * and x is NEGATED: without it the planet is mirrored east-west. */
+  _Globe.prototype.project = function (v, lift) {
+    var k = lift || 1;
+    var x1 = -(v[0] * this.ca + v[2] * this.sa);
+    var z1 = -v[0] * this.sa + v[2] * this.ca;
+    var y2 = v[1] * this.cb - z1 * this.sb;
+    var z2 = v[1] * this.sb + z1 * this.cb;
+    return [this.cx + x1 * this.R * k, this.cy - y2 * this.R * k, z2];
+  };
+
+  // Where the view is centred, so a lon/lat can be brought to it.
+  _Globe.prototype.lookAt = function (lon, lat, offsetLon, latFactor, latMax) {
+    this.rot.lon = lon + (offsetLon || 0) - 90;
+    this.rot.lat = Math.max(-(latMax || 28), Math.min(latMax || 30, lat * (latFactor || 0.5)));
+  };
+
+  /* The routes are the itinerary, in level order, and each leg takes the state of
+   * the country it arrives at — so the bright aircraft always flies towards where
+   * the student has to go. Great circles (slerp), not chords through the planet. */
+  _Globe.prototype.setRoutes = function (list) {
+    this.routes = list.map(function (r, i) {
+      var a = _globeUnit(r.a[0], r.a[1]), b = _globeUnit(r.b[0], r.b[1]);
+      var dot = Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]));
+      var ang = Math.acos(dot);
+      var n = Math.max(24, Math.round(ang * 34));
+      var pts = new Float32Array((n + 1) * 3);
+      var s = Math.sin(ang) || 1e-6;
+      for (var k = 0; k <= n; k++) {
+        var t = k / n, w1 = Math.sin((1 - t) * ang) / s, w2 = Math.sin(t * ang) / s;
+        pts[k * 3] = a[0] * w1 + b[0] * w2;
+        pts[k * 3 + 1] = a[1] * w1 + b[1] * w2;
+        pts[k * 3 + 2] = a[2] * w1 + b[2] * w2;
+      }
+      return { pts: pts, n: n, state: r.state || 'locked', phase: (i * 0.37) % 1, dur: 9 + ang * 7 };
+    });
+  };
+
+  /* Dragging right turns the planet right: rot.lon goes DOWN. Measured, not
+   * assumed — test/globe.test.js drags and checks the pixel moved with the finger. */
+  _Globe.prototype.drag = function (dx, dy, gainLon, gainLat) {
+    this.rot.lon -= dx * gainLon;
+    this.rot.lat += dy * (gainLat || 0);
+    this._clamp();
+  };
+
+  _Globe.prototype._clamp = function () {
+    this.rot.lat = Math.max(-72, Math.min(72, this.rot.lat));
+    this.rot.lon = ((this.rot.lon + 180) % 360 + 360) % 360 - 180;
+  };
+
+  _Globe.prototype.step = function (dt, animate) {
+    if (animate) this.t += dt;
+    if (!this.frozen) {
+      if (Math.abs(this.vel) > 0.01) {
+        this.rot.lon -= this.vel * dt;
+        this.vel *= Math.pow(0.12, dt);   // inertia dies away
+      } else if (this.idle && animate) {
+        this.rot.lon -= this.spin * dt;   // eastward, as the Earth turns
+      }
+    } else {
+      this.vel = 0;
+    }
+    this._clamp();
+  };
+
+  _Globe.prototype.draw = function () {
+    var ctx = this.ctx, cx = this.cx, cy = this.cy, R = this.R, w = this.w, h = this.h;
+    this._trig();
+    ctx.clearRect(0, 0, w, h);
+
+    // The void and the sky.
+    ctx.fillStyle = 'rgb(5,5,5)';
+    ctx.fillRect(0, 0, w, h);
+    for (var i = 0; i < this.stars.length; i++) {
+      var st = this.stars[i], px = st[0] * w, py = st[1] * h;
+      if (Math.sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy)) < R + 6) continue;
+      ctx.fillStyle = 'rgba(255,255,255,' + (st[2] * 0.55).toFixed(3) + ')';
+      ctx.fillRect(px, py, st[3], st[3]);
+    }
+
+    // Atmosphere: separates the planet from the dark without drawing it a border.
+    var halo = ctx.createRadialGradient(cx, cy, R * 0.97, cx, cy, R * 1.19);
+    halo.addColorStop(0, 'rgba(255,255,255,0.10)');
+    halo.addColorStop(0.35, 'rgba(255,255,255,0.035)');
+    halo.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(cx, cy, R * 1.19, 0, 6.2832); ctx.fill();
+
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.2832); ctx.clip();
+    var sea = ctx.createRadialGradient(cx - R * 0.32, cy - R * 0.38, R * 0.08, cx, cy, R * 1.06);
+    sea.addColorStop(0, 'rgb(30,30,31)');
+    sea.addColorStop(0.5, 'rgb(17,17,18)');
+    sea.addColorStop(1, 'rgb(8,8,8)');
+    ctx.fillStyle = sea;
+    ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+
+    /* Land, as one path. The coast is all a planet at night shows: under 0.9 alpha
+     * the sphere reads as a grey cloud. One path and one stroke rather than one per
+     * ring, because the glow is the costly part of a frame. */
+    ctx.beginPath();
+    this._path(this.geo.land, true);
+    ctx.fillStyle = 'rgba(255,255,255,0.055)';
+    ctx.fill();
+    ctx.beginPath();
+    this._path(this.geo.land, false);
+    ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+    ctx.lineWidth = 1;
+    ctx.lineJoin = 'round';
+    ctx.shadowColor = 'rgba(255,255,255,0.55)';
+    ctx.shadowBlur = 6;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Borders well under the coast: sea and land are physical, a border is agreed.
+    ctx.beginPath();
+    this._path(this.geo.borders, false);
+    ctx.strokeStyle = 'rgba(255,255,255,0.13)';
+    ctx.lineWidth = 0.7;
+    ctx.stroke();
+
+    // The terminator. The sun is fixed in the world, so the dawn line moves by itself.
+    var s = this.project(this.sun);
+    var dx = (s[0] - cx) / R, dy = (s[1] - cy) / R;
+    var m = Math.sqrt(dx * dx + dy * dy) || 1e-6;
+    if (m > 1) { dx /= m; dy /= m; }
+    var shade = ctx.createLinearGradient(cx + dx * R, cy + dy * R, cx - dx * R, cy - dy * R);
+    var lit = s[2] > 0 ? 0.0 : 0.16;
+    shade.addColorStop(0, 'rgba(255,255,255,' + (0.055 - lit * 0.3).toFixed(3) + ')');
+    shade.addColorStop(0.44, 'rgba(5,5,5,0)');
+    shade.addColorStop(0.6, 'rgba(5,5,5,' + (0.1 + lit * 0.5).toFixed(3) + ')');
+    shade.addColorStop(0.78, 'rgba(5,5,5,' + (0.3 + lit).toFixed(3) + ')');
+    shade.addColorStop(1, 'rgba(5,5,5,' + (0.62 + lit).toFixed(3) + ')');
+    ctx.fillStyle = shade;
+    ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+
+    // Limb darkening: without it the sphere reads as a cut-out circle.
+    var limb = ctx.createRadialGradient(cx, cy, R * 0.74, cx, cy, R);
+    limb.addColorStop(0, 'rgba(5,5,5,0)');
+    limb.addColorStop(0.86, 'rgba(5,5,5,0.2)');
+    limb.addColorStop(1, 'rgba(5,5,5,0.66)');
+    ctx.fillStyle = limb;
+    ctx.fillRect(cx - R, cy - R, R * 2, R * 2);
+    ctx.restore();
+
+    // Flights, above the terminator: an aircraft in the air is lit when the ground is not.
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, R * 1.03, 0, 6.2832); ctx.clip();
+    for (var r = 0; r < this.routes.length; r++) this._flight(this.routes[r]);
+    ctx.restore();
+
+    ctx.beginPath(); ctx.arc(cx, cy, R - 0.4, 0, 6.2832);
+    ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  };
+
+  /* One path for every ring. For the stroke a point behind the planet breaks the
+   * line. For the fill it is laid on the horizon instead, so a coast that crosses
+   * the edge closes along the edge and not along a chord across the land. */
+  _Globe.prototype._path = function (rings, forFill) {
+    var ctx = this.ctx, cx = this.cx, cy = this.cy, R = this.R;
+    var ca = this.ca, sa = this.sa, cb = this.cb, sb = this.sb;
+    var buf = this._buf || (this._buf = new Float32Array(0));
+    for (var q = 0; q < rings.length; q++) {
+      var rg = rings[q], v = rg.v, n = rg.n, any = false;
+      if (buf.length < n * 3) buf = this._buf = new Float32Array(n * 3);
+      for (var i = 0; i < n; i++) {
+        var x1 = -(v[i * 3] * ca + v[i * 3 + 2] * sa);
+        var z1 = -v[i * 3] * sa + v[i * 3 + 2] * ca;
+        buf[i * 3] = x1;
+        buf[i * 3 + 1] = v[i * 3 + 1] * cb - z1 * sb;
+        buf[i * 3 + 2] = v[i * 3 + 1] * sb + z1 * cb;
+        if (buf[i * 3 + 2] > 0) any = true;
+      }
+      // Wholly behind the planet: nothing to draw, and filling it on the horizon would draw a sliver.
+      if (!any) continue;
+      var open = false;
+      for (var j = 0; j < n; j++) {
+        var px = buf[j * 3], py = buf[j * 3 + 1];
+        if (buf[j * 3 + 2] <= 0) {
+          if (!forFill) { open = false; continue; }
+          var k = Math.sqrt(px * px + py * py) || 1e-6;
+          px /= k; py /= k;
+        }
+        if (!open) { ctx.moveTo(cx + px * R, cy - py * R); open = true; }
+        else ctx.lineTo(cx + px * R, cy - py * R);
+      }
+    }
+  };
+
+  /* Three weights, the three of the state system. Colour is never the only
+   * signal: the line and the aircraft change size as well. */
+  _Globe.prototype._flight = function (r) {
+    var ctx = this.ctx, self = this;
+    var cur = r.state === 'current', done = r.state === 'complete';
+    function P(i) {
+      return self.project([r.pts[i * 3], r.pts[i * 3 + 1], r.pts[i * 3 + 2]], 1.016);
+    }
+    ctx.lineWidth = cur ? 1.3 : 0.8;
+    ctx.strokeStyle = cur ? 'rgba(255,255,255,0.5)' : done ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.1)';
+    if (cur) { ctx.shadowColor = 'rgba(255,255,255,0.45)'; ctx.shadowBlur = 5; }
+    var open = false;
+    ctx.beginPath();
+    for (var i = 0; i <= r.n; i++) {
+      var p = P(i);
+      if (p[2] <= 0) { open = false; continue; }
+      if (!open) { ctx.moveTo(p[0], p[1]); open = true; } else ctx.lineTo(p[0], p[1]);
+    }
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // The aircraft: a dart along the tangent. At 6px a drawn plane is a smudge.
+    var t = ((this.t / r.dur) + r.phase) % 1;
+    var i0 = Math.min(r.n - 1, Math.floor(t * r.n));
+    var a = P(i0), b = P(i0 + 1);
+    if (a[2] <= 0 || b[2] <= 0) return;
+    var f = t * r.n - i0;
+    var px = a[0] + (b[0] - a[0]) * f, py = a[1] + (b[1] - a[1]) * f;
+    var head = Math.atan2(b[1] - a[1], b[0] - a[0]);
+    var s = cur ? 5.4 : done ? 4 : 3.2;
+    if (cur) {
+      var g = ctx.createLinearGradient(px - Math.cos(head) * 46, py - Math.sin(head) * 46, px, py);
+      g.addColorStop(0, 'rgba(255,255,255,0)');
+      g.addColorStop(1, 'rgba(255,255,255,0.5)');
+      ctx.strokeStyle = g; ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(px - Math.cos(head) * 46, py - Math.sin(head) * 46);
+      ctx.lineTo(px, py);
+      ctx.stroke();
+    }
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(head);
+    ctx.fillStyle = cur ? 'rgb(255,255,255)' : done ? 'rgba(255,255,255,0.62)' : 'rgba(255,255,255,0.3)';
+    if (cur) { ctx.shadowColor = 'rgba(255,255,255,0.85)'; ctx.shadowBlur = 7; }
+    ctx.beginPath();
+    ctx.moveTo(s, 0);
+    ctx.lineTo(-s * 0.72, s * 0.62);
+    ctx.lineTo(-s * 0.3, 0);
+    ctx.lineTo(-s * 0.72, -s * 0.62);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+    ctx.shadowBlur = 0;
+  };
+
+  /* Mount the globe on a map the flat generator has already drawn.
+   *
+   * The pins, checkpoints, mock test and doors are the flat map's own buttons.
+   * .lm-stage stays — _lmOpenCountry looks for anchors inside it — but it stops
+   * being a scaled 1600x885 sheet and becomes a layer over the canvas, and every
+   * frame writes each mark's left/top from the projection.
+   *
+   * One globe at a time. The loop ends by itself when its canvas leaves the page,
+   * which is how a navigation away stops it without anyone remembering to. */
+  var _globeActive = null;
+  function _globeMount(wrap, opts) {
+    opts = opts || {};
+    if (_globeActive) { _globeActive.stop(); _globeActive = null; }
+    var geo = _globeGeo();
+    var stage = wrap && wrap.querySelector('.lm-stage');
+    if (!wrap || !stage || !geo || !window.requestAnimationFrame) return null;
+    var narrow = !!opts.narrow;
+
+    wrap.classList.add('globo-wrap');
+    if (narrow) wrap.classList.add('globo-wrap--narrow');
+    wrap.style.height = '';
+    stage.style.transform = '';
+    var canvas = document.createElement('canvas');
+    canvas.setAttribute('aria-hidden', 'true');
+    wrap.insertBefore(canvas, wrap.firstChild);
+    wrap.setAttribute('tabindex', '0');
+    wrap.setAttribute('role', 'group');
+    wrap.setAttribute('aria-label', 'World map of your levels. Arrow keys turn the globe; Home returns to your current level.');
+
+    var g = new _Globe(canvas, geo);
+    if (narrow) g.spin = 1.1;   // a small frame shows the same turn as more movement
+
+    var reduce = false;
+    try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+
+    var marks = [];
+    var els = stage.querySelectorAll('[data-lon][data-lat]');
+    for (var i = 0; i < els.length; i++) {
+      var lon = parseFloat(els[i].getAttribute('data-lon')), lat = parseFloat(els[i].getAttribute('data-lat'));
+      if (!isFinite(lon) || !isFinite(lat)) continue;
+      marks.push({ el: els[i], lon: lon, lat: lat, v: _globeUnit(lon, lat) });
+      // On a phone the globe orients and the sheet below acts: marks are not controls.
+      if (narrow) {
+        els[i].setAttribute('aria-hidden', 'true');
+        var bs = els[i].matches && els[i].matches('button') ? [els[i]] : els[i].querySelectorAll('button');
+        for (var j = 0; j < bs.length; j++) bs[j].setAttribute('tabindex', '-1');
+      }
+    }
+
+    // The itinerary: countries in the order of their first level.
+    var countries = marks.filter(function (k) { return k.el.classList.contains('lm-anchor'); })
+      .sort(function (a, b) {
+        return Number(a.el.getAttribute('data-first-level')) - Number(b.el.getAttribute('data-first-level'));
+      });
+    function stateOf(k) {
+      var p = k.el.querySelector('.lm-pin');
+      if (!p) return 'locked';
+      if (p.classList.contains('lm-pin--complete')) return 'complete';
+      if (p.classList.contains('lm-pin--current')) return 'current';
+      return 'locked';
+    }
+    var legs = [];
+    for (var c = 1; c < countries.length; c++) {
+      legs.push({ a: [countries[c - 1].lon, countries[c - 1].lat], b: [countries[c].lon, countries[c].lat],
+                  state: stateOf(countries[c]) });
+    }
+    g.setRoutes(legs);
+
+    // It starts looking at the level in progress: on a sphere that answer can be behind.
+    var home = null;
+    for (var h = 0; h < countries.length; h++) if (stateOf(countries[h]) === 'current') { home = countries[h]; break; }
+    if (!home) home = countries[0] || null;
+    function goHome() {
+      if (!home) return;
+      if (narrow) g.lookAt(home.lon, home.lat, 10, 0.45, 26);
+      else g.lookAt(home.lon, home.lat, 16, 0.5, 28);
+      g.vel = 0;
+    }
+    goHome();
+
+    function place() {
+      for (var q = 0; q < marks.length; q++) {
+        var k = marks[q], p = g.project(k.v);
+        k.el.style.left = p[0].toFixed(1) + 'px';
+        k.el.style.top = p[1].toFixed(1) + 'px';
+        var hide = p[2] <= 0;
+        /* visibility, not only opacity: at opacity 0 a button can still be tabbed
+         * to, and the focus ring was drawn over a country on the far side. */
+        k.el.style.visibility = hide ? 'hidden' : '';
+        k.el.style.pointerEvents = hide ? 'none' : '';
+        k.el.style.opacity = hide ? '0' : String(Math.min(1, p[2] / 0.18).toFixed(2));
+        if (k.el.classList.contains('lm-anchor')) {
+          k.el.classList.toggle('lm-anchor--left', p[0] > g.w * 0.62);
+          k.el.classList.toggle('lm-anchor--up', p[1] > g.h * 0.66);
+        }
+      }
+    }
+
+    // Input. Pointer capture is optional: a synthetic or released pointer throws.
+    var pid = null, lastX = 0, lastY = 0, lastV = 0, idleTimer = null, dirty = true;
+    var gainLon = narrow ? 0.34 : 0.32, gainLat = narrow ? 0 : 0.26;
+    function wake() {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(function () { g.idle = true; }, 900);
+    }
+    function onDown(e) {
+      if (e.target && e.target.closest &&
+          e.target.closest('.lm-pin, .lm-cp, .lm-pop, .lm-row, .home-exam-square, .home-door')) return;
+      pid = e.pointerId; lastX = e.clientX; lastY = e.clientY; lastV = 0;
+      g.idle = false; g.vel = 0;
+      try { wrap.setPointerCapture(pid); } catch (err) {}
+    }
+    function onMove(e) {
+      if (e.pointerId !== pid) return;
+      var dx = e.clientX - lastX, dy = e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY;
+      g.drag(dx, dy, gainLon, gainLat);
+      lastV = dx * gainLon;
+      dirty = true;
+    }
+    function onUp(e) {
+      if (e.pointerId !== pid) return;
+      try { wrap.releasePointerCapture(pid); } catch (err) {}
+      pid = null;
+      if (!reduce) g.vel = lastV * 12;   // inertia from the last movement
+      lastV = 0;
+      wake();
+    }
+    function onKey(e) {
+      if (e.target !== wrap) return;
+      var k = e.key;
+      if (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'ArrowUp' || k === 'ArrowDown') {
+        g.idle = false; g.vel = 0;
+        if (k === 'ArrowLeft') g.rot.lon -= 6;
+        if (k === 'ArrowRight') g.rot.lon += 6;
+        if (k === 'ArrowUp') g.rot.lat += 5;
+        if (k === 'ArrowDown') g.rot.lat -= 5;
+        g._clamp();
+        e.preventDefault(); dirty = true; wake();
+      } else if (k === 'Home') {
+        g.idle = false; goHome(); e.preventDefault(); dirty = true; wake();
+      }
+    }
+    wrap.addEventListener('pointerdown', onDown);
+    wrap.addEventListener('pointermove', onMove);
+    wrap.addEventListener('pointerup', onUp);
+    wrap.addEventListener('pointercancel', onUp);
+    wrap.addEventListener('keydown', onKey);
+    function onResize() { g.resize(); dirty = true; }
+    window.addEventListener('resize', onResize);
+
+    var raf = 0, last = 0, stopped = false;
+    function stop() {
+      stopped = true;
+      if (raf) cancelAnimationFrame(raf);
+      if (idleTimer) clearTimeout(idleTimer);
+      window.removeEventListener('resize', onResize);
+    }
+    function frame(t) {
+      if (stopped) return;
+      if (!canvas.isConnected) { stop(); if (_globeActive && _globeActive.canvas === canvas) _globeActive = null; return; }
+      var dt = last ? Math.min((t - last) / 1000, 0.05) : 0;
+      last = t;
+      g.frozen = !!wrap.querySelector('.lm-anchor.is-open');
+      var moving = !reduce || Math.abs(g.vel) > 0.01;
+      if (moving || dirty) {
+        if (g.w === 0) g.resize();   // the box can measure zero on the first frame
+        g.step(dt, !reduce);
+        g.draw();
+        place();
+        dirty = false;
+      }
+      raf = requestAnimationFrame(frame);
+    }
+    raf = requestAnimationFrame(frame);
+
+    _globeActive = { stop: stop, canvas: canvas, globe: g };
+    return _globeActive;
+  }
 
   // A tag worth showing beside the level number: short, and not the name again.
   function _lmShortTag(meta) {
@@ -7181,6 +7790,7 @@ var LEVEL_THEMES = {
        * the ticket asked for buttons for exactly that reason. */
       anchors +=
         '<div class="lm-anchor' + flip + '" data-country="' + safeText(code) + '"' +
+          ' data-lon="' + g.place.lon + '" data-lat="' + g.place.lat + '" data-first-level="' + g.levels[0].level + '"' +
           ' style="left:' + x.toFixed(1) + 'px;top:' + y.toFixed(1) + 'px;">' +
           '<button type="button" class="lm-pin lm-pin--' + cState + '"' +
             ' aria-expanded="false" aria-label="' + label + ' — ' + doneCount + ' of ' +
@@ -7232,6 +7842,7 @@ var LEVEL_THEMES = {
        * keyboard as well as by mouse rather than merely looking unavailable. */
       cpMarks +=
         '<button type="button" class="lm-cp lm-cp--' + safeText(status) + '"' +
+          ' data-lon="' + at.lon + '" data-lat="' + at.lat + '"' +
           ' style="left:' + _lmCpPt.x.toFixed(1) +
           'px;top:' + _lmCpPt.y.toFixed(1) + 'px;"' +
           ' aria-label="Checkpoint ' + t.examNum + ' — ' + safeText(label) + '. ' + safeText(sub) + '"' +

@@ -190,10 +190,12 @@ console.log('--- where the map is drawn, the cards it replaces are gone ---');
  * mark on the map itself, so the ICAO card and the ATC card both come out. Below
  * 1100px there is no map and no square, so both stay — taking them out there
  * would leave a phone with no way into either. */
-ok('the row asks the width',
-   /_lmWideEnough\(\) \? streakCard : \(simCard \+ teaCard \+ streakCard\)/.test(home));
+/* Since the globe (2026-09-19) the question is not the width but whether a map is
+ * shown: a phone can choose the globe, and then its sheet carries the mock test. */
+ok('the row asks whether a map is shown',
+   /mapShown \? streakCard : \(simCard \+ teaCard \+ streakCard\)/.test(home));
 ok('the square is drawn only where the map is',
-   home.indexOf('_homeExamSquare()') > home.indexOf('if (_lmWideEnough()) (function()'));
+   home.indexOf('_homeExamSquare()') > home.indexOf('if (mapShown) (function()'));
 /* The streak card only appears after a two-day streak, so on most days above
  * 1100px this row holds nothing — and an empty grid still carries its margin. */
 ok('an empty row is not drawn at all', /var cardsRow = rowCards\s*\?/.test(home));
@@ -204,8 +206,8 @@ console.log('--- and the grid is still reachable ---');
  * card that carried this route is gone. That would also have ended the
  * levelmap_view comparison, since nothing would be left to choose the grid. */
 ok('there is a Grid view link',   /_homeGridLink\(\)/.test(home));
-ok('drawn above the map',
-   home.indexOf('_homeGridLink() + _lmHomeMapHtml') !== -1);
+ok('drawn above the map, on a desktop',
+   /\(narrow \? '' : _homeGridLink\(\)\) \+\s*_lmHomeMapHtml/.test(home));
 const link = strip(grab('function _homeGridLink()'));
 ok('it uses the levels screen\'s own switch', /lm-switch-btn/.test(link));
 /* Escaped in source, because the onclick lives inside a JavaScript string. */
@@ -230,12 +232,17 @@ ok('before the daily challenge',  order.indexOf('mapSection') < order.indexOf('d
 ok('before the cards',            order.indexOf('mapSection') < order.indexOf('cardsRow'));
 ok('and before the modules',      order.indexOf('mapSection') < order.indexOf('modulesSection'));
 
-console.log('--- above 1100px only ---');
-/* Below it the grid is what renders on the levels screen, and the home page is
- * the card row it has always been. A world map at 390px is nine pins in one
- * corner, and this app is a phone app first. */
-ok('the section is gated',        /_lmWideEnough\(\)\s*\?[\s\S]{0,400}homeMapArea/.test(home));
-ok('and so is the fetch',         /if \(_lmWideEnough\(\)\) \(function\(\)/.test(home));
+console.log('--- a map where one is chosen, and cards by default on a phone ---');
+/* It was "above 1100px only": a flat map at 390px is nine pins in one corner.
+ * Since the globe a phone may CHOOSE the globe, which orients rather than lists.
+ * The default below 1100px is still the cards — this app is a phone app first. */
+ok('the section is gated on the choice', /mapShown\s*\?[\s\S]{0,400}homeMapArea/.test(home));
+ok('and so is the fetch',               /if \(mapShown\) \(function\(\)/.test(home));
+ok('the choice is enumerated, not negated',
+   /var mapShown = homeView === 'globe' \|\| homeView === 'flat';/.test(home));
+const views = S.slice(S.indexOf('var _LM_HOME_VIEWS = {'), S.indexOf('var _LM_HOME_VIEWS = {') + 400);
+ok('a phone defaults to the cards',  /narrow:\s*\{[^}]*dflt: 'cards'/.test(views));
+ok('a desktop defaults to the globe', /wide:\s*\{[^}]*dflt: 'globe'/.test(views));
 
 console.log('--- it does not pay for the catalogue twice ---');
 ok('a fresh session catalogue is used', /_homeMapCacheRead\(_HOME_SECTION_TTL\)/.test(home));
@@ -265,7 +272,7 @@ console.log('--- a failure is visible and reported ---');
  * this section is, and the marker used to slice it was itself a comment. */
 const homeRaw = grab('function renderHome()');
 const mapLoader = homeRaw.slice(
-  homeRaw.indexOf('if (_lmWideEnough()) (function()'),
+  homeRaw.indexOf('if (mapShown) (function()'),
   homeRaw.indexOf('.apiGetTrainingCatalogV5_HARD')
 );
 ok('the map section is found',      mapLoader.length > 200);

@@ -14591,4 +14591,110 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   text-transform: uppercase;
   color: var(--muted);
 }
+
+/* ── THE GLOBE (home page) ───────────────────────────────────────────────────
+   From Claude Design's globe handoff, 2026-09-19. The map is the flat map's own
+   markup: .lm-stage stops being a scaled 1600x885 sheet and becomes a layer over
+   the canvas, and the engine writes each mark's left/top every frame. Sizes are
+   Design's, moved onto the app's radius and speed scales. */
+.lm-stage-wrap.globo-wrap {
+  height: 720px;
+  background: var(--map-sea);
+  touch-action: none;
+  cursor: grab;
+}
+.globo-wrap:active { cursor: grabbing; }
+.globo-wrap > canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.globo-wrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.globo-wrap .lm-stage {
+  inset: 0;
+  width: auto;
+  height: auto;
+  transform: none;
+  pointer-events: none;
+}
+.globo-wrap .lm-stage > * { pointer-events: auto; }
+.globo-wrap .lm-geo { display: none; }
+/* Only opacity animates: animating left/top would fight the projection. */
+.globo-wrap .lm-anchor { transition: opacity 0.15s var(--ease); }
+/* Checkpoints were sized for the flat stage, where scale() shrinks them to about
+   half. Here they hang unscaled, so they are cut down on the globe only; the
+   margin-top keeps the ring on the projected point (7 padding + half of 36). */
+.globo-wrap .lm-cp { width: 124px; margin-top: -25px; padding: 7px 8px 9px; border-radius: 12px; }
+.globo-wrap .lm-cp-ring { width: 36px; height: 36px; }
+.globo-wrap .lm-cp-ring svg { width: 15px; height: 15px; }
+.globo-wrap .lm-cp--ready .lm-cp-ring { width: 42px; height: 42px; }
+.globo-wrap .lm-cp--ready .lm-cp-ring svg { width: 17px; height: 17px; }
+.globo-wrap .lm-cp--locked .lm-cp-ring { width: 31px; height: 31px; }
+.globo-wrap .lm-cp--locked .lm-cp-ring svg { width: 13px; height: 13px; }
+.globo-wrap .lm-cp-name { font-size: var(--t-caption); }
+.globo-wrap .lm-cp-state,
+.globo-wrap .lm-cp-sub { font-size: var(--t-label); }
+.globo-wrap .lm-cp::after { left: 20%; right: 20%; bottom: -6px; height: 8px; }
+
+/* The phone: the globe orients, the sheet under it acts. Marks are flags, and
+   only the level in progress keeps its name and count. (Design shrank the name's
+   type to nothing to keep the count; the type scale has no zero, so the chip goes.) */
+.globo-wrap--narrow { height: clamp(300px, 56vh, 460px); border-top: 1px solid var(--line); border-radius: 12px; }
+.globo-wrap--narrow .lm-pin { padding: 2px; pointer-events: none; }
+.globo-wrap--narrow .lm-pin-chip { display: none; }
+.globo-wrap--narrow .lm-pin--current { padding: 3px 10px 3px 3px; }
+.globo-wrap--narrow .lm-pin--current .lm-pin-chip { display: flex; font-size: var(--t-caption); gap: 7px; }
+.globo-wrap--narrow .lm-pin--current .lm-pin-flag { width: 28px; height: 28px; }
+.globo-wrap--narrow .lm-pop { display: none; }
+.globo-wrap--narrow .lm-cp { width: auto; padding: 0; pointer-events: none; }
+.globo-wrap--narrow .lm-cp-name,
+.globo-wrap--narrow .lm-cp-state,
+.globo-wrap--narrow .lm-cp-sub { display: none; }
+@media (max-width: 1100px) {
+  .lm-home--narrow-globe .lm-stage-wrap.globo-wrap { display: block; }
+}
+.globo-sheet { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.globo-sheet .lm-row { width: 100%; min-height: 46px; }
+.globo-sheet .lm-cp {
+  position: static;
+  transform: none;
+  margin: 0;
+  width: 100%;
+  min-height: 46px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto auto;
+  column-gap: 12px;
+  align-items: center;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+.globo-sheet .lm-cp-ring { grid-row: 1 / 4; }
+.globo-sheet .lm-cp-name,
+.globo-sheet .lm-cp-state,
+.globo-sheet .lm-cp-sub { white-space: nowrap; }
+.globo-sheet .home-doors--row { margin-bottom: 0; }
+.globo-sheet .home-exam-square { width: 100%; min-height: 46px; }
+
+/* Globe / Flat map on a desktop, Cards / Globe on a phone. */
+.lm-viewpick {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  margin-bottom: 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.lm-viewpick button {
+  min-height: 32px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font-family: var(--font-instrument);
+  font-size: var(--t-label);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.lm-viewpick button[aria-pressed="true"] { background: rgba(var(--lift-rgb), 0.08); color: var(--text); }
+.lm-viewpick button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>

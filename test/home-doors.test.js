@@ -34,7 +34,8 @@ ok('the phone gets the same three doors', row.split('<button').length === rail.s
 ok('the map hangs the rail beside the mock test',
    /_homeExamSquare\(\) \+ _homeDoorsHtml\('rail'\)/.test(S));
 ok('and the phone draws the row only where there is no map',
-   /_lmWideEnough\(\) \? '' : _homeDoorsHtml\('row'\)/.test(S));
+   /\(mapShown \? '' : _homeViewSwitch\(homeView\) \+ _homeDoorsHtml\('row'\)\)/.test(S));
+ok('and the phone globe carries them in its sheet', /_homeDoorsHtml\('row'\) \+\s*\(exam \?/.test(S));
 
 console.log('--- the Weather door picks by topic ---');
 const open = grab('function _openWeatherModule()');

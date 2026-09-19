@@ -17,6 +17,48 @@ Newest day first.
 
 ## 2026-09-19
 
+### The level map, phase 2: the globe
+
+**Plan.** As agreed on 2026-09-19, on branch `mapa-fase2` (from `mapa-fase1`). The home
+page draws the map as a planet: Globe / Flat map on a desktop (globe by default), Cards /
+Globe on a phone (cards by default), remembered per browser and per width. Rollback
+point: tag `antes-globo-2026-09-19`.
+
+Four defects in the handoff's engine, corrected rather than copied:
+- It unprojected the flat map's pixels as a plain lon/lat grid. They are Natural Earth:
+  Anchorage came out 30 degrees off, Sydney 10. `tools/gen-map.mjs` now also writes
+  `LM_GLOBE`, the same simplified topology in degrees; the flat map's output is
+  byte-identical to before.
+- Its pin coordinates came from that same inverse. The globe uses the app's own
+  (`_LM_PLACE`, `_LM_CP`), carried as data-lon/data-lat on the flat map's markup.
+- Its drag sign moved the planet against the finger once the mirror fix was in.
+- Its ocean was faintly teal, which the phase 1 redesign removed everywhere else.
+
+Everything the globe shows is the flat generator's own markup — one pin generator, not
+two. The phone's sheet is cut from that markup before the globe marks it inert.
+
+**Criterion.** `DERIVED` — on a desktop the home page shows a globe that turns, with
+the continents where they are, opening on the level in progress, and everything the
+flat map could do can be done from it; on a phone a student can choose it; and the flat
+map is still one tap away on both.
+
+**Checklist.**
+
+- [ ] On a desktop the home page opens on a globe facing your level in progress
+- [ ] The continents have their real shapes: Alaska, Australia and South America where they belong
+- [ ] Dragging turns it with your finger, it coasts a little, then drifts slowly by itself
+- [ ] Arrow keys turn it (after clicking or tabbing to it); Home comes back to your level
+- [ ] Clicking a country opens its panel and the globe stops while it is open
+- [ ] Countries on the far side are not visible and Tab does not land on them
+- [ ] Checkpoints, the mock test and the three doors work as on the flat map
+- [ ] "Flat map" brings back the phase 1 map, and the choice survives a reload
+- [ ] On a phone, "Globe" shows the globe with a sheet below; Weather works from the sheet
+- [ ] Leaving the home page stops the animation (the laptop fan settles)
+- [ ] With "reduce motion" on, the globe does not move by itself
+
+**Not verifiable from the repo.** Every line above; the engine's geometry and gestures
+are covered by test/globe.test.js, how it looks and feels is not.
+
 ### The level map, phase 1: the flat map redesign and three doors
 
 **Plan.** From Claude Design's globe handoff (`design_handoff_globo_niveles`), in two
