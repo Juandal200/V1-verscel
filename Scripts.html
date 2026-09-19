@@ -1776,7 +1776,6 @@ window.tierByExam = function (examNum) {
     overlay.innerHTML =
       '<div class="session-expired-backdrop">' +
         '<div class="session-expired-card">' +
-          '<p style="display:flex;justify-content:center;margin:0 0 12px;color:var(--accent);">' + uiIcon('plane', 30) + '</p>' +
           '<h3>Session expired</h3>' +
           '<p>Your login session has timed out. Sign in again to continue — your progress is saved.</p>' +
           '<button class="btn primary full" onclick="document.getElementById(\'sessionExpiredOverlay\').remove();showScreen(\'loginScreen\');setLoginMessage(\'\');">Sign in again</button>' +
@@ -2432,7 +2431,6 @@ window.tierByExam = function (examNum) {
     area.innerHTML =
       '<div style="min-height:70vh;display:flex;align-items:center;justify-content:center;padding:32px 16px;">' +
         '<div style="max-width:480px;width:100%;text-align:center;">' +
-          '<div style="display:flex;justify-content:center;margin-bottom:16px;color:var(--accent);">' + uiIcon('plane', 30) + '</div>' +
           '<p class="eyebrow" style="margin-bottom:8px;">Aviation English Interactive Campus</p>' +
           '<h2 style="margin:0 0 10px;font-size: 1.6rem;">Choose your plan</h2>' +
           '<p class="subtitle" style="margin:0 0 28px;line-height:1.6;">Subscribe to keep practising. Get full access to all simulators, routes, evaluations and certificates.</p>' +
@@ -2756,17 +2754,18 @@ window.tierByExam = function (examNum) {
            * before that arrives publishes a card with no name on it. */
           if (_levelMeta === null) { _loadLevelMeta(function() { _paint(catalog); }); return; }
           var narrow = !_lmWideEnough();
+          var globe  = homeView === 'globe';
           el.classList.toggle('lm-home--narrow-globe', narrow);
-          el.innerHTML = _homeViewSwitch(homeView) + (narrow ? '' : _homeGridLink()) +
-            _lmHomeMapHtml(catalog, narrow ? '' : _homeExamSquare() + _homeDoorsHtml('rail'));
-          if (homeView === 'globe') {
-            var wrap  = el.querySelector('.lm-stage-wrap');
-            var sheet = narrow && wrap ? _globeSheetHtml(el) : '';
+          el.innerHTML = (narrow ? '' : _homeViewSwitch(homeView) + _homeGridLink()) +
+            _lmHomeMapHtml(catalog, function (surface) {
+              // The phone globe keeps every control inside its frame.
+              if (narrow) return _globeOrbitHtml(surface, homeView);
+              return _homeExamSquare() + _homeDoorsHtml('rail', globe ? { ops: surface.ops } : null);
+            }, globe);
+          if (globe) {
+            var wrap = el.querySelector('.lm-stage-wrap');
             if (_globeMount(wrap, { narrow: narrow })) {
-              if (sheet) {
-                wrap.insertAdjacentHTML('afterend', sheet);
-                _globeSheetWire(wrap, wrap.nextElementSibling);
-              }
+              if (narrow) _globeOrbitWire(wrap);
             } else {
               /* No globe (no LM_GLOBE, no canvas): the flat map, and it is reported,
                * because a globe that silently is not there looks like a choice. */
@@ -2867,7 +2866,13 @@ window.tierByExam = function (examNum) {
       function _homePaintModules(modules) {
         var el = byId('homeModulesArea');
         if (!el) return;
-        if (!modules || !modules.length) {
+        /* A module that has its own door on the map (Weather) is not drawn again as a
+         * card here: the same way in twice. Modules without a door still show. */
+        var _DOOR_TOPICS = { weather: true };
+        modules = (modules || []).filter(function (m) {
+          return !_DOOR_TOPICS[String(m.topic || '').trim().toLowerCase()];
+        });
+        if (!modules.length) {
           var sec = byId('homeModulesSection');
           if (sec && sec.parentNode) sec.parentNode.removeChild(sec);
           return;
@@ -5546,6 +5551,9 @@ window.tierByExam = function (examNum) {
     // A control tower: the thing on the other end of the radio.
     tower:  '<path d="M12 3v7"/><path d="M8.5 21l3-11 3 11"/><path d="M7 21h10"/>' +
             '<path d="M6.5 6.5a7 7 0 0 1 11 0"/><path d="M4 4a10.5 10.5 0 0 1 16 0"/>',
+    // A runway in perspective with its centreline: the Operational level, the airport.
+    // The centreline is three short strokes, not a dash pattern (none on the map screen).
+    airport: '<path d="M8.5 21L10.6 3h2.8l2.1 18z"/><path d="M12 6v2"/><path d="M12 11v2.5"/><path d="M12 16.5v2.5"/>',
     // A hangar: the arch, the apron line and the open door. Home map door.
     hangar: '<path d="M2.8 20.6V13.2C2.8 8.1 6.9 4 12 4s9.2 4.1 9.2 9.2v7.4"/><path d="M1.8 20.6h20.4"/>' +
             '<path d="M8.2 20.6v-5.2c0-2.1 1.7-3.8 3.8-3.8s3.8 1.7 3.8 3.8v5.2"/><path d="M12 11.6v9"/>',
@@ -5615,7 +5623,9 @@ window.tierByExam = function (examNum) {
     // still scattered through it — a lightning bolt, a satellite dish, a padlock —
     // each from a different designer, in a palette the app does not use.
     bolt:   '<path d="M13.5 2.5L5 13.5h5.5L10 21.5 19 10h-5.5z"/>',
-    plane:  '<path d="M10.5 20.5l1.5-5.5 6.5-2 2.5-2.2a1.6 1.6 0 0 0-1.6-2.7l-3 1.1-5.4-4.7-1.8.6 3 5.4-3.4 1.2-2.6-1.7-1.4.5 2 3.3-1 2.4 2.4-1 3.3 2 .5-1.4-1.7-2.6 1.2-3.4"/>',
+    // The app's one aircraft: the dart the radar and the tabs draw (.aero-mark), as a
+    // stroke. It was a single run-on outline that read as a crumpled shape at 30px.
+    plane:  '<path d="M12 2 L19 20 L12 16.5 L5 20 Z"/>',
     mic:    '<rect x="9" y="2.5" width="6" height="11" rx="3"/>' +
             '<path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5v4"/><path d="M8.5 21.5h7"/>',
     speaker:'<path d="M4 9.5h3.5L12 5.5v13L7.5 14.5H4z"/>' +
@@ -6289,58 +6299,6 @@ var LEVEL_THEMES = {
       }).join('') + '</div>';
   }
 
-  /* The phone's globe acts through this sheet, not through the pins: the level in
-   * progress, the checkpoint that can be sat, the three doors and the mock test.
-   * Cut from the map the generator just drew, before the globe marks it inert, so
-   * each is the same button with the same action — not a second drawing of it. */
-  function _globeSheetHtml(mapEl) {
-    function cleanClone(sel) {
-      var n = mapEl.querySelector(sel);
-      if (!n) return '';
-      var c = n.cloneNode(true);
-      ['style', 'data-lon', 'data-lat', 'data-first-level'].forEach(function (a) { c.removeAttribute(a); });
-      return c.outerHTML;
-    }
-    var tmp = document.createElement('div');
-    tmp.innerHTML = _homeExamSquare();
-    var exam = tmp.querySelector('.home-exam-square');
-    return '<div class="globo-sheet">' +
-      '<div class="globo-sheet-top">' + cleanClone('.lm-row--current') + '</div>' +
-      (cleanClone('.lm-cp--ready') || cleanClone('.lm-cp--failed_once') || cleanClone('.lm-cp--replay_required')) +
-      _homeDoorsHtml('row') +
-      (exam ? exam.outerHTML : '') +
-    '</div>';
-  }
-
-  /* Swap the sheet's top slot when a country is picked on the phone globe: its
-   * level rows, cut from its own panel on the map (the same buttons, the same
-   * actions), under a way back to the level in progress. */
-  function _globeSheetWire(wrap, sheetEl) {
-    var slot = sheetEl && sheetEl.querySelector('.globo-sheet-top');
-    if (!wrap || !slot) return;
-    var home = slot.innerHTML;
-    wrap.addEventListener('globepick', function (e) {
-      var code = e.detail && e.detail.code;
-      var anchor = code ? wrap.querySelector('.lm-anchor[data-country="' + code + '"]') : null;
-      if (!anchor) { slot.innerHTML = home; return; }
-      var label = '';
-      var chip = anchor.querySelector('.lm-pin-chip');
-      if (chip && chip.firstChild) label = String(chip.firstChild.textContent || '').trim();
-      var rows = '';
-      var found = anchor.querySelectorAll('.lm-pop .lm-row, .lm-pop .lm-card-sale');
-      for (var i = 0; i < found.length; i++) {
-        var c = found[i].cloneNode(true);
-        c.removeAttribute('tabindex');
-        rows += c.outerHTML;
-      }
-      slot.innerHTML =
-        '<div class="globo-sheet-head">' +
-          '<button type="button" class="globo-sheet-back" onclick="window._globePick(null)">&larr; Your current level</button>' +
-          '<span class="globo-sheet-country">' + safeText(label) + '</span>' +
-        '</div>' + rows;
-    });
-  }
-
   function _homeGridLink() {
     return '<div class="lm-switch">' +
       '<button type="button" class="lm-switch-btn" onclick="window._lmGoToView(\'grid\')">' +
@@ -6379,26 +6337,95 @@ var LEVEL_THEMES = {
    *
    * 'rail' hangs on the map wrap beside the mock test (above 1100px); 'row' is the
    * phone's version above the cards, where there is no map to hang it on. */
-  function _homeDoorsHtml(layout) {
+  function _homeDoorsHtml(layout, extra) {
+    extra = extra || {};
     // Each mark is named literally, so the icon-set check can see it is used.
     var doors = [
-      { mark: uiIcon('hangar', 19),      name: 'Hangar',      action: null },
-      { mark: uiIcon('maintenance', 19), name: 'Maintenance', action: null },
-      { mark: uiIcon('weather', 19),     name: 'Weather',     action: '_navTo(_openWeatherModule)' }
+      { mark: uiIcon('hangar', 19),      name: 'Hangar',      attr: null },
+      { mark: uiIcon('maintenance', 19), name: 'Maintenance', attr: null },
+      { mark: uiIcon('weather', 19),     name: 'Weather',     attr: 'onclick="_navTo(_openWeatherModule)"' }
     ];
-    var cls = layout === 'rail' ? 'home-doors home-doors--rail' : 'home-doors home-doors--row';
-    return '<div class="' + cls + '">' + doors.map(function (d) {
-      var soon = !d.action;
-      var label = d.name + (soon ? ' — coming soon' : '');
-      return '<span class="home-door' + (soon ? ' home-door--soon' : '') + '">' +
-        '<button type="button" class="home-door-btn" aria-label="' + label + '"' +
-          (soon ? ' aria-disabled="true"' : ' onclick="' + d.action + '"') + '>' +
+    /* Operational, on the globe, stands in for the wide card under the map and
+     * carries that card's own button attribute (_lmSurface().ops), so the two cannot
+     * disagree about where it goes. 'disabled' there is 'locked' here. */
+    if (extra.ops) {
+      doors.push({ mark: uiIcon('airport', 19), name: 'Operational', attr: extra.ops.attr, sep: true,
+                   state: extra.ops.soon ? 'soon' : (extra.ops.attr === 'disabled' ? 'locked' : 'open') });
+    }
+    // The phone's globe has no corner for the mock test square, so it is a door there.
+    if (extra.mock) doors.push({ mark: uiIcon('paper', 19), name: 'Mock test', attr: 'onclick="_navTo(renderTeaExam)"' });
+
+    var LAYOUTS = { rail: 'home-doors--rail', row: 'home-doors--row', orbit: 'home-doors--orbit' };
+    var NOTE = { open: '', soon: ' — coming soon', locked: ' — locked' };
+    var TIP  = { open: '', soon: ' · SOON', locked: ' · LOCKED' };
+    return '<div class="home-doors ' + (LAYOUTS[layout] || LAYOUTS.row) + '">' + doors.map(function (d) {
+      var st = d.state || (d.attr ? 'open' : 'soon');
+      return '<span class="home-door home-door--' + st + (d.sep ? ' home-door--sep' : '') + '">' +
+        '<button type="button" class="home-door-btn" aria-label="' + d.name + NOTE[st] + '"' +
+          (st === 'open' ? ' ' + d.attr : ' aria-disabled="true"') + '>' +
           d.mark +
           '<span class="home-door-name">' + d.name + '</span>' +
         '</button>' +
-        '<b class="home-door-tip">' + d.name.toUpperCase() + (soon ? ' · SOON' : '') + '</b>' +
+        '<b class="home-door-tip">' + d.name.toUpperCase() + TIP[st] + '</b>' +
       '</span>';
     }).join('') + '</div>';
+  }
+
+  /* The phone globe's two bands, inside the frame: the view switch and every door
+   * across the top, and at the bottom the levels of whatever was picked — the
+   * country of the level in progress until something else is tapped. */
+  function _globeOrbitHtml(surface, view) {
+    return '<div class="globo-band globo-band--top">' +
+        _homeViewSwitch(view) + _homeDoorsHtml('orbit', { ops: surface.ops, mock: true }) +
+      '</div>' +
+      '<div class="globo-band globo-band--bottom" aria-live="polite"></div>';
+  }
+
+  /* Fill the bottom band from the map's own markup: a country's level rows cut from
+   * its panel, or a checkpoint's card — the same buttons with the same actions. */
+  function _globeOrbitWire(wrap) {
+    var band = wrap && wrap.querySelector('.globo-band--bottom');
+    if (!band) return;
+    function clean(n) {
+      var c = n.cloneNode(true);
+      ['style', 'data-lon', 'data-lat', 'data-first-level', 'data-exam', 'tabindex', 'aria-hidden']
+        .forEach(function (a) { c.removeAttribute(a); });
+      var inner = c.querySelectorAll('[tabindex]');
+      for (var i = 0; i < inner.length; i++) inner[i].removeAttribute('tabindex');
+      return c.outerHTML;
+    }
+    function show(d) {
+      d = d || {};
+      var title = '', body = '';
+      if (d.exam) {
+        var cp = wrap.querySelector('.lm-cp[data-exam="' + d.exam + '"]');
+        title = 'Checkpoint ' + d.exam;
+        body = cp ? clean(cp) : '';
+      } else {
+        var anchor = d.code ? wrap.querySelector('.lm-anchor[data-country="' + d.code + '"]') : null;
+        if (!anchor) {
+          var cur = wrap.querySelector('.lm-anchor .lm-pin--current');
+          anchor = cur ? cur.closest('.lm-anchor') : wrap.querySelector('.lm-anchor');
+        }
+        if (anchor) {
+          var chip = anchor.querySelector('.lm-pin-chip');
+          title = chip && chip.firstChild ? String(chip.firstChild.textContent || '').trim() : '';
+          var rows = anchor.querySelectorAll('.lm-pop .lm-card-sale, .lm-pop .lm-row');
+          for (var i = 0; i < rows.length; i++) body += clean(rows[i]);
+        }
+      }
+      band.innerHTML =
+        '<div class="globo-sheet-head">' +
+          '<span class="globo-sheet-country">' + safeText(title) + '</span>' +
+          (d.code || d.exam
+            ? '<button type="button" class="globo-sheet-back" onclick="window._globePick(null)">&larr; Your current level</button>'
+            : '') +
+        '</div>' +
+        '<div class="globo-band-list">' + body + '</div>';
+      if (window._globeRelayout) window._globeRelayout();
+    }
+    wrap.addEventListener('globepick', function (e) { show(e.detail); });
+    show(null);
   }
 
   /* The map as the HOME page draws it: the stage, and Operational underneath.
@@ -6406,10 +6433,13 @@ var LEVEL_THEMES = {
    * None of the levels screen's chrome. There is no tab strip to sit under here,
    * and no "Grid view" button — _lmSetView repaints the levels screen, so on the
    * home page that button would not switch a view, it would leave the page. */
-  function _lmHomeMapHtml(data, overlayHtml) {
+  function _lmHomeMapHtml(data, overlayHtml, globe) {
     var surface = _lmSurface(data);
-    return _lmStageHtml(surface.models, surface.tiers, surface.vrSlot, overlayHtml) +
-           _lmOpsBlock(surface.heroCard);
+    // A function gets the surface, so a door can carry what the Operational card does.
+    var overlay = typeof overlayHtml === 'function' ? overlayHtml(surface) : overlayHtml;
+    // On the globe Operational is a door in the frame; its wide card would say it twice.
+    return _lmStageHtml(surface.models, surface.tiers, surface.vrSlot, overlay) +
+           (globe ? '' : _lmOpsBlock(surface.heroCard));
   }
 
   /* The catalogue, kept for the length of a session.
@@ -6710,6 +6740,9 @@ var LEVEL_THEMES = {
       vrSlot:          vrSlot,
       heroBar:         heroBar,
       heroCard:        heroCard,
+      /* What the Operational card's button does, for a door that stands in for the
+       * card on the globe. The same attribute string, so the two cannot disagree. */
+      ops:             heroCard ? { attr: olAction, soon: OPS_COMING_SOON } : null,
       models:          _lmModels,
       currentLevelNum: currentLevelNum
     };
@@ -7145,6 +7178,8 @@ var LEVEL_THEMES = {
     this.sun = _globeUnit(-28, 12);  // fixed in the world, so the dawn line moves as it turns
     this.routes = [];
     this.t = 0;
+    this.inset = { top: 0, bottom: 0 };  // room taken by bands inside the frame
+    this.fill = 0.405;                     // radius as a share of the free square
     this.setCanvas(canvas);
   }
 
@@ -7163,9 +7198,11 @@ var LEVEL_THEMES = {
     this.cv.width = Math.round(r.width * this.dpr);
     this.cv.height = Math.round(r.height * this.dpr);
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    // The planet sits in the space the bands leave, not in the whole frame.
+    var avail = Math.max(120, this.h - this.inset.top - this.inset.bottom);
     this.cx = this.w / 2;
-    this.cy = this.h / 2;
-    this.R = Math.min(this.w, this.h) * 0.405;
+    this.cy = this.inset.top + avail / 2;
+    this.R = Math.min(this.w, avail) * this.fill;
   };
 
   _Globe.prototype._trig = function () {
@@ -7452,7 +7489,15 @@ var LEVEL_THEMES = {
     wrap.setAttribute('aria-label', 'World map of your levels. Arrow keys turn the globe; Home returns to your current level.');
 
     var g = new _Globe(canvas, geo);
-    if (narrow) g.spin = 1.1;   // a small frame shows the same turn as more movement
+    if (narrow) { g.spin = 1.1; g.fill = 0.46; }   // a small frame shows the same turn as more movement
+    // The bands inside the phone frame take room top and bottom; the planet gets the rest.
+    function measure() {
+      var tb = wrap.querySelector('.globo-band--top'), bb = wrap.querySelector('.globo-band--bottom');
+      g.inset.top = tb ? tb.offsetTop + tb.offsetHeight + 8 : 0;
+      g.inset.bottom = bb && bb.offsetHeight ? wrap.clientHeight - bb.offsetTop + 8 : 0;
+    }
+    measure();
+    g.resize();
 
     var reduce = false;
     try { reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
@@ -7509,18 +7554,21 @@ var LEVEL_THEMES = {
      * starts on a flag still turns the globe. */
     var picked = null;
     function pick(k) {
+      if (k && k === home) k = null;   // the level in progress is where "back" goes anyway
       picked = k || null;
       if (picked) g.lookAt(picked.lon, picked.lat, 0, 0.6, 40); else goHome();
       g.vel = 0; g.idle = !picked; dirty = true;
       for (var q = 0; q < marks.length; q++) marks[q].el.classList.toggle('is-picked', marks[q] === picked);
-      var code = picked ? picked.el.getAttribute('data-country') : null;
-      try { wrap.dispatchEvent(new CustomEvent('globepick', { detail: { code: code } })); } catch (e) {}
+      var detail = !picked ? {}
+        : picked.el.classList.contains('lm-cp') ? { exam: picked.el.getAttribute('data-exam') }
+        : { code: picked.el.getAttribute('data-country') };
+      try { wrap.dispatchEvent(new CustomEvent('globepick', { detail: detail })); } catch (e) {}
     }
     function pickAt(clientX, clientY) {
       var r = wrap.getBoundingClientRect(), x = clientX - r.left, y = clientY - r.top;
       var best = null, bestD = 28;   // a fingertip, not a pixel
-      for (var q = 0; q < countries.length; q++) {
-        var k = countries[q];
+      for (var q = 0; q < marks.length; q++) {
+        var k = marks[q];
         if (k.el.style.visibility === 'hidden') continue;
         var d = Math.sqrt(Math.pow(parseFloat(k.el.style.left) - x, 2) + Math.pow(parseFloat(k.el.style.top) - y, 2));
         if (d < bestD) { best = k; bestD = d; }
@@ -7555,7 +7603,7 @@ var LEVEL_THEMES = {
     }
     function onDown(e) {
       if (e.target && e.target.closest &&
-          e.target.closest('.lm-pin, .lm-cp, .lm-pop, .lm-row, .home-exam-square, .home-door')) return;
+          e.target.closest('.lm-pin, .lm-cp, .lm-pop, .lm-row, .home-exam-square, .home-door, .globo-band')) return;
       pid = e.pointerId; lastX = e.clientX; lastY = e.clientY; lastV = 0; travelled = 0;
       g.idle = false; g.vel = 0;
       try { wrap.setPointerCapture(pid); } catch (err) {}
@@ -7599,7 +7647,7 @@ var LEVEL_THEMES = {
     wrap.addEventListener('pointerup', onUp);
     wrap.addEventListener('pointercancel', onUp);
     wrap.addEventListener('keydown', onKey);
-    function onResize() { g.resize(); dirty = true; }
+    function onResize() { measure(); g.resize(); dirty = true; }
     window.addEventListener('resize', onResize);
 
     var raf = 0, last = 0, stopped = false;
@@ -7629,6 +7677,7 @@ var LEVEL_THEMES = {
 
     _globeActive = {
       stop: stop, canvas: canvas, globe: g,
+      relayout: onResize,
       pick: function (code) {
         var k = null;
         for (var q = 0; q < countries.length; q++) if (countries[q].el.getAttribute('data-country') === code) k = countries[q];
@@ -7639,6 +7688,8 @@ var LEVEL_THEMES = {
   }
   // The sheet's "back to your level" button, and anything else that picks by code.
   window._globePick = function (code) { if (_globeActive && _globeActive.pick) _globeActive.pick(code || null); };
+  // The bottom band changed height: give the planet the room that is left.
+  window._globeRelayout = function () { if (_globeActive && _globeActive.relayout) _globeActive.relayout(); };
 
   // A tag worth showing beside the level number: short, and not the name again.
   function _lmShortTag(meta) {
@@ -7954,7 +8005,7 @@ var LEVEL_THEMES = {
        * keyboard as well as by mouse rather than merely looking unavailable. */
       cpMarks +=
         '<button type="button" class="lm-cp lm-cp--' + safeText(status) + '"' +
-          ' data-lon="' + at.lon + '" data-lat="' + at.lat + '"' +
+          ' data-lon="' + at.lon + '" data-lat="' + at.lat + '" data-exam="' + t.examNum + '"' +
           ' style="left:' + _lmCpPt.x.toFixed(1) +
           'px;top:' + _lmCpPt.y.toFixed(1) + 'px;"' +
           ' aria-label="Checkpoint ' + t.examNum + ' — ' + safeText(label) + '. ' + safeText(sub) + '"' +
@@ -25419,7 +25470,6 @@ var LEVEL_THEMES = {
   function _s0() {
     return (
       '<div style="text-align:center;padding:8px 0 4px;">' +
-        '<div style="display:flex;justify-content:center;margin-bottom:14px;color:var(--accent);">' + uiIcon('plane', 30) + '</div>' +
         '<h2 style="margin:0 0 10px;color:var(--text);font-size: 1.35rem;">Welcome to ICAO Trainer</h2>' +
         '<p style="color:var(--muted);margin:0 0 6px;line-height:1.6;">Practice real ATC radio communications with authentic voices and professional phraseology.</p>' +
         '<p style="color:var(--muted);font-size:0.82rem;margin:0 0 24px;">This 60-second walkthrough shows you exactly how a training session works.</p>' +

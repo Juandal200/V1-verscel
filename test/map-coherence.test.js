@@ -34,10 +34,23 @@ ok('and it is hit-tested against the countries',  /pickAt\(e\.clientX, e\.client
 ok('only countries you can see can be picked',    /if \(k\.el\.style\.visibility === 'hidden'\) continue;/.test(mount));
 ok('the globe holds still on the picked country', /g\.frozen = !!picked \|\|/.test(mount));
 ok('and tells the page which one',                /new CustomEvent\('globepick'/.test(mount));
-const wire = grab('function _globeSheetWire(wrap, sheetEl)');
-ok('the sheet shows its levels, cut from its own panel', /\.lm-pop \.lm-row/.test(wire) && /cloneNode\(true\)/.test(wire));
+const wire = grab('function _globeOrbitWire(wrap)');
+ok('the bottom band shows its levels, cut from its own panel', /\.lm-pop \.lm-row/.test(wire) && /cloneNode\(true\)/.test(wire));
+ok('or a tapped checkpoint\'s card',              /\.lm-cp\[data-exam="/.test(wire));
 ok('with a way back to the level in progress',    /window\._globePick\(null\)/.test(wire));
-ok('and the home page wires the sheet',           /_globeSheetWire\(wrap, wrap\.nextElementSibling\)/.test(S));
+ok('it starts on the level in progress',          /show\(null\);\s*\}$/.test(wire));
+ok('and the home page wires it',                  /if \(narrow\) _globeOrbitWire\(wrap\);/.test(S));
+ok('checkpoints can be tapped too',               /for \(var q = 0; q < marks\.length; q\+\+\) \{\s*var k = marks\[q\];/.test(mount));
+ok('the planet makes room for the bands',         /this\.cy = this\.inset\.top \+ avail \/ 2;/.test(S));
+ok('the phone frame is not out-ranked by the desktop height',
+   /\.lm-stage-wrap\.globo-wrap\.globo-wrap--narrow \{/.test(fs.readFileSync(__dirname + '/../Styles.html', 'utf8')));
+
+console.log('--- one aeroplane ---');
+ok('the plane icon is the app\'s dart',            /plane:\s*'<path d="M12 2 L19 20 L12 16\.5 L5 20 Z"\/>'/.test(S));
+ok('no decorative aeroplane over the tour, the paywall or an expired session',
+   !/uiIcon\('plane', 30\)/.test(S));
+ok('and no aeroplane emoji left in the client or the crew screen',
+   !/&#9992;/.test(S) && !/&#9992;/.test(fs.readFileSync(__dirname + '/../GamificationUI.html', 'utf8')));
 
 console.log('--- 3. an overlay closes onto the screen it opened over ---');
 // Run the real helper.

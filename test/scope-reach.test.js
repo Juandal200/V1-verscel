@@ -217,8 +217,11 @@ console.log('--- and the screen it locked ---');
 // anything that throws inside it is not a broken screen, it is a broken account.
 ok('the First Flight gate still returns rather than falling through',
    /!AppState\.user\.firstFlightDone\) \{[\s\S]{0,200}renderFirstFlight\(\);\s*\n\s*return;/.test(S));
-ok('and the tour can now draw its own first step',
-   /function _s0\(\)[\s\S]{0,300}uiIcon\('plane', 30\)/.test(S));
+/* It used to assert that _s0 could draw its aeroplane. The aeroplane was removed on
+ * request (2026-09-19, a decorative mark over the heading); what the check stood for
+ * — uiIcon reachable from outside its IIFE — is the window export asserted above. */
+ok('and the tour\'s first step no longer draws the decorative aeroplane',
+   !/function _s0\(\)[\s\S]{0,300}uiIcon\('plane'/.test(S));
 
 console.log(fails?('\n'+fails+' FAILING'):'\nall green');
 process.exit(fails?1:0);

@@ -77,7 +77,7 @@ const homeMap = (function () {
     grab('function _examActionFor(examNum, status)'),
     grab('function _lmOpsBlock(heroCard)'),
     grab('function _lmStageHtml(models, tiers, vrSlot, overlayHtml)'),
-    grab('function _lmHomeMapHtml(data, overlayHtml)'),
+    grab('function _lmHomeMapHtml(data, overlayHtml, globe)'),
     grab('function _homeExamSquare()'),
     'return { map: _lmHomeMapHtml, square: _homeExamSquare };'
   ].join('\n');
@@ -207,7 +207,7 @@ console.log('--- and the grid is still reachable ---');
  * levelmap_view comparison, since nothing would be left to choose the grid. */
 ok('there is a Grid view link',   /_homeGridLink\(\)/.test(home));
 ok('drawn above the map, on a desktop',
-   /\(narrow \? '' : _homeGridLink\(\)\) \+\s*_lmHomeMapHtml/.test(home));
+   /\(narrow \? '' : _homeViewSwitch\(homeView\) \+ _homeGridLink\(\)\) \+\s*_lmHomeMapHtml/.test(home));
 const link = strip(grab('function _homeGridLink()'));
 ok('it uses the levels screen\'s own switch', /lm-switch-btn/.test(link));
 /* Escaped in source, because the onclick lives inside a JavaScript string. */

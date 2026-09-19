@@ -17,6 +17,39 @@ Newest day first.
 
 ## 2026-09-19
 
+### The globe uses its frame: controls and levels inside it, Operational as a door, one aeroplane
+
+**Plan.** Agreed on 2026-09-19 (branch `mapa-ajustes`):
+1. Phone: the frame was 720px because `.lm-stage-wrap.globo-wrap` out-ranked the phone
+   rule, so the planet floated in empty space. The frame now takes the screen; a top
+   band holds Cards / Globe and every door (Hangar, Maintenance, Weather, Operational,
+   Mock test), and a bottom band shows the levels of what was tapped — the country of
+   the level in progress until another flag or a checkpoint is tapped. The planet is
+   sized into the space between the bands. The sheet under the frame is gone.
+2. Web: Operational becomes an airport door in the rail, carrying the wide card's own
+   button attribute (`_lmSurface().ops`), and the wide card is not drawn under the globe.
+   The home modules section skips a module that has a door (Weather).
+3. One aeroplane: the `plane` icon is redrawn as the app's dart; the decorative ones over
+   the tour's welcome, the paywall and the expired session are removed; the two ✈
+   emoji in the crew screen are the dart.
+
+**Criterion.** `DERIVED` — on a phone the globe's frame fills the height with controls
+on top and the picked levels at the bottom, all inside it; on the web Operational is a
+door in the frame and neither its card nor Weather's is repeated below; the app draws
+one aeroplane.
+
+**Checklist.**
+
+- [ ] Phone, Globe: Cards/Globe and five round icons at the top, your country's levels at the bottom, all inside the frame
+- [ ] The planet sits centred between the two bands, without big empty gaps
+- [ ] Tapping another flag changes the list at the bottom; tapping a checkpoint shows its card
+- [ ] Web: the airport icon is in the rail and opens Operational; no wide Operational block under the globe
+- [ ] The home page no longer shows the Weather module card
+- [ ] The tour welcome, the paywall and the expired-session screen have no aeroplane
+- [ ] Every other aeroplane in the app is the same dart
+
+**Not verifiable from the repo.** Every line above.
+
 ### After the globe shipped: loaders, phone flags, and where a checkpoint closes to
 
 **Plan.** Three reports from a phone, the day the globe went live, plus one decision

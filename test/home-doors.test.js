@@ -17,7 +17,7 @@ function grab(sig) {
 }
 
 console.log('--- the doors ---');
-const doorsHtml = new Function('uiIcon', grab('function _homeDoorsHtml(layout)') + '\nreturn _homeDoorsHtml;')
+const doorsHtml = new Function('uiIcon', grab('function _homeDoorsHtml(layout, extra)') + '\nreturn _homeDoorsHtml;')
   (n => '<svg data-icon="' + n + '"></svg>');
 const rail = doorsHtml('rail'), row = doorsHtml('row');
 const door = (html, name) => (html.match(new RegExp('<button[^>]*aria-label="' + name + '[^"]*"[^>]*>')) || [''])[0];
@@ -32,10 +32,26 @@ ok('each door draws its own mark',
    ['hangar', 'maintenance', 'weather'].every(n => rail.includes('data-icon="' + n + '"')));
 ok('the phone gets the same three doors', row.split('<button').length === rail.split('<button').length);
 ok('the map hangs the rail beside the mock test',
-   /_homeExamSquare\(\) \+ _homeDoorsHtml\('rail'\)/.test(S));
+   /_homeExamSquare\(\) \+ _homeDoorsHtml\('rail', globe \? \{ ops: surface\.ops \} : null\)/.test(S));
+
+console.log('--- Operational and the mock test, as doors on the globe ---');
+const withOps = (attr, soon) => doorsHtml('orbit', { ops: { attr, soon }, mock: true });
+ok('Operational opens what its card opens',  /aria-label="Operational"[^>]*onclick="openOperationalLevels\(\)"/.test(withOps('onclick="openOperationalLevels()"', false)));
+ok('a locked Operational says so and does nothing',
+   /aria-label="Operational — locked" aria-disabled="true"/.test(withOps('disabled', false)));
+ok('one not yet published says coming soon',
+   /aria-label="Operational — coming soon" aria-disabled="true"/.test(withOps('disabled', true)));
+ok('the phone gets the mock test as a door',  /aria-label="Mock test" onclick="_navTo\(renderTeaExam\)"/.test(withOps('disabled', false)));
+ok('the airport is drawn',                    withOps('disabled', false).includes('data-icon="airport"'));
+ok('without the globe, no Operational door',  !/Operational/.test(doorsHtml('rail')));
+ok('on the globe the wide card is not drawn as well',
+   /\(globe \? '' : _lmOpsBlock\(surface\.heroCard\)\)/.test(grab('function _lmHomeMapHtml(data, overlayHtml, globe)')));
+ok('the home modules skip a module that has a door',
+   /var _DOOR_TOPICS = \{ weather: true \};/.test(S) && /!_DOOR_TOPICS\[String\(m\.topic/.test(S));
 ok('and the phone draws the row only where there is no map',
    /\(mapShown \? '' : _homeViewSwitch\(homeView\) \+ _homeDoorsHtml\('row'\)\)/.test(S));
-ok('and the phone globe carries them in its sheet', /_homeDoorsHtml\('row'\) \+\s*\(exam \?/.test(S));
+ok('and the phone globe carries them inside its frame',
+   /_homeDoorsHtml\('orbit', \{ ops: surface\.ops, mock: true \}\)/.test(grab('function _globeOrbitHtml(surface, view)')));
 
 console.log('--- the Weather door picks by topic ---');
 const open = grab('function _openWeatherModule()');
