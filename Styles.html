@@ -13999,4 +13999,596 @@ body.cabina-mode .mobile-bottom-nav { display: none !important; }
   .pl-stage .ff-radar-bg::after { animation: none; }
   .pl-plane { animation: none; transform: translate(-50%, -60%); }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   MAPA DE NIVELES — CAPA DE REDISEÑO
+   Se pega tal cual al final de la hoja. Solo CSS: ni un nombre de clase nuevo,
+   ni un elemento nuevo, ni un stroke-dasharray. La geometría (1600×885,
+   transform-origin, non-scaling-stroke, posiciones en px) no se toca.
+
+   Tres significados, y solo tres, en toda la pantalla:
+     BLANCO (--accent) = puedes hacerlo AHORA.   Lo lleva una sola cosa a la vez.
+     AMARILLO          = es cuestión de plan o de reintento. Nunca "en curso".
+     VERDE             = cerrado.
+   Y ninguno de los tres es la única señal: cada estado cambia además de
+   tamaño, de forma o de contenedor.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+
+/* ── TOKEN NUEVO ─────────────────────────────────────────────────────────────
+   El único. --bg (#0d0d0d) no tiene hermano más oscuro, y el mar necesita
+   estar POR DEBAJO de la página para leerse como un hueco excavado en ella y
+   no como un panel encima. Neutro: ese era el problema 6. */
+:root {
+  --map-sea: #0a0a0a;
+}
+
+
+/* ── 1. EL MAR Y LA TIERRA ───────────────────────────────────────────────────
+   Problema 6. Fuera el verde-azul: #0e1316/#080a0c/#171d21 eran los tres
+   únicos colores de la app con temperatura propia. La tierra deja de ser un
+   hex y pasa a ser un velo de --lift sobre el mar, que es como el resto de
+   esta hoja construye sus superficies. */
+.lm-tiers {
+  background: var(--map-sea);
+}
+/* El agua, en tres capas: luz cenital, profundidad hacia el sur y viñeta en el
+   borde del marco. Todo con los canales --lift/--scrim sobre --map-sea: ningún
+   hex suelto y sigue siendo neutro. */
+.lm-stage-wrap {
+  background:
+    radial-gradient(120% 92% at 50% 12%, rgba(var(--lift-rgb), 0.055) 0%, transparent 56%),
+    radial-gradient(132% 112% at 50% 44%, transparent 46%, rgba(var(--scrim-rgb), 0.5) 100%),
+    linear-gradient(180deg,
+      rgba(var(--lift-rgb), 0.014) 0%,
+      rgba(var(--scrim-rgb), 0) 38%,
+      rgba(var(--scrim-rgb), 0.42) 100%),
+    var(--map-sea);
+}
+
+/* La tierra deja de ser una silueta plana y pasa a estar LEVANTADA sobre el
+   agua, que es lo que hace que una carta náutica se lea como un relieve y no
+   como un recorte:
+     · dos halos claros pegados a la costa = plataforma continental, el agua
+       poco profunda que rodea cada masa de tierra;
+     · una sombra proyectada hacia el sur = la tierra está por encima del mar.
+   Los radios van en unidades del escenario, así que encogen con el transform y
+   el relieve se ve igual a cualquier ancho. El trazo sigue siendo un hairline
+   con non-scaling-stroke. */
+.lm-geo .lm-land {
+  fill: rgba(var(--lift-rgb), 0.085);
+  stroke: rgba(var(--lift-rgb), 0.17);
+  stroke-width: 0.9;
+  filter:
+    drop-shadow(0 0 2px rgba(var(--lift-rgb), 0.1))
+    drop-shadow(0 0 9px rgba(var(--lift-rgb), 0.055))
+    drop-shadow(0 2px 4px rgba(var(--scrim-rgb), 0.85));
+}
+.lm-geo .lm-borders {
+  stroke: rgba(var(--lift-rgb), 0.065);
+  stroke-width: 0.75;
+}
+
+/* La barra de tiers y el escenario son un solo instrumento. */
+.lm-tier-bar { height: 3px; border-radius: 4px; overflow: hidden; }
+.lm-tier-bar i { border-radius: 4px; }
+
+
+/* ── 2. EL PIN, DE BASE ──────────────────────────────────────────────────────
+   Nombre a --t-caption en vez de --t-label: el escenario se escala hacia abajo
+   con transform, así que 0.68rem sobre un mapa al 70 % son 7,5 px reales. */
+.lm-pin {
+  position: relative;
+  gap: 8px;
+  padding: 3px 10px 3px 3px;
+  border-color: var(--line);
+  background: rgba(var(--scrim-rgb), 0.55);
+  transition: border-color 0.25s var(--ease), background 0.25s var(--ease),
+              box-shadow 0.25s var(--ease);
+}
+.lm-pin-chip { font-size: var(--t-caption); }
+
+/* La bandera deja de recortar para poder llevar insignia; el recorte redondo
+   pasa a la propia imagen. Se dimensiona el HUECO, no el svg, para que cada
+   estado pueda cambiar de tamaño con una sola declaración. */
+.lm-pin-flag {
+  position: relative;
+  width: 26px; height: 26px;
+  overflow: visible;
+  border-radius: 50%;
+}
+.lm-pin-flag .lm-flag,
+.lm-pin-flag svg,
+.lm-pin-flag img {
+  width: 100%; height: 100%;
+  display: block;
+  border-radius: 50%;
+  overflow: hidden;
+  object-fit: cover;
+}
+
+/* El par de insignias que usan --complete y --upgrade: disco + glifo, en la
+   esquina de la bandera. Dos pseudoelementos del mismo hueco. */
+.lm-pin--complete .lm-pin-flag::before,
+.lm-pin--upgrade  .lm-pin-flag::before,
+.lm-pin--complete .lm-pin-flag::after,
+.lm-pin--upgrade  .lm-pin-flag::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+.lm-pin--complete .lm-pin-flag::before,
+.lm-pin--upgrade  .lm-pin-flag::before {
+  right: -3px; bottom: -3px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--map-sea);
+}
+
+
+/* ── 3. COMPLETE — cerrado, y se aparta ─────────────────────────────────────
+   Problema 1. Verde en el borde, verde en el contador, y una palomita: la
+   forma dice "hecho" aunque el verde no se vea. */
+.lm-pin--complete {
+  border-color: rgba(var(--green-rgb), 0.42);
+}
+.lm-pin--complete .lm-pin-chip { color: var(--silver); font-weight: 400; }
+.lm-pin--complete .lm-pin-count { color: var(--green); }
+.lm-pin--complete .lm-pin-flag::before { background: var(--green); }
+.lm-pin--complete .lm-pin-flag::after {
+  right: 2.4px; bottom: 3.4px;
+  width: 3.5px; height: 6.5px;
+  border: solid var(--accent-ink);
+  border-width: 0 1.7px 1.7px 0;
+  transform: rotate(42deg);
+}
+
+
+/* ── 4. UPGRADE — el muro del plan ──────────────────────────────────────────
+   Problema 1. Conserva el amarillo porque el amarillo ya es el color del plan
+   en esta pantalla (.lm-card-sale, .lm-chip--upgrade). Lo que pierde es el
+   parecido con --current: ya no comparten peso, ni tamaño, ni halo, y este
+   lleva un galón hacia arriba. */
+.lm-pin--upgrade {
+  border-color: rgba(var(--yellow-rgb), 0.55);
+}
+.lm-pin--upgrade .lm-pin-chip { color: var(--text); font-weight: 600; }
+.lm-pin--upgrade .lm-pin-count { color: var(--yellow); }
+.lm-pin--upgrade .lm-pin-flag::before { background: var(--yellow); }
+.lm-pin--upgrade .lm-pin-flag::after {
+  right: 4.4px; bottom: 2.4px;
+  width: 5px; height: 5px;
+  border: solid var(--accent-ink);
+  border-width: 1.7px 0 0 1.7px;
+  transform: rotate(45deg);
+}
+
+
+/* ── 5. LOCKED — pierde el contenedor ───────────────────────────────────────
+   Problema 3. Un país bloqueado deja de ser una píldora: se queda en marca de
+   terreno — bandera desaturada y más pequeña, sin fondo y sin borde. Sigue
+   siendo un botón: al pasar por encima recupera caja y color, y el nombre se
+   mantiene en --muted (5,3:1 sobre el mar) en vez de desvanecerse, porque
+   apagar no es lo mismo que hacer ilegible. */
+.lm-pin--locked {
+  background: transparent;
+  border-color: transparent;
+  padding: 2px 7px 2px 2px;
+}
+.lm-pin--locked .lm-pin-flag {
+  width: 21px; height: 21px;
+  filter: grayscale(1) contrast(0.9) brightness(0.8);
+}
+.lm-pin--locked .lm-pin-chip { font-size: var(--t-label); font-weight: 400; color: var(--muted); }
+.lm-pin--locked .lm-pin-count { color: var(--muted); }
+.lm-pin--locked:hover {
+  background: rgba(var(--scrim-rgb), 0.55);
+  border-color: var(--line);
+}
+.lm-pin--locked:hover .lm-pin-flag { filter: none; }
+
+
+/* ── 6. CURRENT — «estás aquí» ──────────────────────────────────────────────
+   Problema 2. Deja el amarillo (que ahora es solo del plan) y toma el acento,
+   que es lo que .lm-row--current y .lm-chip--current ya usaban dentro del
+   panel: el pin y su fila por fin dicen lo mismo.
+   Tres señales además del color: es el más grande del mapa, su bandera lleva
+   anillo blanco, y su contador es lo ÚNICO invertido de toda la pantalla —
+   tinta oscura sobre blanco, igual que el chip UNLOCKED de la fila. */
+.lm-anchor:not(.is-open):has(.lm-pin--current) { z-index: 6; }
+
+.lm-pin--current {
+  gap: 9px;
+  padding: 4px 12px 4px 4px;
+  background: var(--panel);
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 1px rgba(var(--accent-rgb), 0.18),
+    0 10px 28px rgba(var(--scrim-rgb), 0.6);
+}
+.lm-pin--current .lm-pin-flag {
+  width: 34px; height: 34px;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.lm-pin--current .lm-pin-chip {
+  font-size: var(--t-body);
+  font-weight: 700;
+  color: var(--white);
+  gap: 8px;
+}
+.lm-pin--current .lm-pin-count {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: var(--t-label);
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+/* El anillo de radar. Es el único movimiento de la pantalla y respeta
+   prefers-reduced-motion, donde se queda como un aro fijo. */
+.lm-pin--current::before {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--accent-rgb), 0.3);
+  pointer-events: none;
+  animation: lmCurrentPulse 3.4s var(--ease) infinite;
+}
+@keyframes lmCurrentPulse {
+  0%, 100% { transform: scale(1);    opacity: 0.55; }
+  50%      { transform: scale(1.07); opacity: 0.12; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lm-pin--current::before { animation: none; opacity: 0.4; }
+}
+
+
+/* ── 7. LOS CHECKPOINTS, SENTADOS ───────────────────────────────────────────
+   Problema 5. Dejan de ser texto suelto sobre el mar: cada uno es una cartela
+   con borde de hairline, fondo velado y una sombra elíptica que lo apoya en el
+   agua. El margin-top compensa el padding nuevo para que el anillo siga
+   cayendo exactamente sobre el punto proyectado. */
+.lm-cp {
+  width: 168px;
+  margin-top: -44px;
+  padding: 9px 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(var(--scrim-rgb), 0.5);
+  backdrop-filter: blur(7px);
+  transition: transform 0.15s var(--ease), border-color 0.25s var(--ease),
+              background 0.25s var(--ease);
+}
+.lm-cp::after {
+  content: '';
+  position: absolute;
+  left: 16%; right: 16%; bottom: -7px; height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(var(--scrim-rgb), 0.62), transparent);
+  pointer-events: none;
+}
+.lm-cp:not(:disabled):hover { border-color: var(--line-strong); background: rgba(var(--scrim-rgb), 0.66); }
+.lm-cp:focus-visible { border-radius: 12px; }
+
+.lm-cp-ring {
+  position: relative;
+  width: 48px; height: 48px;
+  border-color: var(--line-strong);
+  background: rgba(var(--lift-rgb), 0.035);
+}
+/* Son iconos de trazo (stroke=currentColor, fill=none) a los que la hoja les
+   aplicaba un fill: salían como manchas. */
+.lm-cp-ring svg {
+  width: 19px; height: 19px;
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.7;
+}
+.lm-cp-name { font-size: var(--t-body); }
+
+/* PASSED — cerrado: anillo relleno, cartela discreta. */
+.lm-cp--passed { border-color: rgba(var(--green-rgb), 0.22); }
+.lm-cp--passed .lm-cp-ring { border-color: rgba(var(--green-rgb), 0.55); background: rgba(var(--green-rgb), 0.13); }
+.lm-cp--passed .lm-cp-ring svg { fill: none; stroke: var(--green); }
+
+/* READY — lo único accionable: acento, anillo mayor, y la única cartela
+   levantada del mapa. */
+.lm-cp--ready {
+  border-color: rgba(var(--accent-rgb), 0.4);
+  background: rgba(var(--scrim-rgb), 0.62);
+  box-shadow: var(--shadow-2);
+}
+.lm-cp--ready .lm-cp-ring {
+  width: 58px; height: 58px;
+  border: 1.5px solid var(--accent);
+  background: rgba(var(--accent-rgb), 0.1);
+  box-shadow: 0 0 0 5px rgba(var(--accent-rgb), 0.05);
+}
+.lm-cp--ready .lm-cp-ring svg { width: 23px; height: 23px; fill: none; stroke: var(--accent); }
+.lm-cp--ready .lm-cp-name { color: var(--white); font-weight: 700; }
+.lm-cp--ready .lm-cp-state { color: var(--accent); }
+
+/* FAILED_ONCE — se puede volver a sentar: cartela levantada, anillo amarillo
+   relleno, y un pip. El pip es literalmente el dato del rótulo: un intento. */
+.lm-cp--failed_once {
+  border-color: rgba(var(--yellow-rgb), 0.38);
+  box-shadow: var(--shadow-2);
+}
+.lm-cp--failed_once .lm-cp-ring {
+  border: 1.5px solid var(--yellow);
+  background: rgba(var(--yellow-rgb), 0.12);
+}
+.lm-cp--failed_once .lm-cp-ring svg { fill: none; stroke: var(--yellow); }
+.lm-cp--failed_once .lm-cp-ring::after {
+  content: '';
+  position: absolute;
+  top: -1px; right: -1px;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 0 2.5px var(--map-sea);
+}
+
+/* REPLAY_REQUIRED — mismo amarillo, pero HOY no se puede sentar: anillo hueco,
+   cartela sin levantar y sin pip. Se distingue de failed_once por relleno y
+   elevación, no por color. */
+.lm-cp--replay_required {
+  border-color: rgba(var(--yellow-rgb), 0.2);
+  background: transparent;
+  box-shadow: none;
+}
+.lm-cp--replay_required .lm-cp-ring {
+  border-color: rgba(var(--yellow-rgb), 0.6);
+  background: transparent;
+}
+.lm-cp--replay_required .lm-cp-ring svg { fill: none; stroke: var(--yellow); }
+.lm-cp--replay_required::after { opacity: 0.4; }
+
+/* LOCKED — inalcanzable, y lo parece: sin cartela, sin asiento, anillo menor.
+   El texto se queda en --muted (5,3:1); apagar no es borrar. */
+.lm-cp--locked {
+  border-color: transparent;
+  background: transparent;
+  backdrop-filter: none;
+}
+.lm-cp--locked::after { display: none; }
+.lm-cp--locked .lm-cp-ring {
+  width: 40px; height: 40px;
+  border-color: var(--line);
+  background: transparent;
+}
+.lm-cp--locked .lm-cp-ring svg { width: 15px; height: 15px; }
+.lm-cp--locked .lm-cp-name { font-size: var(--t-caption); font-weight: 400; color: var(--muted); }
+
+
+/* ── 8. EL MOCK TEST, ÚLTIMA PARADA ─────────────────────────────────────────
+   Problema 4. Misma cartela, mismo anillo, mismo asiento y misma tipografía
+   que un checkpoint: deja de ser una pegatina con borde blanco y pasa a ser la
+   parada que sigue al mapa. Pierde el acento a propósito — en esta pantalla el
+   blanco significa «esto, ahora», y eso ya lo lleva el nivel en curso. Lo
+   recupera al hover y al foco, que es cuando sí es «esto, ahora».
+   El texto no cambia: «Based on ICAO» y «Mock test» siguen intactos. */
+.home-exam-overlay { right: 18px; bottom: 18px; }
+.home-exam-square {
+  position: relative;
+  /* Algo más estrecha que una cartela de examen: vive FUERA del escalado
+     (regla 5), así que con el escenario encogido sería la pieza más grande de
+     la pantalla si midiera lo mismo. */
+  width: 152px;
+  padding: 9px 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(var(--scrim-rgb), 0.5);
+  backdrop-filter: blur(7px);
+  box-shadow: none;
+  transition: border-color 0.25s var(--ease), background 0.25s var(--ease);
+}
+.home-exam-square::after {
+  content: '';
+  position: absolute;
+  left: 16%; right: 16%; bottom: -7px; height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(var(--scrim-rgb), 0.62), transparent);
+  pointer-events: none;
+}
+.home-exam-square:hover {
+  border-color: rgba(var(--accent-rgb), 0.55);
+  background: rgba(var(--scrim-rgb), 0.66);
+  box-shadow: none;
+}
+.home-exam-ring {
+  width: 48px; height: 48px;
+  margin: 0 auto 7px;
+  border: 1px solid var(--line-strong);
+  background: rgba(var(--lift-rgb), 0.035);
+}
+.home-exam-ring svg {
+  width: 19px; height: 19px;
+  fill: none;
+  stroke: var(--silver);
+  stroke-width: 1.7;
+}
+.home-exam-square:hover .home-exam-ring { border-color: rgba(var(--accent-rgb), 0.6); }
+.home-exam-square:hover .home-exam-ring svg { stroke: var(--accent); }
+.home-exam-kicker { color: var(--muted); }
+.home-exam-name { margin-top: 5px; font-weight: 600; color: var(--text); }
+.home-exam-go { margin-top: 5px; }
+
+
+/* ── 9. EL PANEL ABIERTO ────────────────────────────────────────────────────
+   Problema 7. No se mueve nada: se le da el peso que le faltaba. Un aro negro
+   de 1 px lo recorta contra lo que haya debajo y una sombra de 64 px lo
+   despega, así que cuando el panel de India cae sobre el Checkpoint 3 se lee
+   como «encima» y no como «revuelto». */
+.lm-pop {
+  width: 244px;
+  padding: 11px;
+  border-radius: 12px;
+  border-color: var(--line-strong);
+  background: var(--panel);
+  backdrop-filter: blur(14px);
+  box-shadow:
+    0 0 0 1px rgba(var(--scrim-rgb), 0.75),
+    0 28px 64px rgba(var(--scrim-rgb), 0.72),
+    inset 0 1px 0 rgba(var(--lift-rgb), 0.06);
+}
+/* El pin que sostiene un panel abierto recupera su caja aunque esté bloqueado:
+   si algo está abierto, tiene que parecer sujeto. */
+.lm-anchor.is-open .lm-pin {
+  background: var(--panel);
+  border-color: var(--line-strong);
+}
+.lm-anchor.is-open .lm-pin--locked .lm-pin-flag { filter: none; }
+
+.lm-card-sale {
+  margin: 0 0 9px;
+  font-weight: 600;
+}
+
+
+/* ── 10. LAS CUATRO FILAS ───────────────────────────────────────────────────
+   Mismo sistema que los pines, para que el panel no contradiga al mapa.
+   .lm-row--complete y .lm-chip--locked no tenían ninguna regla: existían en el
+   marcado y no en la hoja. */
+.lm-row { border-radius: 8px; padding: 8px 10px; }
+.lm-row-name { font-size: var(--t-caption); }
+
+.lm-row--complete {
+  border-color: rgba(var(--green-rgb), 0.28);
+  background: rgba(var(--scrim-rgb), 0.28);
+}
+.lm-row--complete .lm-row-name { color: var(--silver); font-weight: 400; }
+
+.lm-row--current {
+  padding: 10px;
+  border-color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.07);
+  box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.22);
+}
+.lm-row--current .lm-row-name { font-size: var(--t-body); color: var(--white); font-weight: 700; }
+.lm-row--current .lm-row-lvl { color: var(--white); }
+
+.lm-row--locked {
+  background: transparent;
+  border-color: rgba(var(--lift-rgb), 0.07);
+}
+.lm-row--locked .lm-row-name { font-weight: 400; }
+
+.lm-chip--locked {
+  color: var(--muted);
+  border-color: var(--line);
+  background: transparent;
+}
+
+
+/* ── 11. LO QUE NO SE TOCA ──────────────────────────────────────────────────
+   .lm-unplaced sigue siendo fea a propósito: es un aviso para el equipo, no
+   una pieza de producto, y dejar de verse mal sería perder la señal.
+   .lm-switch tampoco cambia. */
+
+
+/* ── OPCIONAL — requiere UNA clase nueva ────────────────────────────────────
+   Si el cliente puede añadir .lm-tier--active al tier que contiene el nivel en
+   curso, la barra de arriba también contesta «dónde estoy». El cliente la añade
+   (_lmHomeMapHtml), así que va activo. */
+.lm-tier--active { background: rgba(var(--lift-rgb), 0.04); }
+.lm-tier--active h2 span { color: var(--white); }
+.lm-tier--active .lm-tier-count { color: var(--text); }
+
+/* ── HOME DOORS: Hangar, Maintenance, Weather ────────────────────────────────
+   From the globe handoff (Claude Design, 2026-09-19), used on the flat map too.
+   On the map they hang on .lm-stage-wrap, beside the mock test, so the stage's
+   scale() does not shrink them. On a phone, where there is no map, they are a row
+   above the cards. The name lives in aria-label; the rail shows it on hover and
+   focus, the row shows it always because a thumb has no hover. */
+.home-doors--rail {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 6;
+}
+.home-door { position: relative; display: block; }
+.home-door-btn {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: rgba(var(--scrim-rgb), 0.55);
+  backdrop-filter: blur(7px);
+  color: var(--muted);
+  cursor: pointer;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.home-door-btn svg { width: 19px; height: 19px; }
+.home-door-btn:hover { border-color: var(--line-strong); background: rgba(var(--scrim-rgb), 0.72); color: var(--silver); }
+.home-door-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+/* Coming soon: reachable, announced, and visibly not a way in. */
+.home-door--soon .home-door-btn { cursor: default; opacity: 0.55; }
+.home-door--soon .home-door-btn:hover { border-color: var(--line); background: rgba(var(--scrim-rgb), 0.55); color: var(--muted); }
+.home-doors--rail .home-door-name { display: none; }
+.home-door-tip {
+  position: absolute;
+  left: 56px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 4px 9px;
+  border-radius: 4px;
+  background: var(--panel);
+  box-shadow: 0 0 0 1px var(--line-strong);
+  font-family: var(--font-instrument);
+  font-size: var(--t-label);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--text);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s var(--ease);
+}
+.home-door:hover .home-door-tip,
+.home-door-btn:focus-visible + .home-door-tip { opacity: 1; }
+
+.home-doors--row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.home-doors--row .home-door-tip { display: none; }
+.home-doors--row .home-door-btn {
+  width: 100%;
+  height: auto;
+  min-height: 46px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 12px;
+}
+.home-doors--row .home-door-name {
+  font-family: var(--font-instrument);
+  font-size: var(--t-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--silver);
+  white-space: nowrap;
+}
+.home-doors--row .home-door--soon .home-door-btn::after {
+  content: 'Soon';
+  font-family: var(--font-instrument);
+  font-size: var(--t-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
 </style>

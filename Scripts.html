@@ -2702,7 +2702,8 @@ window.tierByExam = function (examNum) {
         : '';
 
       byId('contentArea').innerHTML =
-        _staleNoticeHtml() + heroBar + mapSection + dcBannerHtml + cardsRow + modulesSection;
+        _staleNoticeHtml() + heroBar + mapSection + (_lmWideEnough() ? '' : _homeDoorsHtml('row')) +
+        dcBannerHtml + cardsRow + modulesSection;
 
       var _HOME_SECTION_TTL = 10 * 60 * 1000; // 10 minutes
 
@@ -2717,7 +2718,7 @@ window.tierByExam = function (examNum) {
            * Operational card takes its name from the Levels sheet, and drawing
            * before that arrives publishes a card with no name on it. */
           if (_levelMeta === null) { _loadLevelMeta(function() { _paint(catalog); }); return; }
-          el.innerHTML = _homeGridLink() + _lmHomeMapHtml(catalog, _homeExamSquare());
+          el.innerHTML = _homeGridLink() + _lmHomeMapHtml(catalog, _homeExamSquare() + _homeDoorsHtml('rail'));
           _lmFitStage();
         }
 
@@ -5489,6 +5490,16 @@ window.tierByExam = function (examNum) {
     // A control tower: the thing on the other end of the radio.
     tower:  '<path d="M12 3v7"/><path d="M8.5 21l3-11 3 11"/><path d="M7 21h10"/>' +
             '<path d="M6.5 6.5a7 7 0 0 1 11 0"/><path d="M4 4a10.5 10.5 0 0 1 16 0"/>',
+    // A hangar: the arch, the apron line and the open door. Home map door.
+    hangar: '<path d="M2.8 20.6V13.2C2.8 8.1 6.9 4 12 4s9.2 4.1 9.2 9.2v7.4"/><path d="M1.8 20.6h20.4"/>' +
+            '<path d="M8.2 20.6v-5.2c0-2.1 1.7-3.8 3.8-3.8s3.8 1.7 3.8 3.8v5.2"/><path d="M12 11.6v9"/>',
+    // One open-ended spanner. A crossed spanner and screwdriver read as scissors at 19px.
+    maintenance: '<path d="M6.8 3.77A4.9 4.9 0 1 1 3.77 6.8L6.04 7.59 7.59 6.04Z"/>' +
+            '<path d="M12.67 11.05 19.81 18.19A1.15 1.15 0 0 1 18.19 19.81L11.05 12.67"/>',
+    // Sun behind a cloud: the Weather module.
+    weather: '<path d="M9 2.4v1.8"/><path d="M4.1 4.1l1.3 1.3"/><path d="M2.4 9h1.8"/><path d="M4.1 13.9l1.3-1.3"/>' +
+            '<path d="M13.9 4.1l-1.3 1.3"/><path d="M5.3 11.9A4.4 4.4 0 1 1 13 7.4"/>' +
+            '<path d="M8.3 19.2h8.4a3.2 3.2 0 0 0 .4-6.4 4.7 4.7 0 0 0-9-1 3.5 3.5 0 0 0 .2 7.4z"/>',
     // A sheet with a line of writing and a tick: the test.
     paper:  '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/>' +
             '<path d="M9 12h6"/><path d="M9 16l1.5 1.5L14 14"/>',
@@ -6207,12 +6218,43 @@ var LEVEL_THEMES = {
     return '<div class="home-exam-overlay">' +
       '<button type="button" class="home-exam-square" onclick="_navTo(renderTeaExam)"' +
         ' aria-label="Mock test based on ICAO — begin">' +
-        '<span class="home-exam-ring">' + uiIconInline('paper') + '</span>' +
+        '<span class="home-exam-ring">' + uiIcon('paper', 15) + '</span>' +
         '<span class="home-exam-kicker">Based on ICAO</span>' +
         '<span class="home-exam-name">Mock test</span>' +
         '<span class="home-exam-go">Begin</span>' +
       '</button>' +
     '</div>';
+  }
+
+  /* The three doors on the home page: Hangar, Maintenance, Weather.
+   *
+   * Enumerated, not a list with a default: a door is either wired to a screen or
+   * says it is coming. Only Weather has a module today. The other two are
+   * aria-disabled rather than disabled so a keyboard can still reach them and hear
+   * "coming soon" — a door you cannot find is not the same as one that is shut.
+   *
+   * 'rail' hangs on the map wrap beside the mock test (above 1100px); 'row' is the
+   * phone's version above the cards, where there is no map to hang it on. */
+  function _homeDoorsHtml(layout) {
+    // Each mark is named literally, so the icon-set check can see it is used.
+    var doors = [
+      { mark: uiIcon('hangar', 19),      name: 'Hangar',      action: null },
+      { mark: uiIcon('maintenance', 19), name: 'Maintenance', action: null },
+      { mark: uiIcon('weather', 19),     name: 'Weather',     action: '_navTo(_openWeatherModule)' }
+    ];
+    var cls = layout === 'rail' ? 'home-doors home-doors--rail' : 'home-doors home-doors--row';
+    return '<div class="' + cls + '">' + doors.map(function (d) {
+      var soon = !d.action;
+      var label = d.name + (soon ? ' — coming soon' : '');
+      return '<span class="home-door' + (soon ? ' home-door--soon' : '') + '">' +
+        '<button type="button" class="home-door-btn" aria-label="' + label + '"' +
+          (soon ? ' aria-disabled="true"' : ' onclick="' + d.action + '"') + '>' +
+          d.mark +
+          '<span class="home-door-name">' + d.name + '</span>' +
+        '</button>' +
+        '<b class="home-door-tip">' + d.name.toUpperCase() + (soon ? ' · SOON' : '') + '</b>' +
+      '</span>';
+    }).join('') + '</div>';
   }
 
   /* The map as the HOME page draws it: the stage, and Operational underneath.
@@ -7194,7 +7236,7 @@ var LEVEL_THEMES = {
           'px;top:' + _lmCpPt.y.toFixed(1) + 'px;"' +
           ' aria-label="Checkpoint ' + t.examNum + ' — ' + safeText(label) + '. ' + safeText(sub) + '"' +
           ' ' + _examActionFor(t.examNum, status) + '>' +
-          '<span class="lm-cp-ring">' + uiIconInline(mark) + '</span>' +
+          '<span class="lm-cp-ring">' + uiIcon(mark, 15) + '</span>' +
           '<span class="lm-cp-name">Checkpoint ' + t.examNum + '</span>' +
           '<span class="lm-cp-state">' + label + '</span>' +
           '<span class="lm-cp-sub">' + safeText(sub) + '</span>' +
@@ -7215,11 +7257,16 @@ var LEVEL_THEMES = {
         }).join('') + '</div>';
     }
 
+    /* The tier holding the level in progress, so the strip answers "where am I".
+     * In progress = the same test the rows use for their 'current' state. */
+    var nowLevel = models.filter(function (m) { return !m.isCompleted && !m.planLock && !m.locked; })
+      .sort(function (a, b) { return a.level - b.level; })[0];
     var tierBar = tiers.map(function (t) {
       var done = 0, total = 0;
       models.forEach(function (m) { if (m.tier === t.num) { total++; if (m.isCompleted) done++; } });
       var pct = total ? Math.round(done / total * 100) : 0;
-      return '<section class="lm-tier"><h2>TIER ' + t.num + '<span>' + safeText(t.name.toUpperCase()) + '</span></h2>' +
+      var active = nowLevel && nowLevel.tier === t.num ? ' lm-tier--active' : '';
+      return '<section class="lm-tier' + active + '"><h2>TIER ' + t.num + '<span>' + safeText(t.name.toUpperCase()) + '</span></h2>' +
         '<div class="lm-tier-count">' + done + ' / ' + total + ' complete</div>' +
         '<div class="lm-tier-bar"><i style="width:' + pct + '%"></i></div></section>';
     }).join('');
@@ -16094,6 +16141,40 @@ var LEVEL_THEMES = {
       .apiModuleGetAll(AppState.sessionToken);
   }
 
+  /* The Weather door on the home page.
+   *
+   * Modules live in the Modules sheet under ids nobody should write into the
+   * client, so the door finds its module by topic. Exactly one ACTIVE module with
+   * topic Weather opens straight into it; none, or more than one, is reported and
+   * lands on the modules list, where the student can still choose. A locked one
+   * also lands on the list: the list is where the lock is explained, and the door
+   * must not be a way round it. */
+  function _openWeatherModule() {
+    setActiveNav('Modules');
+    var _tok = _navToken;
+    var loader = renderRadarLoader('TRAINING MODULE', ['Finding the weather module\u2026'], 'Connecting to training server');
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (_navToken !== _tok) return;
+        if (loader && loader.stop) loader.stop();
+        if (!res || !res.ok) { showContentError(res && res.error ? res.error : 'Could not load modules.'); return; }
+        var mods = res.modules || [];
+        var hits = mods.filter(function (m) { return String(m.topic || '').trim().toLowerCase() === 'weather'; });
+        if (hits.length === 1 && hits[0].unlocked) { renderModuleDetail(hits[0].moduleId); return; }
+        if (hits.length !== 1) {
+          try { if (window._reportClientError) window._reportClientError('weatherDoor',
+            new Error(hits.length + ' active modules with topic Weather')); } catch (e) {}
+        }
+        _renderModuleRoadmap(mods);
+      })
+      .withFailureHandler(function (err) {
+        if (_navToken !== _tok) return;
+        if (loader && loader.stop) loader.stop();
+        handleServerError(err);
+      })
+      .apiModuleGetAll(AppState.sessionToken);
+  }
+
   function lmsBool_(v) {
     return v === true || v === 'TRUE' || v === 'true' || v === 1 || v === '1';
   }
@@ -18879,6 +18960,7 @@ var LEVEL_THEMES = {
 
   window.renderModules          = renderModules;
   window.renderModuleDetail     = renderModuleDetail;
+  window._openWeatherModule     = _openWeatherModule;
   window.moduleMarkVideoWatched = moduleMarkVideoWatched;
   window.moduleSubmitQuiz       = moduleSubmitQuiz;
   window.moduleForumPost        = moduleForumPost;

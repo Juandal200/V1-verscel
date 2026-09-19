@@ -81,6 +81,8 @@ function lift(extra) {
       label: { IN:'India', GB:'United Kingdom', AU:'Australia', US:'USA', CA:'Canada' }[c] || c }),
     getFlagHtml: (c) => '<svg class="lm-flag"><path id="a"/><use href="#a"/></svg>',
     uiIconInline: () => '<svg></svg>',
+    // The checkpoint ring draws the bare mark since the globe handoff (no text-flow wrapper).
+    uiIcon: () => '<svg></svg>',
     safeText: v => String(v == null ? '' : v).replace(/[<>&]/g, ''),
     _simTabStrip: () => '<nav></nav>',
     _tierOf: n => TIERS.filter(t => t.levels.indexOf(n) >= 0)[0] || null,

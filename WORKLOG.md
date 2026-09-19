@@ -15,6 +15,54 @@ Newest day first.
 
 ---
 
+## 2026-09-19
+
+### The level map, phase 1: the flat map redesign and three doors
+
+**Plan.** From Claude Design's globe handoff (`design_handoff_globo_niveles`), in two
+phases agreed on 2026-09-19. Phase 1, this entry: paste `lm-redesign.css` at the end of
+Styles.html, make the three markup changes it asks for, and add the Hangar /
+Maintenance / Weather doors. Phase 2, later and on its own branch: the globe itself, with
+a Map / Cards choice on the phone. Rollback point for both: tag `antes-globo-2026-09-19`.
+
+What changed against the handoff, and why:
+- `lm-redesign.css` is "literal", but five values broke the design-system scales and
+  were moved onto them: weight 500 -> 400, radii 2/9/14px -> 4/8/12px, two elevation
+  shadows -> `var(--shadow-2)`. Everything else is as sent.
+- The ring icons lose their text-flow wrapper at the generator (`uiIcon` instead of
+  `uiIconInline`), so the CSS override for its `margin-right` was not pasted.
+- `.lm-tier--active` is added to the tier holding the first level in progress, and its
+  CSS, commented out in the handoff, is live.
+- The `aria-expanded` fix was NOT needed: `_lmOpenCountry` / `_lmCloseCountries` keep it
+  in step. The mismatch Design saw came from a static snapshot of the page.
+- Weather opens the ACTIVE module whose topic is "Weather" (today titled "Level 1").
+  Found by topic, not by id or title. Locked, missing or duplicated -> the modules
+  list, and the last two are reported.
+- Hangar and Maintenance are shown, `aria-disabled`, and say "coming soon".
+- On a phone the map is not drawn, so the doors are a row above the cards.
+
+**Criterion.** `DERIVED` — the desktop map looks like `lm-redesign.css` with the same
+states and texts as before, and Weather opens the weather module from the desktop and
+from a phone.
+
+**Checklist.**
+
+- [ ] The level in progress is the biggest pin on the map: white border and a slow pulsing ring
+- [ ] Completed levels carry a green tick; locked ones are a small mark without a box
+- [ ] The tier strip above the map highlights the tier you are in
+- [ ] Checkpoints show their states; a locked one cannot be pressed
+- [ ] The mock test looks like the last stop and still says "Based on ICAO"
+- [ ] Three round icons sit on the left of the map; hovering one shows its name
+- [ ] Weather opens the weather module
+- [ ] Hangar and Maintenance do nothing and say "coming soon"
+- [ ] On a phone the three doors sit above the cards, and Weather works there too
+- [ ] With the keyboard (Tab) every door is reachable and the focus ring is visible
+- [ ] The Levels screen's map (Simulator tab) still works, with the same look
+
+**Not verifiable from the repo.** Every line above: they are a browser.
+
+---
+
 ## 2026-09-16
 
 ### The brand moves above the globe, and the wordmark becomes type
