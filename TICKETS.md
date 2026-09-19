@@ -477,6 +477,66 @@ rather than fixed.
 
 ---
 
+## F-0033 — Mixed Spanish and English, a black-and-white certificate, misaligned buttons
+**Source** R-0014 · reported 2026-09-13 by Angélica Álvarez
+**Severity** 🟡 Menor
+**Area** Interfaz de usuario
+**Observed** *Inconsistencias de idioma (español e inglés mezclados) y visuales (certificado
+en blanco y negro frente a producto colorido, botones desalineados).*
+> Language inconsistencies (Spanish and English mixed) and visual ones (a black-and-white
+> certificate next to a colourful product, misaligned buttons).
+Evidence sent 2026-09-18: a screenshot of the certificate, captioned *«certificado gris
+lavado, sin color, tipografía y fondo sin terminar»*.
+
+This is three defects in one row. They are closed separately and the ticket stays Open
+until all three are.
+
+**Done when** `DERIVED`, per part:
+1. **Certificate** — it renders from its own fixed palette, identically on the dark and
+   the light theme, with the brand logo, on screen, at 360px and on one printed landscape
+   sheet. Checklist, for a person at the screen:
+   - [ ] On the dark theme the certificate is black with white headings and gold details, not grey.
+   - [ ] On the light theme it looks exactly the same.
+   - [ ] The aero comms logo sits top left, undistorted.
+   - [ ] There is no "ICAO" watermark and no "Training Platform Authority" signature.
+   - [ ] The date reads like "18 September 2026" with the browser set to Spanish.
+   - [ ] On a 360px phone there is no sideways scroll and the three figures stack.
+   - [ ] "Print certificate" produces one landscape sheet, in colour, without the buttons.
+   - [ ] Printing any other screen is not turned landscape.
+2. **Language** — no text the code produces is shown in Spanish. Not started; the sweep
+   found the plan modal ("Elige tu plan", "MÁS POPULAR", "Error al cargar planes." twice),
+   the pending-approval message in `Authservice.js` and the TTS key error.
+3. **Buttons** — not derivable from the row, which does not say which buttons. Needs asking.
+
+**Status** Open. The certificate part is done in the commit that adds this entry (layout
+by Claude Design, adapted to the design-system scales); rendering is unverifiable from
+the repo and waits on the checklist above. The certificate still carries `ICAO-` in its
+ID: changing it would change the id of certificates already saved, so it was left.
+
+---
+
+## A reopened certificate shows today's date as its issue date
+
+**No bot ID.** Found 2026-09-18 while redesigning the certificate for F-0033.
+
+**Source** Found during other work · 2026-09-18
+**Severity** Medium — the date on a certificate a student may show an employer
+**Area** `viewCertByIndex` / `renderLevelCertificateScreen` in Scripts.html
+
+**Observed** The Certificates tab lists each certificate with `issuedAt`, but opening one
+calls `renderLevelCertificateScreen`, which writes `Date Issued` from `new Date()`. The
+list and the certificate it opens disagree, and the certificate is always dated today.
+
+**Expected** A certificate shows the date it was issued, every time it is opened.
+
+**Done when** `DERIVED` Reopening a certificate from the Certificates tab shows the same
+date as its card in the list.
+
+**Status** Open. Not fixed in F-0033's commit: rule 4, and that ticket is about how the
+certificate looks, not what it says.
+
+---
+
 ## F-0043a — Nothing happens between the Duel button and the first question
 
 **Source** R-0000 · no meeting report — reported straight through the bot on

@@ -13262,7 +13262,14 @@ var LEVEL_THEMES = {
     var pilotName = AppState.user && AppState.user.name ? AppState.user.name : 'Senior Pilot';
     var level = Number(levelInfo.level || AppState.training.selectedLevel || 1);
     var certId = getSeniorCertificateId(level);
-    var dateText = new Date().toLocaleDateString();
+    // Pinned to English: the certificate is an English document, and a bare
+    // toLocaleDateString() printed 18/9/2026 on a browser set to Spanish.
+    var dateText = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    // The logo the shell already loaded, as the simulator header does; no second copy.
+    var logoEl  = document.getElementById('appLogoHidden');
+    var logoImg = logoEl && logoEl.src
+      ? '<img class="senior-cert-logo" src="' + safeText(logoEl.src) + '" alt="aero comms">'
+      : '';
     var avgScore = calculateLevelAverageScore(levelInfo);
 
     var countries = '';
@@ -13297,11 +13304,10 @@ var LEVEL_THEMES = {
       '<section class="senior-certificate-shell">' +
         '<div class="senior-certificate-toolbar"><div><p class="eyebrow">Level completed</p><h2>Certificate ready</h2><p class="subtitle">A professional certificate has been generated for this completed level.</p><p id="certSaveStatus" style="font-size: 0.82rem;color:var(--muted);margin-top:4px;">Saving to your profile…</p></div><div class="senior-actions compact"><button class="btn secondary" onclick="renderSimulatorPlaceholder()">Back to simulator</button><button class="btn secondary" onclick="renderHome()">Go to Home</button><button class="btn primary" onclick="window.print()">Print certificate</button></div></div>' +
         '<div class="senior-certificate-card">' +
-          '<div class="senior-cert-watermark">ICAO</div>' +
-          '<div class="senior-cert-header"><div><p class="senior-cert-kicker">Aviation English Interactive Campus</p><h1>Certificate of Operational Proficiency</h1></div><div class="senior-cert-id"><span>Certificate ID</span><strong>' + safeText(certId) + '</strong></div></div>' +
+          '<div class="senior-cert-header"><div>' + logoImg + '<p class="senior-cert-kicker">Aviation English Interactive Campus</p><h1>Certificate of Operational Proficiency</h1></div><div class="senior-cert-id"><span>Certificate ID</span><strong>' + safeText(certId) + '</strong></div></div>' +
           '<div class="senior-cert-body"><p>This certifies that</p><h2>' + safeText(pilotName) + '</h2><p>has successfully completed</p><h3>Level ' + safeText(level) + ' Aviation Communication Training</h3><div class="senior-cert-route"><span>Completed ATC environments</span><strong>' + safeText(countries) + '</strong></div></div>' +
           '<div class="senior-cert-metrics"><div><span>Average Score</span><strong>' + safeText(avgScore) + '%</strong></div><div><span>Training Level</span><strong>Level ' + safeText(level) + '</strong></div><div><span>Date Issued</span><strong>' + safeText(dateText) + '</strong></div></div>' +
-          '<div class="senior-cert-footer"><div class="senior-signature"><span></span><strong>Training Platform Authority</strong><small>Aviation English Interactive Campus</small></div><div class="senior-seal"><span>ATP</span><small>Verified</small></div></div>' +
+          '<div class="senior-cert-footer"><div class="senior-seal"><span>aero comms</span><small>Verified training record</small></div></div>' +
         '</div>' +
       '</section>';
   }

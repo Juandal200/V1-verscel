@@ -45,7 +45,10 @@ ok('and the emerald that was never in the palette is gone',
 
 console.log('--- nothing else spells them out ---');
 // The definitions are the only legitimate use, so they are subtracted first.
-const defs = /--(?:red|green|yellow|accent)(?:-rgb)?\s*:\s*[^;]+;/g;
+// --cert-gold is one: the certificate is dark in BOTH themes, so it needs the
+// dark-theme yellow in both, and --yellow turns brown on light. It is defined
+// once on .senior-certificate-card and every use inside reads var(--cert-gold).
+const defs = /--(?:red|green|yellow|accent|cert-gold)(?:-rgb)?\s*:\s*[^;]+;/g;
 const bodyC = Cc.replace(defs, '');
 // REPORT_TOKENS is inlined into a document.write page. That page has no theme
 // and no tokens; these literals are what every var() in the report resolves to.

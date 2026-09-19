@@ -4920,7 +4920,19 @@ body.sim-focus-mode .topbar-avatar {
   box-shadow: 0 0 0 2px rgba(99,102,241,0.5), 0 2px 12px rgba(var(--scrim-rgb), 0.42);
 }
 
-/* Certificate */
+/* Certificate
+ *
+ * A certificate is a document, not a screen, so it paints its own room and does not
+ * follow the theme. It used to: every colour here was a theme token, and on the dark
+ * theme that came out as --muted on --text, #808080 on #cacaca, 2.3:1. A grey sheet
+ * that looked unfinished, and looked different again on the light theme.
+ *
+ * The palette is declared once, on the card, and nothing inside reads a theme token
+ * for colour. The gold is the brand yellow at its dark-theme value on purpose: the
+ * card is dark in both themes, so --yellow (which turns brown on light) is wrong here.
+ * token-discipline.test.js names --cert-gold as a legitimate definition for that reason.
+ *
+ * Layout by Claude Design, 2026-09-18 (F-0033). */
 
 .senior-certificate-toolbar {
   display: flex;
@@ -4935,226 +4947,372 @@ body.sim-focus-mode .topbar-avatar {
 }
 
 .senior-certificate-card {
+  --cert-ink: #0d0d0d;
+  --cert-navy-rgb: 20, 48, 77;
+  --cert-silver: #bebebe;
+  --cert-bright: #cacaca;
+  --cert-white: #ffffff;
+  --cert-gold: #eab308;
+  --cert-gold-rgb: 234, 179, 8;
+  --cert-rule: rgba(190, 190, 190, 0.22);
+  --cert-rule-soft: rgba(190, 190, 190, 0.12);
+  --cert-chip: rgba(190, 190, 190, 0.06);
+
   position: relative;
+  isolation: isolate;
   overflow: hidden;
-  min-height: 720px;
-  color: var(--muted);
-  border-radius: 22px;
-  padding: 54px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1100px;
+  min-height: 780px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 56px 64px 48px;
+  font-family: var(--font-ui);
+  color: var(--cert-bright);
   background:
-    radial-gradient(circle at top left, rgba(var(--lift-rgb), 0.1), transparent 30%),
-    linear-gradient(135deg, var(--text), var(--text));
+    radial-gradient(130% 80% at 50% -18%, rgba(var(--cert-navy-rgb), 0.85) 0%, rgba(var(--cert-navy-rgb), 0) 58%),
+    var(--cert-ink);
+  border: 1px solid var(--cert-rule);
+  border-radius: 4px;
   box-shadow: var(--shadow-3);
-  border: 1px solid var(--text);
+  color-scheme: only light;
+  page: certificate;
 }
 
-.senior-certificate-card::before {
-  content: '';
-  position: absolute;
-  inset: 22px;
-  border: 2px solid var(--bg);
-  border-radius: 22px;
-  opacity: 0.9;
+.senior-certificate-card,
+.senior-certificate-card * {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  box-sizing: border-box;
 }
 
-.senior-certificate-card::after {
-  content: '';
-  position: absolute;
-  inset: 34px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  opacity: 0.75;
-}
-
-.senior-cert-watermark {
-  position: absolute;
-  right: 48px;
-  bottom: 26px;
-  font-size: clamp(5rem, 16vw, 13rem);
-  font-weight: 800;
-  color: rgba(var(--scrim-rgb), 0.03);
-  letter-spacing: -0.02em;
-  pointer-events: none;
-}
-
-.senior-cert-header,
-.senior-cert-body,
-.senior-cert-metrics,
-.senior-cert-footer {
+.senior-certificate-card > * {
   position: relative;
   z-index: 2;
 }
 
+/* metallic edge along the top */
+.senior-certificate-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  z-index: 3;
+  background: linear-gradient(90deg, var(--cert-gold) 0%, var(--cert-bright) 38%, #808080 62%, var(--cert-gold) 100%);
+}
+
+/* hairline inner frame */
+.senior-certificate-card::after {
+  content: "";
+  position: absolute;
+  inset: 18px;
+  z-index: 1;
+  border: 1px solid var(--cert-rule-soft);
+  pointer-events: none;
+}
+
 .senior-cert-header {
   display: flex;
-  justify-content: space-between;
-  gap: 24px;
   align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+  padding-bottom: 26px;
+  border-bottom: 1px solid var(--cert-rule);
+}
+
+.senior-cert-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.senior-cert-logo {
+  display: block;
+  align-self: flex-start; /* a flex column would otherwise stretch and distort it */
+  flex: 0 0 auto;
+  height: 62px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  filter: brightness(1.3); /* lifts the silver of the logo off the ink ground */
 }
 
 .senior-cert-kicker {
-  color: var(--muted);
-  font-weight: 800;
-  text-transform: uppercase;
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
   letter-spacing: 0.2em;
-  margin: 0 0 12px;
+  text-transform: uppercase;
+  color: var(--cert-silver);
 }
 
 .senior-cert-header h1 {
-  color: var(--muted);
   margin: 0;
-  max-width: 760px;
-  font-size: clamp(2.1rem, 5vw, 4.4rem);
-  line-height: 0.98;
+  font-size: clamp(1.6rem, 3.6vw, 2.5rem);
+  line-height: 1.06;
+  font-weight: 600;
   letter-spacing: -0.02em;
+  color: var(--cert-white);
+  text-wrap: balance;
 }
 
 .senior-cert-id {
-  min-width: 210px;
-  border-radius: 16px;
-  padding: 14px;
-  background: var(--bg);
-  color: white;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px 16px;
   text-align: right;
+  background: var(--cert-chip);
+  border: 1px solid var(--cert-rule);
+  border-radius: 4px;
 }
 
 .senior-cert-id span {
-  display: block;
-  color: var(--muted);
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  margin-bottom: 6px;
+  color: var(--cert-silver);
 }
 
 .senior-cert-id strong {
   font-family: var(--font-instrument);
   font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--cert-white);
 }
 
 .senior-cert-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 48px 0 44px;
   text-align: center;
-  padding: 70px 20px 46px;
 }
 
-.senior-cert-body p {
-  color: var(--muted);
-  font-size: 1.15rem;
-  margin: 8px 0;
+.senior-cert-body > p {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cert-silver);
 }
 
 .senior-cert-body h2 {
-  color: var(--muted);
-  font-size: clamp(2.2rem, 5vw, 4.7rem);
-  margin: 10px 0 18px;
+  margin: 0;
+  max-width: 900px;
+  font-size: clamp(1.9rem, 5vw, 3.4rem);
+  line-height: 1.04;
+  font-weight: 600;
   letter-spacing: -0.02em;
+  color: var(--cert-white);
+  text-wrap: balance;
+  overflow-wrap: break-word;
+}
+
+/* gold rule under the name, with no extra markup */
+.senior-cert-body h2::after {
+  content: "";
+  display: block;
+  width: 120px;
+  height: 2px;
+  margin: 22px auto 0;
+  background: var(--cert-gold);
 }
 
 .senior-cert-body h3 {
-  color: var(--muted);
-  font-size: clamp(1.2rem, 2.5vw, 2.3rem);
-  margin: 12px 0;
+  margin: 0;
+  max-width: 820px;
+  font-size: 1.35rem;
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--cert-gold);
 }
 
 .senior-cert-route {
-  margin: 34px auto 0;
-  max-width: 820px;
-  border-radius: 22px;
-  padding: 18px;
-  border: 1px solid var(--muted);
-  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 760px;
+  margin-top: 12px;
+  padding-top: 18px;
+  border-top: 1px solid var(--cert-rule-soft);
 }
 
 .senior-cert-route span {
-  display: block;
-  color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  margin-bottom: 8px;
+  color: var(--cert-silver);
 }
 
 .senior-cert-route strong {
-  color: var(--muted);
-  line-height: 1.6;
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--cert-bright);
 }
 
 .senior-cert-metrics {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--cert-rule);
+  border-bottom: 1px solid var(--cert-rule);
 }
 
-.senior-cert-metrics div {
-  border-radius: 16px;
-  padding: 16px;
-  border: 1px solid var(--muted);
-  background: var(--panel);
+.senior-cert-metrics > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 20px;
+  text-align: center;
+}
+
+.senior-cert-metrics > div + div {
+  border-left: 1px solid var(--cert-rule-soft);
 }
 
 .senior-cert-metrics span {
-  display: block;
-  color: var(--muted);
-  font-size: 0.72rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 8px;
+  color: var(--cert-silver);
 }
 
 .senior-cert-metrics strong {
-  color: var(--muted);
-  font-size: 1.35rem;
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--cert-white);
 }
 
 .senior-cert-footer {
-  margin-top: 58px;
   display: flex;
-  justify-content: space-between;
-  gap: 26px;
-  align-items: end;
-}
-
-.senior-signature {
-  display: grid;
-  gap: 8px;
-}
-
-.senior-signature span {
-  width: 320px;
-  border-top: 2px solid var(--bg);
-}
-
-.senior-signature strong {
-  color: var(--muted);
-}
-
-.senior-signature small {
-  color: var(--muted);
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding-top: 38px;
 }
 
 .senior-seal {
-  width: 126px;
-  height: 126px;
-  border-radius: 999px;
-  border: 2px solid var(--line);
-  display: grid;
-  place-items: center;
-  align-content: center;
-  background: radial-gradient(circle, rgba(var(--lift-rgb), 0.16), transparent 65%);
+  flex: 0 0 auto;
+  width: 148px;
+  height: 148px;
+  padding: 12px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  border: 1px solid var(--cert-gold);
+  box-shadow: inset 0 0 0 4px var(--cert-ink), inset 0 0 0 5px rgba(var(--cert-gold-rgb), 0.35);
+  background: radial-gradient(circle at 50% 35%, rgba(var(--cert-gold-rgb), 0.1), rgba(var(--cert-gold-rgb), 0) 70%);
 }
 
 .senior-seal span {
-  color: var(--muted);
-  font-size: 2rem;
-  font-weight: 800;
-  line-height: 1;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--cert-gold);
 }
 
 .senior-seal small {
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
   font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  line-height: 1.35;
+  color: var(--cert-silver);
+}
+
+/* Phone: 360px with no sideways scroll. This is the certificate's only small-screen
+ * rule; the generic breakpoints further down used to override it with !important and
+ * no longer mention the certificate. */
+@media (max-width: 760px) {
+  .senior-certificate-card {
+    min-height: 0;
+    padding: 30px 20px 28px;
+  }
+  .senior-certificate-card::after { inset: 10px; }
+
+  .senior-cert-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 18px;
+    padding-bottom: 20px;
+  }
+  .senior-cert-logo { height: 46px; }
+  .senior-cert-kicker { font-size: 0.62rem; letter-spacing: 0.2em; }
+  .senior-cert-id {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    text-align: left;
+  }
+  .senior-cert-id strong { font-size: 0.82rem; }
+
+  .senior-cert-body { gap: 14px; padding: 30px 0 26px; }
+  .senior-cert-body > p { font-size: 0.62rem; letter-spacing: 0.2em; }
+  .senior-cert-body h2::after { width: 80px; margin-top: 16px; }
+  .senior-cert-body h3 { font-size: 1rem; }
+  .senior-cert-route { margin-top: 8px; padding-top: 14px; }
+  .senior-cert-route strong { font-size: 0.82rem; }
+
+  .senior-cert-metrics { grid-template-columns: 1fr; }
+  .senior-cert-metrics > div {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 2px;
+    text-align: left;
+  }
+  .senior-cert-metrics > div + div {
+    border-left: 0;
+    border-top: 1px solid var(--cert-rule-soft);
+  }
+  .senior-cert-metrics strong { font-size: 1.15rem; }
+
+  .senior-cert-footer {
+    justify-content: center;
+    padding-top: 28px;
+    text-align: center;
+  }
+  .senior-seal { width: 126px; height: 126px; }
+}
+
+/* Print: one landscape sheet, A4 or Letter.
+ *
+ * The page size is a NAMED page, so only the certificate prints landscape; a bare
+ * @page here would turn every other print of the app sideways. The safe box is the
+ * intersection of A4 and Letter landscape inside 9mm margins, about 258 x 188mm.
+ *
+ * Hiding the rest by visibility leaves it in the layout, where it still takes up
+ * pages. So on the certificate screen everything that is neither the card nor one
+ * of its ancestors is taken out of the layout as well. Scoped with :has() to that
+ * screen, so printing anything else behaves exactly as it did. */
+@page certificate {
+  size: landscape;
+  margin: 9mm;
 }
 
 @media print {
@@ -5167,19 +5325,61 @@ body.sim-focus-mode .topbar-avatar {
     visibility: visible !important;
   }
 
+  body:has(.senior-certificate-card) *:not(:has(.senior-certificate-card)):not(.senior-certificate-card):not(.senior-certificate-card *) {
+    display: none !important;
+  }
+
   .senior-certificate-card {
     position: fixed;
-    inset: 0;
-    width: 100%;
-    min-height: 100vh;
-    box-shadow: none;
+    top: 0;
+    left: 0;
+    width: 258mm;
+    max-width: 258mm;
+    height: 188mm;
+    min-height: 0;
+    max-height: 188mm;
+    padding: 9mm 11mm 8mm;
     border-radius: 0;
-    padding: 48px;
+    box-shadow: none;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
+  .senior-certificate-card::after { inset: 4mm; }
 
   .senior-certificate-toolbar {
     display: none !important;
   }
+
+  .senior-cert-header { padding-bottom: 5mm; }
+  .senior-cert-logo { height: 16mm; }
+  .senior-cert-kicker { font-size: 0.72rem; }
+  .senior-cert-header h1 { font-size: 2rem; }
+  .senior-cert-id { padding: 2.5mm 3.5mm; }
+  .senior-cert-id span { font-size: 0.62rem; }
+  .senior-cert-id strong { font-size: 0.9rem; }
+
+  .senior-cert-body { gap: 3mm; padding: 5mm 0 4mm; min-height: 0; }
+  .senior-cert-body > p { font-size: 0.82rem; }
+  .senior-cert-body h2 { font-size: 2rem; max-width: 210mm; }
+  .senior-cert-body h2::after { width: 28mm; margin-top: 4mm; }
+  .senior-cert-body h3 { font-size: 1.15rem; }
+  .senior-cert-route { margin-top: 2mm; padding-top: 4mm; }
+  .senior-cert-route span { font-size: 0.62rem; }
+  .senior-cert-route strong { font-size: 0.9rem; }
+
+  .senior-cert-metrics > div { padding: 3.5mm; }
+  .senior-cert-metrics span { font-size: 0.62rem; }
+  .senior-cert-metrics strong { font-size: 1.6rem; }
+
+  .senior-cert-footer { padding-top: 5mm; }
+  .senior-seal {
+    width: 30mm;
+    height: 30mm;
+    padding: 1.8mm;
+    box-shadow: inset 0 0 0 1mm var(--cert-ink), inset 0 0 0 1.3mm rgba(var(--cert-gold-rgb), 0.35);
+  }
+  .senior-seal span { font-size: 0.72rem; }
+  .senior-seal small { font-size: 0.62rem; }
 }
 
 @media (max-width: 980px) {
@@ -5190,23 +5390,8 @@ body.sim-focus-mode .topbar-avatar {
   }
 
   .senior-mission-grid,
-  .senior-cert-metrics,
   .certificate-home-grid {
     grid-template-columns: 1fr;
-  }
-
-  .senior-cert-header,
-  .senior-cert-footer {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .senior-cert-id {
-    text-align: left;
-  }
-
-  .senior-certificate-card {
-    padding: 32px;
   }
 }
 
@@ -8659,7 +8844,6 @@ button, .btn, .nav-item, input, textarea, select {
   .sim-layout { grid-template-columns: 1fr; }
   .level-map-grid-pro { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .analytics-hero { padding: 22px; }
-  .senior-certificate-card { padding: 32px; }
 }
 
 /* ── 900px — tablet portrait · sidebar → sticky top nav ─────── */
@@ -8780,7 +8964,6 @@ button, .btn, .nav-item, input, textarea, select {
 
   /* Senior completion */
   .senior-mission-grid { grid-template-columns: repeat(2, 1fr) !important; }
-  .senior-cert-metrics  { grid-template-columns: repeat(2, 1fr) !important; }
   .certificate-home-grid { grid-template-columns: 1fr !important; }
 
   /* Table scroll fade cue */
@@ -8820,10 +9003,7 @@ button, .btn, .nav-item, input, textarea, select {
   .senior-actions { flex-direction: column !important; align-items: stretch !important; }
   .senior-actions .btn { width: 100% !important; }
 
-  .senior-certificate-card { padding: 22px 16px !important; }
-  .senior-cert-watermark { display: none !important; }
   .senior-mission-grid { grid-template-columns: 1fr !important; }
-  .senior-cert-metrics  { grid-template-columns: 1fr !important; }
 
   .sub-modal-card { border-radius: 12px !important; padding: 26px 18px 18px !important; }
   .sub-price-amount { font-size: 1.6rem !important; }
@@ -8853,8 +9033,6 @@ button, .btn, .nav-item, input, textarea, select {
     border-radius: 16px !important;
   }
 
-  .senior-cert-header { flex-direction: column !important; gap: 12px !important; }
-  .senior-cert-id     { text-align: left !important; }
 
   .login-card { padding: 20px 14px !important; }
 
